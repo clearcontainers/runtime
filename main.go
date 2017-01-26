@@ -82,7 +82,9 @@ func main() {
 		},
 	}
 
-	app.Commands = []cli.Command{}
+	app.Commands = []cli.Command{
+		createCommand,
+	}
 
 	app.Before = func(context *cli.Context) error {
 		if context.GlobalBool("debug") {
