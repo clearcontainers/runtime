@@ -6,3 +6,9 @@ COMMIT := $(if $(shell git status --porcelain --untracked-files=no),"${COMMIT_NO
 .DEFAULT: cc-runtime
 cc-runtime: $(SOURCES)
 	go build -i -ldflags "-X main.commit=${COMMIT} -X main.version=${VERSION}" -o $@ .
+
+.PHONY: check check-go-static
+check: check-go-static
+
+check-go-static:
+	.ci/go-static-checks.sh $(GO_STATIC_CHECKS_ARGS)
