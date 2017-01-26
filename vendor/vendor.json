@@ -1,0 +1,21 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "yRNw/uu/4N7XHVe1PHtKPl6xtDg=",
+			"path": "github.com/Sirupsen/logrus",
+			"revision": "d26492970760ca5d33129d2d799e34be5c4782eb",
+			"revisionTime": "2016-11-03T21:40:07Z",
+			"version": "=v0.11.0",
+			"versionExact": "v0.11.0"
+		},
+		{
+			"checksumSHA1": "uTQtOqR0ePMMcvuvAIksiIZxhqU=",
+			"path": "golang.org/x/sys/unix",
+			"revision": "d75a52659825e75fff6158388dddc6a5b04f9ba5",
+			"revisionTime": "2016-12-14T18:38:57Z"
+		}
+	],
+	"rootPath": "github.com/clearcontainers/runtime"
+}
