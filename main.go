@@ -86,6 +86,7 @@ func main() {
 		createCommand,
 		deleteCommand,
 		execCommand,
+		killCommand,
 	}
 
 	app.Before = func(context *cli.Context) error {
