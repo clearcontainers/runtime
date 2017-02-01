@@ -1,0 +1,179 @@
+{
+    "memo": "f3a2e1a801bd78a5d7d705ae43c73a56a2da586e42fef290136b5794c3997e20",
+    "projects": [
+        {
+            "name": "github.com/01org/cc-oci-runtime",
+            "version": "2.1.0-rc.5",
+            "revision": "7cb997eab88547afb4f088d151409a9a1fe28dc3",
+            "packages": [
+                "proxy/api"
+            ]
+        },
+        {
+            "name": "github.com/01org/ciao",
+            "version": "85",
+            "revision": "7c6525a966fb194d40508cfad04757d1f52191ed",
+            "packages": [
+                "networking/libsnnet",
+                "qemu",
+                "ssntp/uuid"
+            ]
+        },
+        {
+            "name": "github.com/BurntSushi/toml",
+            "branch": "master",
+            "revision": "99064174e013895bbd9b025c31100bd1d9b590ca",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/Sirupsen/logrus",
+            "branch": "master",
+            "revision": "61e43dc76f7ee59a82bdf3d71033dc12bea4c77d",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/boltdb/bolt",
+            "version": "v1.3.0",
+            "revision": "583e8937c61f1af6513608ccc75c97b6abdf4ff9",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/containernetworking/cni",
+            "branch": "master",
+            "revision": "c4271dba67fa09ee07170364d2f97a3c95d651f3",
+            "packages": [
+                "libcni",
+                "pkg/ns",
+                "pkg/types/current"
+            ]
+        },
+        {
+            "name": "github.com/containers/virtcontainers",
+            "branch": "master",
+            "revision": "500c5c2e3788c6fcdb85ea9199a741ac28cb9c3e",
+            "packages": [
+                ".",
+                "pkg/oci"
+            ]
+        },
+        {
+            "name": "github.com/coreos/go-iptables",
+            "version": "v0.1.0",
+            "revision": "fbb73372b87f6e89951c2b6b31470c2c9d5cfae3",
+            "packages": [
+                "iptables"
+            ]
+        },
+        {
+            "name": "github.com/docker/go-connections",
+            "version": "v0.2.1",
+            "revision": "990a1a1a70b0da4c4cb70e117971a4f0babfbf1a",
+            "packages": [
+                "tlsconfig"
+            ]
+        },
+        {
+            "name": "github.com/docker/libnetwork",
+            "branch": "master",
+            "revision": "dbb0722c99715b3d183e348d29b894f97f38634c",
+            "packages": [
+                "drivers/remote/api",
+                "ipams/remote/api"
+            ]
+        },
+        {
+            "name": "github.com/golang/glog",
+            "branch": "master",
+            "revision": "23def4e6c14b4da8ac2ed8007337bc5eb5007998",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/gorilla/context",
+            "version": "v1.1",
+            "revision": "1ea25387ff6f684839d82767c1733ff4d4d15d0a",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/gorilla/mux",
+            "version": "v1.3.0",
+            "revision": "392c28fe23e1c45ddba891b0320b3b5df220beea",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/hyperhq/runv",
+            "branch": "master",
+            "revision": "ed95cfe252382c58b4884fc68161b9dc3b378d28",
+            "packages": [
+                "hyperstart/api/json"
+            ]
+        },
+        {
+            "name": "github.com/mitchellh/mapstructure",
+            "branch": "master",
+            "revision": "db1efb556f84b25a0a13a04aad883943538ad2e0",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/opencontainers/runtime-spec",
+            "branch": "master",
+            "revision": "3297cd573eecf13560aedbedbbef11a19166e09f",
+            "packages": [
+                "specs-go"
+            ]
+        },
+        {
+            "name": "github.com/urfave/cli",
+            "branch": "master",
+            "revision": "347a9884a87374d000eec7e6445a34487c1f4a2b",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/vishvananda/netlink",
+            "branch": "master",
+            "revision": "ebdfb7402004b397e6573c71132160d8e23cc12a",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/vishvananda/netns",
+            "branch": "master",
+            "revision": "2c9454e4fc6e2edc1a1c84e64ed3d6e662fb6991",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "golang.org/x/crypto",
+            "branch": "master",
+            "revision": "dc137beb6cce2043eb6b5f223ab8bf51c32459f4",
+            "packages": [
+                "ssh"
+            ]
+        },
+        {
+            "name": "golang.org/x/sys",
+            "branch": "master",
+            "revision": "7a6e5648d140666db5d920909e082ca00a87ba2c",
+            "packages": [
+                "unix"
+            ]
+        }
+    ]
+}

@@ -1,0 +1,51 @@
+---
+# Copyright (c) 2016 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Fully Qualified Domain Name for Keystone node
+keystone_fqdn: "{{ ansible_fqdn }}"
+
+# Password for the 'admin' user in OpenStack
+keystone_admin_password: adminUserPassword
+
+# Path for mysql data
+mysql_data: /var/lib/mysql
+
+# A dictionary of host mappings to ips
+etc_hosts: {}
+
+### The folllowing variables can be used to specify ###
+### Custom services, projects, users and roles.     ###
+# keystone_services:
+#   - service: nova
+#     type: compute
+#     description: OpenStack Compute Service
+
+# keystone_projects:
+#   - project: demo
+#     description: Demo Project
+
+# keystone_users:
+#   - user: demo
+#     password: secret
+#     project: demo
+#     email: demo@example.com
+
+keystone_roles:
+  - user
+
+# keystone_user_roles:
+#   - user: demo
+#     project: demo
+#     role: demo

@@ -1,0 +1,8 @@
+#!/usr/bin/make -f
+
+export DH_OPTIONS
+export DH_GOPKG:=github.com/01org/ciao
+export DEB_BUILD_OPTIONS=nocheck
+
+%:
+	dh $@ --buildsystem=golang --with=golang

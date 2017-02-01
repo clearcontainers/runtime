@@ -1,0 +1,19 @@
+# Configuration File for running cc-oci-runtime metrics
+
+# TIMES represents the number of times a test will run.
+TIMES=100
+
+# MEM_CONTAINERS represents the number of containers that
+# will run in parallel (detached mode) to measure the memory
+# used by each of them.
+MEM_CONTAINERS=10
+
+# MEM_WAIT_TIME is the time that the containers are in sleep mode
+# before measuring the memory used by each of them
+MEM_WAIT_TIME=30m
+
+# CPU_WAIT_TIME is the time that the containers are
+# up before measuring the % of cpu usage
+# (This is the time where the workloads have been stabilized)
+CPU_WAIT_TIME=2m
+

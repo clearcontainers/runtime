@@ -1,0 +1,14 @@
+[Unit]
+Description=CIAO Scheduler Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart={{ bindir }}/ciao-scheduler --cacert=/etc/pki/ciao/CAcert-{{ ciao_controller_fqdn }}.pem \
+                                  --cert=/etc/pki/ciao/cert-Scheduler-{{ ciao_controller_fqdn }}.pem \
+                                  --logtostderr -v 2
+User=ciao
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

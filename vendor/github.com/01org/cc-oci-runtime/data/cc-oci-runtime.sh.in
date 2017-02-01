@@ -1,0 +1,69 @@
+#!/bin/sh
+#  This file is part of cc-oci-runtime.
+#
+#  Copyright (C) 2016 Intel Corporation
+#
+#  This program is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU General Public License
+#  as published by the Free Software Foundation; either version 2
+#  of the License, or (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+#
+
+# This script can be used with Docker to allow options to be passed to
+# the runtime.
+#
+# See https://github.com/01org/cc-oci-runtime/issues/42
+
+runtime="@bindir@/@PACKAGE_NAME@"
+
+global_log="/run/@PACKAGE_NAME@/@PACKAGE_NAME@.log"
+
+# Set as required
+runtime_args=""
+
+# Command-line arguments and options may be specified:
+#
+# - in either of the two config file locations below.
+# - directly in this script.
+#
+# Notes:
+#
+# - Command-line arguments specified in either configuration files
+#   must be separated by a newline character. For example, to specify
+#   "--global-log /tmp/foo.txt", you need to specify this as two lines
+#   in the configuration file:
+#
+#     --global-log
+#     /tmp/foo.txt
+#
+# - Lines starting with "#" (comment lines) in the configuration files
+#   are ignored.
+# - "sys_config" takes priority over "default_config".
+# - Arguments specified on the command-line will override those
+#   specified in a config file.
+sys_config="@SYSCONFDIR@/@PACKAGE_NAME@.sh.cfg"
+default_config="@DEFAULTSDIR@/@PACKAGE_NAME@.sh.cfg"
+
+if [ -r "$sys_config" ]; then
+    runtime_args=$(grep -v "^\#" "$sys_config"|tr '\n' ' ')
+elif [ -r "$default_config" ]; then
+    runtime_args=$(grep -v "^\#" "$default_config"|tr '\n' ' ')
+fi
+
+# Uncomment to enable the global log which will persist after a Clear
+# Container is destroyed.
+## runtime_args="$runtime_args --global-log=\"$global_log\""
+
+# Uncomment to supplement the log with debug information
+## runtime_args="$runtime_args --debug"
+
+eval exec "$runtime" "$runtime_args" $@

@@ -1,0 +1,6 @@
+{
+    "root": {
+        "path": "this is not a path I hope",
+		"readonly": true
+	}
+}

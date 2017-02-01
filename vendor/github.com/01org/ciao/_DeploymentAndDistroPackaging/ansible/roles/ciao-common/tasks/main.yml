@@ -1,0 +1,39 @@
+---
+# Copyright (c) 2016 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+  - include: install.yml
+
+  - name: Create directories required by ciao
+    file: path={{ item }} state=directory owner=ciao group=ciao
+    with_items:
+      - /var/lib/ciao
+      - /var/lib/ciao/instances
+      - /var/lib/ciao/datastore
+      - /var/lib/ciao/images
+      - /etc/pki
+      - /etc/pki/ciao
+      - /etc/pki/keystone
+
+  - name: Create /etc/systemd/system if it does not exists
+    file: path=/etc/systemd/system state=directory owner=root group=root
+
+  - name: Set bindir location
+    set_fact: bindir={{ '/usr/local/bin' if ciao_dev else '/usr/bin' }}
+
+  - name: Ensure {{ bindir }} exists
+    file: path={{ bindir }} state=directory
+
+  - include: ceph.yml
+    when: not skip_ceph

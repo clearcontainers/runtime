@@ -1,0 +1,28 @@
+{
+    "dependencies": {
+        "github.com/01org/cc-oci-runtime": {
+            "branch": "master"
+        },
+        "github.com/BurntSushi/toml": {
+            "branch": "master"
+        },
+        "github.com/Sirupsen/logrus": {
+            "branch": "master"
+        },
+        "github.com/containers/virtcontainers": {
+            "branch": "master"
+        },
+        "github.com/docker/libnetwork": {
+            "branch": "master"
+        },
+        "github.com/hyperhq/runv": {
+            "branch": "master"
+        },
+        "github.com/opencontainers/runtime-spec": {
+            "branch": "master"
+        },
+        "github.com/urfave/cli": {
+            "branch": "master"
+        }
+    }
+}

@@ -1,0 +1,33 @@
+---
+controller_fqdn: "{{ hostvars[groups['controllers'][0]]['ansible_fqdn'] }}"
+
+# keystone: https://github.com/01org/ciao/tree/master/_DeploymentAndDistroPackaging/ansible/roles/keystone
+keystone_fqdn: "{{ controller_fqdn }}"
+keystone_admin_password: adminUserPassword
+mysql_data: /var/lib/mysql
+
+# ciao-common: https://github.com/01org/ciao/tree/master/_DeploymentAndDistroPackaging/ansible/roles/ciao-common
+ciao_dev: False
+ciao_controller_fqdn: "{{ controller_fqdn }}"
+
+# ciao-controller: https://github.com/01org/ciao/tree/master/_DeploymentAndDistroPackaging/ansible/roles/ciao-controller
+ciao_service_user: ciao
+ciao_service_password: ciaoUserPassword
+ciao_guest_user: demouser
+ciao_guest_key: ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDB34XG8nbwKyrTiB83kqe2I25P9A8aNU2iTd4AsvnQgM9QbjE9tzndggeOLkz5Ea/IJegOJWfsiDu4ExJ3qXNYqfEFiam8FTdeOVLXkHu6MKpO1pQgmAiJTOO2NMeNqGPFCMAj0ogcKL2/Hl5JAdh+4aK1tLZHdqKTpJGwLp6jP1wo3w5lu0V/oBEPN4qwpzj+S+/6Z6P/cB9rwfTGCbhTyMGdkpj8SIFwhIBTKWYzjxYQMRpbpijXNDSeOekd6L2+QTPRdnEm2+Nh3MFrz5enDZrCGdP7f5nrO3fepz00wtTKcn5rg+0tyuZUNpUwsi40alVvJ6syfPSCRcbGpEDB demouser@localhost
+
+# Create a demo project and a demo user for ciao
+keystone_projects:
+  - project: demo
+    description: Demo Project
+  - project: service
+    description: Service Project
+keystone_users:
+  - user: demo
+    password: demoUserPassword
+    project: demo
+    email: demo@example.com
+keystone_user_roles:
+  - user: demo
+    project: demo
+    role: user

@@ -1,0 +1,212 @@
+{
+	"ImportPath": "github.com/hyperhq/runv",
+	"GoVersion": "go1.7",
+	"GodepVersion": "v75",
+	"Packages": [
+		"./..."
+	],
+	"Deps": [
+		{
+			"ImportPath": "github.com/Sirupsen/logrus",
+			"Comment": "v0.10.0-38-g3ec0642",
+			"Rev": "3ec0642a7fb6488f65b06f9040adc67e3990296a"
+		},
+		{
+			"ImportPath": "github.com/cloudfoundry/gosigar",
+			"Comment": "scotty_09012012-30-gc32d31a",
+			"Rev": "c32d31af94b0e9d3b2877e49c1a581ad5a793343"
+		},
+		{
+			"ImportPath": "github.com/codegangsta/cli",
+			"Comment": "v1.18.1",
+			"Rev": "a14d7d367bc02b1f57d88de97926727f2d936387"
+		},
+		{
+			"ImportPath": "github.com/docker/containerd/api/grpc/types",
+			"Comment": "v0.2.3-10-g4f0a33a",
+			"Rev": "4f0a33ac3d5de20505022455625020cbbd575071"
+		},
+		{
+			"ImportPath": "github.com/docker/containerd/osutils",
+			"Comment": "v0.2.3-10-g4f0a33a",
+			"Rev": "4f0a33ac3d5de20505022455625020cbbd575071"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/daemon/logger",
+			"Comment": "v1.12.1",
+			"Rev": "23cf638307f030cd8d48c9efc21feec18a6f88f8"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/integration/checker",
+			"Comment": "v1.12.1",
+			"Rev": "23cf638307f030cd8d48c9efc21feec18a6f88f8"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/jsonlog",
+			"Comment": "v1.12.1",
+			"Rev": "23cf638307f030cd8d48c9efc21feec18a6f88f8"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/longpath",
+			"Comment": "v1.12.1",
+			"Rev": "23cf638307f030cd8d48c9efc21feec18a6f88f8"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/mount",
+			"Comment": "v1.12.1",
+			"Rev": "23cf638307f030cd8d48c9efc21feec18a6f88f8"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/reexec",
+			"Comment": "v1.12.1",
+			"Rev": "23cf638307f030cd8d48c9efc21feec18a6f88f8"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/symlink",
+			"Comment": "v1.12.1",
+			"Rev": "23cf638307f030cd8d48c9efc21feec18a6f88f8"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/system",
+			"Comment": "v1.12.1",
+			"Rev": "23cf638307f030cd8d48c9efc21feec18a6f88f8"
+		},
+		{
+			"ImportPath": "github.com/docker/go-units",
+			"Comment": "v0.3.1-4-g2c1805a",
+			"Rev": "2c1805a1c750c4ea749899f49221e1d5f3e5ce42"
+		},
+		{
+			"ImportPath": "github.com/go-check/check",
+			"Rev": "4ed411733c5785b40214c70bce814c3a3a689609"
+		},
+		{
+			"ImportPath": "github.com/golang/glog",
+			"Rev": "23def4e6c14b4da8ac2ed8007337bc5eb5007998"
+		},
+		{
+			"ImportPath": "github.com/golang/protobuf/proto",
+			"Rev": "9e6977f30c91c78396e719e164e57f9287fff42c"
+		},
+		{
+			"ImportPath": "github.com/golang/protobuf/ptypes",
+			"Rev": "9e6977f30c91c78396e719e164e57f9287fff42c"
+		},
+		{
+			"ImportPath": "github.com/golang/protobuf/ptypes/any",
+			"Rev": "9e6977f30c91c78396e719e164e57f9287fff42c"
+		},
+		{
+			"ImportPath": "github.com/golang/protobuf/ptypes/duration",
+			"Rev": "9e6977f30c91c78396e719e164e57f9287fff42c"
+		},
+		{
+			"ImportPath": "github.com/golang/protobuf/ptypes/timestamp",
+			"Rev": "9e6977f30c91c78396e719e164e57f9287fff42c"
+		},
+		{
+			"ImportPath": "github.com/hyperhq/hypercontainer-utils/hlog",
+			"Rev": "e979ff3608ee60c3e00d73d8578b57a1eba778c6"
+		},
+		{
+			"ImportPath": "github.com/kardianos/osext",
+			"Rev": "c2c54e542fb797ad986b31721e1baedf214ca413"
+		},
+		{
+			"ImportPath": "github.com/kr/pty",
+			"Comment": "release.r56-35-gce7fa45",
+			"Rev": "ce7fa45920dc37a92de8377972e52bc55ffa8d57"
+		},
+		{
+			"ImportPath": "github.com/opencontainers/runtime-spec/specs-go",
+			"Comment": "v1.0.0-rc1-84-gb2f69c6",
+			"Rev": "b2f69c69e8cd3dc2ce6a58c27254a665ae3ccd5f"
+		},
+		{
+			"ImportPath": "github.com/rgbkrk/libvirt-go",
+			"Comment": "v2.12.0-89-g26ca5c6",
+			"Rev": "26ca5c67cc596be31f449f59ae21844484028ed3"
+		},
+		{
+			"ImportPath": "github.com/vdemeester/shakers",
+			"Comment": "v0.1.0",
+			"Rev": "24d7f1d6a71aa5d9cbe7390e4afb66b7eef9e1b3"
+		},
+		{
+			"ImportPath": "github.com/vishvananda/netlink",
+			"Rev": "63381f39fceb1c5c13503a90e1c2603caeafe3c5"
+		},
+		{
+			"ImportPath": "github.com/vishvananda/netlink/nl",
+			"Rev": "63381f39fceb1c5c13503a90e1c2603caeafe3c5"
+		},
+		{
+			"ImportPath": "github.com/vishvananda/netns",
+			"Rev": "8ba1072b58e0c2a240eb5f6120165c7776c3e7b8"
+		},
+		{
+			"ImportPath": "golang.org/x/net/context",
+			"Rev": "1358eff22f0dd0c54fc521042cc607f6ff4b531a"
+		},
+		{
+			"ImportPath": "golang.org/x/net/http2",
+			"Rev": "1358eff22f0dd0c54fc521042cc607f6ff4b531a"
+		},
+		{
+			"ImportPath": "golang.org/x/net/http2/hpack",
+			"Rev": "1358eff22f0dd0c54fc521042cc607f6ff4b531a"
+		},
+		{
+			"ImportPath": "golang.org/x/net/internal/timeseries",
+			"Rev": "1358eff22f0dd0c54fc521042cc607f6ff4b531a"
+		},
+		{
+			"ImportPath": "golang.org/x/net/lex/httplex",
+			"Rev": "1358eff22f0dd0c54fc521042cc607f6ff4b531a"
+		},
+		{
+			"ImportPath": "golang.org/x/net/trace",
+			"Rev": "1358eff22f0dd0c54fc521042cc607f6ff4b531a"
+		},
+		{
+			"ImportPath": "golang.org/x/sys/unix",
+			"Rev": "a646d33e2ee3172a661fc09bca23bb4889a41bc8"
+		},
+		{
+			"ImportPath": "google.golang.org/grpc",
+			"Rev": "ab0be5212fb225475f2087566eded7da5d727960"
+		},
+		{
+			"ImportPath": "google.golang.org/grpc/codes",
+			"Rev": "ab0be5212fb225475f2087566eded7da5d727960"
+		},
+		{
+			"ImportPath": "google.golang.org/grpc/credentials",
+			"Rev": "ab0be5212fb225475f2087566eded7da5d727960"
+		},
+		{
+			"ImportPath": "google.golang.org/grpc/grpclog",
+			"Rev": "ab0be5212fb225475f2087566eded7da5d727960"
+		},
+		{
+			"ImportPath": "google.golang.org/grpc/internal",
+			"Rev": "ab0be5212fb225475f2087566eded7da5d727960"
+		},
+		{
+			"ImportPath": "google.golang.org/grpc/metadata",
+			"Rev": "ab0be5212fb225475f2087566eded7da5d727960"
+		},
+		{
+			"ImportPath": "google.golang.org/grpc/naming",
+			"Rev": "ab0be5212fb225475f2087566eded7da5d727960"
+		},
+		{
+			"ImportPath": "google.golang.org/grpc/peer",
+			"Rev": "ab0be5212fb225475f2087566eded7da5d727960"
+		},
+		{
+			"ImportPath": "google.golang.org/grpc/transport",
+			"Rev": "ab0be5212fb225475f2087566eded7da5d727960"
+		}
+	]
+}

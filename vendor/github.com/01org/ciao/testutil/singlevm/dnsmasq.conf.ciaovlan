@@ -1,0 +1,25 @@
+# Only listen to routers' LAN NIC.  Doing so opens up tcp/udp port 53 to
+# localhost and udp port 67 to world:
+interface=ciaovlan
+
+listen-address=198.51.100.1
+
+# dnsmasq will open tcp/udp port 53 and udp port 67 to world to help with
+# dynamic interfaces (assigning dynamic ips). Dnsmasq will discard world
+# requests to them, but the paranoid might like to close them and let the
+# kernel handle them:
+bind-interfaces
+
+# Dynamic range of IPs to make available to LAN pc
+dhcp-range=198.51.100.50,198.51.100.100,12h
+
+# If youd like to have dnsmasq assign static IPs, bind the LAN computer's
+# NIC MAC address:
+
+except-interface=lo
+
+log-queries
+
+log-dhcp
+
+#dhcp-host=aa:bb:cc:dd:ee:ff,198.51.100.50

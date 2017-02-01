@@ -1,0 +1,30 @@
+---
+start:
+  requested_resources:
+     - type: vcpus
+       value: 1
+     - type: mem_mb
+       value: 16
+  instance_uuid: 67d86208-b46c-4465-9018-e14087d415f
+  tenant_uuid: 67d86208-000-4465-9018-fe14087d415f
+  docker_image: ubuntu:latest
+  vm_type: docker
+  networking:
+    vnic_mac: CA:FE:00:02:02:03
+    vnic_uuid: 67d86208-b46c-0000-9018-fe14087d415f
+    concentrator_ip: 192.168.200.200
+    concentrator_uuid: 67d86208-b46c-4465-0000-fe14087d415f
+    subnet: 192.168.111.0/24
+    private_ip: 192.168.111.102
+...
+---
+#cloud-config
+runcmd:
+  - [ /bin/bash, -c, "while true; do sleep 60; done" ]
+...
+---
+{
+  "uuid": "67d86208-b46c-4465-0000-fe14087d415f",
+  "hostname": "ciao"
+}
+...

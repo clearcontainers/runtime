@@ -1,5 +1,11 @@
 # Logrus <img src="http://i.imgur.com/hTeVwmJ.png" width="40" height="40" alt=":walrus:" class="emoji" title=":walrus:"/>&nbsp;[![Build Status](https://travis-ci.org/Sirupsen/logrus.svg?branch=master)](https://travis-ci.org/Sirupsen/logrus)&nbsp;[![GoDoc](https://godoc.org/github.com/Sirupsen/logrus?status.svg)](https://godoc.org/github.com/Sirupsen/logrus)
 
+**Seeing weird case-sensitive problems?** See [this
+issue](https://github.com/sirupsen/logrus/issues/451#issuecomment-264332021).
+This change has been reverted. I apologize for causing this. I greatly
+underestimated the impact this would have. Logrus strives for stability and
+backwards compatibility and failed to provide that.
+
 Logrus is a structured logger for Go (golang), completely API compatible with
 the standard library logger. [Godoc][godoc]. **Please note the Logrus API is not
 yet stable (pre 1.0). Logrus itself is completely stable and has been used in
@@ -81,8 +87,8 @@ func init() {
   // Log as JSON instead of the default ASCII formatter.
   log.SetFormatter(&log.JSONFormatter{})
 
-  // Output to stderr instead of stdout, could also be a file.
-  log.SetOutput(os.Stderr)
+  // Output to stdout instead of the default stderr, could also be a file.
+  log.SetOutput(os.Stdout)
 
   // Only log the warning severity or above.
   log.SetLevel(log.WarnLevel)
@@ -233,6 +239,8 @@ Note: Syslog hook also support connecting to local syslog (Ex. "/dev/log" or "/v
 | [logz.io](https://github.com/ripcurld00d/logrus-logzio-hook) | Hook for logging to [logz.io](https://logz.io), a Log as a Service using Logstash |
 | [Logmatic.io](https://github.com/logmatic/logmatic-go) | Hook for logging to [Logmatic.io](http://logmatic.io/) |
 | [Pushover](https://github.com/toorop/logrus_pushover) | Send error via [Pushover](https://pushover.net) |
+| [PostgreSQL](https://github.com/gemnasium/logrus-postgresql-hook) | Send logs to [PostgreSQL](http://postgresql.org) |
+| [Logentrus](https://github.com/puddingfactory/logentrus) | Hook for logging to [Logentries](https://logentries.com/) |
 
 
 #### Level logging
@@ -407,7 +415,7 @@ logrus.RegisterExitHandler(handler)
 ...
 ```
 
-#### Thread safty
+#### Thread safety
 
 By default Logger is protected by mutex for concurrent writes, this mutex is invoked when calling hooks and writing logs.
 If you are sure such locking is not needed, you can call logger.SetNoLock() to disable the locking.

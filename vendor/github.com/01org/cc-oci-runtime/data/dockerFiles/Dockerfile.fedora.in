@@ -1,0 +1,100 @@
+#  This file is part of cc-oci-runtime.
+#
+#  Copyright (C) 2016 Intel Corporation
+#
+#  This program is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU General Public License
+#  as published by the Free Software Foundation; either version 2
+#  of the License, or (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+#
+
+# XXX: named version (also referenced below for the OBS elements)
+FROM fedora:@DOCKER_FEDORA_VERSION@
+
+# Disable deltarpms.
+#
+# See: https://bugzilla.redhat.com/show_bug.cgi?id=1343114)
+RUN echo deltarpm=0 >> /etc/dnf/dnf.conf
+
+# Ensure packages are current, then install:
+#
+# - a basic development environment
+# - runtime build dependencies and additional general tooling
+#
+# (Note: python3-dnf-plugins-core is required for "dnf config-manager").
+RUN dnf -y update && \
+    dnf -y install \
+        @development-tools \
+        autoconf \
+        automake \
+        bats \
+        check \
+        check-devel \
+        cppcheck \
+        gettext-devel \
+        glib2-devel \
+        json-glib-devel \
+        lcov \
+        libffi-devel \
+        libmnl-devel \
+        libtool \
+        libuuid-devel \
+        pcre-devel \
+        pkgconfig \
+        python3-dnf-plugins-core \
+        sudo \
+        valgrind \
+        zlib-devel \
+		cpan \
+		htop procps-ng \
+		file \
+		perl-TAP-Formatter-HTML.noarch \
+		golang
+
+
+
+# Add the OBS repository
+# XXX: Note the named version of Fedora
+RUN dnf -y config-manager --add-repo \
+    http://download.opensuse.org/repositories/home:clearlinux:preview:clear-containers-2.0/Fedora_@DOCKER_FEDORA_VERSION@/home:clearlinux:preview:clear-containers-2.0.repo
+
+# Install the Clear Containers assets.
+#
+# Note that the command below installs (a version of) the runtime. This
+# version isn't used (since this docker image after all is for testing
+# development versions of the runtime). However, specifying the runtime
+# package ensures the Clear Containers assets are installed
+# automatically as dependencies of the runtime package.
+RUN dnf -y install cc-oci-runtime linux-container
+
+# Install Docker 1.12.1
+# Note that currently cc-oci-runtime only works with Docker 1.12.1 as it
+# only supports OCI specification 1.0.0-rc1
+# More info can be found at https://github.com/01org/cc-oci-runtime/issues/275
+RUN dnf config-manager --add-repo https://yum.dockerproject.org/repo/testing/fedora/@DOCKER_FEDORA_VERSION@
+RUN rpm --import https://yum.dockerproject.org/gpg
+RUN dnf -y install docker-engine-@DOCKER_ENGINE_FEDORA_VERSION@
+
+# Move the root image created by make-bundle-dir.sh into the specified
+# directory.
+# https://github.com/01org/cc-oci-runtime/blob/master/data/make-bundle-dir.sh
+ADD rootfs /var/lib/oci/bundle/rootfs
+
+# Create /root/go directory for $GOPATH
+RUN mkdir /root/go
+
+# Set $GOPATH and $HOME env variables
+ENV GOPATH /root/go
+ENV HOME /root
+WORKDIR $HOME
+
+CMD ["/bin/bash"]

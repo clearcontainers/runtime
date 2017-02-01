@@ -1,0 +1,9 @@
+{
+	"mounts": [
+		{
+			"destination": "/sys",
+			"type": "sysfs",
+			"source": "sysfs"
+		}
+	]
+}

@@ -1,0 +1,6 @@
+{
+    "root": {
+        "path": "/does/not/exist/I/hope",
+		"readonly": true
+	}
+}

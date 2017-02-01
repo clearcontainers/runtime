@@ -1,0 +1,6 @@
+export CIAO_CONTROLLER={{ keystone_fqdn }}
+export CIAO_IDENTITY=https://{{ keystone_fqdn }}:35357
+export CIAO_USERNAME={{ keystone_users[0].user }}
+export CIAO_PASSWORD={{ keystone_users[0].password }}
+export CIAO_TENANT_NAME=demo
+export CIAO_CA_CERT_FILE=certificates/keystone/keystone_cert.pem
