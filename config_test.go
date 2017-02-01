@@ -26,11 +26,11 @@ import (
 	"github.com/containers/virtcontainers/pkg/oci"
 )
 
-const hypervisorPath = "/usr/bin/qemu-lite-system-x86_64"
-const kernelPath = "/usr/share/clear-containers/vmlinux.container"
-const imagePath = "/usr/share/clear-containers/clear-containers.img"
-const runtimePath = "/var/run/clear-containers/runtime.sock"
-const shimPath = "/var/run/clear-containers/shim.sock"
+const hypervisorPath = "/foo/qemu-lite-system-x86_64"
+const kernelPath = "/foo/clear-containers/vmlinux.container"
+const imagePath = "/foo/clear-containers/clear-containers.img"
+const runtimePath = "/foo/clear-containers/runtime.sock"
+const shimPath = "/foo/clear-containers/shim.sock"
 
 const runtimeConfig = `
 # Clear Containers runtime configuration file
@@ -39,6 +39,14 @@ const runtimeConfig = `
 path = "` + hypervisorPath + `"
 kernel = "` + kernelPath + `"
 image = "` + imagePath + `"
+
+[proxy.cc]
+runtime_sock = "` + runtimePath + `"
+shim_sock = "` + shimPath + `"
+`
+
+const runtimeMinimalConfig = `
+# Clear Containers runtime configuration file
 
 [proxy.cc]
 runtime_sock = "` + runtimePath + `"
@@ -74,6 +82,47 @@ func TestRuntimeConfig(t *testing.T) {
 		HypervisorPath: hypervisorPath,
 		KernelPath:     kernelPath,
 		ImagePath:      imagePath,
+	}
+
+	expectedProxyConfig := vc.CCProxyConfig{
+		RuntimeSocketPath: runtimePath,
+		ShimSocketPath:    shimPath,
+	}
+
+	expectedConfig := oci.RuntimeConfig{
+		HypervisorType:   defaultHypervisor,
+		HypervisorConfig: expectedHypervisorConfig,
+
+		AgentType: defaultAgent,
+
+		ProxyType:   defaultProxy,
+		ProxyConfig: expectedProxyConfig,
+	}
+
+	if reflect.DeepEqual(config, expectedConfig) == false {
+		t.Fatalf("Got %v\n expecting %v", config, expectedConfig)
+	}
+
+	if err := os.Remove(configPath); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestMinimalRuntimeConfig(t *testing.T) {
+	configPath, err := createConfig("runtime.toml", runtimeMinimalConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	config, err := loadConfiguration(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectedHypervisorConfig := vc.HypervisorConfig{
+		HypervisorPath: defaultHypervisorPath,
+		KernelPath:     defaultKernelPath,
+		ImagePath:      defaultImagePath,
 	}
 
 	expectedProxyConfig := vc.CCProxyConfig{
