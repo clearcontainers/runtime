@@ -1,9 +1,17 @@
 language: go
 go_import_path: github.com/clearcontainers/runtime
+
 go:
         - 1.7
         - tip
 
+env:
+        - secure: "CMg/mEfYtZVIWjDiEYosQ3kIYMRbq6JxHnTlSIVLA911a8Ty5EaDbjog30mCMO5fjjzuJDyyzAa72C31AvWnkVXu77wSzFLf3vhGCWDRY2Qsi4rUNzgZeA2r1eWFv5r2nFiBPJxTZvyY8Gs0SciFXrwMZGZe0SYHap7zDR8sV4IZPKG1omrTbEAr3HR7YlqKsNUDkER2JM6vI6C8tZs7g8vxkpMX+a5utHyMTdJBn6dol/fbA1XoBMAmIeu+ilRMwPxhm1u9aLDAQvbeFaaDQ4v8HBoEdrF3ose/pBU6GmhXUPJ3S3htyMtdFkZ61gF5/j9cUlnTjUUwlep9m8cZIsGgGKS5eGlmn66ClP1nUiNx6uAoMlWGPf1iQin3D/Xg2ut9ZNlif+0bzuajk2v/8upS07GsBK5AZomfRDjmI01wY1fqjKv/CahGGC/LZHqeKLqyohENN/vlpaPJ6l563m5+wWD0vTk41R2KKEA7R1++O2BDsLPBvPc1u9qIvsuJYjD2SOea3OWs8BM56UT5SYVeh6YehPAW4BDRtuEkpCsa4YAnoKBUuXXyfVNh/oGR/GeX8MkHKyQUim98iZyzCGNcyuU16585vCjhglmITKk0ouPen1hfdcJ4NmNLdO8yZcluIBgF5jxhyc+qCh8STHmWaxodupHuZkhyu6v0doE="
+
 script:
         - make
         - make check
+
+after_success:
+        - go get github.com/mattn/goveralls
+        - $GOPATH/bin/goveralls -service=travis-ci -coverprofile=profile.cov
