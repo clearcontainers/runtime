@@ -78,8 +78,8 @@ echo "Running go vet..."
 go vet $go_packages
 
 echo "Running gofmt..."
-go list -f '{{.Dir}}' $go_packages |\
-    xargs gofmt -s -l | tee /dev/tty | \
+find . -not -wholename '*/vendor/*' -name '*.go' | \
+    xargs gofmt -s -l | \
     wc -l | xargs -I % bash -c "test % -eq 0"
 
 echo "Running cyclo..."
