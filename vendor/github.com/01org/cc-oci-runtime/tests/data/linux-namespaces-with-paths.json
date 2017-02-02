@@ -1,0 +1,30 @@
+{
+	"linux" : {
+		"namespaces" : [
+			{
+				"type" : "cgroup",
+                "path" : "/proc/1/ns/cgroup"
+			},
+			{
+				"type" : "ipc"
+			},
+			{
+				"type" : "mount"
+			},
+			{
+				"type" : "network",
+                "path" : ""
+			},
+			{
+				"type" : "pid"
+			},
+			{
+				"type" : "user",
+                "path" : "/"
+			},
+			{
+				"type" : "uts"
+			}
+		]
+	}
+}

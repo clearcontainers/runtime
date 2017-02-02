@@ -1,0 +1,97 @@
+{
+	"github.com/Sirupsen/logrus": {
+		"url": "https://github.com/Sirupsen/logrus.git",
+		"version": "v0.9.0",
+		"license": "MIT"
+	},
+	"github.com/boltdb/bolt": {
+		"url": "https://github.com/boltdb/bolt.git",
+		"version": "a705895",
+		"license": "MIT"
+	},
+	"github.com/coreos/go-iptables": {
+		"url": "https://github.com/coreos/go-iptables.git",
+		"version": "fbb7337",
+		"license": "Apache v2.0"
+	},
+	"github.com/docker/docker": {
+		"url": "https://github.com/docker/docker.git",
+		"version": "v1.10.3",
+		"license": "Apache v2.0"
+	},
+	"github.com/docker/engine-api": {
+		"url": "https://github.com/docker/engine-api.git",
+		"version": "v0.3.3",
+		"license": "Apache v2.0"
+	},
+	"github.com/docker/go-connections": {
+		"url": "https://github.com/docker/go-connections.git",
+		"version": "5b7154b",
+		"license": "Apache v2.0"
+	},
+	"github.com/docker/go-units": {
+		"url": "https://github.com/docker/go-units.git",
+		"version": "651fc22",
+		"license": "Apache v2.0"
+	},
+	"github.com/docker/libnetwork": {
+		"url": "https://github.com/docker/libnetwork.git",
+		"version": "dbb0722",
+		"license": "Apache v2.0"
+	},
+	"github.com/golang/glog": {
+		"url": "https://github.com/golang/glog.git",
+		"version": "23def4e",
+		"license": "Apache v2.0"
+	},
+	"github.com/gorilla/mux": {
+		"url": "https://github.com/gorilla/mux.git",
+		"version": "757bef9",
+		"license": "BSD (3 clause)"
+	},
+	"github.com/mattn/go-sqlite3": {
+		"url": "https://github.com/mattn/go-sqlite3.git",
+		"version": "6f2749a",
+		"license": "MIT + Public domain"
+	},
+	"github.com/mitchellh/mapstructure": {
+		"url": "https://github.com/mitchellh/mapstructure.git",
+		"version": "d2dd026",
+		"license": "MIT"
+	},
+	"github.com/opencontainers/runc": {
+		"url": "https://github.com/opencontainers/runc.git",
+		"version": "v0.1.0",
+		"license": "Apache v2.0"
+	},
+	"github.com/pkg/errors": {
+		"url": "https://github.com/pkg/errors.git",
+		"version": "248dadf",
+		"license": "BSD (2-clause)"
+	},
+	"github.com/rackspace/gophercloud": {
+		"url": "https://github.com/rackspace/gophercloud.git",
+		"version": "1f02c2b",
+		"license": "Apache v2.0"
+	},
+	"github.com/vishvananda/netlink": {
+		"url": "https://github.com/vishvananda/netlink.git",
+		"version": "1890b34",
+		"license": "Apache v2.0"
+	},
+	"github.com/vishvananda/netns": {
+		"url": "https://github.com/vishvananda/netns.git",
+		"version": "2c9454e",
+		"license": "Apache v2.0"
+	},
+	"golang.org/x/net": {
+		"url": "https://go.googlesource.com/net",
+		"version": "198e27a",
+		"license": "BSD (3 clause)"
+	},
+	"gopkg.in/yaml.v2": {
+		"url": "https://gopkg.in/yaml.v2",
+		"version": "a5b47d3",
+		"license": "Apache v2.0"
+	}
+}

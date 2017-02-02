@@ -1,0 +1,6 @@
+{
+	"platform": {
+		"os": "plan9",
+		"arch": "amd64"
+	}
+}

@@ -1,0 +1,26 @@
+{
+    "hooks" : {
+        "prestart": [
+            {
+                "path": "/usr/bin/fix-mounts",
+                "args": ["fix-mounts", "arg1", "arg2"],
+                "env":  [ "key1=value1"]
+            },
+            {
+                "path": "/usr/bin/setup-network"
+            }
+        ],
+        "poststart": [
+            {
+                "path": "/usr/bin/notify-start",
+                "timeout": 5
+            }
+        ],
+        "poststop": [
+            {
+                "path": "/usr/sbin/cleanup.sh",
+                "args": ["cleanup.sh", "-f"]
+            }
+        ]
+    }
+}

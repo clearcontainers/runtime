@@ -1,0 +1,14 @@
+{
+	"mounts": [
+		{
+			"type": "sysfs",
+			"source": "sysfs",
+			"options": [
+				"nosuid",
+				"noexec",
+				"nodev",
+				"ro"
+			]
+		}
+	]
+}

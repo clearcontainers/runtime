@@ -1,0 +1,30 @@
+{
+	"linux" : {
+		"namespaces" : [
+			{
+				"type" : "cgroup"
+			},
+			{
+				"type" : "ipc"
+			},
+			{
+				"type" : "mount"
+			},
+			{
+				"type" : "network"
+			},
+			{
+				"type" : "pid"
+			},
+			{
+				"type" : "user"
+			},
+			{
+				"type" : "I am an invalid namespace type"
+			},
+			{
+				"type" : "uts"
+			}
+		]
+	}
+}

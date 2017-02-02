@@ -1,0 +1,13 @@
+go_version=1.7.1
+glib_version=2.46.2
+json_glib_version=1.2.2
+check_version=0.10.0
+docker_fedora_version=24
+docker_ubuntu_version=16.04
+docker_engine_fedora_version=1.12.1
+docker_engine_ubuntu_version=1.12.1-0~xenial
+clear_vm_image_version=12860
+clear_vm_kernel_version=4.5-50
+docker_engine_semaphoreci_ubuntu_version=1.12.1-0~trusty
+gcc_version=6.2.0
+qemu_lite_version=da5004e3ffc6a79df82d1b9d8f8533c4045f193c

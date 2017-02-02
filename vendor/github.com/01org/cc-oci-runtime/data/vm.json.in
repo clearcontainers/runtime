@@ -1,0 +1,10 @@
+{
+	"vm": {
+		"path": "@QEMU_PATH@",
+		"image": "@CONTAINERS_IMG@",
+		"kernel": {
+			"path": "@CONTAINER_KERNEL@",
+			"parameters": "@CMDLINE@"
+		}
+	}
+}

@@ -1,0 +1,24 @@
+configure:
+  scheduler:
+    storage_type: file
+    storage_uri: file:///etc/ciao/configuration.yaml
+  controller:
+    compute_port: 8774
+    compute_ca: /etc/pki/keystone/keystone_cert.pem
+    compute_cert: /etc/pki/keystone/keystone_key.pem
+    identity_user: {{ ciao_service_user }}
+    identity_password: {{ ciao_service_password }}
+  image_service:
+    url: https://{{ ciao_controller_fqdn }}:9292
+  storage:
+    ceph_id: {{ ceph_id }}
+  launcher:
+    compute_net:
+      {{ ciao_compute_subnets | to_nice_yaml }}
+    mgmt_net:
+      {{ ciao_mgmt_subnets | to_nice_yaml }}
+    disk_limit: true
+    mem_limit: true
+  identity_service:
+    type: keystone
+    url: https://{{ keystone_fqdn }}:35357

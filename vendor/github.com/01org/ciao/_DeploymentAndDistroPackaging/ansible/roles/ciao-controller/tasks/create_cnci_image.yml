@@ -1,0 +1,100 @@
+---
+# Copyright (c) 2016 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+  - name: Check if cnci image is already setup
+    become: no
+    stat: path=images/.cnci_ready
+    register: st
+    changed_when: False
+
+  - name: Download cnci image
+    become: no
+    get_url:
+      url: "{{ cnci_image_url }}"
+      dest: images/{{ cnci_image }}.xz
+      validate_certs: no
+    register: download_cnci
+
+  - name: Remove old cnci image
+    become: no
+    file: path=images/{{ cnci_image }} state=absent
+    when: download_cnci.changed or not st.stat.exists
+
+  - name: Decompress cnci image
+    become: no
+    command: unxz -k {{ cnci_image }}.xz
+    args:
+      chdir: images
+      creates: "{{ cnci_image }}"
+    register: decompress_cnci
+
+  - block:
+    - name: Find available loop device
+      command: "losetup -f"
+      register: loop_device
+
+    - name: Mount cnci image on loop
+      command: "losetup {{ loop_device.stdout }} -P images/{{ cnci_image }}"
+
+    - name: Mounting cnci image in /mnt/tmp
+      mount:
+        name: /mnt/tmp
+        src: "{{ loop_device.stdout }}p2"
+        fstype: ext4
+        state: mounted
+
+    - name: Set ciao-cnci-agent location
+      set_fact: ciao_cnci_agent={{ (gopath + '/bin/ciao-cnci-agent') if ciao_dev else 'fetch/ciao-cnci-agent' }}
+
+    - name: Copy ciao_cnci_agent to cnci image
+      shell: cp {{ ciao_cnci_agent }} /mnt/tmp/usr/bin/
+      args:
+        creates: /mnt/tmp/usr/bin/ciao-cnci-agent
+
+    - name: Copy ciao-cnci-agent.service to cnci image
+      template: src=ciao-cnci-agent.service.j2 dest=/mnt/tmp/usr/lib/systemd/system/ciao-cnci-agent.service
+
+    - name: Enable ciao-cnci-agent.service in cnci image
+      command: chroot /mnt/tmp /bin/bash -c "systemctl enable ciao-cnci-agent"
+      args:
+        creates: /mnt/tmp/etc/systemd/system/default.target.wants/ciao-cnci-agent.service
+
+    - name: Create /var/lib/ciao in cnci image
+      file: path=/mnt/tmp/var/lib/ciao state=directory
+
+    - name: Copy CA certificates to cnci image
+      shell: cp certificates/ciao/CAcert-* /mnt/tmp/var/lib/ciao/CAcert-server-localhost.pem
+      args:
+        creates: /mnt/tmp/var/lib/ciao/CAcert-server-localhost.pem
+
+    - name: Copy CNCI Agent certificate
+      shell: cp certificates/ciao/cert-CNCIAgent-* /mnt/tmp/var/lib/ciao/cert-client-localhost.pem
+      args:
+        creates: /mnt/tmp/var/lib/ciao/cert-client-localhost.pem
+
+    - name: Unmounting cnci image
+      mount:
+        name: /mnt/tmp
+        src: "{{ loop_device.stdout }}p2"
+        fstype: ext4
+        state: absent
+
+    - name: Detach cnci image from loop device
+      command: "losetup -d {{ loop_device.stdout }}"
+
+    - name: Creating images/.cnci_ready
+      become: no
+      file: path=images/.cnci_ready state=touch
+    when: decompress_cnci.changed

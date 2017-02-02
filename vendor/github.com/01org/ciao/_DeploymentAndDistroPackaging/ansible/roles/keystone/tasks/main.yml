@@ -1,0 +1,56 @@
+---
+# Copyright (c) 2016 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+  - name: Create directory for mariadb database
+    file: path="{{ mysql_data }}" state=directory
+
+  - include: certificates.yml
+
+  - name: Create docker-keystone systemd unit
+    template: src=docker-keystone.service.j2 dest=/etc/systemd/system/docker-keystone.service mode=0600
+
+  - name: Enable docker-keystone systemd unit
+    systemd: name=docker-keystone.service enabled=yes daemon_reload=yes
+
+  - name: Start keystone container
+    docker_container:
+      name: ciao-keystone
+      image: clearlinux/keystone
+      state: started
+      privileged: True
+      etc_hosts: "{{ etc_hosts }}"
+      published_ports:
+        - 35357:35357
+        - 5000:5000
+      env:
+        IDENTITY_HOST: "{{ keystone_fqdn }}"
+        KEYSTONE_ADMIN_PASSWORD: "{{ keystone_admin_password }}"
+      volumes:
+        - "{{ mysql_data }}:/var/lib/mysql:rw"
+        - "/etc/keystone/ssl/keystone_key.pem:/etc/nginx/ssl/keystone_key.pem:ro"
+        - "/etc/keystone/ssl/keystone_cert.pem:/etc/nginx/ssl/keystone_cert.pem:ro"
+
+  - name: Create openrc file
+    become: no
+    connection: local
+    template: src=openrc.j2 dest=./openrc mode=0600
+
+  - name: Create clouds.yaml file
+    become: no
+    connection: local
+    template: src=clouds.yaml.j2 dest=./clouds.yaml mode=0600
+
+  - include: access.yml
+    connection: local

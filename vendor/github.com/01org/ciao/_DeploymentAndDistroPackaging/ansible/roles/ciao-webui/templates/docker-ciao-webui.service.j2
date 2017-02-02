@@ -1,0 +1,12 @@
+[Unit]
+Description=CIAO WebUI Container
+Requires={{ docker_service }}
+After={{ docker_service }}
+
+[Service]
+Restart=always
+ExecStart=/usr/bin/docker start -a ciao-webui
+ExecStop=/usr/bin/docker stop -t 2 ciao-webui
+
+[Install]
+WantedBy=default.target

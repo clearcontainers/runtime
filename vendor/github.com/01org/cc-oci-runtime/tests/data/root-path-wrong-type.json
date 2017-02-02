@@ -1,0 +1,6 @@
+{
+    "root": {
+        "path": "ROOTFILE",
+		"readonly": true
+	}
+}

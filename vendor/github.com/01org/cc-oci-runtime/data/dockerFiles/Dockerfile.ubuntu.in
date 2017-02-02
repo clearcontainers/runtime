@@ -1,0 +1,94 @@
+#  This file is part of cc-oci-runtime.
+#
+#  Copyright (C) 2016 Intel Corporation
+#
+#  This program is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU General Public License
+#  as published by the Free Software Foundation; either version 2
+#  of the License, or (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+#
+
+# XXX: named version (also referenced below for the OBS elements)
+FROM ubuntu:@DOCKER_UBUNTU_VERSION@
+
+# Ensure packages are current, then install dependencies
+RUN apt-get update
+RUN apt-get upgrade -y
+RUN apt-get install -y \
+		build-essential \
+		python zlib1g-dev \
+		libcap-ng-dev \
+		libglib2.0-dev \
+		libpixman-1-dev \
+		libattr1-dev \
+		libcap-dev \
+		autoconf \
+		libtool \
+		libjson-glib-dev \
+		uuid-dev \
+		check \bats \
+		libdevmapper-dev \
+		file \
+		golang \
+		apt-utils \
+		wget \
+		valgrind \
+		lcov \
+		libmnl-dev \
+		cppcheck \
+		libtap-formatter-html-perl
+
+
+# Add the OBS repository
+RUN sh -c "echo 'deb http://download.opensuse.org/repositories/home:/clearlinux:/preview:/clear-containers-2.0/xUbuntu_@DOCKER_UBUNTU_VERSION@/ /' >> /etc/apt/sources.list.d/cc-oci-runtime.list"
+
+# Install OBS key
+RUN wget http://download.opensuse.org/repositories/home:clearlinux:preview:clear-containers-2.0/xUbuntu_@DOCKER_UBUNTU_VERSION@/Release.key
+RUN apt-key add Release.key
+RUN rm Release.key
+
+# Install the Clear Containers assets.
+# Note that the command below installs (a version of) the runtime. This
+# version isn't used (since this docker image after all is for testing
+# development versions of the runtime). However, specifying the runtime
+# package ensures the Clear Containers assets are installed
+# automatically as dependencies of the runtime package.
+RUN apt-get update
+RUN apt-get install -y cc-oci-runtime
+
+# Install Docker 1.12.1
+# Note that currently cc-oci-runtime only works with Docker 1.12.1 as it
+# only supports OCI specification 1.0.0-rc1
+# More info can be found at https://github.com/01org/cc-oci-runtime/issues/275
+RUN apt-get update
+RUN apt-get install -y apt-transport-https ca-certificates
+RUN apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
+RUN sh -c "echo 'deb https://apt.dockerproject.org/repo ubuntu-xenial main' >> /etc/apt/sources.list.d/docker.list"
+RUN apt-get update
+RUN apt-get purge lxc-docker
+RUN apt-cache policy docker-engine
+RUN apt-get install -y docker-engine=@DOCKER_ENGINE_UBUNTU_VERSION@
+
+# Move the root image created by make-bundle-dir.sh into the specified
+# directory.
+# https://github.com/01org/cc-oci-runtime/blob/master/data/make-bundle-dir.sh
+ADD rootfs /var/lib/oci/bundle/rootfs
+
+# Create /root/go directory for $GOPATH
+RUN mkdir /root/go
+
+# Set $GOPATH and $HOME env variables
+ENV GOPATH /root/go
+ENV HOME /root
+WORKDIR $HOME
+
+CMD ["/bin/bash"]

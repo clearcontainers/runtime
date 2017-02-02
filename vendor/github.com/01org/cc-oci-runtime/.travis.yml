@@ -1,0 +1,48 @@
+sudo: required
+dist: trusty
+
+language: c
+compiler:
+  - gcc
+  - clang
+
+env:
+  global:
+    # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created
+    #   via the "travis encrypt" command using the project repo's public key
+    - secure: "iw3DDm/YamMkn6cEMDG5d028kRuBbSOCZqJ13kI9yWbalk8sH14iG3mBQ1biOD6VJPlPZSMTYpYIX78Z9DQ0iDCWSsILeCLVjQVwjfhiQ/Ws7QVtFx7qlgxmXjlbVVPrzOTELgQkYNRz1VIzOAiNuXwhjZXVCd9ORjQMbHthODwJ/S6gweskyCX+7cVVaVAAX/O38zLGEzTceZPMLD0qTWDZO/FLGxQ0Z3IcNcZxa0uNWIhUFIcEYetcVcGggTRpaaQe69LYSYqtGBKPJksLNbbWAB3E13Z/pkvxl8OLAHm3GFI9WHORLSN/E/3012+aRQCVrpPoHh4AO11bt60cLohYLXt52XK034Gb2GkoUonu+/GtAT6tKgVjg0817whgROJChfblHg9rwS+dKzW/wtIO4CeXNq6ZWHEtOFjEuwzplYtpN/ShcxKVBpx9eraw2fJYYW0RBM3XhYbCvnT88Xo+7QlkPXYFBGuVDcXHcC26RCPOEolL2VL2elQPXpq8sRXh/y9DNhO2A1MEGF99RyQdQHb+F6boVkLQrKtehmCo30rVonNeiyqnr3zv50GEibD4/b2qYjizj5uU9CfG1hgrM0GQxitahhjZhX/7GM0j+So97Qg4bTnfNd9ZEuozcfFk+trmJPqWJe5YswL9RJCX8O4/eI/QnhIyWQsf0JU="
+    # Only run for the default compiler to minimise the impact on the
+    # projects Coverity Scan quota.
+    - coverity_scan_run_condition='"$CC" = gcc'
+
+before_script:
+- ./.ci/ci-setup.sh
+
+script:
+- ./.ci/ci-build.sh
+
+after_failure:
+- ./.ci/ci-teardown.sh
+
+notifications:
+  email:
+    recipients:
+      - cc-devel@lists.01.org
+    on_success: change
+    on_failure: always
+
+addons:
+  coverity_scan:
+    project:
+      name: "01org/cc-oci-runtime"
+      description: "Build submitted via Travis CI"
+    build_command_prepend: "./autogen.sh --enable-cppcheck --enable-valgrind --disable-valgrind-helgrind --disable-valgrind-drd; make clean"
+    build_command: "make -j5"
+    branch_pattern: coverity_scan
+    # It should be possible to specify the Coverity notification email
+    # using environment variable COVERITY_SCAN_NOTIFICATION_EMAIL
+    # (standard, encrypted, or repository type).
+    #
+    # However, the Travis logs show this variable is silently unset
+    # before Travis passes the information to the Coverity addon.
+    notification_email: james.o.hunt@intel.com

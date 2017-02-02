@@ -1,0 +1,80 @@
+#!/bin/bash
+
+#  This file is part of cc-oci-runtime.
+#
+#  Copyright (C) 2016 Intel Corporation
+#
+#  This program is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU General Public License
+#  as published by the Free Software Foundation; either version 2
+#  of the License, or (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
+#  Description of the test:
+#  This test measures the time cc-oci-runtime (cor) takes from creating
+#  a container and before starting it.
+
+set -e
+
+[ $# -ne 1 ] && ( echo >&2 "Usage: $0 <times to run>"; exit 1 )
+
+SCRIPT_PATH=$(dirname "$(readlink -f "$0")")
+source "${SCRIPT_PATH}/../../lib/test-common.bash"
+
+TEST_NAME="Cor Start Time"
+IMAGE='busybox'
+TIMES="$1"
+RUNTIME='cor'
+testResultFileNet="${RESULT_DIR}/cor-start-time-with-network"
+testResultFileNoNet="${RESULT_DIR}/cor-start-time-without-network"
+PACKAGE_NAME="@PACKAGE_NAME@"
+LOG_FILE="/run/@PACKAGE_NAME@/@PACKAGE_NAME@.log"
+
+function get_time(){
+	egrep "${PACKAGE_NAME}:debug:called as: (/[^/ ]*)+/${PACKAGE_NAME} create" ${LOG_FILE} | \
+		cut -f1-3 -d ':' | sed 's/.\{1\}$//' > create_time_log
+	create_time_total=$(cat create_time_log)
+	create_time=$(date -d "$create_time_total" +%N)
+	egrep "${PACKAGE_NAME}:debug:called as: (/[^/ ]*)+/${PACKAGE_NAME} start" ${LOG_FILE} | \
+		cut -f1-3 -d ':' | sed 's/.\{1\}$//' > start_time_log
+	start_time_total=$(cat start_time_log)
+	start_time=$(date -d "$start_time_total" +%N)
+	test_data=$(echo "scale=4; ($start_time-$create_time)/1000000000" | bc)
+	rm -f create_time_log
+	rm -f start_time_log
+}
+
+function cor_create_time(){
+	echo "" > ${LOG_FILE}
+	${DOCKER_EXE} run --runtime="$RUNTIME" -ti ${IMAGE} true > /dev/null && get_time
+	if [ -z $(echo "$test_data" | grep -o "^-*") ]; then
+		testArgs='Network units=seconds'
+		write_result_to_file "$TEST_NAME" "$testArgs" "$test_data" "$testResultFileNet"
+	fi
+	echo "" > ${LOG_FILE}
+	${DOCKER_EXE} run --runtime="$RUNTIME" -ti --net=none ${IMAGE} true > /dev/null && get_time
+	if [ -z "`echo $test_data | grep -o ^-*`" ]; then
+		testArgs='No-network units=seconds'
+		write_result_to_file "$TEST_NAME" "$testArgs" "$test_data" "$testResultFileNoNet"
+	fi
+}
+
+echo "Executing test: ${TEST_NAME}"
+backup_old_file "$testResultFileNet"
+backup_old_file "$testResultFileNoNet"
+write_csv_header "$testResultFileNet"
+write_csv_header "$testResultFileNoNet"
+for i in $(seq 1 $TIMES); do
+	cor_create_time
+done
+get_average "$testResultFileNet"
+get_average "$testResultFileNoNet"
+clean_docker_ps

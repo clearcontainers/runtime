@@ -1,0 +1,27 @@
+{
+	"linux" : {
+		"namespaces" : [
+			{
+				"type" : "cgroup"
+			},
+			{
+				"type" : "ipc"
+			},
+			{
+				"type" : "mount"
+			},
+			{
+				"type" : "network"
+			},
+			{
+				"type" : "pid"
+			},
+			{
+				"type" : "user"
+			},
+			{
+				"type" : "uts"
+			}
+		]
+	}
+}

@@ -1,0 +1,9 @@
+[Unit]
+Description=Clear Containers Proxy
+Documentation=https://github.com/01org/cc-oci-runtime/proxy
+
+[Service]
+ExecStart=@libexecdir@/cc-proxy
+
+[Install]
+WantedBy=multi-user.target

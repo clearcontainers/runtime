@@ -1,0 +1,9 @@
+{
+    "vm": {
+		"image": "CLEAR-CONTAINERS.img",
+		"kernel": {
+			"path": "CONTAINER-KERNEL",
+			"parameters": "root=/dev/pmem0p1"
+		}
+    }
+}

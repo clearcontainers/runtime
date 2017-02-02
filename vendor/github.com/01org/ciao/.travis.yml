@@ -1,0 +1,99 @@
+language: go
+sudo: required
+
+services:
+  - docker
+
+go:
+    - 1.7
+    - go1.8beta2
+    - tip
+
+env:
+    - COVERALLS_TOKEN=mwTn1pOFqEOUT13vylZNHq53NanoMznO7
+
+go_import_path: github.com/01org/ciao
+
+before_install:
+  - sudo apt-get install dnsmasq-base
+  - go get github.com/mattn/goveralls
+  - go get golang.org/x/tools/cmd/cover
+  - go get github.com/pierrre/gotestcover
+  - go get github.com/fzipp/gocyclo
+  - go get github.com/gordonklaus/ineffassign
+  - pip install ansible
+
+# We need to create and install SSNTP certs for the SSNTP and controller tests
+before_script:
+   - sudo mkdir -p /etc/pki/ciao/
+   - sudo mkdir -p /var/lib/ciao/logs/scheduler
+   - sudo -E $GOPATH/bin/ciao-cert -directory /etc/pki/ciao -host localhost -anchor -role scheduler
+   - sudo -E $GOPATH/bin/ciao-cert -directory /etc/pki/ciao -host localhost -anchor-cert /etc/pki/ciao/cert-Scheduler-localhost.pem -role agent
+   - sudo -E $GOPATH/bin/ciao-cert -directory /etc/pki/ciao -host localhost -anchor-cert /etc/pki/ciao/cert-Scheduler-localhost.pem -role agent,netagent
+   - sudo -E $GOPATH/bin/ciao-cert -directory /etc/pki/ciao -host localhost -anchor-cert /etc/pki/ciao/cert-Scheduler-localhost.pem -role controller
+   - sudo -E $GOPATH/bin/ciao-cert -directory /etc/pki/ciao -host localhost -anchor-cert /etc/pki/ciao/cert-Scheduler-localhost.pem -role cnciagent
+   - sudo -E $GOPATH/bin/ciao-cert -directory /etc/pki/ciao -host localhost -anchor-cert /etc/pki/ciao/cert-Scheduler-localhost.pem -role netagent
+   - sudo -E $GOPATH/bin/ciao-cert -directory /etc/pki/ciao -host localhost -anchor-cert /etc/pki/ciao/cert-Scheduler-localhost.pem -role server
+   - sudo cp /etc/pki/ciao/CAcert-localhost.pem /etc/pki/ciao/ca_cert.crt
+   - sudo cp /etc/pki/ciao/CAcert-localhost.pem /etc/pki/ciao/CAcert-server-localhost.pem
+   - sudo cp /etc/pki/ciao/cert-Scheduler-localhost.pem /etc/pki/ciao/server.pem
+   - sudo cp /etc/pki/ciao/cert-CNAgent-localhost.pem /etc/pki/ciao/client.pem
+   - sudo cp /etc/pki/ciao/cert-Controller-localhost.pem /etc/pki/ciao/cert-client-localhost.pem
+   - sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/pki/ciao/ciao-controller-key.pem -out /etc/pki/ciao/ciao-controller-cacert.pem -subj '/CN=localhost/O=CIAO test server/C=US'
+   - sudo cp /etc/pki/ciao/ciao-controller-cacert.pem /usr/local/share/ca-certificates/ciao-controller-cacert.crt
+   - sudo update-ca-certificates
+
+script:
+   - go env
+   - docker --version
+   - sudo docker pull debian
+   - sudo ip link add testdummy type dummy
+   - sudo ip addr add 198.51.100.1/24 dev testdummy
+   - go get github.com/google/gofuzz github.com/stretchr/testify
+   - go get github.com/golang/lint/golint github.com/client9/misspell/cmd/misspell
+   - go list ./... | grep -v github.com/01org/ciao/vendor | xargs -t go vet
+   - go list ./... | grep -v github.com/01org/ciao/vendor | xargs -tL 1 golint -set_exit_status
+   - go list ./... | grep -v github.com/01org/ciao/vendor | xargs go list -f '{{.Dir}}/*.go' | xargs -I % bash -c "misspell -error %"
+   - go list ./... | grep -v github.com/01org/ciao/vendor | xargs go list -f '{{.Dir}}' | xargs gocyclo -over 15
+   - go list ./... | grep -v github.com/01org/ciao/vendor | xargs go list -f '{{.Dir}}' | xargs -L 1 ineffassign
+   - go list ./... | grep -v github.com/01org/ciao/vendor | xargs go list -f '{{.Dir}}' | xargs gofmt -s -l | wc -l | xargs -I % bash -c "test % -eq 0"
+   - cd _release/bat
+   - go list ./... | xargs -t go vet
+   - go list ./... | xargs -tL 1 golint -set_exit_status
+   - go list ./... | xargs go list -f '{{.Dir}}/*.go' | xargs -I % bash -c "misspell -error %"
+   - go list ./... | xargs go list -f '{{.Dir}}' | xargs gocyclo -over 15
+   - go list ./... | xargs go list -f '{{.Dir}}' | xargs -L 1 ineffassign
+   - go list ./... | xargs go list -f '{{.Dir}}' | xargs gofmt -s -l | wc -l | xargs -I % bash -c "test % -eq 0"
+   - cd ../..
+   - sudo mkdir -p /var/lib/ciao/instances
+   - sudo mkdir -p /var/lib/ciao/data/controller/{workloads,tables}
+   - sudo chmod 0777 -R /var/lib/ciao
+   - cp $GOPATH/src/github.com/01org/ciao/ciao-controller/workloads/* /var/lib/ciao/data/controller/workloads/
+   - cp $GOPATH/src/github.com/01org/ciao/ciao-controller/tables/* /var/lib/ciao/data/controller/tables/
+   - test-cases -v -timeout 9 -coverprofile /tmp/cover.out -short github.com/01org/ciao/ciao-controller/...
+   - test-cases -v -timeout 9 -coverprofile /tmp/cover.out -append-profile -short github.com/01org/ciao/ciao-launcher github.com/01org/ciao/ciao-scheduler github.com/01org/ciao/payloads github.com/01org/ciao/configuration github.com/01org/ciao/testutil github.com/01org/ciao/ssntp/uuid github.com/01org/ciao/qemu github.com/01org/ciao/openstack/... github.com/01org/ciao/bat  github.com/01org/ciao/ciao-image/... github.com/01org/ciao/database/... github.com/01org/ciao/ciao-storage/...
+   - export GOROOT=`go env GOROOT` && sudo -E PATH=$PATH:$GOROOT/bin $GOPATH/bin/test-cases -v -timeout 9 -coverprofile /tmp/cover.out -append-profile github.com/01org/ciao/ssntp
+   - export GOROOT=`go env GOROOT` && export SNNET_ENV=198.51.100.0/24 && sudo -E PATH=$PATH:$GOROOT/bin $GOPATH/bin/test-cases -v -timeout 9 -short -tags travis -coverprofile /tmp/cover.out -append-profile github.com/01org/ciao/networking/libsnnet
+   # API Documentation is automated by swagger, every PR will verify the documentation can be generated
+   # verify ciao-controller api documentation can be generated with swagger
+   - go get golang.org/x/sys/unix
+   - go get github.com/gorilla/context
+   - go get github.com/yvasiyarov/swagger
+   - $GOPATH/bin/swagger  -apiPackage=github.com/01org/ciao/ciao-controller -mainApiFile=github.com/01org/ciao/ciao-controller/main.go -format=markdown -contentsTable=false -models=false -vendoringPath $HOME/gopath/src/github.com/01org/ciao/vendor
+   # Test ansible playbooks
+   - ansible-playbook -i _DeploymentAndDistroPackaging/ansible/tests/hosts _DeploymentAndDistroPackaging/ansible/ciao.yml --syntax-check
+
+after_success:
+   - $GOPATH/bin/goveralls -service=travis-ci -coverprofile=/tmp/cover.out
+
+before_deploy:
+   - tag=`git describe --abbrev=0 --tags`
+   - git show $tag > /tmp/release.txt
+
+deploy:
+        provider: releases
+        api_key: $GH_TOKEN
+        file: /tmp/release.txt
+        skip_cleanup: true
+        on:
+                tags: true

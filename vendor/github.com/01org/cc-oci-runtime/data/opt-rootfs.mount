@@ -1,0 +1,5 @@
+[Mount]
+What=rootfs
+Where=/opt/rootfs
+Type=9p
+Options=trans=virtio,version=9p2000.L,msize=131072

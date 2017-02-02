@@ -1,0 +1,6 @@
+{
+	"platform": {
+		"os": "an invalid operating system name",
+		"arch": "amd64"
+	}
+}

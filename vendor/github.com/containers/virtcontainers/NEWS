@@ -1,0 +1,11 @@
+0.4.0:
+	Added CNM network model support
+	Added hyperstart asynchronous events support
+	Added low level CTL routines
+	Added OCI compatible hooks support
+	Added Travis code coverage report
+
+0.3.0:
+	Added support for the latest hyperstart changes
+	Added proxy interface and cc-proxy implementation
+	Added CNI unit tests

@@ -1,0 +1,10 @@
+{
+    "hooks" : {
+        "unknown": [
+            {
+                "path": "/usr/sbin/cleanup.sh",
+                "args": ["cleanup.sh", "-f"]
+            }
+        ]
+    }
+}

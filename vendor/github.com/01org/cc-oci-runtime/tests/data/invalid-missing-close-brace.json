@@ -1,0 +1,12 @@
+{
+    "process": {
+	    "terminal": true,
+	    "user": {
+		    "uid": 0,
+		    "gid": 0
+	    },
+	    "args": [
+		    "sh",
+		    "-c"
+	    ]
+    }
