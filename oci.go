@@ -17,6 +17,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"syscall"
 
 	vc "github.com/containers/virtcontainers"
 )
@@ -66,4 +67,35 @@ func validCreateParams(containerID, bundlePath string) error {
 	}
 
 	return nil
+}
+
+func validContainer(containerID string) error {
+	// container ID MUST be provided.
+	if containerID == "" {
+		return fmt.Errorf("Missing container ID")
+	}
+
+	// container ID MUST exist.
+	exist, err := containerExists(containerID)
+	if err != nil {
+		return err
+	}
+	if exist == false {
+		return fmt.Errorf("Container ID does not exist")
+	}
+
+	return nil
+}
+
+func processRunning(pid int) (bool, error) {
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		return false, err
+	}
+
+	if err := process.Signal(syscall.Signal(0)); err != nil {
+		return false, nil
+	}
+
+	return true, nil
 }
