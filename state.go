@@ -16,6 +16,12 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
+	"os"
+
+	vc "github.com/containers/virtcontainers"
+	"github.com/containers/virtcontainers/pkg/oci"
 	"github.com/urfave/cli"
 )
 
@@ -28,7 +34,43 @@ var stateCommand = cli.Command{
 	Description: `The state command outputs current state information for the
 instance of a container.`,
 	Action: func(context *cli.Context) error {
-		// TODO
-		return nil
+		return state(context.String("container-id"))
 	},
+}
+
+func state(containerID string) error {
+	// Checks the MUST and MUST NOT from OCI runtime specification
+	if err := validContainer(containerID); err != nil {
+		return err
+	}
+
+	podStatus, err := vc.StatusPod(containerID)
+	if err != nil {
+		return err
+	}
+
+	// Convert the status to the expected State structure
+	state, err := oci.StatusToOCIState(podStatus)
+	if err != nil {
+		return err
+	}
+
+	// Update status of process
+	running, err := processRunning(state.Pid)
+	if err != nil {
+		return err
+	}
+	if running == false {
+		state.Status = "stopped"
+	}
+
+	stateJSON, err := json.Marshal(state)
+	if err != nil {
+		return err
+	}
+
+	// Print stateJSON to stdout
+	fmt.Fprintf(os.Stdout, "%s", stateJSON)
+
+	return nil
 }
