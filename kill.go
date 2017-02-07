@@ -16,6 +16,10 @@
 package main
 
 import (
+	"fmt"
+	"syscall"
+
+	vc "github.com/containers/virtcontainers"
 	"github.com/urfave/cli"
 )
 
@@ -39,7 +43,70 @@ EXAMPLE:
 		},
 	},
 	Action: func(context *cli.Context) error {
-		// TODO
-		return nil
+		return kill(context.String("container-id"), context.String("signal"))
 	},
+}
+
+var signals = map[string]syscall.Signal{
+	"SIGABRT":   syscall.SIGABRT,
+	"SIGALRM":   syscall.SIGALRM,
+	"SIGBUS":    syscall.SIGBUS,
+	"SIGCHLD":   syscall.SIGCHLD,
+	"SIGCLD":    syscall.SIGCLD,
+	"SIGCONT":   syscall.SIGCONT,
+	"SIGFPE":    syscall.SIGFPE,
+	"SIGHUP":    syscall.SIGHUP,
+	"SIGILL":    syscall.SIGILL,
+	"SIGINT":    syscall.SIGINT,
+	"SIGIO":     syscall.SIGIO,
+	"SIGIOT":    syscall.SIGIOT,
+	"SIGKILL":   syscall.SIGKILL,
+	"SIGPIPE":   syscall.SIGPIPE,
+	"SIGPOLL":   syscall.SIGPOLL,
+	"SIGPROF":   syscall.SIGPROF,
+	"SIGPWR":    syscall.SIGPWR,
+	"SIGQUIT":   syscall.SIGQUIT,
+	"SIGSEGV":   syscall.SIGSEGV,
+	"SIGSTKFLT": syscall.SIGSTKFLT,
+	"SIGSTOP":   syscall.SIGSTOP,
+	"SIGSYS":    syscall.SIGSYS,
+	"SIGTERM":   syscall.SIGTERM,
+	"SIGTRAP":   syscall.SIGTRAP,
+	"SIGTSTP":   syscall.SIGTSTP,
+	"SIGTTIN":   syscall.SIGTTIN,
+	"SIGTTOU":   syscall.SIGTTOU,
+	"SIGUNUSED": syscall.SIGUNUSED,
+	"SIGURG":    syscall.SIGURG,
+	"SIGUSR1":   syscall.SIGUSR1,
+	"SIGUSR2":   syscall.SIGUSR2,
+	"SIGVTALRM": syscall.SIGVTALRM,
+	"SIGWINCH":  syscall.SIGWINCH,
+	"SIGXCPU":   syscall.SIGXCPU,
+	"SIGXFSZ":   syscall.SIGXFSZ,
+}
+
+func kill(containerID, signal string) error {
+	// Checks the MUST and MUST NOT from OCI runtime specification
+	if err := validContainer(containerID); err != nil {
+		return err
+	}
+
+	// container MUST be running
+	podStatus, err := vc.StatusPod(containerID)
+	if err != nil {
+		return err
+	}
+	if podStatus.State.State != vc.StateRunning {
+		return fmt.Errorf("Container is not running")
+	}
+
+	if len(podStatus.ContainersStatus) != 1 {
+		return fmt.Errorf("ContainerStatus list from PodStatus is wrong, expecting only one ContainerStatus")
+	}
+
+	if err := vc.KillContainer(containerID, podStatus.ContainersStatus[0].ID, signals[signal]); err != nil {
+		return err
+	}
+
+	return nil
 }
