@@ -43,14 +43,14 @@ const monitorSocket = "monitor.sock"
 type stateString string
 
 const (
-	// stateReady represents a pod/container that's ready to be run
-	stateReady stateString = "ready"
+	// StateReady represents a pod/container that's ready to be run
+	StateReady stateString = "ready"
 
-	// stateRunning represents a pod/container that's currently running.
-	stateRunning stateString = "running"
+	// StateRunning represents a pod/container that's currently running.
+	StateRunning stateString = "running"
 
-	// stateStopped represents a pod/container that has been stopped.
-	stateStopped stateString = "stopped"
+	// StateStopped represents a pod/container that has been stopped.
+	StateStopped stateString = "stopped"
 )
 
 // State is a pod state structure.
@@ -60,7 +60,7 @@ type State struct {
 
 // valid checks that the pod state is valid.
 func (state *State) valid() bool {
-	for _, validState := range []stateString{stateReady, stateRunning, stateStopped} {
+	for _, validState := range []stateString{StateReady, StateRunning, StateStopped} {
 		if state.State == validState {
 			return true
 		}
@@ -77,18 +77,18 @@ func (state *State) validTransition(oldState stateString, newState stateString) 
 	}
 
 	switch state.State {
-	case stateReady:
-		if newState == stateRunning {
+	case StateReady:
+		if newState == StateRunning {
 			return nil
 		}
 
-	case stateRunning:
-		if newState == stateStopped {
+	case StateRunning:
+		if newState == StateStopped {
 			return nil
 		}
 
-	case stateStopped:
-		if newState == stateRunning {
+	case StateStopped:
+		if newState == StateRunning {
 			return nil
 		}
 	}
@@ -351,12 +351,12 @@ func (p *Pod) GetContainers() []*Container {
 }
 
 func (p *Pod) createSetStates() error {
-	err := p.setPodState(stateReady)
+	err := p.setPodState(StateReady)
 	if err != nil {
 		return err
 	}
 
-	err = p.setContainersState(stateReady)
+	err = p.setContainersState(StateReady)
 	if err != nil {
 		return err
 	}
@@ -490,7 +490,7 @@ func (p *Pod) delete() error {
 		return err
 	}
 
-	if state.State != stateReady && state.State != stateStopped {
+	if state.State != StateReady && state.State != StateStopped {
 		return fmt.Errorf("Pod not ready or stopped, impossible to delete")
 	}
 
@@ -508,17 +508,17 @@ func (p *Pod) startCheckStates() error {
 		return err
 	}
 
-	err = state.validTransition(stateReady, stateRunning)
+	err = state.validTransition(StateReady, StateRunning)
 	if err != nil {
-		err = state.validTransition(stateStopped, stateRunning)
+		err = state.validTransition(StateStopped, StateRunning)
 		if err != nil {
 			return err
 		}
 	}
 
-	err = p.checkContainersState(stateReady)
+	err = p.checkContainersState(StateReady)
 	if err != nil {
-		err = p.checkContainersState(stateStopped)
+		err = p.checkContainersState(StateStopped)
 		if err != nil {
 			return err
 		}
@@ -528,12 +528,12 @@ func (p *Pod) startCheckStates() error {
 }
 
 func (p *Pod) startSetStates() error {
-	err := p.setPodState(stateRunning)
+	err := p.setPodState(StateRunning)
 	if err != nil {
 		return err
 	}
 
-	err = p.setContainersState(stateRunning)
+	err = p.setContainersState(StateRunning)
 	if err != nil {
 		return err
 	}
@@ -603,7 +603,7 @@ func (p *Pod) stopCheckStates() error {
 		return err
 	}
 
-	err = state.validTransition(stateRunning, stateStopped)
+	err = state.validTransition(StateRunning, StateStopped)
 	if err != nil {
 		return err
 	}
@@ -612,12 +612,12 @@ func (p *Pod) stopCheckStates() error {
 }
 
 func (p *Pod) stopSetStates() error {
-	err := p.setContainersState(stateStopped)
+	err := p.setContainersState(StateStopped)
 	if err != nil {
 		return err
 	}
 
-	err = p.setPodState(stateStopped)
+	err = p.setPodState(StateStopped)
 	if err != nil {
 		return err
 	}

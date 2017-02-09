@@ -34,8 +34,10 @@ type Process struct {
 
 // ContainerStatus describes a container status.
 type ContainerStatus struct {
-	ID    string
-	State State
+	ID     string
+	State  State
+	PID    int
+	RootFs string
 }
 
 // ContainerConfig describes one container runtime configuration.
@@ -229,7 +231,7 @@ func createContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 		return c, nil
 	}
 
-	err = c.pod.setContainerState(c.id, stateReady)
+	err = c.pod.setContainerState(c.id, StateReady)
 	if err != nil {
 		return nil, err
 	}
@@ -248,7 +250,7 @@ func (c *Container) delete() error {
 		return err
 	}
 
-	if state.State != stateReady && state.State != stateStopped {
+	if state.State != StateReady && state.State != StateStopped {
 		return fmt.Errorf("Container not ready or stopped, impossible to delete")
 	}
 
@@ -266,7 +268,7 @@ func (c *Container) start() error {
 		return err
 	}
 
-	if state.State != stateRunning {
+	if state.State != StateRunning {
 		return fmt.Errorf("Pod not running, impossible to start the container")
 	}
 
@@ -275,13 +277,13 @@ func (c *Container) start() error {
 		return err
 	}
 
-	if state.State != stateReady && state.State != stateStopped {
+	if state.State != StateReady && state.State != StateStopped {
 		return fmt.Errorf("Container not ready or stopped, impossible to start")
 	}
 
-	err = state.validTransition(stateReady, stateRunning)
+	err = state.validTransition(StateReady, StateRunning)
 	if err != nil {
-		err = state.validTransition(stateStopped, stateRunning)
+		err = state.validTransition(StateStopped, StateRunning)
 		if err != nil {
 			return err
 		}
@@ -298,7 +300,7 @@ func (c *Container) start() error {
 		return err
 	}
 
-	err = c.setContainerState(stateRunning)
+	err = c.setContainerState(StateRunning)
 	if err != nil {
 		return err
 	}
@@ -312,7 +314,7 @@ func (c *Container) stop() error {
 		return err
 	}
 
-	if state.State != stateRunning {
+	if state.State != StateRunning {
 		return fmt.Errorf("Pod not running, impossible to stop the container")
 	}
 
@@ -321,11 +323,11 @@ func (c *Container) stop() error {
 		return err
 	}
 
-	if state.State != stateRunning {
+	if state.State != StateRunning {
 		return fmt.Errorf("Container not running, impossible to stop")
 	}
 
-	err = state.validTransition(stateRunning, stateStopped)
+	err = state.validTransition(StateRunning, StateStopped)
 	if err != nil {
 		return err
 	}
@@ -345,7 +347,7 @@ func (c *Container) stop() error {
 		return err
 	}
 
-	err = c.setContainerState(stateStopped)
+	err = c.setContainerState(StateStopped)
 	if err != nil {
 		return err
 	}
@@ -359,7 +361,7 @@ func (c *Container) enter(cmd Cmd) error {
 		return err
 	}
 
-	if state.State != stateRunning {
+	if state.State != StateRunning {
 		return fmt.Errorf("Pod not running, impossible to enter the container")
 	}
 
@@ -368,7 +370,7 @@ func (c *Container) enter(cmd Cmd) error {
 		return err
 	}
 
-	if state.State != stateRunning {
+	if state.State != StateRunning {
 		return fmt.Errorf("Container not running, impossible to enter")
 	}
 
@@ -391,7 +393,7 @@ func (c *Container) kill(signal syscall.Signal) error {
 		return err
 	}
 
-	if state.State != stateRunning {
+	if state.State != StateRunning {
 		return fmt.Errorf("Pod not running, impossible to signal the container")
 	}
 
@@ -400,7 +402,7 @@ func (c *Container) kill(signal syscall.Signal) error {
 		return err
 	}
 
-	if state.State != stateRunning {
+	if state.State != StateRunning {
 		return fmt.Errorf("Container not running, impossible to signal the container")
 	}
 

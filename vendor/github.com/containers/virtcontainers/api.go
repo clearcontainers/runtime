@@ -298,33 +298,17 @@ func ListPod() ([]PodStatus, error) {
 
 	defer dir.Close()
 
-	pods, err := dir.Readdirnames(0)
+	podsID, err := dir.Readdirnames(0)
 	if err != nil {
 		return []PodStatus{}, err
 	}
 
-	fs := filesystem{}
-
 	var podStatusList []PodStatus
 
-	for _, p := range pods {
-		var config PodConfig
-
-		config, err := fs.fetchPodConfig(p)
+	for _, podID := range podsID {
+		podStatus, err := StatusPod(podID)
 		if err != nil {
 			continue
-		}
-
-		state, err := fs.fetchPodState(p)
-		if err != nil {
-			continue
-		}
-
-		podStatus := PodStatus{
-			ID:         config.ID,
-			State:      state,
-			Hypervisor: config.HypervisorType,
-			Agent:      config.AgentType,
 		}
 
 		podStatusList = append(podStatusList, podStatus)
@@ -335,38 +319,28 @@ func ListPod() ([]PodStatus, error) {
 
 // StatusPod is the virtcontainers pod status entry point.
 func StatusPod(podID string) (PodStatus, error) {
-	fs := filesystem{}
-
-	config, err := fs.fetchPodConfig(podID)
-	if err != nil {
-		return PodStatus{}, err
-	}
-
-	state, err := fs.fetchPodState(podID)
+	pod, err := fetchPod(podID)
 	if err != nil {
 		return PodStatus{}, err
 	}
 
 	var contStatusList []ContainerStatus
-	for _, container := range config.Containers {
-		contState, err := fs.fetchContainerState(podID, container.ID)
-		if err != nil {
-			continue
-		}
-
+	for _, container := range pod.containers {
 		contStatus := ContainerStatus{
-			ID:    container.ID,
-			State: contState,
+			ID:     container.id,
+			State:  container.state,
+			PID:    container.process.Pid,
+			RootFs: container.config.RootFs,
 		}
 
 		contStatusList = append(contStatusList, contStatus)
 	}
 
 	podStatus := PodStatus{
-		ID:               podID,
-		State:            state,
-		Hypervisor:       config.HypervisorType,
-		Agent:            config.AgentType,
+		ID:               pod.id,
+		State:            pod.state,
+		Hypervisor:       pod.config.HypervisorType,
+		Agent:            pod.config.AgentType,
 		ContainersStatus: contStatusList,
 	}
 
@@ -401,8 +375,7 @@ func CreateContainer(podID string, containerConfig ContainerConfig) (*Container,
 
 	// Update pod config.
 	p.config.Containers = append(p.config.Containers, containerConfig)
-	fs := filesystem{}
-	err = fs.storePodResource(podID, configFileType, *(p.config))
+	err = p.storage.storePodResource(podID, configFileType, *(p.config))
 	if err != nil {
 		return nil, err
 	}
@@ -449,8 +422,7 @@ func DeleteContainer(podID, containerID string) (*Container, error) {
 			break
 		}
 	}
-	fs := filesystem{}
-	err = fs.storePodResource(podID, configFileType, *(p.config))
+	err = p.storage.storePodResource(podID, configFileType, *(p.config))
 	if err != nil {
 		return nil, err
 	}
@@ -570,16 +542,22 @@ func EnterContainer(podID, containerID string, cmd Cmd) (*Container, error) {
 // StatusContainer is the virtcontainers container status entry point.
 // StatusContainer returns a detailed container status.
 func StatusContainer(podID, containerID string) (ContainerStatus, error) {
-	fs := filesystem{}
+	var contStatus ContainerStatus
 
-	state, err := fs.fetchContainerState(podID, containerID)
+	pod, err := fetchPod(podID)
 	if err != nil {
 		return ContainerStatus{}, err
 	}
 
-	contStatus := ContainerStatus{
-		ID:    containerID,
-		State: state,
+	for _, container := range pod.containers {
+		if container.id == containerID {
+			contStatus = ContainerStatus{
+				ID:     container.id,
+				State:  container.state,
+				PID:    container.process.Pid,
+				RootFs: container.config.RootFs,
+			}
+		}
 	}
 
 	return contStatus, nil

@@ -125,42 +125,42 @@ func testPodStateTransition(t *testing.T, state stateString, newState stateStrin
 }
 
 func TestPodStateReadyRunning(t *testing.T) {
-	err := testPodStateTransition(t, stateReady, stateRunning)
+	err := testPodStateTransition(t, StateReady, StateRunning)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestPodStateRunningPaused(t *testing.T) {
-	err := testPodStateTransition(t, stateRunning, stateStopped)
+	err := testPodStateTransition(t, StateRunning, StateStopped)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestPodStatePausedRunning(t *testing.T) {
-	err := testPodStateTransition(t, stateStopped, stateRunning)
+	err := testPodStateTransition(t, StateStopped, StateRunning)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestPodStateRunningStopped(t *testing.T) {
-	err := testPodStateTransition(t, stateRunning, stateStopped)
+	err := testPodStateTransition(t, StateRunning, StateStopped)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestPodStateReadyPaused(t *testing.T) {
-	err := testPodStateTransition(t, stateReady, stateStopped)
+	err := testPodStateTransition(t, StateReady, StateStopped)
 	if err == nil {
 		t.Fatal("Invalid transition from Ready to Paused")
 	}
 }
 
 func TestPodStatePausedReady(t *testing.T) {
-	err := testPodStateTransition(t, stateStopped, stateReady)
+	err := testPodStateTransition(t, StateStopped, StateReady)
 	if err == nil {
 		t.Fatal("Invalid transition from Ready to Paused")
 	}
@@ -276,9 +276,9 @@ func testStateValid(t *testing.T, stateStr stateString, expected bool) {
 }
 
 func TestStateValidSuccessful(t *testing.T) {
-	testStateValid(t, stateReady, true)
-	testStateValid(t, stateRunning, true)
-	testStateValid(t, stateStopped, true)
+	testStateValid(t, StateReady, true)
+	testStateValid(t, StateRunning, true)
+	testStateValid(t, StateStopped, true)
 }
 
 func TestStateValidFailing(t *testing.T) {
@@ -287,10 +287,10 @@ func TestStateValidFailing(t *testing.T) {
 
 func TestValidTransitionFailingOldStateMismatch(t *testing.T) {
 	state := &State{
-		State: stateReady,
+		State: StateReady,
 	}
 
-	err := state.validTransition(stateRunning, stateStopped)
+	err := state.validTransition(StateRunning, StateStopped)
 	if err == nil {
 		t.Fatal()
 	}
@@ -475,7 +475,7 @@ func TestPodSetPodStateFailingStorePodResource(t *testing.T) {
 		storage: fs,
 	}
 
-	err := pod.setPodState(stateReady)
+	err := pod.setPodState(StateReady)
 	if err == nil {
 		t.Fatal()
 	}
@@ -487,7 +487,7 @@ func TestPodSetContainerStateFailingStoreContainerResource(t *testing.T) {
 		storage: fs,
 	}
 
-	err := pod.setContainerState("100", stateReady)
+	err := pod.setContainerState("100", StateReady)
 	if err == nil {
 		t.Fatal()
 	}
@@ -510,7 +510,7 @@ func TestPodSetContainersStateFailingEmptyPodID(t *testing.T) {
 		storage: fs,
 	}
 
-	err := pod.setContainersState(stateReady)
+	err := pod.setContainersState(StateReady)
 	if err == nil {
 		t.Fatal()
 	}
@@ -659,7 +659,7 @@ func TestPodCheckContainerStateFailingEmptyPodID(t *testing.T) {
 		storage: fs,
 	}
 
-	err := pod.checkContainerState(contID, stateReady)
+	err := pod.checkContainerState(contID, StateReady)
 	if err == nil {
 		t.Fatal()
 	}
@@ -702,7 +702,7 @@ func TestPodCheckContainerStateFailingNotExpectedState(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = pod.checkContainerState(contID, stateStopped)
+	err = pod.checkContainerState(contID, StateStopped)
 	if err == nil {
 		t.Fatal()
 	}
@@ -725,7 +725,7 @@ func TestPodCheckContainersStateFailingEmptyPodID(t *testing.T) {
 		storage: fs,
 	}
 
-	err := pod.checkContainersState(stateReady)
+	err := pod.checkContainersState(StateReady)
 	if err == nil {
 		t.Fatal()
 	}

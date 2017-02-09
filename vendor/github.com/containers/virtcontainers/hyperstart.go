@@ -332,7 +332,7 @@ func (h *hyper) stopPod(pod Pod) error {
 			return err
 		}
 
-		if state.State != stateRunning {
+		if state.State != StateRunning {
 			continue
 		}
 
