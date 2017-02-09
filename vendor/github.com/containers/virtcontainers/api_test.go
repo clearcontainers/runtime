@@ -514,8 +514,7 @@ func TestListPodFailingFetchPodState(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	path := filepath.Join(runStoragePath, p.id)
-	os.RemoveAll(path)
+	os.RemoveAll(p.configPath)
 
 	_, err = StatusPod(p.id)
 	if err == nil {
@@ -1222,11 +1221,7 @@ func TestStatusContainerFailing(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	podDir := filepath.Join(configStoragePath, p.id)
-	_, err = os.Stat(podDir)
-	if err != nil {
-		t.Fatal(err)
-	}
+	os.RemoveAll(p.configPath)
 
 	_, err = StatusContainer(p.id, contID)
 	if err == nil {

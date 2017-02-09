@@ -10,7 +10,7 @@
             "branch": "master"
         },
         "github.com/containers/virtcontainers": {
-            "revision": "9ac05ca6a4c9072c6555414ad05452f20e12fb04"
+            "revision": "242a130215ca7705907bfb3ae9f5ffb0ef805f47"
         },
         "github.com/docker/libnetwork": {
             "branch": "master"
