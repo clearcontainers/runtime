@@ -17,6 +17,7 @@
 package virtcontainers
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -459,7 +460,7 @@ func TestListPodSuccessful(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = ListPod()
+	_, err = ListPod()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -468,7 +469,7 @@ func TestListPodSuccessful(t *testing.T) {
 func TestListPodFailing(t *testing.T) {
 	os.RemoveAll(configStoragePath)
 
-	err := ListPod()
+	_, err := ListPod()
 	if err == nil {
 		t.Fatal()
 	}
@@ -482,7 +483,7 @@ func TestStatusPodSuccessful(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = StatusPod(p.id)
+	_, err = StatusPod(p.id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -499,7 +500,7 @@ func TestListPodFailingFetchPodConfig(t *testing.T) {
 	path := filepath.Join(configStoragePath, p.id)
 	os.RemoveAll(path)
 
-	err = StatusPod(p.id)
+	_, err = StatusPod(p.id)
 	if err == nil {
 		t.Fatal()
 	}
@@ -516,7 +517,7 @@ func TestListPodFailingFetchPodState(t *testing.T) {
 	path := filepath.Join(runStoragePath, p.id)
 	os.RemoveAll(path)
 
-	err = StatusPod(p.id)
+	_, err = StatusPod(p.id)
 	if err == nil {
 		t.Fatal()
 	}
@@ -1206,7 +1207,7 @@ func TestStatusContainerSuccessful(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = StatusContainer(p.id, contID)
+	_, err = StatusContainer(p.id, contID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1227,8 +1228,201 @@ func TestStatusContainerFailing(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = StatusContainer(p.id, contID)
+	_, err = StatusContainer(p.id, contID)
 	if err == nil {
 		t.Fatal()
+	}
+}
+
+/*
+ * Benchmarks
+ */
+
+func createNewPodConfig(hType HypervisorType, aType AgentType, aConfig interface{}, netModel NetworkModel) PodConfig {
+	hypervisorConfig := HypervisorConfig{
+		KernelPath:     "/usr/share/clear-containers/vmlinux.container",
+		ImagePath:      "/usr/share/clear-containers/clear-containers.img",
+		HypervisorPath: "/usr/bin/qemu-lite-system-x86_64",
+	}
+
+	netConfig := NetworkConfig{
+		NumInterfaces: 1,
+	}
+
+	return PodConfig{
+		HypervisorType:   hType,
+		HypervisorConfig: hypervisorConfig,
+
+		AgentType:   aType,
+		AgentConfig: aConfig,
+
+		NetworkModel:  netModel,
+		NetworkConfig: netConfig,
+	}
+}
+
+func createNewContainerConfigs(numOfContainers int) []ContainerConfig {
+	var contConfigs []ContainerConfig
+
+	envs := []EnvVar{
+		{
+			Var:   "PATH",
+			Value: "/bin:/usr/bin:/sbin:/usr/sbin",
+		},
+	}
+
+	cmd := Cmd{
+		Args:    strings.Split("/bin/ps -A", " "),
+		Envs:    envs,
+		WorkDir: "/",
+	}
+
+	rootFs := "/tmp/bundles/busybox/"
+
+	for i := 0; i < numOfContainers; i++ {
+		contConfig := ContainerConfig{
+			ID:     fmt.Sprintf("%d", i),
+			RootFs: rootFs,
+			Cmd:    cmd,
+		}
+
+		contConfigs = append(contConfigs, contConfig)
+	}
+
+	return contConfigs
+}
+
+func createStartStopDeletePod(b *testing.B, podConfig PodConfig) {
+	// Create pod
+	p, err := CreatePod(podConfig)
+	if err != nil {
+		b.Logf("Could not create pod: %s", err)
+	}
+
+	// Start pod
+	_, err = StartPod(p.id)
+	if err != nil {
+		b.Logf("Could not start pod: %s", err)
+	}
+
+	// Stop pod
+	_, err = StopPod(p.id)
+	if err != nil {
+		b.Logf("Could not stop pod: %s", err)
+	}
+
+	// Delete pod
+	_, err = DeletePod(p.id)
+	if err != nil {
+		b.Logf("Could not delete pod: %s", err)
+	}
+}
+
+func createStartStopDeleteContainers(b *testing.B, podConfig PodConfig, contConfigs []ContainerConfig) {
+	// Create pod
+	p, err := CreatePod(podConfig)
+	if err != nil {
+		b.Logf("Could not create pod: %s", err)
+	}
+
+	// Start pod
+	_, err = StartPod(p.id)
+	if err != nil {
+		b.Logf("Could not start pod: %s", err)
+	}
+
+	// Create containers
+	for _, contConfig := range contConfigs {
+		_, err := CreateContainer(p.id, contConfig)
+		if err != nil {
+			b.Logf("Could not create container %s: %s", contConfig.ID, err)
+		}
+	}
+
+	// Start containers
+	for _, contConfig := range contConfigs {
+		_, err := StartContainer(p.id, contConfig.ID)
+		if err != nil {
+			b.Logf("Could not start container %s: %s", contConfig.ID, err)
+		}
+	}
+
+	// Stop containers
+	for _, contConfig := range contConfigs {
+		_, err := StopContainer(p.id, contConfig.ID)
+		if err != nil {
+			b.Logf("Could not stop container %s: %s", contConfig.ID, err)
+		}
+	}
+
+	// Delete containers
+	for _, contConfig := range contConfigs {
+		_, err := DeleteContainer(p.id, contConfig.ID)
+		if err != nil {
+			b.Logf("Could not delete container %s: %s", contConfig.ID, err)
+		}
+	}
+
+	// Stop pod
+	_, err = StopPod(p.id)
+	if err != nil {
+		b.Logf("Could not stop pod: %s", err)
+	}
+
+	// Delete pod
+	_, err = DeletePod(p.id)
+	if err != nil {
+		b.Logf("Could not delete pod: %s", err)
+	}
+}
+
+func BenchmarkCreateStartStopDeletePodQemuHypervisorHyperstartAgentNetworkCNI(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		podConfig := createNewPodConfig(QemuHypervisor, HyperstartAgent, HyperConfig{}, CNINetworkModel)
+		createStartStopDeletePod(b, podConfig)
+	}
+}
+
+func BenchmarkCreateStartStopDeletePodQemuHypervisorNoopAgentNetworkCNI(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		podConfig := createNewPodConfig(QemuHypervisor, NoopAgentType, nil, CNINetworkModel)
+		createStartStopDeletePod(b, podConfig)
+	}
+}
+
+func BenchmarkCreateStartStopDeletePodQemuHypervisorHyperstartAgentNetworkNoop(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		podConfig := createNewPodConfig(QemuHypervisor, HyperstartAgent, HyperConfig{}, NoopNetworkModel)
+		createStartStopDeletePod(b, podConfig)
+	}
+}
+
+func BenchmarkCreateStartStopDeletePodQemuHypervisorNoopAgentNetworkNoop(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		podConfig := createNewPodConfig(QemuHypervisor, NoopAgentType, nil, NoopNetworkModel)
+		createStartStopDeletePod(b, podConfig)
+	}
+}
+
+func BenchmarkCreateStartStopDeletePodMockHypervisorNoopAgentNetworkNoop(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		podConfig := createNewPodConfig(MockHypervisor, NoopAgentType, nil, NoopNetworkModel)
+		createStartStopDeletePod(b, podConfig)
+	}
+}
+
+func BenchmarkStartStop1ContainerQemuHypervisorHyperstartAgentNetworkNoop(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		podConfig := createNewPodConfig(QemuHypervisor, HyperstartAgent, HyperConfig{}, NoopNetworkModel)
+		contConfigs := createNewContainerConfigs(1)
+		createStartStopDeleteContainers(b, podConfig, contConfigs)
+	}
+}
+
+func BenchmarkStartStop10ContainerQemuHypervisorHyperstartAgentNetworkNoop(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		podConfig := createNewPodConfig(QemuHypervisor, HyperstartAgent, HyperConfig{}, NoopNetworkModel)
+		contConfigs := createNewContainerConfigs(10)
+		createStartStopDeleteContainers(b, podConfig, contConfigs)
 	}
 }

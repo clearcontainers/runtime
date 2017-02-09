@@ -150,7 +150,6 @@ func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodC
 	}
 
 	containerConfig := vc.ContainerConfig{
-		ID:          cid,
 		RootFs:      rootfs,
 		Interactive: ocispec.Process.Terminal,
 		Console:     console,
@@ -163,6 +162,8 @@ func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodC
 	}
 
 	podConfig := vc.PodConfig{
+		ID: cid,
+
 		Hooks: containerHooks(ocispec),
 
 		VMConfig: runtime.VMConfig,

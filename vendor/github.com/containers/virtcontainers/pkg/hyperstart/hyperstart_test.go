@@ -23,7 +23,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/containers/virtcontainers/hyperstart/mock"
+	"github.com/containers/virtcontainers/pkg/hyperstart/mock"
 	hyper "github.com/hyperhq/runv/hyperstart/api/json"
 )
 

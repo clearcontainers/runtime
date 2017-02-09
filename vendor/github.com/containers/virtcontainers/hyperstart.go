@@ -24,7 +24,7 @@ import (
 
 	"github.com/golang/glog"
 
-	"github.com/containers/virtcontainers/hyperstart"
+	"github.com/containers/virtcontainers/pkg/hyperstart"
 	hyperJson "github.com/hyperhq/runv/hyperstart/api/json"
 )
 
@@ -103,6 +103,13 @@ type ExecInfo struct {
 	Process   hyperJson.Process `json:"process"`
 }
 
+// KillCommand is the structure corresponding to the format
+// expected by hyperstart to kill a container on the guest.
+type KillCommand struct {
+	Container string         `json:"container"`
+	Signal    syscall.Signal `json:"signal"`
+}
+
 // RemoveContainer is the structure corresponding to the format
 // expected by hyperstart to remove a container on the guest.
 type RemoveContainer struct {
@@ -174,7 +181,11 @@ func (h *hyper) bindUnmountContainerRootfs(container ContainerConfig) error {
 
 func (h *hyper) bindUnmountAllRootfs() {
 	for _, c := range h.pod.containers {
-		h.bindUnmountContainerRootfs(c)
+		if c.config == nil {
+			continue
+		}
+
+		h.bindUnmountContainerRootfs(*(c.config))
 	}
 }
 
@@ -270,7 +281,7 @@ func (h *hyper) exec(pod Pod, container Container, cmd Cmd) error {
 
 // startPod is the agent Pod starting implementation for hyperstart.
 func (h *hyper) startPod(config PodConfig) error {
-	h.pod.containers = append(h.pod.containers, ContainerConfig{})
+	h.pod.containers = append(h.pod.containers, &Container{})
 
 	ioStreams, err := h.proxy.register(*(h.pod))
 	if err != nil {
@@ -315,6 +326,35 @@ func (h *hyper) stopPod(pod Pod) error {
 		return err
 	}
 
+	for _, contConfig := range pod.config.Containers {
+		state, err := pod.storage.fetchContainerState(pod.id, contConfig.ID)
+		if err != nil {
+			return err
+		}
+
+		if state.State != stateRunning {
+			continue
+		}
+
+		container := Container{
+			id: contConfig.ID,
+		}
+
+		if err := h.killOneContainer(container, syscall.SIGTERM); err != nil {
+			return err
+		}
+
+		err = h.stopOneContainer(contConfig)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = h.stopPauseContainer()
+	if err != nil {
+		return err
+	}
+
 	err = h.proxy.unregister(pod)
 	if err != nil {
 		return err
@@ -324,13 +364,6 @@ func (h *hyper) stopPod(pod Pod) error {
 	if err != nil {
 		return err
 	}
-
-	err = h.unlinkPauseBinary()
-	if err != nil {
-		return err
-	}
-
-	h.bindUnmountAllRootfs()
 
 	return nil
 }
@@ -426,6 +459,22 @@ func (h *hyper) startContainer(pod Pod, contConfig ContainerConfig) error {
 	return h.proxy.disconnect()
 }
 
+func (h *hyper) stopPauseContainer() error {
+	container := Container{
+		id: pauseContainerName,
+	}
+
+	if err := h.killOneContainer(container, syscall.SIGKILL); err != nil {
+		return err
+	}
+
+	if err := h.unlinkPauseBinary(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // stopContainer is the agent Container stopping implementation for hyperstart.
 func (h *hyper) stopContainer(pod Pod, container Container) error {
 	_, err := h.proxy.connect(pod)
@@ -433,16 +482,7 @@ func (h *hyper) stopContainer(pod Pod, container Container) error {
 		return err
 	}
 
-	removeContainer := RemoveContainer{
-		Container: container.id,
-	}
-
-	proxyCmd := hyperstartProxyCmd{
-		cmd:     hyperstart.RemoveContainer,
-		message: removeContainer,
-	}
-
-	_, err = h.proxy.sendCmd(proxyCmd)
+	err = h.stopOneContainer(*(container.config))
 	if err != nil {
 		return err
 	}
@@ -452,8 +492,61 @@ func (h *hyper) stopContainer(pod Pod, container Container) error {
 		return err
 	}
 
-	err = h.bindUnmountContainerRootfs(*(container.config))
+	return nil
+}
+
+func (h *hyper) stopOneContainer(contConfig ContainerConfig) error {
+	removeContainer := RemoveContainer{
+		Container: contConfig.ID,
+	}
+
+	proxyCmd := hyperstartProxyCmd{
+		cmd:     hyperstart.RemoveContainer,
+		message: removeContainer,
+	}
+
+	_, err := h.proxy.sendCmd(proxyCmd)
 	if err != nil {
+		return err
+	}
+
+	err = h.bindUnmountContainerRootfs(contConfig)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// killContainer is the agent process signal implementation for hyperstart.
+func (h *hyper) killContainer(pod Pod, container Container, signal syscall.Signal) error {
+	if _, err := h.proxy.connect(pod); err != nil {
+		return err
+	}
+
+	if err := h.killOneContainer(container, signal); err != nil {
+		return err
+	}
+
+	if err := h.proxy.disconnect(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (h *hyper) killOneContainer(container Container, signal syscall.Signal) error {
+	killCmd := KillCommand{
+		Container: container.id,
+		Signal:    signal,
+	}
+
+	proxyCmd := hyperstartProxyCmd{
+		cmd:     hyperstart.KillContainer,
+		message: killCmd,
+	}
+
+	if _, err := h.proxy.sendCmd(proxyCmd); err != nil {
 		return err
 	}
 

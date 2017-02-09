@@ -18,7 +18,7 @@ package virtcontainers
 
 import (
 	"github.com/containernetworking/cni/pkg/ns"
-	cniPlugin "github.com/containers/virtcontainers/network/cni"
+	cniPlugin "github.com/containers/virtcontainers/pkg/cni"
 	"github.com/golang/glog"
 )
 

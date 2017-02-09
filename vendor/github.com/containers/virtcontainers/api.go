@@ -17,9 +17,8 @@
 package virtcontainers
 
 import (
-	"fmt"
 	"os"
-	"text/tabwriter"
+	"syscall"
 )
 
 // CreatePod is the virtcontainers pod creation entry point.
@@ -33,6 +32,38 @@ func CreatePod(podConfig PodConfig) (*Pod, error) {
 
 	// Store it.
 	err = p.storePod()
+	if err != nil {
+		return nil, err
+	}
+
+	// Initialize the network.
+	err = p.network.init(&(p.config.NetworkConfig))
+	if err != nil {
+		return nil, err
+	}
+
+	// Execute prestart hooks inside netns
+	err = p.network.run(p.config.NetworkConfig.NetNSPath, func() error {
+		return p.config.Hooks.preStartHooks()
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Add the network
+	networkNS, err := p.network.add(*p, p.config.NetworkConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	// Store the network
+	err = p.storage.storePodNetwork(p.id, networkNS)
+	if err != nil {
+		return nil, err
+	}
+
+	// Start the VM
+	err = p.startVM()
 	if err != nil {
 		return nil, err
 	}
@@ -56,6 +87,24 @@ func DeletePod(podID string) (*Pod, error) {
 
 	// Fetch the pod from storage and create it.
 	p, err := fetchPod(podID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch the network config
+	networkNS, err := p.storage.fetchPodNetwork(podID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Stop the VM
+	err = p.stopVM()
+	if err != nil {
+		return nil, err
+	}
+
+	// Remove the network
+	err = p.network.remove(*p, networkNS)
 	if err != nil {
 		return nil, err
 	}
@@ -91,28 +140,8 @@ func StartPod(podID string) (*Pod, error) {
 		return nil, err
 	}
 
-	// Initialize the network.
-	err = p.network.init(&(p.config.NetworkConfig))
-	if err != nil {
-		return nil, err
-	}
-
-	// Execute prestart hooks inside netns
-	err = p.network.run(p.config.NetworkConfig.NetNSPath, func() error {
-		return p.config.Hooks.preStartHooks()
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	// Add the network
-	networkNS, err := p.network.add(*p, p.config.NetworkConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	// Store the network
-	err = p.storage.storePodNetwork(p.id, networkNS)
+	// Fetch the network config
+	networkNS, err := p.storage.fetchPodNetwork(podID)
 	if err != nil {
 		return nil, err
 	}
@@ -176,12 +205,6 @@ func StopPod(podID string) (*Pod, error) {
 		return nil, err
 	}
 
-	// Remove the network
-	err = p.network.remove(*p, networkNS)
-	if err != nil {
-		return nil, err
-	}
-
 	err = p.endSession()
 	if err != nil {
 		return nil, err
@@ -237,7 +260,13 @@ func RunPod(podConfig PodConfig) (*Pod, error) {
 		return nil, err
 	}
 
-	// Start it
+	// Start the VM
+	err = p.startVM()
+	if err != nil {
+		return nil, err
+	}
+
+	// Start the pod
 	err = p.start()
 	if err != nil {
 		p.delete()
@@ -260,27 +289,23 @@ func RunPod(podConfig PodConfig) (*Pod, error) {
 	return p, nil
 }
 
-var listFormat = "%s\t%s\t%s\t%s\n"
-var statusFormat = "%s\t%s\n"
-
 // ListPod is the virtcontainers pod listing entry point.
-func ListPod() error {
+func ListPod() ([]PodStatus, error) {
 	dir, err := os.Open(configStoragePath)
 	if err != nil {
-		return err
+		return []PodStatus{}, err
 	}
 
 	defer dir.Close()
 
 	pods, err := dir.Readdirnames(0)
 	if err != nil {
-		return err
+		return []PodStatus{}, err
 	}
 
 	fs := filesystem{}
 
-	w := tabwriter.NewWriter(os.Stdout, 2, 8, 1, '\t', 0)
-	fmt.Fprintf(w, listFormat, "POD ID", "STATE", "HYPERVISOR", "AGENT")
+	var podStatusList []PodStatus
 
 	for _, p := range pods {
 		var config PodConfig
@@ -295,47 +320,57 @@ func ListPod() error {
 			continue
 		}
 
-		fmt.Fprintf(w, listFormat,
-			config.ID, state.State, config.HypervisorType, config.AgentType)
+		podStatus := PodStatus{
+			ID:         config.ID,
+			State:      state,
+			Hypervisor: config.HypervisorType,
+			Agent:      config.AgentType,
+		}
+
+		podStatusList = append(podStatusList, podStatus)
 	}
 
-	w.Flush()
-	return nil
+	return podStatusList, nil
 }
 
 // StatusPod is the virtcontainers pod status entry point.
-func StatusPod(podID string) error {
+func StatusPod(podID string) (PodStatus, error) {
 	fs := filesystem{}
-
-	w := tabwriter.NewWriter(os.Stdout, 2, 8, 1, '\t', 0)
-	fmt.Fprintf(w, listFormat, "POD ID", "STATE", "HYPERVISOR", "AGENT")
 
 	config, err := fs.fetchPodConfig(podID)
 	if err != nil {
-		return err
+		return PodStatus{}, err
 	}
 
 	state, err := fs.fetchPodState(podID)
 	if err != nil {
-		return err
+		return PodStatus{}, err
 	}
 
-	fmt.Fprintf(w, listFormat+"\n",
-		podID, state.State, config.HypervisorType, config.AgentType)
-
-	fmt.Fprintf(w, statusFormat, "CONTAINER ID", "STATE")
-
+	var contStatusList []ContainerStatus
 	for _, container := range config.Containers {
 		contState, err := fs.fetchContainerState(podID, container.ID)
 		if err != nil {
 			continue
 		}
 
-		fmt.Fprintf(w, statusFormat, container.ID, contState.State)
+		contStatus := ContainerStatus{
+			ID:    container.ID,
+			State: contState,
+		}
+
+		contStatusList = append(contStatusList, contStatus)
 	}
 
-	w.Flush()
-	return nil
+	podStatus := PodStatus{
+		ID:               podID,
+		State:            state,
+		Hypervisor:       config.HypervisorType,
+		Agent:            config.AgentType,
+		ContainersStatus: contStatusList,
+	}
+
+	return podStatus, nil
 }
 
 // CreateContainer is the virtcontainers container creation entry point.
@@ -534,20 +569,52 @@ func EnterContainer(podID, containerID string, cmd Cmd) (*Container, error) {
 
 // StatusContainer is the virtcontainers container status entry point.
 // StatusContainer returns a detailed container status.
-func StatusContainer(podID, containerID string) error {
+func StatusContainer(podID, containerID string) (ContainerStatus, error) {
 	fs := filesystem{}
 
-	w := tabwriter.NewWriter(os.Stdout, 2, 8, 1, '\t', 0)
-
 	state, err := fs.fetchContainerState(podID, containerID)
+	if err != nil {
+		return ContainerStatus{}, err
+	}
+
+	contStatus := ContainerStatus{
+		ID:    containerID,
+		State: state,
+	}
+
+	return contStatus, nil
+}
+
+// KillContainer is the virtcontainers entry point to send a signal
+// to a container running inside a pod.
+func KillContainer(podID, containerID string, signal syscall.Signal) error {
+	lockFile, err := lockPod(podID)
+	if err != nil {
+		return err
+	}
+	defer unlockPod(lockFile)
+
+	p, err := fetchPod(podID)
 	if err != nil {
 		return err
 	}
 
-	fmt.Fprintf(w, statusFormat, "CONTAINER ID", "STATE")
-	fmt.Fprintf(w, statusFormat, containerID, state.State)
+	// Fetch the container.
+	c, err := fetchContainer(p, containerID)
+	if err != nil {
+		return err
+	}
 
-	w.Flush()
+	// Send a signal to the process.
+	err = c.kill(signal)
+	if err != nil {
+		return err
+	}
+
+	err = p.endSession()
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

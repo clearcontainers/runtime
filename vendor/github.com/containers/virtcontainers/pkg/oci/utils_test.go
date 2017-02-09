@@ -74,7 +74,6 @@ func TestMinimalPodConfig(t *testing.T) {
 	}
 
 	expectedContainerConfig := vc.ContainerConfig{
-		ID:          containerID,
 		RootFs:      filepath.Join(tempBundlePath, "rootfs"),
 		Interactive: true,
 		Console:     consolePath,
@@ -86,6 +85,8 @@ func TestMinimalPodConfig(t *testing.T) {
 	}
 
 	expectedPodConfig := vc.PodConfig{
+		ID: containerID,
+
 		HypervisorType: vc.QemuHypervisor,
 		AgentType:      vc.HyperstartAgent,
 		ProxyType:      vc.CCProxyType,

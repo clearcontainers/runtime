@@ -47,10 +47,10 @@ const (
 	stateReady stateString = "ready"
 
 	// stateRunning represents a pod/container that's currently running.
-	stateRunning = "running"
+	stateRunning stateString = "running"
 
-	// statePaused represents a pod/container that has been paused.
-	statePaused = "paused"
+	// stateStopped represents a pod/container that has been stopped.
+	stateStopped stateString = "stopped"
 )
 
 // State is a pod state structure.
@@ -60,7 +60,7 @@ type State struct {
 
 // valid checks that the pod state is valid.
 func (state *State) valid() bool {
-	for _, validState := range []stateString{stateReady, stateRunning, statePaused} {
+	for _, validState := range []stateString{stateReady, stateRunning, stateStopped} {
 		if state.State == validState {
 			return true
 		}
@@ -83,11 +83,11 @@ func (state *State) validTransition(oldState stateString, newState stateString) 
 		}
 
 	case stateRunning:
-		if newState == statePaused || newState == stateReady {
+		if newState == stateStopped {
 			return nil
 		}
 
-	case statePaused:
+	case stateStopped:
 		if newState == stateRunning {
 			return nil
 		}
@@ -226,6 +226,15 @@ type Resources struct {
 	Memory uint
 }
 
+// PodStatus describes a pod status.
+type PodStatus struct {
+	ID               string
+	State            State
+	Hypervisor       HypervisorType
+	Agent            AgentType
+	ContainersStatus []ContainerStatus
+}
+
 // PodConfig is a Pod configuration.
 type PodConfig struct {
 	ID string
@@ -319,7 +328,7 @@ type Pod struct {
 
 	volumes []Volume
 
-	containers []ContainerConfig
+	containers []*Container
 
 	runPath    string
 	configPath string
@@ -334,6 +343,11 @@ type Pod struct {
 // ID returns the pod identifier string.
 func (p *Pod) ID() string {
 	return p.id
+}
+
+// GetContainers returns a container config list.
+func (p *Pod) GetContainers() []*Container {
+	return p.containers
 }
 
 func (p *Pod) createSetStates() error {
@@ -382,11 +396,17 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 		network:    network,
 		config:     &podConfig,
 		volumes:    podConfig.Volumes,
-		containers: podConfig.Containers,
 		runPath:    filepath.Join(runStoragePath, podConfig.ID),
 		configPath: filepath.Join(configStoragePath, podConfig.ID),
 		state:      State{},
 	}
+
+	containers, err := createContainers(p, podConfig.Containers)
+	if err != nil {
+		return nil, err
+	}
+
+	p.containers = containers
 
 	err = p.storage.createAllResources(*p)
 	if err != nil {
@@ -440,7 +460,7 @@ func (p *Pod) storePod() error {
 	}
 
 	for _, container := range p.containers {
-		err = p.storage.storeContainerResource(p.id, container.ID, configFileType, container)
+		err = p.storage.storeContainerResource(p.id, container.id, configFileType, *(container.config))
 		if err != nil {
 			return err
 		}
@@ -470,8 +490,8 @@ func (p *Pod) delete() error {
 		return err
 	}
 
-	if state.State != stateReady {
-		return fmt.Errorf("Pod not ready, impossible to delete")
+	if state.State != stateReady && state.State != stateStopped {
+		return fmt.Errorf("Pod not ready or stopped, impossible to delete")
 	}
 
 	err = p.storage.deletePodResources(p.id, nil)
@@ -490,12 +510,18 @@ func (p *Pod) startCheckStates() error {
 
 	err = state.validTransition(stateReady, stateRunning)
 	if err != nil {
-		return err
+		err = state.validTransition(stateStopped, stateRunning)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = p.checkContainersState(stateReady)
 	if err != nil {
-		return err
+		err = p.checkContainersState(stateStopped)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -515,35 +541,43 @@ func (p *Pod) startSetStates() error {
 	return nil
 }
 
-// start starts a pod. The containers that are making the pod
-// will be started.
-func (p *Pod) start() error {
-	err := p.startCheckStates()
-	if err != nil {
-		return err
-	}
-
-	podStartedCh := make(chan struct{})
-	podStoppedCh := make(chan struct{})
+// startVM starts the VM, ensuring it is started before it returns or issuing
+// an error in case of timeout. Then it connects to the agent inside the VM.
+func (p *Pod) startVM() error {
+	vmStartedCh := make(chan struct{})
+	vmStoppedCh := make(chan struct{})
 
 	go func() {
-		err = p.network.run(p.config.NetworkConfig.NetNSPath, func() error {
-			err := p.hypervisor.startPod(podStartedCh, podStoppedCh)
+		p.network.run(p.config.NetworkConfig.NetNSPath, func() error {
+			err := p.hypervisor.startPod(vmStartedCh, vmStoppedCh)
 			return err
 		})
 	}()
 
 	// Wait for the pod started notification
 	select {
-	case <-podStartedCh:
+	case <-vmStartedCh:
 		break
 	case <-time.After(time.Second):
 		return fmt.Errorf("Did not receive the pod started notification")
 	}
 
-	err = p.agent.startAgent()
+	err := p.agent.startAgent()
 	if err != nil {
 		p.stop()
+		return err
+	}
+
+	glog.Infof("VM started\n")
+
+	return nil
+}
+
+// start starts a pod. The containers that are making the pod
+// will be started.
+func (p *Pod) start() error {
+	err := p.startCheckStates()
+	if err != nil {
 		return err
 	}
 
@@ -553,32 +587,12 @@ func (p *Pod) start() error {
 		return err
 	}
 
-	interactive := false
-	for _, c := range p.config.Containers {
-		if c.Interactive != false && c.Console != "" {
-			interactive = true
-			break
-		}
-	}
-
 	err = p.startSetStates()
 	if err != nil {
 		return err
 	}
 
-	if interactive == true {
-		select {
-		case <-podStoppedCh:
-			err = p.stopSetStates()
-			if err != nil {
-				return err
-			}
-
-			break
-		}
-	} else {
-		glog.Infof("Created Pod %s\n", p.ID())
-	}
+	glog.Infof("Started Pod %s\n", p.ID())
 
 	return nil
 }
@@ -589,7 +603,7 @@ func (p *Pod) stopCheckStates() error {
 		return err
 	}
 
-	err = state.validTransition(stateRunning, stateReady)
+	err = state.validTransition(stateRunning, stateStopped)
 	if err != nil {
 		return err
 	}
@@ -598,12 +612,27 @@ func (p *Pod) stopCheckStates() error {
 }
 
 func (p *Pod) stopSetStates() error {
-	err := p.setContainersState(stateReady)
+	err := p.setContainersState(stateStopped)
 	if err != nil {
 		return err
 	}
 
-	err = p.setPodState(stateReady)
+	err = p.setPodState(stateStopped)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// stopVM stops the agent inside the VM and shut down the VM itself.
+func (p *Pod) stopVM() error {
+	err := p.agent.stopAgent()
+	if err != nil {
+		return err
+	}
+
+	err = p.hypervisor.stopPod()
 	if err != nil {
 		return err
 	}
@@ -619,27 +648,12 @@ func (p *Pod) stop() error {
 		return err
 	}
 
-	err = p.agent.startAgent()
-	if err != nil {
-		return err
-	}
-
 	err = p.agent.stopPod(*p)
 	if err != nil {
 		return err
 	}
 
 	err = p.stopSetStates()
-	if err != nil {
-		return err
-	}
-
-	err = p.agent.stopAgent()
-	if err != nil {
-		return err
-	}
-
-	err = p.hypervisor.stopPod()
 	if err != nil {
 		return err
 	}
@@ -672,11 +686,6 @@ func (p *Pod) setPodState(state stateString) error {
 
 // endSession makes sure to end the session properly.
 func (p *Pod) endSession() error {
-	err := p.agent.stopAgent()
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 

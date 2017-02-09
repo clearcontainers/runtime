@@ -22,8 +22,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	//	"github.com/01org/ciao/ssntp/uuid"
-	//	"github.com/golang/glog"
 )
 
 // podResource is an int representing a pod resource type
@@ -38,6 +36,9 @@ const (
 
 	// networkFileType represents a network file type
 	networkFileType
+
+	// processFileType represents a process file type
+	processFileType
 
 	// lockFileType represents a lock file type
 	lockFileType
@@ -59,6 +60,9 @@ const stateFile = "state.json"
 
 // networkFile is the file name storing a pod network.
 const networkFile = "network.json"
+
+// processFile is the file name storing a container process.
+const processFile = "process.json"
 
 // lockFile is the file name locking the usage of a pod.
 const lockFileName = "lock"
@@ -88,6 +92,8 @@ type resourceStorage interface {
 	deleteContainerResources(podID, containerID string, resources []podResource) error
 	fetchContainerConfig(podID, containerID string) (ContainerConfig, error)
 	fetchContainerState(podID, containerID string) (State, error)
+	fetchContainerProcess(podID, containerID string) (Process, error)
+	storeContainerProcess(podID, containerID string, process Process) error
 }
 
 // filesystem is a resourceStorage interface implementation for a local filesystem.
@@ -108,14 +114,14 @@ func (fs *filesystem) createAllResources(pod Pod) error {
 	}
 
 	for _, container := range pod.containers {
-		_, path, _ = fs.containerURI(pod.id, container.ID, configFileType)
+		_, path, _ = fs.containerURI(pod.id, container.id, configFileType)
 		err = os.MkdirAll(path, os.ModeDir)
 		if err != nil {
 			fs.deletePodResources(pod.id, nil)
 			return err
 		}
 
-		_, path, _ = fs.containerURI(pod.id, container.ID, stateFileType)
+		_, path, _ = fs.containerURI(pod.id, container.id, stateFileType)
 		err = os.MkdirAll(path, os.ModeDir)
 		if err != nil {
 			fs.deletePodResources(pod.id, nil)
@@ -193,7 +199,7 @@ func resourceDir(podID, containerID string, resource podResource) (string, error
 	case configFileType:
 		path = configStoragePath
 		break
-	case stateFileType, networkFileType, lockFileType:
+	case stateFileType, networkFileType, processFileType, lockFileType:
 		path = runStoragePath
 		break
 	default:
@@ -225,6 +231,8 @@ func (fs *filesystem) resourceURI(podID, containerID string, resource podResourc
 		filename = stateFile
 	case networkFileType:
 		filename = networkFile
+	case processFileType:
+		filename = processFile
 	case lockFileType:
 		filename = lockFileName
 		break
@@ -287,6 +295,18 @@ func (fs *filesystem) storeResource(podID, containerID string, resource podResou
 
 		return fs.storeFile(networkFile, file)
 
+	case Process:
+		if resource != processFileType {
+			return fmt.Errorf("Invalid pod resource")
+		}
+
+		processFile, _, err := fs.resourceURI(podID, containerID, processFileType)
+		if err != nil {
+			return err
+		}
+
+		return fs.storeFile(processFile, file)
+
 	default:
 		return fmt.Errorf("Invalid resource data type")
 	}
@@ -335,6 +355,15 @@ func (fs *filesystem) fetchResource(podID, containerID string, resource podResou
 		}
 
 		return networkNS, nil
+
+	case processFileType:
+		process := Process{}
+		err = fs.fetchFile(path, &process)
+		if err != nil {
+			return nil, err
+		}
+
+		return process, nil
 	}
 
 	return nil, fmt.Errorf("Invalid pod resource")
@@ -452,6 +481,28 @@ func (fs *filesystem) fetchContainerState(podID, containerID string) (State, err
 	}
 
 	return State{}, fmt.Errorf("Unknown state type")
+}
+
+func (fs *filesystem) fetchContainerProcess(podID, containerID string) (Process, error) {
+	if containerID == "" {
+		return Process{}, fmt.Errorf("Container ID cannot be empty")
+	}
+
+	data, err := fs.fetchResource(podID, containerID, processFileType)
+	if err != nil {
+		return Process{}, err
+	}
+
+	switch process := data.(type) {
+	case Process:
+		return process, nil
+	}
+
+	return Process{}, fmt.Errorf("Unknown process type")
+}
+
+func (fs *filesystem) storeContainerProcess(podID, containerID string, process Process) error {
+	return fs.storeContainerResource(podID, containerID, processFileType, process)
 }
 
 func (fs *filesystem) deleteContainerResources(podID, containerID string, resources []podResource) error {
