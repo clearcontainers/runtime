@@ -18,6 +18,7 @@ package virtcontainers
 
 import (
 	"fmt"
+	"syscall"
 
 	"github.com/mitchellh/mapstructure"
 )
@@ -136,4 +137,7 @@ type agent interface {
 
 	// stopContainer will tell the agent to stop a container related to a Pod.
 	stopContainer(pod Pod, container Container) error
+
+	// killContainer will tell the agent to send a signal to a container related to a Pod.
+	killContainer(pod Pod, container Container, signal syscall.Signal) error
 }

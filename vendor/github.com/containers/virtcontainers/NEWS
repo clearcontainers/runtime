@@ -1,3 +1,11 @@
+0.5.0:
+	Changed the CreatePod/StartPod logic
+	Added an OCI config file conversion package
+	Added initial benchmarks
+	Added more CNI network unit tests
+	Moved all non virtcontainers packages under pkg/
+	Fixed netns race conditions
+
 0.4.0:
 	Added CNM network model support
 	Added hyperstart asynchronous events support

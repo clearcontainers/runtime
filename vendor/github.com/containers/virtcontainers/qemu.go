@@ -34,7 +34,6 @@ type qmpChannel struct {
 	ctx          context.Context
 	path         string
 	disconnectCh chan struct{}
-	commandCh    chan qmpCommand
 	wg           sync.WaitGroup
 	qmp          *ciaoQemu.QMP
 }
@@ -52,20 +51,6 @@ type qemu struct {
 
 	qemuConfig ciaoQemu.Config
 }
-
-// QMPCommand describes a VirtContainers QMP command to be sent.
-type qmpCommand uint8
-
-const (
-	// qmpQuit will shut the VM down.
-	qmpQuit qmpCommand = iota
-
-	// qmpStart will start/resume the VM.
-	qmpStart
-
-	// qmpStop will stop/pause the VM.
-	qmpStop
-)
 
 const defaultQemuPath = "/usr/bin/qemu-system-x86_64"
 
@@ -343,53 +328,6 @@ func (q *qemu) qmpMonitor(connectedCh chan struct{}) {
 	}
 
 	close(connectedCh)
-
-DONE:
-	for {
-		cmd, ok := <-q.qmpMonitorCh.commandCh
-		if !ok {
-			break DONE
-		}
-		switch cmd {
-		case qmpStart:
-			err = q.qmpMonitorCh.qmp.ExecuteCont(q.qmpMonitorCh.ctx)
-			if err != nil {
-				glog.Warningf("Failed to execute start command: %v", err)
-			}
-
-		case qmpStop:
-			err = q.qmpMonitorCh.qmp.ExecuteStop(q.qmpMonitorCh.ctx)
-			if err != nil {
-				glog.Warningf("Failed to execute stop command: %v", err)
-			}
-
-		case qmpQuit:
-			err = q.qmpMonitorCh.qmp.ExecuteQuit(q.qmpMonitorCh.ctx)
-			if err != nil {
-				glog.Warningf("Failed to execute quit command: %v", err)
-			}
-		}
-	}
-}
-
-func (q *qemu) qmpStop() error {
-	if q.qmpMonitorCh.commandCh == nil {
-		return fmt.Errorf("Invalid QMP monitor channel")
-	}
-
-	q.qmpMonitorCh.commandCh <- qmpStop
-
-	return nil
-}
-
-func (q *qemu) qmpStart() error {
-	if q.qmpMonitorCh.commandCh == nil {
-		return fmt.Errorf("Invalid QMP monitor channel")
-	}
-
-	q.qmpMonitorCh.commandCh <- qmpStart
-
-	return nil
 }
 
 func (q *qemu) setCPUResources(podConfig PodConfig) ciaoQemu.SMP {
@@ -519,7 +457,6 @@ func (q *qemu) startPod(startCh, stopCh chan struct{}) error {
 	}
 
 	// Start the QMP monitoring thread
-	q.qmpMonitorCh.commandCh = make(chan qmpCommand)
 	q.qmpMonitorCh.disconnectCh = stopCh
 	q.qmpMonitorCh.wg.Add(1)
 	q.qmpMonitor(startCh)

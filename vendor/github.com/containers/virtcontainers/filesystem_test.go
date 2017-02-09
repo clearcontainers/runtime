@@ -28,16 +28,23 @@ import (
 func TestFilesystemCreateAllResourcesSuccessful(t *testing.T) {
 	fs := &filesystem{}
 
-	containers := []ContainerConfig{
+	contConfigs := []ContainerConfig{
 		{ID: "1"},
 		{ID: "10"},
 		{ID: "100"},
 	}
 
 	pod := Pod{
-		id:         testPodID,
-		containers: containers,
+		id:      testPodID,
+		storage: fs,
 	}
+
+	containers, err := createContainers(&pod, contConfigs)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pod.containers = containers
 
 	podConfigPath := filepath.Join(configStoragePath, testPodID)
 	podRunPath := filepath.Join(runStoragePath, testPodID)
@@ -45,7 +52,7 @@ func TestFilesystemCreateAllResourcesSuccessful(t *testing.T) {
 	os.RemoveAll(podConfigPath)
 	os.RemoveAll(podRunPath)
 
-	for _, container := range containers {
+	for _, container := range contConfigs {
 		configPath := filepath.Join(configStoragePath, testPodID, container.ID)
 		os.RemoveAll(configPath)
 
@@ -53,7 +60,7 @@ func TestFilesystemCreateAllResourcesSuccessful(t *testing.T) {
 		os.RemoveAll(runPath)
 	}
 
-	err := fs.createAllResources(pod)
+	err = fs.createAllResources(pod)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,7 +76,7 @@ func TestFilesystemCreateAllResourcesSuccessful(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for _, container := range containers {
+	for _, container := range contConfigs {
 		configPath := filepath.Join(configStoragePath, testPodID, container.ID)
 		_, err = os.Stat(configPath)
 		if err != nil {
@@ -98,8 +105,8 @@ func TestFilesystemCreateAllResourcesFailingPodIDEmpty(t *testing.T) {
 func TestFilesystemCreateAllResourcesFailingContainerIDEmpty(t *testing.T) {
 	fs := &filesystem{}
 
-	containers := []ContainerConfig{
-		{ID: ""},
+	containers := []*Container{
+		{id: ""},
 	}
 
 	pod := Pod{

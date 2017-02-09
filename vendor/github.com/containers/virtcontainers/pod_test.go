@@ -132,35 +132,35 @@ func TestPodStateReadyRunning(t *testing.T) {
 }
 
 func TestPodStateRunningPaused(t *testing.T) {
-	err := testPodStateTransition(t, stateRunning, statePaused)
+	err := testPodStateTransition(t, stateRunning, stateStopped)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestPodStatePausedRunning(t *testing.T) {
-	err := testPodStateTransition(t, statePaused, stateRunning)
+	err := testPodStateTransition(t, stateStopped, stateRunning)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
-func TestPodStateRunningReady(t *testing.T) {
-	err := testPodStateTransition(t, stateRunning, stateReady)
+func TestPodStateRunningStopped(t *testing.T) {
+	err := testPodStateTransition(t, stateRunning, stateStopped)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestPodStateReadyPaused(t *testing.T) {
-	err := testPodStateTransition(t, stateReady, statePaused)
+	err := testPodStateTransition(t, stateReady, stateStopped)
 	if err == nil {
 		t.Fatal("Invalid transition from Ready to Paused")
 	}
 }
 
 func TestPodStatePausedReady(t *testing.T) {
-	err := testPodStateTransition(t, statePaused, stateReady)
+	err := testPodStateTransition(t, stateStopped, stateReady)
 	if err == nil {
 		t.Fatal("Invalid transition from Ready to Paused")
 	}
@@ -278,7 +278,7 @@ func testStateValid(t *testing.T, stateStr stateString, expected bool) {
 func TestStateValidSuccessful(t *testing.T) {
 	testStateValid(t, stateReady, true)
 	testStateValid(t, stateRunning, true)
-	testStateValid(t, statePaused, true)
+	testStateValid(t, stateStopped, true)
 }
 
 func TestStateValidFailing(t *testing.T) {
@@ -290,7 +290,7 @@ func TestValidTransitionFailingOldStateMismatch(t *testing.T) {
 		State: stateReady,
 	}
 
-	err := state.validTransition(stateRunning, statePaused)
+	err := state.validTransition(stateRunning, stateStopped)
 	if err == nil {
 		t.Fatal()
 	}
@@ -702,7 +702,7 @@ func TestPodCheckContainerStateFailingNotExpectedState(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = pod.checkContainerState(contID, statePaused)
+	err = pod.checkContainerState(contID, stateStopped)
 	if err == nil {
 		t.Fatal()
 	}

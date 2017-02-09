@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"strings"
+	"syscall"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -170,5 +171,10 @@ func (s *sshd) startContainer(pod Pod, contConfig ContainerConfig) error {
 
 // stopContainer is the agent Container stopping implementation for sshd.
 func (s *sshd) stopContainer(pod Pod, container Container) error {
+	return nil
+}
+
+// killContainer is the agent Container signaling implementation for sshd.
+func (s *sshd) killContainer(pod Pod, container Container, signal syscall.Signal) error {
 	return nil
 }

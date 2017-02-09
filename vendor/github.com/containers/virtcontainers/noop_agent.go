@@ -16,6 +16,10 @@
 
 package virtcontainers
 
+import (
+	"syscall"
+)
+
 // noopAgent a.k.a. NO-OP Agent is an empty Agent implementation, for testing and
 // mocking purposes.
 type noopAgent struct {
@@ -58,5 +62,10 @@ func (n *noopAgent) startContainer(pod Pod, contConfig ContainerConfig) error {
 
 // stopContainer is the Noop agent Container stopping implementation. It does nothing.
 func (n *noopAgent) stopContainer(pod Pod, container Container) error {
+	return nil
+}
+
+// killContainer is the Noop agent Container signaling implementation. It does nothing.
+func (n *noopAgent) killContainer(pod Pod, container Container, signal syscall.Signal) error {
 	return nil
 }
