@@ -17,6 +17,7 @@ package oci
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"path/filepath"
 	"strconv"
@@ -184,4 +185,34 @@ func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodC
 	}
 
 	return &podConfig, nil
+}
+
+// StatusToOCIState translates a virtcontainers pod status into an OCI state.
+func StatusToOCIState(status vc.PodStatus) (spec.State, error) {
+	if len(status.ContainersStatus) != 1 {
+		return spec.State{}, fmt.Errorf("ContainerStatus list from PodStatus is wrong, expecting only one container status")
+	}
+
+	state := spec.State{
+		Version: spec.Version,
+		ID:      status.ID,
+		Status:  stateToOCIState(status.State),
+		Pid:     status.ContainersStatus[0].PID,
+		Bundle:  status.ContainersStatus[0].RootFs,
+	}
+
+	return state, nil
+}
+
+func stateToOCIState(state vc.State) string {
+	switch state.State {
+	case vc.StateReady:
+		return "created"
+	case vc.StateRunning:
+		return "running"
+	case vc.StateStopped:
+		return "stopped"
+	default:
+		return ""
+	}
 }

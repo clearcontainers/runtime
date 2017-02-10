@@ -10,7 +10,7 @@
             "branch": "master"
         },
         "github.com/containers/virtcontainers": {
-            "revision": "242a130215ca7705907bfb3ae9f5ffb0ef805f47"
+            "revision": "ad20d1ede6324659c9e96c9b1a2da222c4861820"
         },
         "github.com/docker/libnetwork": {
             "branch": "master"
@@ -19,7 +19,7 @@
             "branch": "master"
         },
         "github.com/opencontainers/runtime-spec": {
-            "branch": "master"
+            "revision": "5d3f1674e641150ea95b61500c6bea6b3f411d91"
         },
         "github.com/urfave/cli": {
             "branch": "master"

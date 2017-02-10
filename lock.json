@@ -1,5 +1,5 @@
 {
-    "memo": "f27ea05dba1ac0eef600373c238e12e89236ac77a637fb2b0e0e6f5bd67c9377",
+    "memo": "7a445e1034104dd3ef656b8f563b16889481b967a8b4cc9d0d4af639aa8603f1",
     "projects": [
         {
             "name": "github.com/01org/cc-oci-runtime",
@@ -55,7 +55,7 @@
         },
         {
             "name": "github.com/containers/virtcontainers",
-            "revision": "242a130215ca7705907bfb3ae9f5ffb0ef805f47",
+            "revision": "ad20d1ede6324659c9e96c9b1a2da222c4861820",
             "packages": [
                 ".",
                 "pkg/oci"
@@ -128,8 +128,7 @@
         },
         {
             "name": "github.com/opencontainers/runtime-spec",
-            "branch": "master",
-            "revision": "3297cd573eecf13560aedbedbbef11a19166e09f",
+            "revision": "5d3f1674e641150ea95b61500c6bea6b3f411d91",
             "packages": [
                 "specs-go"
             ]
