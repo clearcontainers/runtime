@@ -26,6 +26,7 @@ import (
 	"testing"
 
 	vc "github.com/containers/virtcontainers"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
 const tempBundlePath = "/tmp/virtc/ocibundle/"
@@ -108,6 +109,182 @@ func TestMinimalPodConfig(t *testing.T) {
 
 	if err := os.Remove(configPath); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func testStatusToOCIStateSuccessful(t *testing.T, podStatus vc.PodStatus, expected specs.State) {
+	ociState, err := StatusToOCIState(podStatus)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if reflect.DeepEqual(ociState, expected) == false {
+		t.Fatalf("Got %v\n expecting %v", ociState, expected)
+	}
+}
+
+func TestStatusToOCIStateSuccessfulWithReadyState(t *testing.T) {
+	testPodID := "testPodID"
+	testPID := 12345
+	testRootFs := "testRootFs"
+
+	state := vc.State{
+		State: vc.StateReady,
+	}
+
+	cStatuses := []vc.ContainerStatus{
+		{
+			PID:    testPID,
+			RootFs: testRootFs,
+		},
+	}
+
+	podStatus := vc.PodStatus{
+		ID:               testPodID,
+		State:            state,
+		ContainersStatus: cStatuses,
+	}
+
+	expected := specs.State{
+		Version: specs.Version,
+		ID:      testPodID,
+		Status:  "created",
+		Pid:     testPID,
+		Bundle:  testRootFs,
+	}
+
+	testStatusToOCIStateSuccessful(t, podStatus, expected)
+}
+
+func TestStatusToOCIStateSuccessfulWithRunningState(t *testing.T) {
+	testPodID := "testPodID"
+	testPID := 12345
+	testRootFs := "testRootFs"
+
+	state := vc.State{
+		State: vc.StateRunning,
+	}
+
+	cStatuses := []vc.ContainerStatus{
+		{
+			PID:    testPID,
+			RootFs: testRootFs,
+		},
+	}
+
+	podStatus := vc.PodStatus{
+		ID:               testPodID,
+		State:            state,
+		ContainersStatus: cStatuses,
+	}
+
+	expected := specs.State{
+		Version: specs.Version,
+		ID:      testPodID,
+		Status:  "running",
+		Pid:     testPID,
+		Bundle:  testRootFs,
+	}
+
+	testStatusToOCIStateSuccessful(t, podStatus, expected)
+}
+
+func TestStatusToOCIStateSuccessfulWithStoppedState(t *testing.T) {
+	testPodID := "testPodID"
+	testPID := 12345
+	testRootFs := "testRootFs"
+
+	state := vc.State{
+		State: vc.StateStopped,
+	}
+
+	cStatuses := []vc.ContainerStatus{
+		{
+			PID:    testPID,
+			RootFs: testRootFs,
+		},
+	}
+
+	podStatus := vc.PodStatus{
+		ID:               testPodID,
+		State:            state,
+		ContainersStatus: cStatuses,
+	}
+
+	expected := specs.State{
+		Version: specs.Version,
+		ID:      testPodID,
+		Status:  "stopped",
+		Pid:     testPID,
+		Bundle:  testRootFs,
+	}
+
+	testStatusToOCIStateSuccessful(t, podStatus, expected)
+}
+
+func TestStatusToOCIStateSuccessfulWithNoState(t *testing.T) {
+	testPodID := "testPodID"
+	testPID := 12345
+	testRootFs := "testRootFs"
+
+	cStatuses := []vc.ContainerStatus{
+		{
+			PID:    testPID,
+			RootFs: testRootFs,
+		},
+	}
+
+	podStatus := vc.PodStatus{
+		ID:               testPodID,
+		State:            vc.State{},
+		ContainersStatus: cStatuses,
+	}
+
+	expected := specs.State{
+		Version: specs.Version,
+		ID:      testPodID,
+		Status:  "",
+		Pid:     testPID,
+		Bundle:  testRootFs,
+	}
+
+	testStatusToOCIStateSuccessful(t, podStatus, expected)
+}
+
+func TestStatusToOCIStateFailure(t *testing.T) {
+	testPodID := "testPodID"
+
+	podStatus := vc.PodStatus{
+		ID:               testPodID,
+		State:            vc.State{},
+		ContainersStatus: []vc.ContainerStatus{},
+	}
+
+	if _, err := StatusToOCIState(podStatus); err == nil {
+		t.Fatal(err)
+	}
+}
+
+func TestStateToOCIState(t *testing.T) {
+	var state vc.State
+
+	if ociState := stateToOCIState(state); ociState != "" {
+		t.Fatalf("Expecting \"created\" state, got \"%s\"", ociState)
+	}
+
+	state.State = vc.StateReady
+	if ociState := stateToOCIState(state); ociState != "created" {
+		t.Fatalf("Expecting \"created\" state, got \"%s\"", ociState)
+	}
+
+	state.State = vc.StateRunning
+	if ociState := stateToOCIState(state); ociState != "running" {
+		t.Fatalf("Expecting \"created\" state, got \"%s\"", ociState)
+	}
+
+	state.State = vc.StateStopped
+	if ociState := stateToOCIState(state); ociState != "stopped" {
+		t.Fatalf("Expecting \"created\" state, got \"%s\"", ociState)
 	}
 }
 
