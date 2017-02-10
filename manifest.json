@@ -19,7 +19,7 @@
             "branch": "master"
         },
         "github.com/opencontainers/runtime-spec": {
-            "branch": "master"
+            "revision": "5d3f1674e641150ea95b61500c6bea6b3f411d91"
         },
         "github.com/urfave/cli": {
             "branch": "master"

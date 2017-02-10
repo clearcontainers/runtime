@@ -1,5 +1,5 @@
 {
-    "memo": "f27ea05dba1ac0eef600373c238e12e89236ac77a637fb2b0e0e6f5bd67c9377",
+    "memo": "a7f1fe10d8cd2a8287f67e3a07c67ee3bac84603baba69f05c0c1f2a1d6e0ac9",
     "projects": [
         {
             "name": "github.com/01org/cc-oci-runtime",
@@ -128,8 +128,7 @@
         },
         {
             "name": "github.com/opencontainers/runtime-spec",
-            "branch": "master",
-            "revision": "3297cd573eecf13560aedbedbbef11a19166e09f",
+            "revision": "5d3f1674e641150ea95b61500c6bea6b3f411d91",
             "packages": [
                 "specs-go"
             ]
