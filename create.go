@@ -16,6 +16,11 @@
 package main
 
 import (
+	"fmt"
+	"os"
+
+	vc "github.com/containers/virtcontainers"
+	"github.com/containers/virtcontainers/pkg/oci"
 	"github.com/urfave/cli"
 )
 
@@ -52,7 +57,84 @@ var createCommand = cli.Command{
 		},
 	},
 	Action: func(context *cli.Context) error {
-		// TODO
-		return nil
+		return create(context.String("container-id"),
+			context.String("bundle"),
+			context.String("console"),
+			context.String("pid-file"))
 	},
+}
+
+func create(containerID, bundlePath, console, pidFilePath string) error {
+	// Checks the MUST and MUST NOT from OCI runtime specification
+	if err := validCreateParams(containerID, bundlePath); err != nil {
+		return err
+	}
+
+	podConfig, err := getPodConfig(bundlePath, containerID, console)
+	if err != nil {
+		return err
+	}
+
+	pod, err := vc.CreatePod(podConfig)
+	if err != nil {
+		return err
+	}
+
+	// Start the shim to retrieve its PID.
+	pid, err := startShim(pod)
+	if err != nil {
+		return err
+	}
+
+	// Creation of PID file has to be the last thing done in the create
+	// because containerd considers the create complete after this file
+	// is created.
+	if err := createPIDFile(pidFilePath, pid); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func getPodConfig(bundlePath, containerID, console string) (vc.PodConfig, error) {
+	runtimeConfig, err := loadConfiguration("")
+	if err != nil {
+		return vc.PodConfig{}, err
+	}
+
+	podConfig, err := oci.PodConfig(runtimeConfig, bundlePath, containerID, console)
+	if err != nil {
+		return vc.PodConfig{}, err
+	}
+
+	return *podConfig, nil
+}
+
+func createPIDFile(pidFilePath string, pid int) error {
+	if pidFilePath == "" {
+		return fmt.Errorf("Missing PID file path")
+	}
+
+	if err := os.RemoveAll(pidFilePath); err != nil {
+		return err
+	}
+
+	f, err := os.Create(pidFilePath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	pidStr := fmt.Sprintf("%d", pid)
+
+	n, err := f.WriteString(pidStr)
+	if err != nil {
+		return err
+	}
+
+	if n < len(pidStr) {
+		return fmt.Errorf("Could not write pid to '%s': only %d bytes written out of %d", pidFilePath, n, len(pidStr))
+	}
+
+	return nil
 }

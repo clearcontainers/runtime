@@ -16,6 +16,10 @@
 package main
 
 import (
+	"fmt"
+
+	vc "github.com/containers/virtcontainers"
+	"github.com/containers/virtcontainers/pkg/oci"
 	"github.com/urfave/cli"
 )
 
@@ -39,7 +43,44 @@ EXAMPLE:
 		},
 	},
 	Action: func(context *cli.Context) error {
-		// TODO
-		return nil
+		return delete(context.String("container-id"), context.Bool("force"))
 	},
+}
+
+func delete(containerID string, force bool) error {
+	// Checks the MUST and MUST NOT from OCI runtime specification
+	if err := validContainer(containerID); err != nil {
+		return err
+	}
+
+	if force == false {
+		podStatus, err := vc.StatusPod(containerID)
+		if err != nil {
+			return err
+		}
+
+		state, err := oci.StatusToOCIState(podStatus)
+		if err != nil {
+			return err
+		}
+
+		running, err := processRunning(state.Pid)
+		if err != nil {
+			return err
+		}
+
+		if running == true {
+			return fmt.Errorf("Container still running, should be stopped")
+		}
+	}
+
+	if _, err := vc.StopPod(containerID); err != nil {
+		return err
+	}
+
+	if _, err := vc.DeletePod(containerID); err != nil {
+		return err
+	}
+
+	return nil
 }
