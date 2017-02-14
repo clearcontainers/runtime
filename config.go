@@ -34,9 +34,9 @@ const (
 	defaultKernelPath           = "/usr/share/clear-containers/vmlinux.container"
 	defaultImagePath            = "/usr/share/clear-containers/clear-containers.img"
 	defaultHypervisorPath       = "/usr/bin/qemu-lite-system-x86_64"
-	defaultShimPath             = "/usr/local/libexec/cc-shim"
-	defaultProxyIP              = "127.0.0.1"
-	defaultProxyPort            = "54321"
+	defaultShimBinPath          = "/usr/local/libexec/cc-shim"
+	defaultShimIP               = "127.0.0.1"
+	defaultShimPort             = "54321"
 )
 
 const (
@@ -48,16 +48,22 @@ const (
 	ccProxy = "cc"
 )
 
+const (
+	ccShim = "cc"
+)
+
 var (
 	errUnknownHypervisor  = errors.New("unknown hypervisor")
 	errUnknownAgent       = errors.New("unknown agent")
 	errTooManyHypervisors = errors.New("too many hypervisor sections")
 	errTooManyProxies     = errors.New("too many proxy sections")
+	errTooManyShims       = errors.New("too many shim sections")
 )
 
 type tomlConfig struct {
 	Hypervisor map[string]hypervisor
 	Proxy      map[string]proxy
+	Shim       map[string]shim
 }
 
 type hypervisor struct {
@@ -69,6 +75,12 @@ type hypervisor struct {
 type proxy struct {
 	RuntimeSockPath string `toml:"runtime_sock"`
 	ShimSockPath    string `toml:"shim_sock"`
+}
+
+type shim struct {
+	Path string `toml:"path"`
+	IP   string `toml:"ip"`
+	Port string `toml:"port"`
 }
 
 func (h hypervisor) path() string {
@@ -95,7 +107,31 @@ func (h hypervisor) image() string {
 	return h.Image
 }
 
-func loadConfiguration(configPath string) (oci.RuntimeConfig, error) {
+func (s shim) path() string {
+	if s.Path == "" {
+		return defaultShimBinPath
+	}
+
+	return s.Path
+}
+
+func (s shim) ip() string {
+	if s.IP == "" {
+		return defaultShimIP
+	}
+
+	return s.IP
+}
+
+func (s shim) port() string {
+	if s.Port == "" {
+		return defaultShimPort
+	}
+
+	return s.Port
+}
+
+func loadConfiguration(configPath string) (oci.RuntimeConfig, ShimConfig, error) {
 	defaultHypervisorConfig := vc.HypervisorConfig{
 		HypervisorPath: defaultHypervisorPath,
 		KernelPath:     defaultKernelPath,
@@ -109,29 +145,39 @@ func loadConfiguration(configPath string) (oci.RuntimeConfig, error) {
 		ProxyType:        defaultProxy,
 	}
 
+	shimConfig := ShimConfig{
+		Path: defaultShimBinPath,
+		IP:   defaultShimIP,
+		Port: defaultShimPort,
+	}
+
 	if configPath == "" {
 		configPath = defaultRuntimeConfiguration
 	}
 
 	configData, err := ioutil.ReadFile(configPath)
 	if err != nil {
-		return config, err
+		return config, shimConfig, err
 	}
 
 	var tomlConf tomlConfig
 	_, err = toml.Decode(string(configData), &tomlConf)
 	if err != nil {
-		return config, err
+		return config, shimConfig, err
 	}
 
 	log.Debugf("TOML configuration: %v", tomlConf)
 
 	if len(tomlConf.Hypervisor) > 1 {
-		return config, errTooManyHypervisors
+		return config, shimConfig, errTooManyHypervisors
 	}
 
 	if len(tomlConf.Proxy) > 1 {
-		return config, errTooManyProxies
+		return config, shimConfig, errTooManyProxies
+	}
+
+	if len(tomlConf.Shim) > 1 {
+		return config, shimConfig, errTooManyShims
 	}
 
 	for k, hypervisor := range tomlConf.Hypervisor {
@@ -162,5 +208,17 @@ func loadConfiguration(configPath string) (oci.RuntimeConfig, error) {
 		}
 	}
 
-	return config, nil
+	for k, shim := range tomlConf.Shim {
+		switch k {
+		case ccShim:
+			shimConfig = ShimConfig{
+				Path: shim.path(),
+				IP:   shim.ip(),
+				Port: shim.port(),
+			}
+			break
+		}
+	}
+
+	return config, shimConfig, nil
 }
