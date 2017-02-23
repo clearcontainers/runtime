@@ -3,6 +3,7 @@ go_import_path: github.com/clearcontainers/runtime
 
 go:
 - 1.7
+- 1.8
 - tip
 
 env:
