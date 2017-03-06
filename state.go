@@ -34,7 +34,12 @@ var stateCommand = cli.Command{
 	Description: `The state command outputs current state information for the
 instance of a container.`,
 	Action: func(context *cli.Context) error {
-		return state(context.String("container-id"))
+		args := context.Args()
+		if len(args) != 1 {
+			return fmt.Errorf("Expecting only one container ID, got %d: %v", len(args), []string(args))
+		}
+
+		return state(args.First())
 	},
 }
 

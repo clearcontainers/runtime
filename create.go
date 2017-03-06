@@ -57,7 +57,7 @@ var createCommand = cli.Command{
 		},
 	},
 	Action: func(context *cli.Context) error {
-		return create(context.String("container-id"),
+		return create(context.Args().First(),
 			context.String("bundle"),
 			context.String("console"),
 			context.String("pid-file"))

@@ -16,6 +16,8 @@
 package main
 
 import (
+	"fmt"
+
 	vc "github.com/containers/virtcontainers"
 	"github.com/urfave/cli"
 )
@@ -30,7 +32,18 @@ var startCommand = cli.Command{
    unique bon your host.`,
 	Description: `The start command executes the user defined process in a created container .`,
 	Action: func(context *cli.Context) error {
-		return start(context.String("container-id"))
+		args := context.Args()
+		if args.Present() == false {
+			return fmt.Errorf("Missing container ID, should at least provide one")
+		}
+
+		for _, cID := range []string(args) {
+			if err := start(cID); err != nil {
+				return err
+			}
+		}
+
+		return nil
 	},
 }
 
