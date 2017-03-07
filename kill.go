@@ -43,7 +43,18 @@ EXAMPLE:
 		},
 	},
 	Action: func(context *cli.Context) error {
-		return kill(context.String("container-id"), context.String("signal"))
+		args := context.Args()
+		if args.Present() == false {
+			return fmt.Errorf("Missing container ID")
+		}
+
+		// If signal is provided, it has to be the second argument.
+		signal := args.Get(1)
+		if signal == "" {
+			signal = "SIGTERM"
+		}
+
+		return kill(args.First(), signal, context.Bool("all"))
 	},
 }
 
@@ -85,7 +96,7 @@ var signals = map[string]syscall.Signal{
 	"SIGXFSZ":   syscall.SIGXFSZ,
 }
 
-func kill(containerID, signal string) error {
+func kill(containerID, signal string, all bool) error {
 	// Checks the MUST and MUST NOT from OCI runtime specification
 	if err := validContainer(containerID); err != nil {
 		return err

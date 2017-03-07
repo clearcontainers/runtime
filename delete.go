@@ -43,7 +43,19 @@ EXAMPLE:
 		},
 	},
 	Action: func(context *cli.Context) error {
-		return delete(context.String("container-id"), context.Bool("force"))
+		args := context.Args()
+		if args.Present() == false {
+			return fmt.Errorf("Missing container ID, should at least provide one")
+		}
+
+		force := context.Bool("force")
+		for _, cID := range []string(args) {
+			if err := delete(cID, force); err != nil {
+				return err
+			}
+		}
+
+		return nil
 	},
 }
 
