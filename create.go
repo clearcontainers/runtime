@@ -70,7 +70,7 @@ func create(containerID, bundlePath, console, pidFilePath string) error {
 		return err
 	}
 
-	podConfig, err := getPodConfig(bundlePath, containerID, console)
+	podConfig, shimConfig, err := getConfigs(bundlePath, containerID, console)
 	if err != nil {
 		return err
 	}
@@ -81,7 +81,7 @@ func create(containerID, bundlePath, console, pidFilePath string) error {
 	}
 
 	// Start the shim to retrieve its PID.
-	pid, err := startShim(pod)
+	pid, err := startShim(shimConfig, pod)
 	if err != nil {
 		return err
 	}
@@ -96,18 +96,18 @@ func create(containerID, bundlePath, console, pidFilePath string) error {
 	return nil
 }
 
-func getPodConfig(bundlePath, containerID, console string) (vc.PodConfig, error) {
-	runtimeConfig, err := loadConfiguration("")
+func getConfigs(bundlePath, containerID, console string) (vc.PodConfig, ShimConfig, error) {
+	runtimeConfig, shimConfig, err := loadConfiguration("")
 	if err != nil {
-		return vc.PodConfig{}, err
+		return vc.PodConfig{}, ShimConfig{}, err
 	}
 
 	podConfig, err := oci.PodConfig(runtimeConfig, bundlePath, containerID, console)
 	if err != nil {
-		return vc.PodConfig{}, err
+		return vc.PodConfig{}, ShimConfig{}, err
 	}
 
-	return *podConfig, nil
+	return *podConfig, shimConfig, nil
 }
 
 func createPIDFile(pidFilePath string, pid int) error {

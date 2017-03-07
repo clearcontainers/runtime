@@ -22,15 +22,14 @@ import (
 	vc "github.com/containers/virtcontainers"
 )
 
-// ShimInfo gathers information needed by the shim.
-type ShimInfo struct {
-	Path  string
-	Token string
-	IP    string
-	Port  string
+// ShimConfig describes a shim configuration.
+type ShimConfig struct {
+	Path string
+	IP   string
+	Port string
 }
 
-func startShim(pod *vc.Pod) (int, error) {
+func startShim(config ShimConfig, pod *vc.Pod) (int, error) {
 	containers := pod.GetContainers()
 
 	if len(containers) != 1 {
@@ -38,14 +37,14 @@ func startShim(pod *vc.Pod) (int, error) {
 	}
 	container := containers[0]
 
-	shimInfo, err := getShimInfo(container)
-	if err != nil {
-		return -1, err
+	token := container.GetToken()
+	if token == "" {
+		return -1, fmt.Errorf("Invalid token")
 	}
 
 	cmd := exec.Cmd{
-		Path: shimInfo.Path,
-		Args: []string{"-t", shimInfo.Token, "-s", shimInfo.IP, "-p", shimInfo.Port},
+		Path: config.Path,
+		Args: []string{"-t", token, "-s", config.IP, "-p", config.Port},
 		Env:  os.Environ(),
 	}
 
@@ -59,20 +58,4 @@ func startShim(pod *vc.Pod) (int, error) {
 	}
 
 	return pid, nil
-}
-
-func getShimInfo(container *vc.Container) (ShimInfo, error) {
-	token := container.GetToken()
-	if token == "" {
-		return ShimInfo{}, fmt.Errorf("Invalid token")
-	}
-
-	shimInfo := ShimInfo{
-		Path:  defaultShimPath,
-		Token: token,
-		IP:    defaultProxyIP,
-		Port:  defaultProxyPort,
-	}
-
-	return shimInfo, nil
 }

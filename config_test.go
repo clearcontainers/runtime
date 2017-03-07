@@ -31,6 +31,9 @@ const kernelPath = "/foo/clear-containers/vmlinux.container"
 const imagePath = "/foo/clear-containers/clear-containers.img"
 const runtimePath = "/foo/clear-containers/runtime.sock"
 const shimPath = "/foo/clear-containers/shim.sock"
+const shimBinPath = "/foo/clear-containers/bin/cc-shim"
+const shimIP = "127.0.0.1"
+const shimPort = "12345"
 
 const runtimeConfig = `
 # Clear Containers runtime configuration file
@@ -43,6 +46,11 @@ image = "` + imagePath + `"
 [proxy.cc]
 runtime_sock = "` + runtimePath + `"
 shim_sock = "` + shimPath + `"
+
+[shim.cc]
+path = "` + shimBinPath + `"
+ip = "` + shimIP + `"
+port = "` + shimPort + `"
 `
 
 const runtimeMinimalConfig = `
@@ -73,7 +81,7 @@ func TestRuntimeConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	config, err := loadConfiguration(configPath)
+	config, shimConfig, err := loadConfiguration(configPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,8 +107,18 @@ func TestRuntimeConfig(t *testing.T) {
 		ProxyConfig: expectedProxyConfig,
 	}
 
+	expectedShimConfig := ShimConfig{
+		Path: shimBinPath,
+		IP:   shimIP,
+		Port: shimPort,
+	}
+
 	if reflect.DeepEqual(config, expectedConfig) == false {
 		t.Fatalf("Got %v\n expecting %v", config, expectedConfig)
+	}
+
+	if reflect.DeepEqual(shimConfig, expectedShimConfig) == false {
+		t.Fatalf("Got %v\n expecting %v", shimConfig, expectedShimConfig)
 	}
 
 	if err := os.Remove(configPath); err != nil {
@@ -114,7 +132,7 @@ func TestMinimalRuntimeConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	config, err := loadConfiguration(configPath)
+	config, shimConfig, err := loadConfiguration(configPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,8 +158,18 @@ func TestMinimalRuntimeConfig(t *testing.T) {
 		ProxyConfig: expectedProxyConfig,
 	}
 
+	expectedShimConfig := ShimConfig{
+		Path: defaultShimBinPath,
+		IP:   defaultShimIP,
+		Port: defaultShimPort,
+	}
+
 	if reflect.DeepEqual(config, expectedConfig) == false {
 		t.Fatalf("Got %v\n expecting %v", config, expectedConfig)
+	}
+
+	if reflect.DeepEqual(shimConfig, expectedShimConfig) == false {
+		t.Fatalf("Got %v\n expecting %v", shimConfig, expectedShimConfig)
 	}
 
 	if err := os.Remove(configPath); err != nil {
