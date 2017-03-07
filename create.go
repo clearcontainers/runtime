@@ -81,7 +81,12 @@ func create(containerID, bundlePath, console, pidFilePath string) error {
 	}
 
 	// Start the shim to retrieve its PID.
-	pid, err := startShim(pod)
+	containers := pod.GetContainers()
+	if len(containers) != 1 {
+		return fmt.Errorf("BUG: Container list from pod is wrong, expecting only one container, found %d containers", len(containers))
+	}
+
+	pid, err := startContainerShim(containers[0], pod.URL())
 	if err != nil {
 		return err
 	}

@@ -35,8 +35,7 @@ const (
 	defaultImagePath            = "/usr/share/clear-containers/clear-containers.img"
 	defaultHypervisorPath       = "/usr/bin/qemu-lite-system-x86_64"
 	defaultShimPath             = "/usr/local/libexec/cc-shim"
-	defaultProxyIP              = "127.0.0.1"
-	defaultProxyPort            = "54321"
+	defaultProxyURL             = "unix:///run/cc-oci-runtime/proxy.sock"
 )
 
 const (
