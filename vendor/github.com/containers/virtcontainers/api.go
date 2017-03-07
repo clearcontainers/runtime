@@ -507,36 +507,36 @@ func StopContainer(podID, containerID string) (*Container, error) {
 
 // EnterContainer is the virtcontainers container command execution entry point.
 // EnterContainer enters an already running container and runs a given command.
-func EnterContainer(podID, containerID string, cmd Cmd) (*Container, error) {
+func EnterContainer(podID, containerID string, cmd Cmd) (*Container, *Process, error) {
 	lockFile, err := lockPod(podID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer unlockPod(lockFile)
 
 	p, err := fetchPod(podID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Fetch the container.
 	c, err := fetchContainer(p, containerID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Enter it.
-	err = c.enter(cmd)
+	process, err := c.enter(cmd)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	err = p.endSession()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return c, nil
+	return c, process, nil
 }
 
 // StatusContainer is the virtcontainers container status entry point.

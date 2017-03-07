@@ -117,27 +117,30 @@ type agent interface {
 	// to handle all other Agent interface methods.
 	init(pod *Pod, config interface{}) error
 
-	// startAgent will start the agent.
-	startAgent() error
+	// start will start the agent.
+	start(pod *Pod) error
 
-	// stopAgent will stop the agent.
-	stopAgent() error
+	// stop will stop the agent.
+	stop(pod Pod) error
 
 	// exec will tell the agent to run a command in an already running container.
-	exec(pod Pod, container Container, cmd Cmd) error
+	exec(pod Pod, c Container, cmd Cmd) (*Process, error)
 
 	// startPod will tell the agent to start all containers related to the Pod.
-	startPod(config PodConfig) error
+	startPod(pod Pod) error
 
 	// stopPod will tell the agent to stop all containers related to the Pod.
 	stopPod(pod Pod) error
 
+	// createContainer will tell the agent to create a container related to a Pod.
+	createContainer(pod Pod, c *Container) error
+
 	// startContainer will tell the agent to start a container related to a Pod.
-	startContainer(pod Pod, contConfig ContainerConfig) error
+	startContainer(pod Pod, c Container) error
 
 	// stopContainer will tell the agent to stop a container related to a Pod.
-	stopContainer(pod Pod, container Container) error
+	stopContainer(pod Pod, c Container) error
 
 	// killContainer will tell the agent to send a signal to a container related to a Pod.
-	killContainer(pod Pod, container Container, signal syscall.Signal) error
+	killContainer(pod Pod, c Container, signal syscall.Signal) error
 }

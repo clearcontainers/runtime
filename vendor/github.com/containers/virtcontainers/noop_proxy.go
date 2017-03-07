@@ -20,16 +20,16 @@ type noopProxy struct{}
 
 // register is the proxy register implementation for testing purpose.
 // It does nothing.
-func (p *noopProxy) register(pod Pod) ([]IOStream, error) {
-	var ioStreams []IOStream
+func (p *noopProxy) register(pod Pod) ([]ProxyInfo, error) {
+	var proxyInfos []ProxyInfo
 
 	for i := 0; i < len(pod.containers); i++ {
-		ioStream := IOStream{}
+		proxyInfo := ProxyInfo{}
 
-		ioStreams = append(ioStreams, ioStream)
+		proxyInfos = append(proxyInfos, proxyInfo)
 	}
 
-	return ioStreams, nil
+	return proxyInfos, nil
 }
 
 // unregister is the proxy unregister implementation for testing purpose.
@@ -40,8 +40,8 @@ func (p *noopProxy) unregister(pod Pod) error {
 
 // connect is the proxy connect implementation for testing purpose.
 // It does nothing.
-func (p *noopProxy) connect(pod Pod) (IOStream, error) {
-	return IOStream{}, nil
+func (p *noopProxy) connect(pod Pod, createToken bool) (ProxyInfo, error) {
+	return ProxyInfo{}, nil
 }
 
 // disconnect is the proxy disconnect implementation for testing purpose.

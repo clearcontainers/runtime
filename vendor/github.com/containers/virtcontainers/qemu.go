@@ -103,15 +103,36 @@ var kernelDefaultParams = []Param{
 	{"init", "/usr/lib/systemd/systemd"},
 	{"systemd.unit", "container.target"},
 	{"iommu", "off"},
-	{"quiet", ""},
 	{"systemd.mask", "systemd-networkd.service"},
 	{"systemd.mask", "systemd-networkd.socket"},
-	{"systemd.show_status", "false"},
 	{"cryptomgr.notests", ""},
+}
+
+// kernelDefaultParamsNonDebug is a list of the default kernel
+// parameters that will be used in standard (non-debug) mode.
+var kernelDefaultParamsNonDebug = []Param{
+	{"quiet", ""},
+	{"systemd.show_status", "false"},
+}
+
+// kernelDefaultParamsDebug is a list of the default kernel
+// parameters that will be used in debug mode (as much boot output as
+// possible).
+var kernelDefaultParamsDebug = []Param{
+	{"debug", ""},
+	{"systemd.show_status", "true"},
+	{"systemd.log_level", "debug"},
 }
 
 func (q *qemu) buildKernelParams(config HypervisorConfig) error {
 	params := kernelDefaultParams
+
+	if config.Debug == true {
+		params = append(params, kernelDefaultParamsDebug...)
+	} else {
+		params = append(params, kernelDefaultParamsNonDebug...)
+	}
+
 	params = append(params, config.KernelParams...)
 
 	q.kernelParams = serializeParams(params, "=")

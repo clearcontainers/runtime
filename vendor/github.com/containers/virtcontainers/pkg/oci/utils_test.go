@@ -32,11 +32,13 @@ import (
 const tempBundlePath = "/tmp/virtc/ocibundle/"
 const containerID = "virtc-oci-test"
 const consolePath = "/tmp/virtc/console"
+const fileMode = os.FileMode(0640)
+const dirMode = os.FileMode(0750)
 
 func createConfig(fileName string, fileData string) (string, error) {
 	configPath := path.Join(tempBundlePath, fileName)
 
-	err := ioutil.WriteFile(configPath, []byte(fileData), 0755)
+	err := ioutil.WriteFile(configPath, []byte(fileData), fileMode)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to create config file %s %v\n", configPath, err)
 		return "", err
@@ -134,6 +136,7 @@ func TestStatusToOCIStateSuccessfulWithReadyState(t *testing.T) {
 
 	cStatuses := []vc.ContainerStatus{
 		{
+			State:  state,
 			PID:    testPID,
 			RootFs: testRootFs,
 		},
@@ -167,6 +170,7 @@ func TestStatusToOCIStateSuccessfulWithRunningState(t *testing.T) {
 
 	cStatuses := []vc.ContainerStatus{
 		{
+			State:  state,
 			PID:    testPID,
 			RootFs: testRootFs,
 		},
@@ -200,6 +204,7 @@ func TestStatusToOCIStateSuccessfulWithStoppedState(t *testing.T) {
 
 	cStatuses := []vc.ContainerStatus{
 		{
+			State:  state,
 			PID:    testPID,
 			RootFs: testRootFs,
 		},
@@ -288,9 +293,70 @@ func TestStateToOCIState(t *testing.T) {
 	}
 }
 
+func TestEnvVars(t *testing.T) {
+	envVars := []string{"foo=bar", "TERM=xterm", "HOME=/home/foo", "TERM=\"bar\"", "foo=\"\""}
+	expectecVcEnvVars := []vc.EnvVar{
+		{
+			Var:   "foo",
+			Value: "bar",
+		},
+		{
+			Var:   "TERM",
+			Value: "xterm",
+		},
+		{
+			Var:   "HOME",
+			Value: "/home/foo",
+		},
+		{
+			Var:   "TERM",
+			Value: "\"bar\"",
+		},
+		{
+			Var:   "foo",
+			Value: "\"\"",
+		},
+	}
+
+	vcEnvVars, err := EnvVars(envVars)
+	if err != nil {
+		t.Fatalf("Could not create environment variable slice %v", err)
+	}
+
+	if reflect.DeepEqual(vcEnvVars, expectecVcEnvVars) == false {
+		t.Fatalf("Got %v\n expecting %v", vcEnvVars, expectecVcEnvVars)
+	}
+}
+
+func TestMalformedEnvVars(t *testing.T) {
+	envVars := []string{"foo"}
+	r, err := EnvVars(envVars)
+	if err == nil {
+		t.Fatalf("EnvVars() succeeded unexpectedly: [%s] variable=%s value=%s", envVars[0], r[0].Var, r[0].Value)
+	}
+
+	envVars = []string{"TERM="}
+	r, err = EnvVars(envVars)
+	if err == nil {
+		t.Fatalf("EnvVars() succeeded unexpectedly: [%s] variable=%s value=%s", envVars[0], r[0].Var, r[0].Value)
+	}
+
+	envVars = []string{"=foo"}
+	r, err = EnvVars(envVars)
+	if err == nil {
+		t.Fatalf("EnvVars() succeeded unexpectedly: [%s] variable=%s value=%s", envVars[0], r[0].Var, r[0].Value)
+	}
+
+	envVars = []string{"=foo="}
+	r, err = EnvVars(envVars)
+	if err == nil {
+		t.Fatalf("EnvVars() succeeded unexpectedly: [%s] variable=%s value=%s", envVars[0], r[0].Var, r[0].Value)
+	}
+}
+
 func TestMain(m *testing.M) {
 	/* Create temp bundle directory if necessary */
-	err := os.MkdirAll(tempBundlePath, 0755)
+	err := os.MkdirAll(tempBundlePath, dirMode)
 	if err != nil {
 		fmt.Printf("Unable to create %s %v\n", tempBundlePath, err)
 		os.Exit(1)

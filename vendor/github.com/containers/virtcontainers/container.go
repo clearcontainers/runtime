@@ -92,6 +92,11 @@ func (c *Container) ID() string {
 	return c.id
 }
 
+// Process returns the container process.
+func (c *Container) Process() Process {
+	return c.process
+}
+
 // GetToken returns the token related to this container's process.
 func (c *Container) GetToken() string {
 	return c.process.Token
@@ -106,11 +111,15 @@ func (c *Container) GetPid() int {
 func (c *Container) SetPid(pid int) error {
 	c.process.Pid = pid
 
-	if err := c.pod.storage.storeContainerProcess(c.podID, c.id, c.process); err != nil {
-		return err
-	}
+	return c.storeProcess()
+}
 
-	return nil
+func (c *Container) storeProcess() error {
+	return c.pod.storage.storeContainerProcess(c.podID, c.id, c.process)
+}
+
+func (c *Container) fetchProcess() (Process, error) {
+	return c.pod.storage.fetchContainerProcess(c.podID, c.id)
 }
 
 // fetchContainer fetches a container config from a pod ID and returns a Container.
@@ -151,12 +160,12 @@ func (c *Container) setContainerState(state stateString) error {
 }
 
 func (c *Container) createContainersDirs() error {
-	err := os.MkdirAll(c.runPath, os.ModeDir)
+	err := os.MkdirAll(c.runPath, dirMode)
 	if err != nil {
 		return err
 	}
 
-	err = os.MkdirAll(c.configPath, os.ModeDir)
+	err = os.MkdirAll(c.configPath, dirMode)
 	if err != nil {
 		c.pod.storage.deleteContainerResources(c.podID, c.id, nil)
 		return err
@@ -225,20 +234,29 @@ func createContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 		return nil, err
 	}
 
+	process, err := c.fetchProcess()
+	if err == nil {
+		c.process = process
+	}
+
 	state, err := c.pod.storage.fetchContainerState(c.podID, c.id)
 	if err == nil && state.State != "" {
 		c.state.State = state.State
 		return c, nil
 	}
 
-	err = c.pod.setContainerState(c.id, StateReady)
-	if err != nil {
+	// If we reached that point, this means that no state file has been
+	// found and that we are in the first creation of this container.
+	// We don't want the following code to be executed outside of this
+	// specific case.
+	pod.containers = append(pod.containers, c)
+
+	if err := c.pod.agent.createContainer(*pod, c); err != nil {
 		return nil, err
 	}
 
-	process, err := c.pod.storage.fetchContainerProcess(c.podID, c.id)
-	if err == nil {
-		c.process = process
+	if err := c.pod.setContainerState(c.id, StateReady); err != nil {
+		return nil, err
 	}
 
 	return c, nil
@@ -262,17 +280,31 @@ func (c *Container) delete() error {
 	return nil
 }
 
-func (c *Container) start() error {
+// fetchState retrieves the container state.
+//
+// cmd specifies the operation (or verb) that the retieval is destined
+// for and is only used to make the returned error as descriptive as
+// possible.
+func (c *Container) fetchState(cmd string) (State, error) {
 	state, err := c.pod.storage.fetchPodState(c.pod.id)
 	if err != nil {
-		return err
+		return State{}, err
 	}
 
 	if state.State != StateRunning {
-		return fmt.Errorf("Pod not running, impossible to start the container")
+		return State{}, fmt.Errorf("Pod not running, impossible to %s the container", cmd)
 	}
 
 	state, err = c.pod.storage.fetchContainerState(c.podID, c.id)
+	if err != nil {
+		return State{}, err
+	}
+
+	return state, nil
+}
+
+func (c *Container) start() error {
+	state, err := c.fetchState("start")
 	if err != nil {
 		return err
 	}
@@ -289,12 +321,7 @@ func (c *Container) start() error {
 		}
 	}
 
-	err = c.pod.agent.startAgent()
-	if err != nil {
-		return err
-	}
-
-	err = c.pod.agent.startContainer(*c.pod, *(c.config))
+	err = c.pod.agent.startContainer(*(c.pod), *c)
 	if err != nil {
 		c.stop()
 		return err
@@ -309,16 +336,7 @@ func (c *Container) start() error {
 }
 
 func (c *Container) stop() error {
-	state, err := c.pod.storage.fetchPodState(c.pod.id)
-	if err != nil {
-		return err
-	}
-
-	if state.State != StateRunning {
-		return fmt.Errorf("Pod not running, impossible to stop the container")
-	}
-
-	state, err = c.pod.storage.fetchContainerState(c.pod.id, c.id)
+	state, err := c.fetchState("stop")
 	if err != nil {
 		return err
 	}
@@ -332,17 +350,12 @@ func (c *Container) stop() error {
 		return err
 	}
 
-	err = c.pod.agent.startAgent()
+	err = c.pod.agent.killContainer(*(c.pod), *c, syscall.SIGTERM)
 	if err != nil {
 		return err
 	}
 
-	err = c.pod.agent.killContainer(*c.pod, *c, syscall.SIGTERM)
-	if err != nil {
-		return err
-	}
-
-	err = c.pod.agent.stopContainer(*c.pod, *c)
+	err = c.pod.agent.stopContainer(*(c.pod), *c)
 	if err != nil {
 		return err
 	}
@@ -355,49 +368,26 @@ func (c *Container) stop() error {
 	return nil
 }
 
-func (c *Container) enter(cmd Cmd) error {
-	state, err := c.pod.storage.fetchPodState(c.pod.id)
+func (c *Container) enter(cmd Cmd) (*Process, error) {
+	state, err := c.fetchState("enter")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if state.State != StateRunning {
-		return fmt.Errorf("Pod not running, impossible to enter the container")
+		return nil, fmt.Errorf("Container not running, impossible to enter")
 	}
 
-	state, err = c.pod.storage.fetchContainerState(c.pod.id, c.id)
+	process, err := c.pod.agent.exec(*(c.pod), *c, cmd)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if state.State != StateRunning {
-		return fmt.Errorf("Container not running, impossible to enter")
-	}
-
-	err = c.pod.agent.startAgent()
-	if err != nil {
-		return err
-	}
-
-	err = c.pod.agent.exec(*c.pod, *c, cmd)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return process, nil
 }
 
 func (c *Container) kill(signal syscall.Signal) error {
-	state, err := c.pod.storage.fetchPodState(c.pod.id)
-	if err != nil {
-		return err
-	}
-
-	if state.State != StateRunning {
-		return fmt.Errorf("Pod not running, impossible to signal the container")
-	}
-
-	state, err = c.pod.storage.fetchContainerState(c.pod.id, c.id)
+	state, err := c.fetchState("signal")
 	if err != nil {
 		return err
 	}
@@ -406,12 +396,7 @@ func (c *Container) kill(signal syscall.Signal) error {
 		return fmt.Errorf("Container not running, impossible to signal the container")
 	}
 
-	err = c.pod.agent.startAgent()
-	if err != nil {
-		return err
-	}
-
-	err = c.pod.agent.killContainer(*c.pod, *c, signal)
+	err = c.pod.agent.killContainer(*(c.pod), *c, signal)
 	if err != nil {
 		return err
 	}

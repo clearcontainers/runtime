@@ -31,17 +31,22 @@ func (n *noopAgent) init(pod *Pod, config interface{}) error {
 }
 
 // start is the Noop agent starting implementation. It does nothing.
-func (n *noopAgent) startAgent() error {
+func (n *noopAgent) start(pod *Pod) error {
+	return nil
+}
+
+// stop is the Noop agent stopping implementation. It does nothing.
+func (n *noopAgent) stop(pod Pod) error {
 	return nil
 }
 
 // exec is the Noop agent command execution implementation. It does nothing.
-func (n *noopAgent) exec(pod Pod, container Container, cmd Cmd) error {
-	return nil
+func (n *noopAgent) exec(pod Pod, c Container, cmd Cmd) (*Process, error) {
+	return nil, nil
 }
 
 // startPod is the Noop agent Pod starting implementation. It does nothing.
-func (n *noopAgent) startPod(config PodConfig) error {
+func (n *noopAgent) startPod(pod Pod) error {
 	return nil
 }
 
@@ -50,22 +55,22 @@ func (n *noopAgent) stopPod(pod Pod) error {
 	return nil
 }
 
-// stop is the Noop agent stopping implementation. It does nothing.
-func (n *noopAgent) stopAgent() error {
+// createContainer is the Noop agent Container creation implementation. It does nothing.
+func (n *noopAgent) createContainer(pod Pod, c *Container) error {
 	return nil
 }
 
 // startContainer is the Noop agent Container starting implementation. It does nothing.
-func (n *noopAgent) startContainer(pod Pod, contConfig ContainerConfig) error {
+func (n *noopAgent) startContainer(pod Pod, c Container) error {
 	return nil
 }
 
 // stopContainer is the Noop agent Container stopping implementation. It does nothing.
-func (n *noopAgent) stopContainer(pod Pod, container Container) error {
+func (n *noopAgent) stopContainer(pod Pod, c Container) error {
 	return nil
 }
 
 // killContainer is the Noop agent Container signaling implementation. It does nothing.
-func (n *noopAgent) killContainer(pod Pod, container Container, signal syscall.Signal) error {
+func (n *noopAgent) killContainer(pod Pod, c Container, signal syscall.Signal) error {
 	return nil
 }

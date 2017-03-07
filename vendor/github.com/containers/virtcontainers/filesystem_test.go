@@ -274,7 +274,7 @@ func TestFilesystemFetchContainerConfigSuccessful(t *testing.T) {
 	rootFs := "rootfs"
 
 	contConfigDir := filepath.Join(configStoragePath, testPodID, contID)
-	os.MkdirAll(contConfigDir, os.ModeDir)
+	os.MkdirAll(contConfigDir, dirMode)
 
 	path := filepath.Join(contConfigDir, configFile)
 	os.Remove(path)
