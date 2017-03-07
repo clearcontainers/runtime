@@ -91,17 +91,31 @@ func kill(containerID, signal string) error {
 		return err
 	}
 
-	// container MUST be running
 	podStatus, err := vc.StatusPod(containerID)
 	if err != nil {
 		return err
 	}
-	if podStatus.State.State != vc.StateRunning {
-		return fmt.Errorf("Container is not running")
-	}
 
 	if len(podStatus.ContainersStatus) != 1 {
-		return fmt.Errorf("ContainerStatus list from PodStatus is wrong, expecting only one ContainerStatus")
+		return fmt.Errorf("ContainerStatus list from PodStatus %s is wrong, expecting only one ContainerStatus", containerID)
+	}
+
+	// container MUST be running
+	if podStatus.ContainersStatus[0].State.State != vc.StateRunning {
+		return fmt.Errorf("Container %s is not running", containerID)
+	}
+
+	// Check status of process
+	running, err := processRunning(podStatus.ContainersStatus[0].PID)
+	if err != nil {
+		return err
+	}
+	if running == false {
+		if err := stopContainer(podStatus); err != nil {
+			return err
+		}
+
+		return fmt.Errorf("Process not running inside container %s", containerID)
 	}
 
 	if err := vc.KillContainer(containerID, podStatus.ContainersStatus[0].ID, signals[signal]); err != nil {
