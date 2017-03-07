@@ -113,12 +113,15 @@ type Volumes []Volume
 // Set assigns volume values from string to a Volume.
 func (v *Volumes) Set(volStr string) error {
 	volSlice := strings.Split(volStr, " ")
+	const expectedVolLen = 2
+	const volDelimiter = ":"
 
 	for _, vol := range volSlice {
-		volArgs := strings.Split(vol, ":")
+		volArgs := strings.Split(vol, volDelimiter)
 
-		if len(volArgs) != 2 {
-			return fmt.Errorf("Wrong string format: %s, expecting only 2 parameters separated with ':'", vol)
+		if len(volArgs) != expectedVolLen {
+			return fmt.Errorf("Wrong string format: %s, expecting only %v parameters separated with %q",
+				vol, expectedVolLen, volDelimiter)
 		}
 
 		if volArgs[0] == "" || volArgs[1] == "" {
@@ -162,12 +165,14 @@ type Sockets []Socket
 // Set assigns socket values from string to a Socket.
 func (s *Sockets) Set(sockStr string) error {
 	sockSlice := strings.Split(sockStr, " ")
+	const expectedSockCount = 4
+	const sockDelimiter = ":"
 
 	for _, sock := range sockSlice {
-		sockArgs := strings.Split(sock, ":")
+		sockArgs := strings.Split(sock, sockDelimiter)
 
-		if len(sockArgs) != 4 {
-			return fmt.Errorf("Wrong string format: %s, expecting only 4 parameters separated with ':'", sock)
+		if len(sockArgs) != expectedSockCount {
+			return fmt.Errorf("Wrong string format: %s, expecting only %v parameters separated with %q", sock, expectedSockCount, sockDelimiter)
 		}
 
 		for _, a := range sockArgs {
@@ -268,8 +273,6 @@ type PodConfig struct {
 
 // valid checks that the pod configuration is valid.
 func (podConfig *PodConfig) valid() bool {
-	newAgent(podConfig.AgentType)
-
 	if _, err := newHypervisor(podConfig.HypervisorType); err != nil {
 		podConfig.HypervisorType = QemuHypervisor
 	}
@@ -440,6 +443,7 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 
 	state, err := p.storage.fetchPodState(p.id)
 	if err == nil && state.State != "" {
+		p.state = state
 		return p, nil
 	}
 
@@ -562,7 +566,7 @@ func (p *Pod) startVM() error {
 		return fmt.Errorf("Did not receive the pod started notification")
 	}
 
-	err := p.agent.startAgent()
+	err := p.agent.start(p)
 	if err != nil {
 		p.stop()
 		return err
@@ -581,7 +585,7 @@ func (p *Pod) start() error {
 		return err
 	}
 
-	err = p.agent.startPod(*p.config)
+	err = p.agent.startPod(*p)
 	if err != nil {
 		p.stop()
 		return err
@@ -627,7 +631,7 @@ func (p *Pod) stopSetStates() error {
 
 // stopVM stops the agent inside the VM and shut down the VM itself.
 func (p *Pod) stopVM() error {
-	err := p.agent.stopAgent()
+	err := p.agent.stop(*p)
 	if err != nil {
 		return err
 	}

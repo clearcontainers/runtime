@@ -111,6 +111,10 @@ func TestNewUnknownNetworkFromNetworkModel(t *testing.T) {
 }
 
 func TestCreateDeleteNetNS(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip(testDisabledAsNonRoot)
+	}
+
 	netNSPath, err := createNetNS()
 	if err != nil {
 		t.Fatal(err)
@@ -148,7 +152,10 @@ func TestCreateNetworkEndpoint(t *testing.T) {
 		},
 	}
 
-	result := createNetworkEndpoint(4, "uniqueTestID", "")
+	result, err := createNetworkEndpoint(4, "uniqueTestID", "")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if reflect.DeepEqual(result, expected) == false {
 		t.Fatal()
@@ -172,10 +179,40 @@ func TestCreateNetworkEndpointChooseIfaceName(t *testing.T) {
 		},
 	}
 
-	result := createNetworkEndpoint(4, "uniqueTestID", "eth1")
+	result, err := createNetworkEndpoint(4, "uniqueTestID", "eth1")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if reflect.DeepEqual(result, expected) == false {
 		t.Fatal()
+	}
+}
+
+func TestCreateNetworkEndpointInvalidArgs(t *testing.T) {
+	type endpointValues struct {
+		idx      int
+		uniqueID string
+		ifName   string
+	}
+
+	// all elements are expected to result in failure
+	failingValues := []endpointValues{
+		{-1, "foo", "bar"},
+		{-1, "foo", ""},
+		{-3, "foo", "bar"},
+		{-3, "foo", ""},
+		{0, "", "bar"},
+		{0, "", ""},
+		{1, "", "bar"},
+		{1, "", ""},
+	}
+
+	for _, d := range failingValues {
+		result, err := createNetworkEndpoint(d.idx, d.uniqueID, d.ifName)
+		if err == nil {
+			t.Fatalf("expected invalid endpoint for %v, got %v", d, result)
+		}
 	}
 }
 

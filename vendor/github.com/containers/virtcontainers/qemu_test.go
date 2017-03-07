@@ -26,12 +26,6 @@ import (
 	ciaoQemu "github.com/01org/ciao/qemu"
 )
 
-const (
-	testQemuKernelPath = testDir + testKernel
-	testQemuImagePath  = testDir + testImage
-	testQemuPath       = testDir + testHypervisor
-)
-
 func newQemuConfig() HypervisorConfig {
 	return HypervisorConfig{
 		KernelPath:     testQemuKernelPath,
@@ -40,9 +34,13 @@ func newQemuConfig() HypervisorConfig {
 	}
 }
 
-func testQemuBuildKernelParams(t *testing.T, kernelParams []Param, expected string) {
+func testQemuBuildKernelParams(t *testing.T, kernelParams []Param, expected string, debug bool) {
 	qemuConfig := newQemuConfig()
 	qemuConfig.KernelParams = kernelParams
+
+	if debug == true {
+		qemuConfig.Debug = true
+	}
 
 	q := &qemu{}
 
@@ -56,12 +54,14 @@ func testQemuBuildKernelParams(t *testing.T, kernelParams []Param, expected stri
 	}
 }
 
-var testQemuKernelParams = "root=/dev/pmem0p1 rootflags=dax,data=ordered,errors=remount-ro rw rootfstype=ext4 tsc=reliable no_timer_check rcupdate.rcu_expedited=1 i8042.direct=1 i8042.dumbkbd=1 i8042.nopnp=1 i8042.noaux=1 noreplace-smp reboot=k panic=1 console=hvc0 console=hvc1 initcall_debug init=/usr/lib/systemd/systemd systemd.unit=container.target iommu=off quiet systemd.mask=systemd-networkd.service systemd.mask=systemd-networkd.socket systemd.show_status=false cryptomgr.notests"
+var testQemuKernelParamsBase = "root=/dev/pmem0p1 rootflags=dax,data=ordered,errors=remount-ro rw rootfstype=ext4 tsc=reliable no_timer_check rcupdate.rcu_expedited=1 i8042.direct=1 i8042.dumbkbd=1 i8042.nopnp=1 i8042.noaux=1 noreplace-smp reboot=k panic=1 console=hvc0 console=hvc1 initcall_debug init=/usr/lib/systemd/systemd systemd.unit=container.target iommu=off systemd.mask=systemd-networkd.service systemd.mask=systemd-networkd.socket cryptomgr.notests"
+var testQemuKernelParamsNonDebug = "quiet systemd.show_status=false"
+var testQemuKernelParamsDebug = "debug systemd.show_status=true systemd.log_level=debug"
 
 func TestQemuBuildKernelParamsFoo(t *testing.T) {
-	expectedOut := testQemuKernelParams + " foo=foo bar=bar"
-
-	params := []Param{
+	// two representations of the same kernel parameters
+	suffixStr := "foo=foo bar=bar"
+	suffixParams := []Param{
 		{
 			parameter: "foo",
 			value:     "foo",
@@ -72,7 +72,27 @@ func TestQemuBuildKernelParamsFoo(t *testing.T) {
 		},
 	}
 
-	testQemuBuildKernelParams(t, params, expectedOut)
+	type testData struct {
+		debugParams string
+		debugValue  bool
+	}
+
+	data := []testData{
+		{testQemuKernelParamsNonDebug, false},
+		{testQemuKernelParamsDebug, true},
+	}
+
+	for _, d := range data {
+		// kernel params consist of a default set of params,
+		// followed by a set of params that depend on whether
+		// debug mode is enabled and end with any user-supplied
+		// params.
+		expected := []string{testQemuKernelParamsBase, d.debugParams, suffixStr}
+
+		expectedOut := strings.Join(expected, " ")
+
+		testQemuBuildKernelParams(t, suffixParams, expectedOut, d.debugValue)
+	}
 }
 
 func testQemuAppend(t *testing.T, structure interface{}, expected []ciaoQemu.Device, devType deviceType) {
@@ -324,7 +344,10 @@ func TestQemuInit(t *testing.T) {
 		t.Fatal()
 	}
 
-	if strings.Join(q.kernelParams, " ") != testQemuKernelParams {
+	// non-debug is the default
+	var testQemuKernelParamsDefault = testQemuKernelParamsBase + " " + testQemuKernelParamsNonDebug
+
+	if strings.Join(q.kernelParams, " ") != testQemuKernelParamsDefault {
 		t.Fatal()
 	}
 }

@@ -133,11 +133,11 @@ func (h *Hyperstart) log(s string) {
 }
 
 func (h *Hyperstart) logf(format string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, "[hyperstart] "+format, args...)
+	h.t.Logf("[hyperstart] "+format, args...)
 }
 
 func (h *Hyperstart) logData(data []byte) {
-	fmt.Fprintln(os.Stderr, hex.Dump(data))
+	h.t.Log(hex.Dump(data))
 }
 
 //

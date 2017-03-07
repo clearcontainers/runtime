@@ -27,6 +27,10 @@ import (
 	"github.com/containernetworking/cni/pkg/ns"
 )
 
+const (
+	dirMode = os.FileMode(0750)
+)
+
 var testConfDir = "/tmp/cni/net.d"
 var testBinDir = "/tmp/cni/bin"
 var testWrongConfDir = "/tmp/cni/wrong"
@@ -305,16 +309,22 @@ func TestAddNetworkFailureUnknownNetNs(t *testing.T) {
 	createDefNetworkNoName(t)
 	defer removeDefNetwork(t)
 
-	testNetNsPath := "/var/run/netns/testNetNs"
+	const invalidNetNsPath = "/this/path/does/not/exist"
+
+	// ensure it really is invalid
+	_, err := os.Stat(invalidNetNsPath)
+	if err == nil {
+		t.Fatalf("directory %v unexpectedly exists", invalidNetNsPath)
+	}
 
 	netPlugin, err := NewNetworkPluginWithArgs(testConfDir, testBinDir)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = netPlugin.AddNetwork("testPodID", testNetNsPath, "testIfName")
+	_, err = netPlugin.AddNetwork("testPodID", invalidNetNsPath, "testIfName")
 	if err == nil {
-		t.Fatalf("Should fail because netns %s does not exist", testNetNsPath)
+		t.Fatalf("Should fail because netns %s does not exist", invalidNetNsPath)
 	}
 }
 
@@ -374,7 +384,7 @@ func TestRemoveNetworkFailureNetworkDoesNotExist(t *testing.T) {
 }
 
 func TestMain(m *testing.M) {
-	err := os.MkdirAll(testConfDir, os.ModeDir)
+	err := os.MkdirAll(testConfDir, dirMode)
 	if err != nil {
 		fmt.Println("Could not create test configuration directory:", err)
 		os.Exit(1)

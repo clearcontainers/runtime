@@ -17,20 +17,12 @@
 package virtcontainers
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
 )
-
-const testPodID = "7f49d00d-1995-4156-8c79-5f5ab24ce138"
-const testDir = "/tmp/virtcontainers/"
-const testKernel = "kernel"
-const testImage = "image"
-const testHypervisor = "hypervisor"
-const testBundle = "bundle"
 
 func newHypervisorConfig(kernelParams []Param, hParams []Param) HypervisorConfig {
 	return HypervisorConfig{
@@ -194,8 +186,6 @@ func testPodFile(t *testing.T, resource podResource, expected string) error {
 	return nil
 }
 
-var podDirConfig = filepath.Join(configStoragePath, testPodID)
-
 func TestPodDirConfig(t *testing.T) {
 	err := testPodDir(t, configFileType, podDirConfig)
 	if err != nil {
@@ -203,16 +193,12 @@ func TestPodDirConfig(t *testing.T) {
 	}
 }
 
-var podDirState = filepath.Join(runStoragePath, testPodID)
-
 func TestPodDirState(t *testing.T) {
 	err := testPodDir(t, stateFileType, podDirState)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
-
-var podDirLock = filepath.Join(runStoragePath, testPodID)
 
 func TestPodDirLock(t *testing.T) {
 	err := testPodDir(t, lockFileType, podDirLock)
@@ -229,8 +215,6 @@ func TestPodDirNegative(t *testing.T) {
 	}
 }
 
-var podFileConfig = filepath.Join(configStoragePath, testPodID, configFile)
-
 func TestPodFileConfig(t *testing.T) {
 	err := testPodFile(t, configFileType, podFileConfig)
 	if err != nil {
@@ -238,16 +222,12 @@ func TestPodFileConfig(t *testing.T) {
 	}
 }
 
-var podFileState = filepath.Join(runStoragePath, testPodID, stateFile)
-
 func TestPodFileState(t *testing.T) {
 	err := testPodFile(t, stateFileType, podFileState)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
-
-var podFileLock = filepath.Join(runStoragePath, testPodID, lockFileName)
 
 func TestPodFileLock(t *testing.T) {
 	err := testPodFile(t, lockFileType, podFileLock)
@@ -526,7 +506,7 @@ func TestPodDeleteContainerStateSuccessful(t *testing.T) {
 	}
 
 	path := filepath.Join(runStoragePath, testPodID, contID)
-	err := os.MkdirAll(path, os.ModeDir)
+	err := os.MkdirAll(path, dirMode)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -595,7 +575,7 @@ func TestPodDeleteContainersStateSuccessful(t *testing.T) {
 
 	for _, c := range containers {
 		path := filepath.Join(runStoragePath, testPodID, c.ID)
-		err = os.MkdirAll(path, os.ModeDir)
+		err = os.MkdirAll(path, dirMode)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -675,7 +655,7 @@ func TestPodCheckContainerStateFailingNotExpectedState(t *testing.T) {
 	}
 
 	path := filepath.Join(runStoragePath, testPodID, contID)
-	err := os.MkdirAll(path, os.ModeDir)
+	err := os.MkdirAll(path, dirMode)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -729,48 +709,4 @@ func TestPodCheckContainersStateFailingEmptyPodID(t *testing.T) {
 	if err == nil {
 		t.Fatal()
 	}
-}
-
-func TestMain(m *testing.M) {
-	flag.Parse()
-
-	err := os.MkdirAll(testDir, os.ModeDir)
-	if err != nil {
-		fmt.Println("Could not create test directories:", err)
-		os.Exit(1)
-	}
-
-	_, err = os.Create(filepath.Join(testDir, testKernel))
-	if err != nil {
-		fmt.Println("Could not create test kernel:", err)
-		os.RemoveAll(testDir)
-		os.Exit(1)
-	}
-
-	_, err = os.Create(filepath.Join(testDir, testImage))
-	if err != nil {
-		fmt.Println("Could not create test image:", err)
-		os.RemoveAll(testDir)
-		os.Exit(1)
-	}
-
-	_, err = os.Create(filepath.Join(testDir, testHypervisor))
-	if err != nil {
-		fmt.Println("Could not create test hypervisor:", err)
-		os.RemoveAll(testDir)
-		os.Exit(1)
-	}
-
-	err = os.Mkdir(filepath.Join(testDir, testBundle), os.ModeDir)
-	if err != nil {
-		fmt.Println("Could not create test bundle directory:", err)
-		os.RemoveAll(testDir)
-		os.Exit(1)
-	}
-
-	ret := m.Run()
-
-	os.RemoveAll(testDir)
-
-	os.Exit(ret)
 }

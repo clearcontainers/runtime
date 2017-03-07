@@ -89,7 +89,10 @@ func (n *cnm) createEndpointsFromScan() ([]Endpoint, error) {
 		if iface.Name == "lo" {
 			continue
 		} else {
-			endpoint = createNetworkEndpoint(idx, uniqueID, iface.Name)
+			endpoint, err = createNetworkEndpoint(idx, uniqueID, iface.Name)
+			if err != nil {
+				return []Endpoint{}, err
+			}
 		}
 
 		endpoint.Properties, err = n.createResult(iface, addrs)

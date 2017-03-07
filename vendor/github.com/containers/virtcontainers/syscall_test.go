@@ -57,6 +57,10 @@ func TestBindMountFailingMount(t *testing.T) {
 }
 
 func TestBindMountSuccessful(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip(testDisabledAsNonRoot)
+	}
+
 	source := filepath.Join(testDir, "fooDirSrc")
 	dest := filepath.Join(testDir, "fooDirDest")
 	syscall.Unmount(dest, 0)

@@ -117,6 +117,10 @@ type HypervisorConfig struct {
 
 	// HypervisorParams are additional hypervisor parameters.
 	HypervisorParams []Param
+
+	// Debug changes the default hypervisor and kernel parameters to
+	// enable debug output where available.
+	Debug bool
 }
 
 func (conf *HypervisorConfig) valid() (bool, error) {

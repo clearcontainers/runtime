@@ -90,7 +90,7 @@ func (s *sshd) init(pod *Pod, config interface{}) error {
 }
 
 // start is the agent starting implementation for sshd.
-func (s *sshd) startAgent() error {
+func (s *sshd) start(pod *Pod) error {
 	if s.client != nil {
 		session, err := s.client.NewSession()
 		if err == nil {
@@ -129,28 +129,33 @@ func (s *sshd) startAgent() error {
 	return nil
 }
 
+// stop is the agent stopping implementation for sshd.
+func (s *sshd) stop(pod Pod) error {
+	return nil
+}
+
 // exec is the agent command execution implementation for sshd.
-func (s *sshd) exec(pod Pod, container Container, cmd Cmd) error {
+func (s *sshd) exec(pod Pod, c Container, cmd Cmd) (*Process, error) {
 	session, err := s.client.NewSession()
 	if err != nil {
-		return fmt.Errorf("Failed to create session")
+		return nil, fmt.Errorf("Failed to create session")
 	}
 	defer session.Close()
 
 	if s.spawner != nil {
 		cmd.Args, err = s.spawner.formatArgs(cmd.Args)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	strCmd := strings.Join(cmd.Args, " ")
 
-	return execCmd(session, strCmd)
+	return nil, execCmd(session, strCmd)
 }
 
 // startPod is the agent Pod starting implementation for sshd.
-func (s *sshd) startPod(config PodConfig) error {
+func (s *sshd) startPod(pod Pod) error {
 	return nil
 }
 
@@ -159,22 +164,22 @@ func (s *sshd) stopPod(pod Pod) error {
 	return nil
 }
 
-// stop is the agent stopping implementation for sshd.
-func (s *sshd) stopAgent() error {
+// createContainer is the agent Container creation implementation for sshd.
+func (s *sshd) createContainer(pod Pod, c *Container) error {
 	return nil
 }
 
 // startContainer is the agent Container starting implementation for sshd.
-func (s *sshd) startContainer(pod Pod, contConfig ContainerConfig) error {
+func (s *sshd) startContainer(pod Pod, c Container) error {
 	return nil
 }
 
 // stopContainer is the agent Container stopping implementation for sshd.
-func (s *sshd) stopContainer(pod Pod, container Container) error {
+func (s *sshd) stopContainer(pod Pod, c Container) error {
 	return nil
 }
 
 // killContainer is the agent Container signaling implementation for sshd.
-func (s *sshd) killContainer(pod Pod, container Container, signal syscall.Signal) error {
+func (s *sshd) killContainer(pod Pod, c Container, signal syscall.Signal) error {
 	return nil
 }

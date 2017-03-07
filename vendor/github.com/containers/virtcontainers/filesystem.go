@@ -44,14 +44,6 @@ const (
 	lockFileType
 )
 
-// configStoragePath is the pod configuration directory.
-// It will contain one config.json file for each created pod.
-const configStoragePath = "/var/lib/virtcontainers/pods"
-
-// runStoragePath is the pod runtime directory.
-// It will contain one state.json and one lock file for each created pod.
-const runStoragePath = "/run/virtcontainers/pods"
-
 // configFile is the file name used for every JSON pod configuration.
 const configFile = "config.json"
 
@@ -66,6 +58,20 @@ const processFile = "process.json"
 
 // lockFile is the file name locking the usage of a pod.
 const lockFileName = "lock"
+
+// dirMode is the permission bits used for creating a directory
+const dirMode = os.FileMode(0750)
+
+// storagePathSuffix is the suffix used for all storage paths
+const storagePathSuffix = "/virtcontainers/pods"
+
+// configStoragePath is the pod configuration directory.
+// It will contain one config.json file for each created pod.
+var configStoragePath = filepath.Join("/var/lib", storagePathSuffix)
+
+// runStoragePath is the pod runtime directory.
+// It will contain one state.json and one lock file for each created pod.
+var runStoragePath = filepath.Join("/run", storagePathSuffix)
 
 // resourceStorage is the virtcontainers resources (configuration, state, etc...)
 // storage interface.
@@ -100,32 +106,23 @@ type resourceStorage interface {
 type filesystem struct {
 }
 
-func (fs *filesystem) createAllResources(pod Pod) error {
-	_, path, _ := fs.podURI(pod.id, stateFileType)
-	err := os.MkdirAll(path, os.ModeDir)
-	if err != nil {
-		return err
-	}
-
-	_, path, _ = fs.podURI(pod.id, configFileType)
-	err = os.MkdirAll(path, os.ModeDir)
-	if err != nil {
-		return err
+func (fs *filesystem) createAllResources(pod Pod) (err error) {
+	for _, resource := range []podResource{stateFileType, configFileType} {
+		_, path, _ := fs.podURI(pod.id, resource)
+		err = os.MkdirAll(path, os.ModeDir)
+		if err != nil {
+			return err
+		}
 	}
 
 	for _, container := range pod.containers {
-		_, path, _ = fs.containerURI(pod.id, container.id, configFileType)
-		err = os.MkdirAll(path, os.ModeDir)
-		if err != nil {
-			fs.deletePodResources(pod.id, nil)
-			return err
-		}
-
-		_, path, _ = fs.containerURI(pod.id, container.id, stateFileType)
-		err = os.MkdirAll(path, os.ModeDir)
-		if err != nil {
-			fs.deletePodResources(pod.id, nil)
-			return err
+		for _, resource := range []podResource{stateFileType, configFileType} {
+			_, path, _ := fs.containerURI(pod.id, container.id, resource)
+			err = os.MkdirAll(path, os.ModeDir)
+			if err != nil {
+				fs.deletePodResources(pod.id, nil)
+				return err
+			}
 		}
 	}
 
@@ -149,11 +146,6 @@ func (fs *filesystem) createAllResources(pod Pod) error {
 }
 
 func (fs *filesystem) storeFile(path string, data interface{}) error {
-	_, err := os.Stat(path)
-	if err == nil {
-		os.Remove(path)
-	}
-
 	f, err := os.Create(path)
 	if err != nil {
 		return err
@@ -170,11 +162,6 @@ func (fs *filesystem) storeFile(path string, data interface{}) error {
 }
 
 func (fs *filesystem) fetchFile(path string, data interface{}) error {
-	_, err := os.Stat(path)
-	if err != nil {
-		return err
-	}
-
 	fileData, err := ioutil.ReadFile(path)
 	if err != nil {
 		return err

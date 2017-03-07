@@ -1,3 +1,12 @@
+0.6.0:
+	Added pullapprove support
+	Added Slack integration
+	Added KillContainer API
+	Added networking documentation
+	Added a Process structure for describing container processes
+	Added a more complete pod and container status structure
+	Fixed hyperstart implementation for stopping containers
+
 0.5.0:
 	Changed the CreatePod/StartPod logic
 	Added an OCI config file conversion package

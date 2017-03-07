@@ -17,6 +17,7 @@
 package virtcontainers
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -340,7 +341,14 @@ func deleteNetNS(netNSPath string, mounted bool) error {
 	return nil
 }
 
-func createNetworkEndpoint(idx int, uniqueID string, ifName string) Endpoint {
+func createNetworkEndpoint(idx int, uniqueID string, ifName string) (Endpoint, error) {
+	if idx < 0 {
+		return Endpoint{}, fmt.Errorf("invalid network endpoint index: %d", idx)
+	}
+	if uniqueID == "" {
+		return Endpoint{}, errors.New("uniqueID cannot be blank")
+	}
+
 	hardAddr := net.HardwareAddr{0x02, 0x00, 0xCA, 0xFE, byte(idx >> 8), byte(idx)}
 
 	endpoint := Endpoint{
@@ -361,12 +369,10 @@ func createNetworkEndpoint(idx int, uniqueID string, ifName string) Endpoint {
 		endpoint.NetPair.VirtIface.Name = ifName
 	}
 
-	return endpoint
+	return endpoint, nil
 }
 
-func createNetworkEndpoints(numOfEndpoints int) ([]Endpoint, error) {
-	var endpoints []Endpoint
-
+func createNetworkEndpoints(numOfEndpoints int) (endpoints []Endpoint, err error) {
 	if numOfEndpoints < 1 {
 		return endpoints, fmt.Errorf("Invalid number of network endpoints")
 	}
@@ -374,7 +380,11 @@ func createNetworkEndpoints(numOfEndpoints int) ([]Endpoint, error) {
 	uniqueID := uuid.Generate().String()
 
 	for i := 0; i < numOfEndpoints; i++ {
-		endpoints = append(endpoints, createNetworkEndpoint(i, uniqueID, ""))
+		endpoint, err := createNetworkEndpoint(i, uniqueID, "")
+		if err != nil {
+			return nil, err
+		}
+		endpoints = append(endpoints, endpoint)
 	}
 
 	return endpoints, nil
