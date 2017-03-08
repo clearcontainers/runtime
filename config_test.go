@@ -30,7 +30,7 @@ const hypervisorPath = "/foo/qemu-lite-system-x86_64"
 const kernelPath = "/foo/clear-containers/vmlinux.container"
 const imagePath = "/foo/clear-containers/clear-containers.img"
 const runtimePath = "/foo/clear-containers/runtime.sock"
-const shimPath = "/foo/clear-containers/shim.sock"
+const shimPath = "/foo/clear-containers/cc-shim"
 
 const runtimeConfig = `
 # Clear Containers runtime configuration file
@@ -42,7 +42,9 @@ image = "` + imagePath + `"
 
 [proxy.cc]
 runtime_sock = "` + runtimePath + `"
-shim_sock = "` + shimPath + `"
+
+[shim.cc]
+path = "` + shimPath + `"
 `
 
 const runtimeMinimalConfig = `
@@ -73,7 +75,7 @@ func TestRuntimeConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	config, err := loadConfiguration(configPath)
+	config, shimConfig, err := loadConfiguration(configPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,8 +100,16 @@ func TestRuntimeConfig(t *testing.T) {
 		ProxyConfig: expectedProxyConfig,
 	}
 
+	expectedShimConfig := ShimConfig{
+		Path: shimPath,
+	}
+
 	if reflect.DeepEqual(config, expectedConfig) == false {
 		t.Fatalf("Got %v\n expecting %v", config, expectedConfig)
+	}
+
+	if reflect.DeepEqual(shimConfig, expectedShimConfig) == false {
+		t.Fatalf("Got %v\n expecting %v", shimConfig, expectedShimConfig)
 	}
 
 	if err := os.Remove(configPath); err != nil {
@@ -113,7 +123,7 @@ func TestMinimalRuntimeConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	config, err := loadConfiguration(configPath)
+	config, shimConfig, err := loadConfiguration(configPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,8 +148,16 @@ func TestMinimalRuntimeConfig(t *testing.T) {
 		ProxyConfig: expectedProxyConfig,
 	}
 
+	expectedShimConfig := ShimConfig{
+		Path: defaultShimPath,
+	}
+
 	if reflect.DeepEqual(config, expectedConfig) == false {
 		t.Fatalf("Got %v\n expecting %v", config, expectedConfig)
+	}
+
+	if reflect.DeepEqual(shimConfig, expectedShimConfig) == false {
+		t.Fatalf("Got %v\n expecting %v", shimConfig, expectedShimConfig)
 	}
 
 	if err := os.Remove(configPath); err != nil {

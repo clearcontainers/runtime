@@ -70,7 +70,7 @@ func create(containerID, bundlePath, console, pidFilePath string) error {
 		return err
 	}
 
-	podConfig, err := getPodConfig(bundlePath, containerID, console)
+	podConfig, shimConfig, err := getConfigs(bundlePath, containerID, console)
 	if err != nil {
 		return err
 	}
@@ -86,7 +86,7 @@ func create(containerID, bundlePath, console, pidFilePath string) error {
 		return fmt.Errorf("BUG: Container list from pod is wrong, expecting only one container, found %d containers", len(containers))
 	}
 
-	pid, err := startContainerShim(containers[0], pod.URL())
+	pid, err := startContainerShim(containers[0], shimConfig, pod.URL())
 	if err != nil {
 		return err
 	}
@@ -101,18 +101,18 @@ func create(containerID, bundlePath, console, pidFilePath string) error {
 	return nil
 }
 
-func getPodConfig(bundlePath, containerID, console string) (vc.PodConfig, error) {
-	runtimeConfig, err := loadConfiguration("")
+func getConfigs(bundlePath, containerID, console string) (vc.PodConfig, ShimConfig, error) {
+	runtimeConfig, shimConfig, err := loadConfiguration("")
 	if err != nil {
-		return vc.PodConfig{}, err
+		return vc.PodConfig{}, ShimConfig{}, err
 	}
 
 	podConfig, err := oci.PodConfig(runtimeConfig, bundlePath, containerID, console)
 	if err != nil {
-		return vc.PodConfig{}, err
+		return vc.PodConfig{}, ShimConfig{}, err
 	}
 
-	return *podConfig, nil
+	return *podConfig, shimConfig, nil
 }
 
 func createPIDFile(pidFilePath string, pid int) error {

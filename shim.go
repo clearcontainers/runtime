@@ -20,9 +20,15 @@ import (
 	"os/exec"
 
 	vc "github.com/containers/virtcontainers"
+	"github.com/golang/glog"
 )
 
-func startShim(process *vc.Process, url string) (int, error) {
+// ShimConfig holds configuration data related to a shim.
+type ShimConfig struct {
+	Path string
+}
+
+func startShim(process *vc.Process, config ShimConfig, url string) (int, error) {
 	if process.Token == "" {
 		return -1, fmt.Errorf("Token cannot be empty")
 	}
@@ -31,8 +37,13 @@ func startShim(process *vc.Process, url string) (int, error) {
 		return -1, fmt.Errorf("URL cannot be empty")
 	}
 
+	if config.Path == "" {
+		config.Path = defaultShimPath
+	}
+	glog.Infof("Shim binary path: %s\n", config.Path)
+
 	cmd := exec.Cmd{
-		Path: defaultShimPath,
+		Path: config.Path,
 		Args: []string{"-t", process.Token, "-u", url},
 		Env:  os.Environ(),
 	}
@@ -44,10 +55,10 @@ func startShim(process *vc.Process, url string) (int, error) {
 	return cmd.Process.Pid, nil
 }
 
-func startContainerShim(container *vc.Container, url string) (int, error) {
+func startContainerShim(container *vc.Container, config ShimConfig, url string) (int, error) {
 	process := container.Process()
 
-	pid, err := startShim(&process, url)
+	pid, err := startShim(&process, config, url)
 	if err != nil {
 		return -1, err
 	}

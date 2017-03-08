@@ -203,13 +203,18 @@ func execute(params execParams) error {
 		User:    params.ociProcess.User.Username,
 	}
 
+	_, shimConfig, err := loadConfiguration("")
+	if err != nil {
+		return err
+	}
+
 	pod, _, process, err := vc.EnterContainer(params.cID, podStatus.ContainersStatus[0].ID, cmd)
 	if err != nil {
 		return err
 	}
 
 	// Start the shim to retrieve its PID.
-	pid, err := startShim(process, pod.URL())
+	pid, err := startShim(process, shimConfig, pod.URL())
 	if err != nil {
 		return err
 	}
