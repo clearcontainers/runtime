@@ -29,7 +29,7 @@ import (
 const hypervisorPath = "/foo/qemu-lite-system-x86_64"
 const kernelPath = "/foo/clear-containers/vmlinux.container"
 const imagePath = "/foo/clear-containers/clear-containers.img"
-const runtimePath = "/foo/clear-containers/runtime.sock"
+const proxyURL = "foo:///foo/clear-containers/proxy.sock"
 const shimPath = "/foo/clear-containers/cc-shim"
 
 const runtimeConfig = `
@@ -41,7 +41,7 @@ kernel = "` + kernelPath + `"
 image = "` + imagePath + `"
 
 [proxy.cc]
-runtime_sock = "` + runtimePath + `"
+url = "` + proxyURL + `"
 
 [shim.cc]
 path = "` + shimPath + `"
@@ -51,8 +51,7 @@ const runtimeMinimalConfig = `
 # Clear Containers runtime configuration file
 
 [proxy.cc]
-runtime_sock = "` + runtimePath + `"
-shim_sock = "` + shimPath + `"
+url = "` + proxyURL + `"
 `
 
 const tempRuntimePath = "/tmp/cc-runtime/"
@@ -87,7 +86,7 @@ func TestRuntimeConfig(t *testing.T) {
 	}
 
 	expectedProxyConfig := vc.CCProxyConfig{
-		URL: runtimePath,
+		URL: proxyURL,
 	}
 
 	expectedConfig := oci.RuntimeConfig{
@@ -135,7 +134,7 @@ func TestMinimalRuntimeConfig(t *testing.T) {
 	}
 
 	expectedProxyConfig := vc.CCProxyConfig{
-		URL: runtimePath,
+		URL: proxyURL,
 	}
 
 	expectedConfig := oci.RuntimeConfig{
