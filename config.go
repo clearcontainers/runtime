@@ -72,7 +72,7 @@ type hypervisor struct {
 }
 
 type proxy struct {
-	RuntimeSockPath string `toml:"runtime_sock"`
+	URL string `toml:"url"`
 }
 
 type shim struct {
@@ -101,6 +101,14 @@ func (h hypervisor) image() string {
 	}
 
 	return h.Image
+}
+
+func (p proxy) url() string {
+	if p.URL == "" {
+		return defaultProxyURL
+	}
+
+	return p.URL
 }
 
 func (s shim) path() string {
@@ -178,8 +186,10 @@ func loadConfiguration(configPath string) (oci.RuntimeConfig, ShimConfig, error)
 		switch k {
 		case ccProxy:
 			pConfig := vc.CCProxyConfig{
-				URL: proxy.RuntimeSockPath,
+				URL: proxy.url(),
 			}
+
+			config.ProxyType = vc.CCProxyType
 			config.ProxyConfig = pConfig
 			break
 		}
