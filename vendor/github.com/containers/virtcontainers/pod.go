@@ -336,7 +336,7 @@ type Pod struct {
 	runPath    string
 	configPath string
 
-	controlSocket string
+	url string
 
 	state State
 
@@ -346,6 +346,11 @@ type Pod struct {
 // ID returns the pod identifier string.
 func (p *Pod) ID() string {
 	return p.id
+}
+
+// URL returns the pod URL for any runtime to connect to the proxy.
+func (p *Pod) URL() string {
+	return p.url
 }
 
 // GetContainers returns a container config list.

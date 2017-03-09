@@ -349,43 +349,43 @@ func StatusPod(podID string) (PodStatus, error) {
 
 // CreateContainer is the virtcontainers container creation entry point.
 // CreateContainer creates a container on a given pod.
-func CreateContainer(podID string, containerConfig ContainerConfig) (*Container, error) {
+func CreateContainer(podID string, containerConfig ContainerConfig) (*Pod, *Container, error) {
 	lockFile, err := lockPod(podID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer unlockPod(lockFile)
 
 	p, err := fetchPod(podID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Create the container.
 	c, err := createContainer(p, containerConfig)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Store it.
 	err = c.storeContainer()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Update pod config.
 	p.config.Containers = append(p.config.Containers, containerConfig)
 	err = p.storage.storePodResource(podID, configFileType, *(p.config))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	err = p.endSession()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return c, nil
+	return p, c, nil
 }
 
 // DeleteContainer is the virtcontainers container deletion entry point.
@@ -507,36 +507,36 @@ func StopContainer(podID, containerID string) (*Container, error) {
 
 // EnterContainer is the virtcontainers container command execution entry point.
 // EnterContainer enters an already running container and runs a given command.
-func EnterContainer(podID, containerID string, cmd Cmd) (*Container, *Process, error) {
+func EnterContainer(podID, containerID string, cmd Cmd) (*Pod, *Container, *Process, error) {
 	lockFile, err := lockPod(podID)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	defer unlockPod(lockFile)
 
 	p, err := fetchPod(podID)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	// Fetch the container.
 	c, err := fetchContainer(p, containerID)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	// Enter it.
 	process, err := c.enter(cmd)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	err = p.endSession()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
-	return c, process, nil
+	return p, c, process, nil
 }
 
 // StatusContainer is the virtcontainers container status entry point.

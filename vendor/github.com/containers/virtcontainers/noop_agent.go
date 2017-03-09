@@ -41,7 +41,7 @@ func (n *noopAgent) stop(pod Pod) error {
 }
 
 // exec is the Noop agent command execution implementation. It does nothing.
-func (n *noopAgent) exec(pod Pod, c Container, cmd Cmd) (*Process, error) {
+func (n *noopAgent) exec(pod *Pod, c Container, cmd Cmd) (*Process, error) {
 	return nil, nil
 }
 
@@ -56,7 +56,7 @@ func (n *noopAgent) stopPod(pod Pod) error {
 }
 
 // createContainer is the Noop agent Container creation implementation. It does nothing.
-func (n *noopAgent) createContainer(pod Pod, c *Container) error {
+func (n *noopAgent) createContainer(pod *Pod, c *Container) error {
 	return nil
 }
 

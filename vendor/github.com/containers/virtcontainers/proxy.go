@@ -92,7 +92,6 @@ func newProxyConfig(config PodConfig) interface{} {
 // Each ProxyInfo relates to a process running inside a container.
 type ProxyInfo struct {
 	Token string
-	URL   string
 
 	// Keep for legacy, will be removed when new proxy is ready.
 	StdioID  uint64
@@ -103,7 +102,7 @@ type ProxyInfo struct {
 type proxy interface {
 	// register connects and registers the proxy to the given VM.
 	// It also returns information related to containers workloads.
-	register(pod Pod) ([]ProxyInfo, error)
+	register(pod Pod) ([]ProxyInfo, string, error)
 
 	// unregister unregisters and disconnects the proxy from the given VM.
 	unregister(pod Pod) error
@@ -114,7 +113,7 @@ type proxy interface {
 	// createToken is intended to be true in case we don't want
 	// the proxy to create a new token, but instead only get a handle
 	// to be able to communicate with the agent inside the VM.
-	connect(pod Pod, createToken bool) (ProxyInfo, error)
+	connect(pod Pod, createToken bool) (ProxyInfo, string, error)
 
 	// disconnect disconnects from the proxy.
 	disconnect() error

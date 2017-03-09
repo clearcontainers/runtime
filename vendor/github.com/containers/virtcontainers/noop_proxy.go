@@ -18,9 +18,11 @@ package virtcontainers
 
 type noopProxy struct{}
 
+var noopProxyURL = "noopProxyURL"
+
 // register is the proxy register implementation for testing purpose.
 // It does nothing.
-func (p *noopProxy) register(pod Pod) ([]ProxyInfo, error) {
+func (p *noopProxy) register(pod Pod) ([]ProxyInfo, string, error) {
 	var proxyInfos []ProxyInfo
 
 	for i := 0; i < len(pod.containers); i++ {
@@ -29,7 +31,7 @@ func (p *noopProxy) register(pod Pod) ([]ProxyInfo, error) {
 		proxyInfos = append(proxyInfos, proxyInfo)
 	}
 
-	return proxyInfos, nil
+	return proxyInfos, noopProxyURL, nil
 }
 
 // unregister is the proxy unregister implementation for testing purpose.
@@ -40,8 +42,8 @@ func (p *noopProxy) unregister(pod Pod) error {
 
 // connect is the proxy connect implementation for testing purpose.
 // It does nothing.
-func (p *noopProxy) connect(pod Pod, createToken bool) (ProxyInfo, error) {
-	return ProxyInfo{}, nil
+func (p *noopProxy) connect(pod Pod, createToken bool) (ProxyInfo, string, error) {
+	return ProxyInfo{}, noopProxyURL, nil
 }
 
 // disconnect is the proxy disconnect implementation for testing purpose.
