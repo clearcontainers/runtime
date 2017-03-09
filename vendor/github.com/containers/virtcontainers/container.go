@@ -251,7 +251,7 @@ func createContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 	// specific case.
 	pod.containers = append(pod.containers, c)
 
-	if err := c.pod.agent.createContainer(*pod, c); err != nil {
+	if err := c.pod.agent.createContainer(pod, c); err != nil {
 		return nil, err
 	}
 
@@ -378,7 +378,7 @@ func (c *Container) enter(cmd Cmd) (*Process, error) {
 		return nil, fmt.Errorf("Container not running, impossible to enter")
 	}
 
-	process, err := c.pod.agent.exec(*(c.pod), *c, cmd)
+	process, err := c.pod.agent.exec(c.pod, *c, cmd)
 	if err != nil {
 		return nil, err
 	}

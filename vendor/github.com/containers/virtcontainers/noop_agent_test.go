@@ -42,7 +42,7 @@ func TestNoopAgentStartAgent(t *testing.T) {
 
 func TestNoopAgentExec(t *testing.T) {
 	n := &noopAgent{}
-	pod := Pod{}
+	pod := &Pod{}
 	container := Container{}
 	cmd := Cmd{}
 
@@ -83,7 +83,7 @@ func TestNoopAgentStopAgent(t *testing.T) {
 
 func TestNoopAgentCreateContainer(t *testing.T) {
 	n := &noopAgent{}
-	pod := Pod{}
+	pod := &Pod{}
 	container := &Container{}
 
 	err := n.createContainer(pod, container)

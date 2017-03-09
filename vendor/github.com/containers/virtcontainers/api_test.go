@@ -516,7 +516,7 @@ func TestCreateContainerSuccessful(t *testing.T) {
 
 	contConfig := newTestContainerConfigNoop(contID)
 
-	c, err := CreateContainer(p.id, contConfig)
+	_, c, err := CreateContainer(p.id, contConfig)
 	if c == nil || err != nil {
 		t.Fatal(err)
 	}
@@ -550,7 +550,7 @@ func TestCreateContainerFailingNoPod(t *testing.T) {
 
 	contConfig := newTestContainerConfigNoop(contID)
 
-	c, err := CreateContainer(p.id, contConfig)
+	_, c, err := CreateContainer(p.id, contConfig)
 	if c != nil || err == nil {
 		t.Fatal(err)
 	}
@@ -573,7 +573,7 @@ func TestDeleteContainerSuccessful(t *testing.T) {
 
 	contConfig := newTestContainerConfigNoop(contID)
 
-	c, err := CreateContainer(p.id, contConfig)
+	_, c, err := CreateContainer(p.id, contConfig)
 	if c == nil || err != nil {
 		t.Fatal(err)
 	}
@@ -637,7 +637,7 @@ func TestStartContainerNoopAgentSuccessful(t *testing.T) {
 	}
 	contConfig := newTestContainerConfigNoop(contID)
 
-	c, err := CreateContainer(p.id, contConfig)
+	_, c, err := CreateContainer(p.id, contConfig)
 	if c == nil || err != nil {
 		t.Fatal(err)
 	}
@@ -703,7 +703,7 @@ func TestStartContainerFailingPodNotStarted(t *testing.T) {
 
 	contConfig := newTestContainerConfigNoop(contID)
 
-	c, err := CreateContainer(p.id, contConfig)
+	_, c, err := CreateContainer(p.id, contConfig)
 	if c == nil || err != nil {
 		t.Fatal(err)
 	}
@@ -731,7 +731,7 @@ func TestStopContainerNoopAgentSuccessful(t *testing.T) {
 
 	contConfig := newTestContainerConfigNoop(contID)
 
-	c, err := CreateContainer(p.id, contConfig)
+	_, c, err := CreateContainer(p.id, contConfig)
 	if c == nil || err != nil {
 		t.Fatal(err)
 	}
@@ -778,7 +778,7 @@ func TestStartStopContainerHyperstartAgentSuccessful(t *testing.T) {
 
 	contConfig := newTestContainerConfigNoop(contID)
 
-	c, err := CreateContainer(p.id, contConfig)
+	_, c, err := CreateContainer(p.id, contConfig)
 	if c == nil || err != nil {
 		t.Fatal(err)
 	}
@@ -888,7 +888,7 @@ func TestStopContainerFailingContNotStarted(t *testing.T) {
 
 	contConfig := newTestContainerConfigNoop(contID)
 
-	c, err := CreateContainer(p.id, contConfig)
+	_, c, err := CreateContainer(p.id, contConfig)
 	if c == nil || err != nil {
 		t.Fatal(err)
 	}
@@ -916,7 +916,7 @@ func TestEnterContainerNoopAgentSuccessful(t *testing.T) {
 
 	contConfig := newTestContainerConfigNoop(contID)
 
-	c, err := CreateContainer(p.id, contConfig)
+	_, c, err := CreateContainer(p.id, contConfig)
 	if c == nil || err != nil {
 		t.Fatal(err)
 	}
@@ -934,7 +934,7 @@ func TestEnterContainerNoopAgentSuccessful(t *testing.T) {
 
 	cmd := newBasicTestCmd()
 
-	c, _, err = EnterContainer(p.id, contID, cmd)
+	_, c, _, err = EnterContainer(p.id, contID, cmd)
 	if c == nil || err != nil {
 		t.Fatal(err)
 	}
@@ -965,7 +965,7 @@ func TestEnterContainerHyperstartAgentSuccessful(t *testing.T) {
 
 	contConfig := newTestContainerConfigNoop(contID)
 
-	_, err = CreateContainer(p.id, contConfig)
+	_, _, err = CreateContainer(p.id, contConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -983,7 +983,7 @@ func TestEnterContainerHyperstartAgentSuccessful(t *testing.T) {
 
 	cmd := newBasicTestCmd()
 
-	_, _, err = EnterContainer(p.id, contID, cmd)
+	_, _, _, err = EnterContainer(p.id, contID, cmd)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1008,7 +1008,7 @@ func TestEnterContainerFailingNoPod(t *testing.T) {
 
 	cmd := newBasicTestCmd()
 
-	c, _, err := EnterContainer(testPodID, contID, cmd)
+	_, c, _, err := EnterContainer(testPodID, contID, cmd)
 	if c != nil || err == nil {
 		t.Fatal()
 	}
@@ -1031,7 +1031,7 @@ func TestEnterContainerFailingNoContainer(t *testing.T) {
 
 	cmd := newBasicTestCmd()
 
-	c, _, err := EnterContainer(p.id, contID, cmd)
+	_, c, _, err := EnterContainer(p.id, contID, cmd)
 	if c != nil || err == nil {
 		t.Fatal()
 	}
@@ -1048,7 +1048,7 @@ func TestEnterContainerFailingContNotStarted(t *testing.T) {
 
 	contConfig := newTestContainerConfigNoop(contID)
 
-	c, err := CreateContainer(p.id, contConfig)
+	_, c, err := CreateContainer(p.id, contConfig)
 	if c == nil || err != nil {
 		t.Fatal(err)
 	}
@@ -1061,7 +1061,7 @@ func TestEnterContainerFailingContNotStarted(t *testing.T) {
 
 	cmd := newBasicTestCmd()
 
-	c, _, err = EnterContainer(p.id, contID, cmd)
+	_, c, _, err = EnterContainer(p.id, contID, cmd)
 	if c != nil || err == nil {
 		t.Fatal()
 	}
@@ -1084,7 +1084,7 @@ func TestStatusContainerSuccessful(t *testing.T) {
 
 	contConfig := newTestContainerConfigNoop(contID)
 
-	c, err := CreateContainer(p.id, contConfig)
+	_, c, err := CreateContainer(p.id, contConfig)
 	if c == nil || err != nil {
 		t.Fatal(err)
 	}
@@ -1236,7 +1236,7 @@ func createStartStopDeleteContainers(b *testing.B, podConfig PodConfig, contConf
 
 	// Create containers
 	for _, contConfig := range contConfigs {
-		_, err := CreateContainer(p.id, contConfig)
+		_, _, err := CreateContainer(p.id, contConfig)
 		if err != nil {
 			b.Logf("Could not create container %s: %s", contConfig.ID, err)
 		}
