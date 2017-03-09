@@ -154,8 +154,7 @@ func loadConfiguration(configPath string) (oci.RuntimeConfig, error) {
 		switch k {
 		case ccProxy:
 			pConfig := vc.CCProxyConfig{
-				RuntimeSocketPath: proxy.RuntimeSockPath,
-				ShimSocketPath:    proxy.ShimSockPath,
+				URL: proxy.RuntimeSockPath,
 			}
 			config.ProxyConfig = pConfig
 			break

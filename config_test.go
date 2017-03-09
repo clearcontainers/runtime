@@ -85,8 +85,7 @@ func TestRuntimeConfig(t *testing.T) {
 	}
 
 	expectedProxyConfig := vc.CCProxyConfig{
-		RuntimeSocketPath: runtimePath,
-		ShimSocketPath:    shimPath,
+		URL: runtimePath,
 	}
 
 	expectedConfig := oci.RuntimeConfig{
@@ -126,8 +125,7 @@ func TestMinimalRuntimeConfig(t *testing.T) {
 	}
 
 	expectedProxyConfig := vc.CCProxyConfig{
-		RuntimeSocketPath: runtimePath,
-		ShimSocketPath:    shimPath,
+		URL: runtimePath,
 	}
 
 	expectedConfig := oci.RuntimeConfig{
