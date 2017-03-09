@@ -16,8 +16,25 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+
+	vc "github.com/containers/virtcontainers"
+	"github.com/containers/virtcontainers/pkg/oci"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/urfave/cli"
 )
+
+type execParams struct {
+	ociProcess   specs.Process
+	cID          string
+	pidFile      string
+	console      string
+	detach       bool
+	processLabel string
+	noSubreaper  bool
+}
 
 var execCommand = cli.Command{
 	Name:  "exec",
@@ -91,7 +108,118 @@ EXAMPLE:
 		},
 	},
 	Action: func(context *cli.Context) error {
-		// TODO
-		return nil
+		params, err := generateExecParams(context)
+		if err != nil {
+			return err
+		}
+
+		return execute(params)
 	},
+}
+
+func generateExecParams(context *cli.Context) (execParams, error) {
+	ctxArgs := context.Args()
+
+	params := execParams{
+		cID:          ctxArgs.First(),
+		pidFile:      context.String("pid-file"),
+		console:      context.String("console"),
+		detach:       context.Bool("detach"),
+		processLabel: context.String("process-label"),
+		noSubreaper:  context.Bool("no-subreaper"),
+	}
+
+	if context.IsSet("process") == true {
+		var ociProcess specs.Process
+
+		fileContent, err := ioutil.ReadFile(context.String("process"))
+		if err != nil {
+			return execParams{}, err
+		}
+
+		if err := json.Unmarshal(fileContent, ociProcess); err != nil {
+			return execParams{}, err
+		}
+
+		params.ociProcess = ociProcess
+	} else {
+		params.ociProcess = specs.Process{
+			Terminal: context.Bool("tty"),
+			User: specs.User{
+				Username: context.String("user"),
+			},
+			Args:            ctxArgs.Tail(),
+			Env:             context.StringSlice("env"),
+			Cwd:             context.String("cwd"),
+			NoNewPrivileges: context.Bool("no-new-privs"),
+			ApparmorProfile: context.String("apparmor"),
+		}
+	}
+
+	return params, nil
+}
+
+func execute(params execParams) error {
+	if err := validContainer(params.cID); err != nil {
+		return err
+	}
+
+	podStatus, err := vc.StatusPod(params.cID)
+	if err != nil {
+		return err
+	}
+
+	if len(podStatus.ContainersStatus) != 1 {
+		return fmt.Errorf("BUG: ContainerStatus list from PodStatus %s is wrong, expecting only one ContainerStatus: %v", params.cID, podStatus.ContainersStatus)
+	}
+
+	// container MUST be running
+	if podStatus.ContainersStatus[0].State.State != vc.StateRunning {
+		return fmt.Errorf("Container %s is not running", params.cID)
+	}
+
+	// Check status of process running inside the container
+	running, err := processRunning(podStatus.ContainersStatus[0].PID)
+	if err != nil {
+		return err
+	}
+	if running == false {
+		if err := stopContainer(podStatus); err != nil {
+			return err
+		}
+
+		return fmt.Errorf("Process not running inside container %s", params.cID)
+	}
+
+	envVars, err := oci.EnvVars(params.ociProcess.Env)
+	if err != nil {
+		return err
+	}
+
+	cmd := vc.Cmd{
+		Args:    params.ociProcess.Args,
+		Envs:    envVars,
+		WorkDir: params.ociProcess.Cwd,
+		User:    params.ociProcess.User.Username,
+	}
+
+	pod, _, process, err := vc.EnterContainer(params.cID, podStatus.ContainersStatus[0].ID, cmd)
+	if err != nil {
+		return err
+	}
+
+	// Start the shim to retrieve its PID.
+	pid, err := startShim(process, pod.URL())
+	if err != nil {
+		return err
+	}
+
+	// Creation of PID file has to be the last thing done in the exec
+	// because containerd considers the exec to have finished starting
+	// after this file is created.
+	if err := createPIDFile(params.pidFile, pid); err != nil {
+		return err
+	}
+
+	return nil
 }

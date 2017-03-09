@@ -22,57 +22,39 @@ import (
 	vc "github.com/containers/virtcontainers"
 )
 
-// ShimInfo gathers information needed by the shim.
-type ShimInfo struct {
-	Path  string
-	Token string
-	IP    string
-	Port  string
-}
-
-func startShim(pod *vc.Pod) (int, error) {
-	containers := pod.GetContainers()
-
-	if len(containers) != 1 {
-		return -1, fmt.Errorf("Container list from pod is wrong, expecting only one container")
+func startShim(process *vc.Process, url string) (int, error) {
+	if process.Token == "" {
+		return -1, fmt.Errorf("Token cannot be empty")
 	}
-	container := containers[0]
 
-	shimInfo, err := getShimInfo(container)
-	if err != nil {
-		return -1, err
+	if url == "" {
+		return -1, fmt.Errorf("URL cannot be empty")
 	}
 
 	cmd := exec.Cmd{
-		Path: shimInfo.Path,
-		Args: []string{"-t", shimInfo.Token, "-s", shimInfo.IP, "-p", shimInfo.Port},
+		Path: defaultShimPath,
+		Args: []string{"-t", process.Token, "-u", url},
 		Env:  os.Environ(),
 	}
 
 	if err := cmd.Start(); err != nil {
 		return -1, err
 	}
-	pid := cmd.Process.Pid
+
+	return cmd.Process.Pid, nil
+}
+
+func startContainerShim(container *vc.Container, url string) (int, error) {
+	process := container.Process()
+
+	pid, err := startShim(&process, url)
+	if err != nil {
+		return -1, err
+	}
 
 	if err := container.SetPid(pid); err != nil {
 		return -1, err
 	}
 
 	return pid, nil
-}
-
-func getShimInfo(container *vc.Container) (ShimInfo, error) {
-	token := container.GetToken()
-	if token == "" {
-		return ShimInfo{}, fmt.Errorf("Invalid token")
-	}
-
-	shimInfo := ShimInfo{
-		Path:  defaultShimPath,
-		Token: token,
-		IP:    defaultProxyIP,
-		Port:  defaultProxyPort,
-	}
-
-	return shimInfo, nil
 }
