@@ -21,6 +21,7 @@ import (
 
 	vc "github.com/containers/virtcontainers"
 	"github.com/containers/virtcontainers/pkg/oci"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/urfave/cli"
 )
 
@@ -70,7 +71,7 @@ func create(containerID, bundlePath, console, pidFilePath string) error {
 		return err
 	}
 
-	podConfig, shimConfig, err := getConfigs(bundlePath, containerID, console)
+	podConfig, shimConfig, _, err := getConfigs(bundlePath, containerID, console)
 	if err != nil {
 		return err
 	}
@@ -101,18 +102,18 @@ func create(containerID, bundlePath, console, pidFilePath string) error {
 	return nil
 }
 
-func getConfigs(bundlePath, containerID, console string) (vc.PodConfig, ShimConfig, error) {
+func getConfigs(bundlePath, containerID, console string) (vc.PodConfig, ShimConfig, specs.Spec, error) {
 	runtimeConfig, shimConfig, err := loadConfiguration("")
 	if err != nil {
-		return vc.PodConfig{}, ShimConfig{}, err
+		return vc.PodConfig{}, ShimConfig{}, specs.Spec{}, err
 	}
 
-	podConfig, err := oci.PodConfig(runtimeConfig, bundlePath, containerID, console)
+	podConfig, ociSpec, err := oci.PodConfig(runtimeConfig, bundlePath, containerID, console)
 	if err != nil {
-		return vc.PodConfig{}, ShimConfig{}, err
+		return vc.PodConfig{}, ShimConfig{}, specs.Spec{}, err
 	}
 
-	return *podConfig, shimConfig, nil
+	return *podConfig, shimConfig, *ociSpec, nil
 }
 
 func createPIDFile(pidFilePath string, pid int) error {
