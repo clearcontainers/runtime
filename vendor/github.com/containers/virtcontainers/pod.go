@@ -269,6 +269,12 @@ type PodConfig struct {
 	// This list can be empty and populated by adding containers
 	// to the Pod a posteriori.
 	Containers []ContainerConfig
+
+	// Annotations is a reserved field and can be filled with various
+	// different data by each user. This means that virtcontainers will
+	// never try to interpret those data, it is only providing a way to
+	// save some data for users.
+	Annotations map[string]string
 }
 
 // valid checks that the pod configuration is valid.
@@ -346,6 +352,20 @@ type Pod struct {
 // ID returns the pod identifier string.
 func (p *Pod) ID() string {
 	return p.id
+}
+
+// Annotations returns any annotation that a user could have stored through the pod.
+func (p *Pod) Annotations(key string) (string, error) {
+	if len(p.config.Annotations) == 0 {
+		return "", fmt.Errorf("Annotations map is empty")
+	}
+
+	value, exist := p.config.Annotations[key]
+	if exist == false {
+		return "", fmt.Errorf("Annotations key %s does not exist", key)
+	}
+
+	return value, nil
 }
 
 // URL returns the pod URL for any runtime to connect to the proxy.
