@@ -17,10 +17,23 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"syscall"
 
 	vc "github.com/containers/virtcontainers"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
+
+// Contants related to cgroup memory directory
+const (
+	cgroupsTasksFile = "tasks"
+	cgroupsProcsFile = "cgroup.procs"
+	cgroupsDirMode   = os.FileMode(0750)
+	cgroupsFileMode  = os.FileMode(0640)
+	cgroupsMountType = "cgroup"
+)
+
+var cgroupsMemDirPath = "/sys/fs/cgroup/memory"
 
 func containerExists(containerID string) (bool, error) {
 	podStatusList, err := vc.ListPod()
@@ -113,4 +126,39 @@ func stopContainer(podStatus vc.PodStatus) error {
 	}
 
 	return nil
+}
+
+// processCgroupsPath process the cgroups path as expected from the
+// OCI runtime specification. It returns a complete path to the path
+// that should be created and used.
+func processCgroupsPath(ociSpec specs.Spec) (string, error) {
+	if ociSpec.Linux.CgroupsPath == "" {
+		return "", nil
+	}
+
+	// Relative cgroups path provided.
+	if filepath.IsAbs(ociSpec.Linux.CgroupsPath) == false {
+		return filepath.Join(cgroupsMemDirPath, ociSpec.Linux.CgroupsPath), nil
+	}
+
+	// Absolute cgroups path provided.
+	var cgroupMount specs.Mount
+	cgroupMountFound := false
+	for _, mount := range ociSpec.Mounts {
+		if mount.Type == "cgroup" {
+			cgroupMount = mount
+			cgroupMountFound = true
+			break
+		}
+	}
+
+	if cgroupMountFound == false {
+		return "", fmt.Errorf("cgroupsPath is absolute, cgroup mount MUST exist")
+	}
+
+	if cgroupMount.Destination == "" {
+		return "", fmt.Errorf("cgroupsPath is absolute, cgroup mount destination cannot be empty")
+	}
+
+	return filepath.Join(cgroupMount.Destination, ociSpec.Linux.CgroupsPath), nil
 }

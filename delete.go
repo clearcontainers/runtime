@@ -17,9 +17,11 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	vc "github.com/containers/virtcontainers"
 	"github.com/containers/virtcontainers/pkg/oci"
+	"github.com/golang/glog"
 	"github.com/urfave/cli"
 )
 
@@ -86,7 +88,14 @@ func delete(containerID string, force bool) error {
 		}
 	}
 
-	if _, err := vc.StopPod(containerID); err != nil {
+	pod, err := vc.StopPod(containerID)
+	if err != nil {
+		return err
+	}
+
+	// Retrieve OCI spec configuration.
+	ociSpec, err := oci.PodToOCIConfig(*pod)
+	if err != nil {
 		return err
 	}
 
@@ -94,5 +103,26 @@ func delete(containerID string, force bool) error {
 		return err
 	}
 
+	// In order to prevent any file descriptor leak related to cgroups files
+	// that have been previously created, we have to remove them before this
+	// function returns.
+	cgroupsPath, err := processCgroupsPath(ociSpec)
+	if err != nil {
+		return err
+	}
+
+	if err := removeCgroupsPath(cgroupsPath); err != nil {
+		return err
+	}
+
 	return nil
+}
+
+func removeCgroupsPath(cgroupsPath string) error {
+	if cgroupsPath == "" {
+		glog.Info("Cgroups files not removed because cgroupsPath was empty")
+		return nil
+	}
+
+	return os.RemoveAll(cgroupsPath)
 }
