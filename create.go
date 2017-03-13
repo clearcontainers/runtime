@@ -18,9 +18,11 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	vc "github.com/containers/virtcontainers"
 	"github.com/containers/virtcontainers/pkg/oci"
+	"github.com/golang/glog"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/urfave/cli"
 )
@@ -71,7 +73,7 @@ func create(containerID, bundlePath, console, pidFilePath string) error {
 		return err
 	}
 
-	podConfig, shimConfig, _, err := getConfigs(bundlePath, containerID, console)
+	podConfig, shimConfig, ociSpec, err := getConfigs(bundlePath, containerID, console)
 	if err != nil {
 		return err
 	}
@@ -89,6 +91,20 @@ func create(containerID, bundlePath, console, pidFilePath string) error {
 
 	pid, err := startContainerShim(containers[0], shimConfig, pod.URL())
 	if err != nil {
+		return err
+	}
+
+	// config.json provides a cgroups path that has to be used to create "tasks"
+	// and "cgroups.procs" files. Those files have to be filled with a PID, which
+	// is shim's in our case. This is mandatory to make sure there is no one
+	// else (like Docker) trying to create those files on our behalf. We want to
+	// know those files location so that we can remove them when delete is called.
+	cgroupsPath, err := processCgroupsPath(ociSpec)
+	if err != nil {
+		return err
+	}
+
+	if err := createCgroupsFiles(cgroupsPath, pid); err != nil {
 		return err
 	}
 
@@ -114,6 +130,41 @@ func getConfigs(bundlePath, containerID, console string) (vc.PodConfig, ShimConf
 	}
 
 	return *podConfig, shimConfig, *ociSpec, nil
+}
+
+func createCgroupsFiles(cgroupsPath string, pid int) error {
+	if cgroupsPath == "" {
+		glog.Info("Cgroups files not created because cgroupsPath was empty")
+		return nil
+	}
+
+	if err := os.MkdirAll(cgroupsPath, cgroupsDirMode); err != nil {
+		return err
+	}
+
+	tasksFilePath := filepath.Join(cgroupsPath, cgroupsTasksFile)
+	procsFilePath := filepath.Join(cgroupsPath, cgroupsProcsFile)
+
+	pidStr := fmt.Sprintf("%d", pid)
+
+	for _, path := range []string{tasksFilePath, procsFilePath} {
+		f, err := os.OpenFile(path, os.O_RDWR, cgroupsFileMode)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+
+		n, err := f.WriteString(pidStr)
+		if err != nil {
+			return err
+		}
+
+		if n < len(pidStr) {
+			return fmt.Errorf("Could not write pid to %q: only %d bytes written out of %d", path, n, len(pidStr))
+		}
+	}
+
+	return nil
 }
 
 func createPIDFile(pidFilePath string, pid int) error {
