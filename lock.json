@@ -1,5 +1,5 @@
 {
-    "memo": "2d9f29c02e2dd296c3d318cc574e782b0810407de675fe914b64e8b7667a14fa",
+    "memo": "25551798d7ad426d9e83e3513f41142f9ca38626308a495dcf46defa73fa378e",
     "projects": [
         {
             "name": "github.com/01org/cc-oci-runtime",
@@ -55,7 +55,7 @@
         },
         {
             "name": "github.com/containers/virtcontainers",
-            "revision": "795b17e9eb24719a0dceebfa077b5ae108a6dc6c",
+            "revision": "5c92f1f5efb746caf6c3d6986c86356affcfbfd6",
             "packages": [
                 ".",
                 "pkg/oci"

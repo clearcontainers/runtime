@@ -38,9 +38,9 @@ func bindMount(source, destination string) error {
 	}
 
 	if err := ensureDestinationExists(absSource, destination); err != nil {
-		return fmt.Errorf("Could not create destination mount point: %v", destination)
+		return fmt.Errorf("Could not create destination mount point %v: %v", destination, err)
 	} else if err := syscall.Mount(absSource, destination, "bind", syscall.MS_BIND, ""); err != nil {
-		return fmt.Errorf("Could not bind mount %v to %v", absSource, destination)
+		return fmt.Errorf("Could not bind mount %v to %v: %v", absSource, destination, err)
 	}
 
 	return nil
@@ -51,12 +51,12 @@ func bindMount(source, destination string) error {
 func ensureDestinationExists(source, destination string) error {
 	fileInfo, err := os.Stat(source)
 	if err != nil {
-		return fmt.Errorf("could not stat source location: %v", source)
+		return fmt.Errorf("could not stat source location %v: %v", source, err)
 	}
 
 	targetPathParent, _ := filepath.Split(destination)
 	if err := os.MkdirAll(targetPathParent, mountPerm); err != nil {
-		return fmt.Errorf("could not create parent directory: %v", targetPathParent)
+		return fmt.Errorf("could not create parent directory %v: %v", targetPathParent, err)
 	}
 
 	if fileInfo.IsDir() {

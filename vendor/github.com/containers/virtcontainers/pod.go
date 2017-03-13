@@ -270,10 +270,8 @@ type PodConfig struct {
 	// to the Pod a posteriori.
 	Containers []ContainerConfig
 
-	// Annotations is a reserved field and can be filled with various
-	// different data by each user. This means that virtcontainers will
-	// never try to interpret those data, it is only providing a way to
-	// save some data for users.
+	// Annotations keys must be unique strings an must be name-spaced
+	// with e.g. reverse domain notation (org.clearlinux.key).
 	Annotations map[string]string
 }
 
@@ -356,10 +354,6 @@ func (p *Pod) ID() string {
 
 // Annotations returns any annotation that a user could have stored through the pod.
 func (p *Pod) Annotations(key string) (string, error) {
-	if len(p.config.Annotations) == 0 {
-		return "", fmt.Errorf("Annotations map is empty")
-	}
-
 	value, exist := p.config.Annotations[key]
 	if exist == false {
 		return "", fmt.Errorf("Annotations key %s does not exist", key)
