@@ -31,6 +31,9 @@ import (
 var (
 	// ErrNoLinux is an error for missing Linux sections in the OCI configuration file.
 	ErrNoLinux = errors.New("missing Linux section")
+
+	// ociConfigPathKey is the annotation key to fetch the OCI config.json file path.
+	ociConfigPathKey = "oci/config_path"
 )
 
 // RuntimeConfig aggregates all runtime specific settings
@@ -125,18 +128,18 @@ func networkConfig(ocispec spec.Spec) (vc.NetworkConfig, error) {
 
 // PodConfig converts an OCI compatible runtime configuration file
 // to a virtcontainers pod configuration structure.
-func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodConfig, error) {
+func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodConfig, *spec.Spec, error) {
 	configPath := filepath.Join(bundlePath, "config.json")
 	log.Debugf("converting %s", configPath)
 
 	configByte, err := ioutil.ReadFile(configPath)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var ocispec spec.Spec
 	if err = json.Unmarshal(configByte, &ocispec); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	rootfs := filepath.Join(bundlePath, ocispec.Root.Path)
@@ -159,7 +162,7 @@ func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodC
 
 	networkConfig, err := networkConfig(ocispec)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	podConfig := vc.PodConfig{
@@ -182,9 +185,11 @@ func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodC
 		NetworkConfig: networkConfig,
 
 		Containers: []vc.ContainerConfig{containerConfig},
+
+		Annotations: map[string]string{ociConfigPathKey: configPath},
 	}
 
-	return &podConfig, nil
+	return &podConfig, &ocispec, nil
 }
 
 // StatusToOCIState translates a virtcontainers pod status into an OCI state.
@@ -254,4 +259,25 @@ func EnvVars(envs []string) ([]vc.EnvVar, error) {
 	}
 
 	return envVars, nil
+}
+
+// PodToOCIConfig returns an OCI spec configuration from the annotation
+// stored into the pod.
+func PodToOCIConfig(pod vc.Pod) (spec.Spec, error) {
+	ociConfigPath, err := pod.Annotations(ociConfigPathKey)
+	if err != nil {
+		return spec.Spec{}, err
+	}
+
+	data, err := ioutil.ReadFile(ociConfigPath)
+	if err != nil {
+		return spec.Spec{}, err
+	}
+
+	var ociSpec spec.Spec
+	if err := json.Unmarshal(data, &ociSpec); err != nil {
+		return spec.Spec{}, err
+	}
+
+	return ociSpec, nil
 }
