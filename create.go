@@ -148,7 +148,7 @@ func createCgroupsFiles(cgroupsPath string, pid int) error {
 	pidStr := fmt.Sprintf("%d", pid)
 
 	for _, path := range []string{tasksFilePath, procsFilePath} {
-		f, err := os.OpenFile(path, os.O_RDWR, cgroupsFileMode)
+		f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, cgroupsFileMode)
 		if err != nil {
 			return err
 		}
