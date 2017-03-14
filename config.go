@@ -34,9 +34,10 @@ const (
 	defaultKernelPath           = "/usr/share/clear-containers/vmlinux.container"
 	defaultImagePath            = "/usr/share/clear-containers/clear-containers.img"
 	defaultHypervisorPath       = "/usr/bin/qemu-lite-system-x86_64"
-	defaultShimPath             = "/usr/local/libexec/cc-shim"
 	defaultProxyURL             = "unix:///run/cc-oci-runtime/proxy.sock"
 )
+
+var defaultShimPath = "/usr/local/libexec/cc-shim"
 
 const (
 	qemuLite = "qemu-lite"
