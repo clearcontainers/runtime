@@ -54,10 +54,8 @@ const runtimeMinimalConfig = `
 url = "` + proxyURL + `"
 `
 
-const tempRuntimePath = "/tmp/cc-runtime/"
-
 func createConfig(fileName string, fileData string) (string, error) {
-	configPath := path.Join(tempRuntimePath, fileName)
+	configPath := path.Join(testDir, fileName)
 
 	err := ioutil.WriteFile(configPath, []byte(fileData), 0755)
 	if err != nil {
@@ -162,17 +160,4 @@ func TestMinimalRuntimeConfig(t *testing.T) {
 	if err := os.Remove(configPath); err != nil {
 		t.Fatal(err)
 	}
-}
-
-func TestMain(m *testing.M) {
-	/* Create temp bundle directory if necessary */
-	err := os.MkdirAll(tempRuntimePath, 0755)
-	if err != nil {
-		fmt.Printf("Unable to create %s %v\n", tempRuntimePath, err)
-		os.Exit(1)
-	}
-
-	defer os.RemoveAll(tempRuntimePath)
-
-	os.Exit(m.Run())
 }

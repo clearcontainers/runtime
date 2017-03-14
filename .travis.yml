@@ -1,4 +1,5 @@
 language: go
+sudo: required
 go_import_path: github.com/clearcontainers/runtime
 
 go:
@@ -16,6 +17,11 @@ script:
 after_success:
 - go get github.com/mattn/goveralls
 - "$GOPATH/bin/goveralls -service=travis-ci -coverprofile=profile.cov"
+
+install:
+- sudo mkdir -p /tmp/cc-runtime/bin
+- go build -o cc-shim $GOPATH/src/github.com/clearcontainers/runtime/shim/mock/shim.go
+- sudo cp cc-shim /tmp/cc-runtime/bin/
 
 notifications:
   slack:
