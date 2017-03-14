@@ -42,11 +42,8 @@ func startShim(process *vc.Process, config ShimConfig, url string) (int, error) 
 	}
 	glog.Infof("Shim binary path: %s\n", config.Path)
 
-	cmd := exec.Cmd{
-		Path: config.Path,
-		Args: []string{"-t", process.Token, "-u", url},
-		Env:  os.Environ(),
-	}
+	cmd := exec.Command(config.Path, "-t", process.Token, "-u", url)
+	cmd.Env = os.Environ()
 
 	if err := cmd.Start(); err != nil {
 		return -1, err
