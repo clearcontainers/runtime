@@ -1,4 +1,5 @@
 language: go
+sudo: required
 go_import_path: github.com/clearcontainers/runtime
 
 go:
