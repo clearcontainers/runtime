@@ -79,7 +79,7 @@ go vet $go_packages
 
 echo "Running gofmt..."
 find . -not -wholename '*/vendor/*' -name '*.go' | \
-    xargs gofmt -s -l | \
+    xargs gofmt -s -d -l | \
     wc -l | xargs -I % bash -c "test % -eq 0"
 
 echo "Running cyclo..."
