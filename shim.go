@@ -44,6 +44,9 @@ func startShim(process *vc.Process, config ShimConfig, url string) (int, error) 
 
 	cmd := exec.Command(config.Path, "-t", process.Token, "-u", url)
 	cmd.Env = os.Environ()
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 
 	if err := cmd.Start(); err != nil {
 		return -1, err
