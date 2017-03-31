@@ -20,14 +20,14 @@ import (
 	"testing"
 )
 
-func testRemoveCgroupsPathSuccessful(t *testing.T, cgroupsPath string) {
-	if err := removeCgroupsPath(cgroupsPath); err != nil {
-		t.Fatalf("This test should succeed (cgroupsPath = %s): %s", cgroupsPath, err)
+func testRemoveCgroupsPathSuccessful(t *testing.T, cgroupsPathList []string) {
+	if err := removeCgroupsPath(cgroupsPathList); err != nil {
+		t.Fatalf("This test should succeed (cgroupsPathList = %v): %s", cgroupsPathList, err)
 	}
 }
 
 func TestRemoveCgroupsPathEmptyPathSuccessful(t *testing.T) {
-	testRemoveCgroupsPathSuccessful(t, "")
+	testRemoveCgroupsPathSuccessful(t, []string{})
 }
 
 func TestRemoveCgroupsPathNonEmptyPathSuccessful(t *testing.T) {
@@ -40,7 +40,7 @@ func TestRemoveCgroupsPathNonEmptyPathSuccessful(t *testing.T) {
 		t.Fatalf("CgroupsPath directory %q could not be created: %s", cgroupsPath, err)
 	}
 
-	testRemoveCgroupsPathSuccessful(t, cgroupsPath)
+	testRemoveCgroupsPathSuccessful(t, []string{cgroupsPath})
 
 	if _, err := os.Stat(cgroupsPath); err == nil {
 		t.Fatalf("CgroupsPath directory %q should have been removed: %s", cgroupsPath, err)

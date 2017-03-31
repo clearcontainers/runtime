@@ -106,23 +106,29 @@ func delete(containerID string, force bool) error {
 	// In order to prevent any file descriptor leak related to cgroups files
 	// that have been previously created, we have to remove them before this
 	// function returns.
-	cgroupsPath, err := processCgroupsPath(ociSpec)
+	cgroupsPathList, err := processCgroupsPath(ociSpec)
 	if err != nil {
 		return err
 	}
 
-	if err := removeCgroupsPath(cgroupsPath); err != nil {
+	if err := removeCgroupsPath(cgroupsPathList); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func removeCgroupsPath(cgroupsPath string) error {
-	if cgroupsPath == "" {
+func removeCgroupsPath(cgroupsPathList []string) error {
+	if len(cgroupsPathList) == 0 {
 		glog.Info("Cgroups files not removed because cgroupsPath was empty")
 		return nil
 	}
 
-	return os.RemoveAll(cgroupsPath)
+	for _, cgroupsPath := range cgroupsPathList {
+		if err := os.RemoveAll(cgroupsPath); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

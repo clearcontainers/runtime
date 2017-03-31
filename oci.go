@@ -15,6 +15,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -33,7 +34,11 @@ const (
 	cgroupsMountType = "cgroup"
 )
 
-var cgroupsMemDirPath = "/sys/fs/cgroup/memory"
+var (
+	errNeedLinuxResource = errors.New("Linux resource cannot be empty")
+)
+
+var cgroupsMemDirPath = "/sys/fs/cgroup"
 
 func containerExists(containerID string) (bool, error) {
 	podStatusList, err := vc.ListPod()
@@ -129,16 +134,66 @@ func stopContainer(podStatus vc.PodStatus) error {
 }
 
 // processCgroupsPath process the cgroups path as expected from the
-// OCI runtime specification. It returns a complete path to the path
-// that should be created and used.
-func processCgroupsPath(ociSpec specs.Spec) (string, error) {
+// OCI runtime specification. It returns a list of complete paths
+// that should be created and used for every specified resource.
+func processCgroupsPath(ociSpec specs.Spec) ([]string, error) {
+	var cgroupsPathList []string
+
 	if ociSpec.Linux.CgroupsPath == "" {
-		return "", nil
+		return []string{}, nil
+	}
+
+	if ociSpec.Linux.Resources == nil {
+		return []string{}, nil
+	}
+
+	if ociSpec.Linux.Resources.Memory != nil {
+		memCgroupsPath, err := processCgroupsPathForResource(ociSpec, "memory")
+		if err != nil {
+			return []string{}, err
+		}
+
+		cgroupsPathList = append(cgroupsPathList, memCgroupsPath)
+	}
+
+	if ociSpec.Linux.Resources.CPU != nil {
+		cpuCgroupsPath, err := processCgroupsPathForResource(ociSpec, "cpu")
+		if err != nil {
+			return []string{}, err
+		}
+
+		cgroupsPathList = append(cgroupsPathList, cpuCgroupsPath)
+	}
+
+	if ociSpec.Linux.Resources.Pids != nil {
+		pidsCgroupsPath, err := processCgroupsPathForResource(ociSpec, "pids")
+		if err != nil {
+			return []string{}, err
+		}
+
+		cgroupsPathList = append(cgroupsPathList, pidsCgroupsPath)
+	}
+
+	if ociSpec.Linux.Resources.BlockIO != nil {
+		blkIOCgroupsPath, err := processCgroupsPathForResource(ociSpec, "blkio")
+		if err != nil {
+			return []string{}, err
+		}
+
+		cgroupsPathList = append(cgroupsPathList, blkIOCgroupsPath)
+	}
+
+	return cgroupsPathList, nil
+}
+
+func processCgroupsPathForResource(ociSpec specs.Spec, resource string) (string, error) {
+	if resource == "" {
+		return "", errNeedLinuxResource
 	}
 
 	// Relative cgroups path provided.
 	if filepath.IsAbs(ociSpec.Linux.CgroupsPath) == false {
-		return filepath.Join(cgroupsMemDirPath, ociSpec.Linux.CgroupsPath), nil
+		return filepath.Join(cgroupsMemDirPath, resource, ociSpec.Linux.CgroupsPath), nil
 	}
 
 	// Absolute cgroups path provided.
@@ -160,5 +215,5 @@ func processCgroupsPath(ociSpec specs.Spec) (string, error) {
 		return "", fmt.Errorf("cgroupsPath is absolute, cgroup mount destination cannot be empty")
 	}
 
-	return filepath.Join(cgroupMount.Destination, ociSpec.Linux.CgroupsPath), nil
+	return filepath.Join(cgroupMount.Destination, resource, ociSpec.Linux.CgroupsPath), nil
 }
