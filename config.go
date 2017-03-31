@@ -17,6 +17,7 @@ package main
 import (
 	"errors"
 	"io/ioutil"
+	"path/filepath"
 
 	"github.com/BurntSushi/toml"
 	log "github.com/Sirupsen/logrus"
@@ -35,6 +36,8 @@ const (
 	defaultImagePath            = "/usr/share/clear-containers/clear-containers.img"
 	defaultHypervisorPath       = "/usr/bin/qemu-lite-system-x86_64"
 	defaultProxyURL             = "unix:///run/cc-oci-runtime/proxy.sock"
+	defaultPauseRootPath        = "/var/lib/clearcontainers/runtime/bundles/pause_bundle"
+	pauseBinRelativePath        = "bin/pause"
 )
 
 var defaultShimPath = "/usr/local/libexec/cc-shim"
@@ -127,10 +130,15 @@ func loadConfiguration(configPath string) (oci.RuntimeConfig, ShimConfig, error)
 		ImagePath:      defaultImagePath,
 	}
 
+	defaultAgentConfig := vc.HyperConfig{
+		PauseBinPath: filepath.Join(defaultPauseRootPath, pauseBinRelativePath),
+	}
+
 	config := oci.RuntimeConfig{
 		HypervisorType:   defaultHypervisor,
 		HypervisorConfig: defaultHypervisorConfig,
 		AgentType:        defaultAgent,
+		AgentConfig:      defaultAgentConfig,
 		ProxyType:        defaultProxy,
 	}
 

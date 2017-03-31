@@ -19,6 +19,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -83,6 +84,10 @@ func TestRuntimeConfig(t *testing.T) {
 		ImagePath:      imagePath,
 	}
 
+	expectedAgentConfig := vc.HyperConfig{
+		PauseBinPath: filepath.Join(defaultPauseRootPath, pauseBinRelativePath),
+	}
+
 	expectedProxyConfig := vc.CCProxyConfig{
 		URL: proxyURL,
 	}
@@ -91,7 +96,8 @@ func TestRuntimeConfig(t *testing.T) {
 		HypervisorType:   defaultHypervisor,
 		HypervisorConfig: expectedHypervisorConfig,
 
-		AgentType: defaultAgent,
+		AgentType:   defaultAgent,
+		AgentConfig: expectedAgentConfig,
 
 		ProxyType:   defaultProxy,
 		ProxyConfig: expectedProxyConfig,
@@ -135,11 +141,16 @@ func TestMinimalRuntimeConfig(t *testing.T) {
 		URL: proxyURL,
 	}
 
+	expectedAgentConfig := vc.HyperConfig{
+		PauseBinPath: filepath.Join(defaultPauseRootPath, pauseBinRelativePath),
+	}
+
 	expectedConfig := oci.RuntimeConfig{
 		HypervisorType:   defaultHypervisor,
 		HypervisorConfig: expectedHypervisorConfig,
 
-		AgentType: defaultAgent,
+		AgentType:   defaultAgent,
+		AgentConfig: expectedAgentConfig,
 
 		ProxyType:   defaultProxy,
 		ProxyConfig: expectedProxyConfig,
