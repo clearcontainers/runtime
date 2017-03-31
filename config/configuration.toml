@@ -1,0 +1,10 @@
+[hypervisor.qemu-lite]
+path = "/usr/bin/qemu-lite-system-x86_64"
+kernel = "/usr/share/clear-containers/vmlinux.container"
+image = "/usr/share/clear-containers/clear-containers.img"
+
+[proxy.cc]
+url = "unix:///var/run/clearcontainers/proxy.sock"
+
+[shim.cc]
+path = "/usr/libexec/cc-shim"
