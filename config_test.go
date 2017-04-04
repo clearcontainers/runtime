@@ -32,6 +32,7 @@ const kernelPath = "/foo/clear-containers/vmlinux.container"
 const imagePath = "/foo/clear-containers/clear-containers.img"
 const proxyURL = "foo:///foo/clear-containers/proxy.sock"
 const shimPath = "/foo/clear-containers/cc-shim"
+const agentPauseRootPath = "/foo/clear-containers/pause_bundle"
 
 const runtimeConfig = `
 # Clear Containers runtime configuration file
@@ -46,6 +47,9 @@ url = "` + proxyURL + `"
 
 [shim.cc]
 path = "` + shimPath + `"
+
+[agent.hyperstart]
+pause_root_path = "` + agentPauseRootPath + `"
 `
 
 const runtimeMinimalConfig = `
@@ -85,7 +89,7 @@ func TestRuntimeConfig(t *testing.T) {
 	}
 
 	expectedAgentConfig := vc.HyperConfig{
-		PauseBinPath: filepath.Join(defaultPauseRootPath, pauseBinRelativePath),
+		PauseBinPath: filepath.Join(agentPauseRootPath, pauseBinRelativePath),
 	}
 
 	expectedProxyConfig := vc.CCProxyConfig{

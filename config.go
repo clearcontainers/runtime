@@ -55,18 +55,24 @@ const (
 	ccShim = "cc"
 )
 
+const (
+	hyperstartAgent = "hyperstart"
+)
+
 var (
 	errUnknownHypervisor  = errors.New("unknown hypervisor")
 	errUnknownAgent       = errors.New("unknown agent")
 	errTooManyHypervisors = errors.New("too many hypervisor sections")
 	errTooManyProxies     = errors.New("too many proxy sections")
 	errTooManyShims       = errors.New("too many shim sections")
+	errTooManyAgents      = errors.New("too many agent sections")
 )
 
 type tomlConfig struct {
 	Hypervisor map[string]hypervisor
 	Proxy      map[string]proxy
 	Shim       map[string]shim
+	Agent      map[string]agent
 }
 
 type hypervisor struct {
@@ -81,6 +87,10 @@ type proxy struct {
 
 type shim struct {
 	Path string `toml:"path"`
+}
+
+type agent struct {
+	PauseRootPath string `toml:"pause_root_path"`
 }
 
 func (h hypervisor) path() string {
@@ -123,6 +133,98 @@ func (s shim) path() string {
 	return s.Path
 }
 
+func (a agent) pauseRootPath() string {
+	if a.PauseRootPath == "" {
+		return defaultPauseRootPath
+	}
+
+	return a.PauseRootPath
+}
+
+func checkConfigParams(tomlConf tomlConfig) error {
+	if len(tomlConf.Hypervisor) > 1 {
+		return errTooManyHypervisors
+	}
+
+	if len(tomlConf.Proxy) > 1 {
+		return errTooManyProxies
+	}
+
+	if len(tomlConf.Shim) > 1 {
+		return errTooManyShims
+	}
+
+	if len(tomlConf.Agent) > 1 {
+		return errTooManyAgents
+	}
+
+	return nil
+}
+
+func updateRuntimeConfig(tomlConf tomlConfig, config *oci.RuntimeConfig) error {
+	for k, hypervisor := range tomlConf.Hypervisor {
+		switch k {
+		case qemu:
+			fallthrough
+		case qemuLite:
+			hConfig := vc.HypervisorConfig{
+				HypervisorPath: hypervisor.path(),
+				KernelPath:     hypervisor.kernel(),
+				ImagePath:      hypervisor.image(),
+			}
+
+			config.HypervisorConfig = hConfig
+
+			break
+		}
+	}
+
+	for k, proxy := range tomlConf.Proxy {
+		switch k {
+		case ccProxy:
+			pConfig := vc.CCProxyConfig{
+				URL: proxy.url(),
+			}
+
+			config.ProxyType = vc.CCProxyType
+			config.ProxyConfig = pConfig
+
+			break
+		}
+	}
+
+	for k, agent := range tomlConf.Agent {
+		switch k {
+		case hyperstartAgent:
+			path := filepath.Join(agent.pauseRootPath(),
+				pauseBinRelativePath)
+
+			agentConfig := vc.HyperConfig{
+				PauseBinPath: path,
+			}
+
+			config.AgentConfig = agentConfig
+
+			break
+		}
+	}
+
+	return nil
+}
+
+func updateShimConfig(tomlConf tomlConfig, config *ShimConfig) error {
+	for k, shim := range tomlConf.Shim {
+		switch k {
+		case ccShim:
+			config.Path = shim.path()
+
+			break
+		}
+	}
+
+	return nil
+}
+
 func loadConfiguration(configPath string) (oci.RuntimeConfig, ShimConfig, error) {
 	defaultHypervisorConfig := vc.HypervisorConfig{
 		HypervisorPath: defaultHypervisorPath,
@@ -131,7 +233,8 @@ func loadConfiguration(configPath string) (oci.RuntimeConfig, ShimConfig, error)
 	}
 
 	defaultAgentConfig := vc.HyperConfig{
-		PauseBinPath: filepath.Join(defaultPauseRootPath, pauseBinRelativePath),
+		PauseBinPath: filepath.Join(defaultPauseRootPath,
+			pauseBinRelativePath),
 	}
 
 	config := oci.RuntimeConfig{
@@ -163,55 +266,16 @@ func loadConfiguration(configPath string) (oci.RuntimeConfig, ShimConfig, error)
 
 	log.Debugf("TOML configuration: %v", tomlConf)
 
-	if len(tomlConf.Hypervisor) > 1 {
-		return config, shimConfig, errTooManyHypervisors
+	if err := checkConfigParams(tomlConf); err != nil {
+		return config, shimConfig, err
 	}
 
-	if len(tomlConf.Proxy) > 1 {
-		return config, shimConfig, errTooManyProxies
+	if err := updateRuntimeConfig(tomlConf, &config); err != nil {
+		return config, shimConfig, err
 	}
 
-	if len(tomlConf.Shim) > 1 {
-		return config, shimConfig, errTooManyShims
-	}
-
-	for k, hypervisor := range tomlConf.Hypervisor {
-		switch k {
-		case qemu:
-			fallthrough
-		case qemuLite:
-			hConfig := vc.HypervisorConfig{
-				HypervisorPath: hypervisor.path(),
-				KernelPath:     hypervisor.kernel(),
-				ImagePath:      hypervisor.image(),
-			}
-
-			config.HypervisorConfig = hConfig
-			break
-		}
-	}
-
-	for k, proxy := range tomlConf.Proxy {
-		switch k {
-		case ccProxy:
-			pConfig := vc.CCProxyConfig{
-				URL: proxy.url(),
-			}
-
-			config.ProxyType = vc.CCProxyType
-			config.ProxyConfig = pConfig
-			break
-		}
-	}
-
-	for k, shim := range tomlConf.Shim {
-		switch k {
-		case ccShim:
-			shimConfig = ShimConfig{
-				Path: shim.path(),
-			}
-			break
-		}
+	if err := updateShimConfig(tomlConf, &shimConfig); err != nil {
+		return config, shimConfig, err
 	}
 
 	return config, shimConfig, nil

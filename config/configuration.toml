@@ -8,3 +8,6 @@ url = "unix:///var/run/clearcontainers/proxy.sock"
 
 [shim.cc]
 path = "/usr/libexec/cc-shim"
+
+[agent.hyperstart]
+pause_root_path = "/var/lib/clearcontainers/runtime/bundles/pause_bundle"
