@@ -25,14 +25,14 @@ import (
 var testPID = 100
 var testStrPID = fmt.Sprintf("%d", testPID)
 
-func testCreateCgroupsFilesSuccessful(t *testing.T, cgroupsPath string, pid int) {
-	if err := createCgroupsFiles(cgroupsPath, pid); err != nil {
-		t.Fatalf("This test should succeed (cgroupsPath %q, pid %d): %s", cgroupsPath, pid, err)
+func testCreateCgroupsFilesSuccessful(t *testing.T, cgroupsPathList []string, pid int) {
+	if err := createCgroupsFiles(cgroupsPathList, pid); err != nil {
+		t.Fatalf("This test should succeed (cgroupsPath %q, pid %d): %s", cgroupsPathList, pid, err)
 	}
 }
 
 func TestCgroupsFilesEmptyCgroupsPathSuccessful(t *testing.T) {
-	testCreateCgroupsFilesSuccessful(t, "", testPID)
+	testCreateCgroupsFilesSuccessful(t, []string{}, testPID)
 }
 
 func TestCgroupsFilesNonEmptyCgroupsPathSuccessful(t *testing.T) {
@@ -41,7 +41,7 @@ func TestCgroupsFilesNonEmptyCgroupsPathSuccessful(t *testing.T) {
 		t.Fatalf("Could not create temporary cgroups directory: %s", err)
 	}
 
-	testCreateCgroupsFilesSuccessful(t, cgroupsPath, testPID)
+	testCreateCgroupsFilesSuccessful(t, []string{cgroupsPath}, testPID)
 
 	defer os.RemoveAll(cgroupsPath)
 

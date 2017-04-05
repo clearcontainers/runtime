@@ -19,6 +19,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -31,6 +32,7 @@ const kernelPath = "/foo/clear-containers/vmlinux.container"
 const imagePath = "/foo/clear-containers/clear-containers.img"
 const proxyURL = "foo:///foo/clear-containers/proxy.sock"
 const shimPath = "/foo/clear-containers/cc-shim"
+const agentPauseRootPath = "/foo/clear-containers/pause_bundle"
 
 const runtimeConfig = `
 # Clear Containers runtime configuration file
@@ -45,6 +47,9 @@ url = "` + proxyURL + `"
 
 [shim.cc]
 path = "` + shimPath + `"
+
+[agent.hyperstart]
+pause_root_path = "` + agentPauseRootPath + `"
 `
 
 const runtimeMinimalConfig = `
@@ -83,6 +88,10 @@ func TestRuntimeConfig(t *testing.T) {
 		ImagePath:      imagePath,
 	}
 
+	expectedAgentConfig := vc.HyperConfig{
+		PauseBinPath: filepath.Join(agentPauseRootPath, pauseBinRelativePath),
+	}
+
 	expectedProxyConfig := vc.CCProxyConfig{
 		URL: proxyURL,
 	}
@@ -91,7 +100,8 @@ func TestRuntimeConfig(t *testing.T) {
 		HypervisorType:   defaultHypervisor,
 		HypervisorConfig: expectedHypervisorConfig,
 
-		AgentType: defaultAgent,
+		AgentType:   defaultAgent,
+		AgentConfig: expectedAgentConfig,
 
 		ProxyType:   defaultProxy,
 		ProxyConfig: expectedProxyConfig,
@@ -135,11 +145,16 @@ func TestMinimalRuntimeConfig(t *testing.T) {
 		URL: proxyURL,
 	}
 
+	expectedAgentConfig := vc.HyperConfig{
+		PauseBinPath: filepath.Join(defaultPauseRootPath, pauseBinRelativePath),
+	}
+
 	expectedConfig := oci.RuntimeConfig{
 		HypervisorType:   defaultHypervisor,
 		HypervisorConfig: expectedHypervisorConfig,
 
-		AgentType: defaultAgent,
+		AgentType:   defaultAgent,
+		AgentConfig: expectedAgentConfig,
 
 		ProxyType:   defaultProxy,
 		ProxyConfig: expectedProxyConfig,

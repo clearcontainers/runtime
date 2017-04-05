@@ -99,19 +99,19 @@ func create(containerID, bundlePath, console, pidFilePath string) error {
 	// is shim's in our case. This is mandatory to make sure there is no one
 	// else (like Docker) trying to create those files on our behalf. We want to
 	// know those files location so that we can remove them when delete is called.
-	cgroupsPath, err := processCgroupsPath(ociSpec)
+	cgroupsPathList, err := processCgroupsPath(ociSpec)
 	if err != nil {
 		return err
 	}
 
-	if err := createCgroupsFiles(cgroupsPath, pid); err != nil {
+	if err := createCgroupsFiles(cgroupsPathList, pid); err != nil {
 		return err
 	}
 
 	// Creation of PID file has to be the last thing done in the create
 	// because containerd considers the create complete after this file
 	// is created.
-	if err := createPIDFile(pidFilePath, pid); err != nil {
+	if err := createCgroupsFiles(cgroupsPathList, pid); err != nil {
 		return err
 	}
 
@@ -132,35 +132,38 @@ func getConfigs(bundlePath, containerID, console string) (vc.PodConfig, ShimConf
 	return *podConfig, shimConfig, *ociSpec, nil
 }
 
-func createCgroupsFiles(cgroupsPath string, pid int) error {
-	if cgroupsPath == "" {
+func createCgroupsFiles(cgroupsPathList []string, pid int) error {
+	if len(cgroupsPathList) == 0 {
 		glog.Info("Cgroups files not created because cgroupsPath was empty")
 		return nil
 	}
 
-	if err := os.MkdirAll(cgroupsPath, cgroupsDirMode); err != nil {
-		return err
-	}
-
-	tasksFilePath := filepath.Join(cgroupsPath, cgroupsTasksFile)
-	procsFilePath := filepath.Join(cgroupsPath, cgroupsProcsFile)
-
-	pidStr := fmt.Sprintf("%d", pid)
-
-	for _, path := range []string{tasksFilePath, procsFilePath} {
-		f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, cgroupsFileMode)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-
-		n, err := f.WriteString(pidStr)
-		if err != nil {
+	for _, cgroupsPath := range cgroupsPathList {
+		if err := os.MkdirAll(cgroupsPath, cgroupsDirMode); err != nil {
 			return err
 		}
 
-		if n < len(pidStr) {
-			return fmt.Errorf("Could not write pid to %q: only %d bytes written out of %d", path, n, len(pidStr))
+		tasksFilePath := filepath.Join(cgroupsPath, cgroupsTasksFile)
+		procsFilePath := filepath.Join(cgroupsPath, cgroupsProcsFile)
+
+		pidStr := fmt.Sprintf("%d", pid)
+
+		for _, path := range []string{tasksFilePath, procsFilePath} {
+			f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, cgroupsFileMode)
+			if err != nil {
+				return err
+			}
+			defer f.Close()
+
+			n, err := f.WriteString(pidStr)
+			if err != nil {
+				return err
+			}
+
+			if n < len(pidStr) {
+				return fmt.Errorf("Could not write pid to %q: only %d bytes written out of %d",
+					path, n, len(pidStr))
+			}
 		}
 	}
 
