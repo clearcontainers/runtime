@@ -20,7 +20,6 @@ import (
 	"path/filepath"
 
 	"github.com/BurntSushi/toml"
-	log "github.com/Sirupsen/logrus"
 	vc "github.com/containers/virtcontainers"
 	"github.com/containers/virtcontainers/pkg/oci"
 )
@@ -264,7 +263,7 @@ func loadConfiguration(configPath string) (oci.RuntimeConfig, ShimConfig, error)
 		return config, shimConfig, err
 	}
 
-	log.Debugf("TOML configuration: %v", tomlConf)
+	ccLog.Debugf("TOML configuration: %v", tomlConf)
 
 	if err := checkConfigParams(tomlConf); err != nil {
 		return config, shimConfig, err
