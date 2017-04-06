@@ -111,7 +111,7 @@ func create(containerID, bundlePath, console, pidFilePath string) error {
 	// Creation of PID file has to be the last thing done in the create
 	// because containerd considers the create complete after this file
 	// is created.
-	if err := createCgroupsFiles(cgroupsPathList, pid); err != nil {
+	if err := createPIDFile(pidFilePath, pid); err != nil {
 		return err
 	}
 
