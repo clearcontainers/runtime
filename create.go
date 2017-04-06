@@ -22,7 +22,6 @@ import (
 
 	vc "github.com/containers/virtcontainers"
 	"github.com/containers/virtcontainers/pkg/oci"
-	"github.com/golang/glog"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/urfave/cli"
 )
@@ -134,7 +133,7 @@ func getConfigs(bundlePath, containerID, console string) (vc.PodConfig, ShimConf
 
 func createCgroupsFiles(cgroupsPathList []string, pid int) error {
 	if len(cgroupsPathList) == 0 {
-		glog.Info("Cgroups files not created because cgroupsPath was empty")
+		ccLog.Info("Cgroups files not created because cgroupsPath was empty")
 		return nil
 	}
 

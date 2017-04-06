@@ -20,7 +20,6 @@ import (
 	"os/exec"
 
 	vc "github.com/containers/virtcontainers"
-	"github.com/golang/glog"
 )
 
 // ShimConfig holds configuration data related to a shim.
@@ -40,7 +39,7 @@ func startShim(process *vc.Process, config ShimConfig, url string) (int, error) 
 	if config.Path == "" {
 		config.Path = defaultShimPath
 	}
-	glog.Infof("Shim binary path: %s\n", config.Path)
+	ccLog.Infof("Shim binary path: %s", config.Path)
 
 	cmd := exec.Command(config.Path, "-t", process.Token, "-u", url)
 	cmd.Env = os.Environ()
