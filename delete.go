@@ -21,7 +21,6 @@ import (
 
 	vc "github.com/containers/virtcontainers"
 	"github.com/containers/virtcontainers/pkg/oci"
-	"github.com/golang/glog"
 	"github.com/urfave/cli"
 )
 
@@ -120,7 +119,7 @@ func delete(containerID string, force bool) error {
 
 func removeCgroupsPath(cgroupsPathList []string) error {
 	if len(cgroupsPathList) == 0 {
-		glog.Info("Cgroups files not removed because cgroupsPath was empty")
+		ccLog.Info("Cgroups files not removed because cgroupsPath was empty")
 		return nil
 	}
 

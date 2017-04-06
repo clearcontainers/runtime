@@ -21,7 +21,7 @@ import (
 	"os"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/urfave/cli"
 )
@@ -44,6 +44,8 @@ const usage = `Clear Containers runtime
 
 cc-runtime is a command line program for running applications packaged
 according to the Open Container Initiative (OCI).`
+
+var ccLog = logrus.New()
 
 func main() {
 	app := cli.NewApp()
@@ -93,20 +95,20 @@ func main() {
 
 	app.Before = func(context *cli.Context) error {
 		if context.GlobalBool("debug") {
-			log.SetLevel(log.DebugLevel)
+			ccLog.Level = logrus.DebugLevel
 		}
 		if path := context.GlobalString("log"); path != "" {
 			f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND|os.O_SYNC, 0666)
 			if err != nil {
 				return err
 			}
-			log.SetOutput(f)
+			ccLog.Out = f
 		}
 		switch context.GlobalString("log-format") {
 		case "text":
 			// retain logrus's default.
 		case "json":
-			log.SetFormatter(new(log.JSONFormatter))
+			ccLog.Formatter = new(logrus.JSONFormatter)
 		default:
 			return fmt.Errorf("unknown log-format %q", context.GlobalString("log-format"))
 		}
@@ -126,7 +128,7 @@ func main() {
 
 // fatal prints the error's details exits the program.
 func fatal(err error) {
-	log.Error(err)
+	ccLog.Error(err)
 	fmt.Fprintln(os.Stderr, err)
 	os.Exit(1)
 }
@@ -136,6 +138,6 @@ type fatalWriter struct {
 }
 
 func (f *fatalWriter) Write(p []byte) (n int, err error) {
-	log.Error(string(p))
+	ccLog.Error(string(p))
 	return f.cliErrWriter.Write(p)
 }
