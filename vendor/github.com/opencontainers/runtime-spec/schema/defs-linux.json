@@ -105,9 +105,7 @@
             "type": "object",
             "required": [
                 "type",
-                "path",
-                "major",
-                "minor"
+                "path"
             ],
             "properties": {
                 "type": {
@@ -126,24 +124,10 @@
                     "$ref": "#/definitions/Minor"
                 },
                 "uid": {
-                    "oneOf": [
-                        {
-                            "$ref": "defs.json#/definitions/UID"
-                        },
-                        {
-                            "type": "null"
-                        }
-                    ]
+                    "$ref": "defs.json#/definitions/UID"
                 },
                 "gid": {
-                    "oneOf": [
-                        {
-                            "$ref": "defs.json#/definitions/GID"
-                        },
-                        {
-                            "type": "null"
-                        }
-                    ]
+                    "$ref": "defs.json#/definitions/GID"
                 }
             }
         },
@@ -151,16 +135,6 @@
             "type": "integer",
             "minimum": 10,
             "maximum": 1000
-        },
-        "blkioWeightPointer": {
-            "oneOf": [
-                {
-                    "$ref": "#/definitions/blkioWeight"
-                },
-                {
-                    "type": "null"
-                }
-            ]
         },
         "blockIODevice": {
             "type": "object",
@@ -187,10 +161,10 @@
                     "type": "object",
                     "properties": {
                         "weight": {
-                            "$ref": "#/definitions/blkioWeightPointer"
+                            "$ref": "#/definitions/blkioWeight"
                         },
                         "leafWeight": {
-                            "$ref": "#/definitions/blkioWeightPointer"
+                            "$ref": "#/definitions/blkioWeight"
                         }
                     }
                 }
@@ -218,30 +192,16 @@
                     "type": "boolean"
                 },
                 "type": {
-                    "$ref": "string"
+                    "type": "string"
                 },
                 "major": {
-                    "oneOf": [
-                        {
-                            "$ref": "#/definitions/Major"
-                        },
-                        {
-                            "type": "null"
-                        }
-                    ]
+                    "$ref": "#/definitions/Major"
                 },
                 "minor": {
-                    "oneOf": [
-                        {
-                            "$ref": "#/definitions/Minor"
-                        },
-                        {
-                            "type": "null"
-                        }
-                    ]
+                    "$ref": "#/definitions/Minor"
                 },
                 "access": {
-                    "$ref": "string"
+                    "type": "string"
                 }
             },
             "required": [
