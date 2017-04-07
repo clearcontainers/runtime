@@ -32,6 +32,13 @@ import (
 	"github.com/01org/ciao/qemu"
 )
 
+// Download Parameters
+
+const (
+	friendlyNameParam = "name"
+	urlParam          = "url"
+)
+
 func bootVM(ctx context.Context, ws *workspace, memGB, CPUs int) error {
 	disconnectedCh := make(chan struct{})
 	socket := path.Join(ws.instanceDir, "socket")
@@ -53,11 +60,16 @@ func bootVM(ctx context.Context, ws *workspace, memGB, CPUs int) error {
 		"-drive", fmt.Sprintf("file=%s,if=virtio,aio=threads,format=qcow2", vmImage),
 		"-drive", fmt.Sprintf("file=%s,if=virtio,media=cdrom", isoPath),
 		"-daemonize", "-enable-kvm", "-cpu", "host",
-		"-net", "user,hostfwd=tcp::10022-:22,hostfwd=tcp::3000-:3000",
 		"-net", "nic,model=virtio",
 		"-fsdev", fsdevParam,
 		"-device", "virtio-9p-pci,id=fs0,fsdev=fsdev0,mount_tag=hostgo",
 	}
+	if ws.vmType == CIAO {
+		args = append(args, "-net", "user,hostfwd=tcp::10022-:22,hostfwd=tcp::3000-:3000")
+	} else {
+		args = append(args, "-net", "user,hostfwd=tcp::10022-:22")
+	}
+
 	if ws.UIPath != "" {
 		fsdevParam := fmt.Sprintf("local,security_model=passthrough,id=fsdev1,path=%s",
 			ws.UIPath)
@@ -121,27 +133,12 @@ func sshReady(ctx context.Context) bool {
 	return retval
 }
 
-func vmStarted(ctx context.Context, instanceDir string) bool {
-	socket := path.Join(instanceDir, "socket")
-	disconnectedCh := make(chan struct{})
-	qmp, _, err := qemu.QMPStart(ctx, socket, qemu.QMPConfig{}, disconnectedCh)
-	if err != nil {
-		return false
-	}
-	qmp.Shutdown()
-	return true
-}
-
 func statusVM(ctx context.Context, instanceDir, keyPath string) {
 	status := "ciao down"
 	ssh := "N/A"
-	if vmStarted(ctx, instanceDir) {
-		if sshReady(ctx) {
-			status = "ciao up"
-			ssh = fmt.Sprintf("ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s 127.0.0.1 -p %d", keyPath, 10022)
-		} else {
-			status = "ciao up (booting)"
-		}
+	if sshReady(ctx) {
+		status = "ciao up"
+		ssh = fmt.Sprintf("ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s 127.0.0.1 -p %d", keyPath, 10022)
 	}
 
 	w := new(tabwriter.Writer)
@@ -151,7 +148,35 @@ func statusVM(ctx context.Context, instanceDir, keyPath string) {
 	w.Flush()
 }
 
-func startHTTPServer(listener net.Listener, errCh chan error) {
+func serveLocalFile(ctx context.Context, ciaoDir string, w http.ResponseWriter,
+	r *http.Request) {
+	params := r.URL.Query()
+	URL := params.Get(urlParam)
+
+	path, err := downloadFile(ctx, URL, ciaoDir, func(progress) {})
+	if err != nil {
+		// May not be the correct error code but the error message is only going
+		// to end up in cloud-init's logs.
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	f, err := os.Open(path)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	_, err = io.Copy(w, f)
+	_ = f.Close()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to copy %s : %v", friendlyNameParam, err),
+			http.StatusInternalServerError)
+		return
+	}
+}
+
+func startHTTPServer(ctx context.Context, ciaoDir string, listener net.Listener,
+	errCh chan error) {
 	finished := false
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		var b bytes.Buffer
@@ -173,6 +198,10 @@ func startHTTPServer(listener net.Listener, errCh chan error) {
 		}
 	})
 
+	http.HandleFunc("/download", func(w http.ResponseWriter, r *http.Request) {
+		serveLocalFile(ctx, ciaoDir, w, r)
+	})
+
 	server := &http.Server{}
 	go func() {
 		_ = server.Serve(listener)
@@ -184,7 +213,7 @@ func startHTTPServer(listener net.Listener, errCh chan error) {
 	}()
 }
 
-func manageInstallation(ctx context.Context, instanceDir string, ws *workspace) error {
+func manageInstallation(ctx context.Context, ciaoDir, instanceDir string, ws *workspace) error {
 	socket := path.Join(instanceDir, "socket")
 	disconnectedCh := make(chan struct{})
 
@@ -215,7 +244,7 @@ func manageInstallation(ctx context.Context, instanceDir string, ws *workspace) 
 	}
 
 	errCh := make(chan error)
-	startHTTPServer(listener, errCh)
+	startHTTPServer(ctx, ciaoDir, listener, errCh)
 	select {
 	case <-ctx.Done():
 		_ = listener.Close()

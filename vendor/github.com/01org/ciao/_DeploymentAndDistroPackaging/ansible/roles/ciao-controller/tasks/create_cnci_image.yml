@@ -55,11 +55,8 @@
         fstype: ext4
         state: mounted
 
-    - name: Set ciao-cnci-agent location
-      set_fact: ciao_cnci_agent={{ (gopath + '/bin/ciao-cnci-agent') if ciao_dev else 'fetch/ciao-cnci-agent' }}
-
     - name: Copy ciao_cnci_agent to cnci image
-      shell: cp {{ ciao_cnci_agent }} /mnt/tmp/usr/bin/
+      shell: cp {{ gopath }}/bin/ciao-cnci-agent /mnt/tmp/usr/bin/
       args:
         creates: /mnt/tmp/usr/bin/ciao-cnci-agent
 

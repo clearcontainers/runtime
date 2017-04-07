@@ -21,14 +21,13 @@ CIAO dependencies will be installed automatically
 * For firewall settings read [this](doc/firewall.md)
 
 #### Deployment machine
-The deployment machine can be any Linux OS as long as it has docker installed.
-
-###### Pull the ciao-deploy container
-We provide a ready-to-use
-[Docker container](https://hub.docker.com/r/clearlinux/ciao-deploy/).
-Simply download it and run your setup:
-
-    $ docker pull clarlinux/ciao-deploy
+The deployment machine can be any Linux OS as long as it has the following packages installed.
+* ansible>=2.2.1.0
+* python-keystoneclient
+* python-netaddr
+* gcc
+* go>=1.7
+* git
 
 ---
 
@@ -61,18 +60,6 @@ before proceeding to the next step.
 
 ---
 
-## Start the deployment container with your setup
-Once you have edited the `hosts` file, you must map the ciao repository
-to the container, so if your current working directory is `./ciao`,
-you would start the container as follows:
-
-```
-$ docker run --privileged -v /path/to/your/.ssh/key:/root/.ssh/id_rsa \
-             -v $(pwd):/root/ciao \
-             -v /dev/:/dev/ \
-             -it clearlinux/ciao-deploy
-```
-
 ### Run the playbook
 
 ```
@@ -83,19 +70,6 @@ $ docker run --privileged -v /path/to/your/.ssh/key:/root/.ssh/id_rsa \
 ---
 
 ## NOTES:
-
-### Running container in privileged mode mapping /dev/
-Container is called in *privileged* mode in order to install your certificates
-in the CNCI image by using the `losetup` command. Because we need to access
-`/dev/loop*` devices, we also need to mount `/dev/` into the container.
-To learn more about the Docker options used, please refer to the
-[Docker documentation](https://docs.docker.com/engine/reference/commandline/run/).
-
-### Default guest ssh public key
-the `group_vars/all` file contains a default public ssh-key which is used
-to access the guest VMs ciao launches. We strongly encourage the user to
-change the content of the `ciao_guest_key` variable for a known ssh-key,
-otherwise the guests won't be accessible using the default value.
 
 ### A note on docker hostname resolution
 This playbook uses docker containers to start the [identity service](https://hub.docker.com/r/clearlinux/keystone/) and [ciao-webui](https://hub.docker.com/r/clearlinux/ciao-webui/).

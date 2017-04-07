@@ -21,7 +21,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -57,6 +56,7 @@ func TestMinimalPodConfig(t *testing.T) {
 		HypervisorType: vc.QemuHypervisor,
 		AgentType:      vc.HyperstartAgent,
 		ProxyType:      vc.CCProxyType,
+		Console:        consolePath,
 	}
 
 	expectedCmd := vc.Cmd{
@@ -77,7 +77,8 @@ func TestMinimalPodConfig(t *testing.T) {
 	}
 
 	expectedContainerConfig := vc.ContainerConfig{
-		RootFs:      filepath.Join(tempBundlePath, "rootfs"),
+		ID:          containerID,
+		RootFs:      "rootfs",
 		Interactive: true,
 		Console:     consolePath,
 		Cmd:         expectedCmd,

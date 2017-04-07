@@ -138,8 +138,6 @@ func TestExtractImageInfo(t *testing.T) {
 func genQEMUParams(networkParams []string) []string {
 	baseParams := []string{
 		"-drive",
-		"file=/var/lib/ciao/instance/1/image.qcow2,if=virtio,aio=threads,format=qcow2",
-		"-drive",
 		"file=/var/lib/ciao/instance/1/seed.iso,if=virtio,media=cdrom",
 	}
 	baseParams = append(baseParams, networkParams...)
@@ -153,20 +151,11 @@ func TestGenerateQEMULaunchParams(t *testing.T) {
 	var cfg vmConfig
 
 	params := genQEMUParams(nil)
-	cfg.Legacy = true
-	cfg.Image = "some_image"
-	genParams := generateQEMULaunchParams(&cfg, "/var/lib/ciao/instance/1/seed.iso",
-		"/var/lib/ciao/instance/1", nil, "ciao")
-	if !reflect.DeepEqual(params, genParams) {
-		t.Fatalf("%s and %s do not match", params, genParams)
-	}
-
-	params = genQEMUParams(nil)
 	cfg.Legacy = false
 	cfg.Mem = 0
 	cfg.Cpus = 0
 	params = append(params, "-bios", qemuEfiFw)
-	genParams = generateQEMULaunchParams(&cfg, "/var/lib/ciao/instance/1/seed.iso",
+	genParams := generateQEMULaunchParams(&cfg, "/var/lib/ciao/instance/1/seed.iso",
 		"/var/lib/ciao/instance/1", nil, "ciao")
 	if !reflect.DeepEqual(params, genParams) {
 		t.Fatalf("%s and %s do not match", params, genParams)
@@ -304,10 +293,13 @@ func TestQmpShutdown(t *testing.T) {
 		if !sc.Scan() {
 			t.Fatalf("power down command expected")
 		}
-		_, err := fmt.Fprintln(fd, `{ "return": {}}`)
+		_, err := fmt.Fprintln(fd, `{ "return": {}}
+{"timestamp": {"seconds": 1487084520, "microseconds": 332329}, "event": "SHUTDOWN"}
+		`)
 		if err != nil {
 			t.Fatalf("Unable to write to domain socket: %v", err)
 		}
+
 		return true
 	})
 }

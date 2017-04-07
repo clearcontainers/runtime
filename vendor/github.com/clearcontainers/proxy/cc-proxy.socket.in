@@ -1,0 +1,10 @@
+[Unit]
+Description=Clear Containers Proxy Socket
+Documentation=https://github.com/clearcontainers/proxy
+PartOf=cc-proxy.service
+
+[Socket]
+ListenStream=@localstatedir@/run/cc-oci-runtime/proxy.sock
+
+[Install]
+WantedBy=sockets.target

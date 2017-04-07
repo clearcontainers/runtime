@@ -15,6 +15,8 @@
 package main
 
 import (
+	"github.com/golang/glog"
+
 	"github.com/01org/ciao/ciao-controller/types"
 	"github.com/01org/ciao/payloads"
 	"github.com/01org/ciao/ssntp/uuid"
@@ -100,17 +102,27 @@ func validateWorkloadStorage(req types.Workload) error {
 func validateWorkloadRequest(req types.Workload) error {
 	// ID must be blank.
 	if req.ID != "" {
+		glog.V(2).Info("Invalid workload request: ID is not blank")
 		return types.ErrBadRequest
 	}
+
+	// we don't validate the TenantID right now - it is passed
+	// in via the ciao api, and it has passed the regex input
+	// validation already. there's also a conflict with ssntp's uuid.Parse()
+	// function where they assume you are using a uuid4 with '-' as
+	// separator, and keystone doesn't use the '-' separator for
+	// uuids.
 
 	if req.VMType == payloads.QEMU {
 		err := validateVMWorkload(req)
 		if err != nil {
+			glog.V(2).Info("Invalid workload request: invalid VM workload")
 			return err
 		}
 	} else {
 		err := validateContainerWorkload(req)
 		if err != nil {
+			glog.V(2).Info("Invalid workload request: invalid container workload")
 			return err
 		}
 	}
@@ -120,17 +132,20 @@ func validateWorkloadRequest(req types.Workload) error {
 		// uuid4.
 		_, err := uuid.Parse(req.ImageID)
 		if err != nil {
+			glog.V(2).Info("Invalid workload request: ImageID is not uuid4")
 			return types.ErrBadRequest
 		}
 	}
 
 	if req.Config == "" {
+		glog.V(2).Info("Invalid workload request: config is blank")
 		return types.ErrBadRequest
 	}
 
 	if len(req.Storage) > 0 {
 		err := validateWorkloadStorage(req)
 		if err != nil {
+			glog.V(2).Info("Invalid workload request: invalid storage")
 			return err
 		}
 	}
@@ -142,6 +157,24 @@ func (c *controller) CreateWorkload(req types.Workload) (types.Workload, error) 
 	err := validateWorkloadRequest(req)
 	if err != nil {
 		return req, err
+	}
+
+	// check to see if this is a new tenant. If so, we need to add
+	// them to the datastore. We do not however want to launch a
+	// CNCI yet since this might be a request to upload a CNCI
+	// workload. Instead, we'll add the new tenant directly to the
+	// datastore. On first launch request, if the tenant doesn't yet
+	// have a cnci, it will get launched for them then.
+	tenant, err := c.ds.GetTenant(req.TenantID)
+	if err != nil {
+		return req, err
+	}
+
+	if tenant == nil {
+		_, err := c.ds.AddTenant(req.TenantID)
+		if err != nil {
+			return req, err
+		}
 	}
 
 	// create a workload storage resource for this new workload.
@@ -168,4 +201,12 @@ func (c *controller) CreateWorkload(req types.Workload) (types.Workload, error) 
 
 	err = c.ds.AddWorkload(req)
 	return req, err
+}
+
+func (c *controller) DeleteWorkload(tenantID string, workloadID string) error {
+	return c.ds.DeleteWorkload(tenantID, workloadID)
+}
+
+func (c *controller) ShowWorkload(tenantID string, workloadID string) (types.Workload, error) {
+	return c.ds.GetWorkload(tenantID, workloadID)
 }

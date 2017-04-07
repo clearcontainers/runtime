@@ -25,17 +25,15 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"net/http"
 	"os"
-	"strconv"
 	"sync"
 
 	"github.com/01org/ciao/ciao-controller/api"
-	datastore "github.com/01org/ciao/ciao-controller/internal/datastore"
-	image "github.com/01org/ciao/ciao-image/client"
+	"github.com/01org/ciao/ciao-controller/internal/datastore"
+	"github.com/01org/ciao/ciao-controller/internal/quotas"
 	storage "github.com/01org/ciao/ciao-storage"
 	"github.com/01org/ciao/clogger/gloginterface"
 	"github.com/01org/ciao/database"
@@ -45,9 +43,9 @@ import (
 	osimage "github.com/01org/ciao/openstack/image"
 	"github.com/01org/ciao/osprepare"
 	"github.com/01org/ciao/ssntp"
-	"github.com/01org/ciao/testutil"
 	"github.com/golang/glog"
 	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 )
 
 type tenantConfirmMemo struct {
@@ -57,17 +55,15 @@ type tenantConfirmMemo struct {
 
 type controller struct {
 	storage.BlockDriver
-
 	client              controllerClient
 	ds                  *datastore.Datastore
 	id                  *identity
-	image               image.Client
 	apiURL              string
 	tenantReadiness     map[string]*tenantConfirmMemo
 	tenantReadinessLock sync.Mutex
+	qs                  *quotas.Quotas
 }
 
-var singleMachine = flag.Bool("single", false, "Enable single machine test")
 var cert = flag.String("cert", "", "Client certificate")
 var caCert = flag.String("cacert", "", "CA certificate")
 var serverURL = flag.String("url", "", "Server URL")
@@ -91,6 +87,14 @@ var logDir = "/var/lib/ciao/logs/controller"
 var imagesPath = flag.String("images_path", "/var/lib/ciao/images", "path to ciao images")
 
 var cephID = flag.String("ceph_id", "", "ceph client id")
+
+var cnciVCPUs = 4
+var cnciMem = 2048
+var cnciDisk = 2048
+var adminSSHKey = ""
+
+// default password set to "ciao"
+var adminPassword = "$6$rounds=4096$w9I3hR4g/hu$AnYjaC2DfznbPSG3vxsgtgAS4mJwWBkcR74Y/KHNB5OsfAlA4gpU5j6CHWMOkkt9j.9d7OYJXJ4icXHzKXTAO."
 
 func init() {
 	flag.Parse()
@@ -118,13 +122,11 @@ func main() {
 	ctl := new(controller)
 	ctl.tenantReadiness = make(map[string]*tenantConfirmMemo)
 	ctl.ds = new(datastore.Datastore)
-
-	ctl.image = image.Client{MountPoint: *imagesPath}
+	ctl.qs = new(quotas.Quotas)
 
 	dsConfig := datastore.Config{
 		PersistentURI:     "file:" + *persistentDatastoreLocation,
 		TransientURI:      "file:" + *transientDatastoreLocation,
-		InitTablesPath:    *tablesInitPath,
 		InitWorkloadsPath: *workloadsPath,
 	}
 
@@ -133,6 +135,9 @@ func main() {
 		glog.Fatalf("unable to Init datastore: %s", err)
 		return
 	}
+
+	ctl.qs.Init()
+	populateQuotasFromDatastore(ctl.qs, ctl.ds)
 
 	config := &ssntp.Config{
 		URI:    *serverURL,
@@ -167,34 +172,31 @@ func main() {
 		*cephID = clusterConfig.Configure.Storage.CephID
 	}
 
+	if clusterConfig.Configure.Controller.CNCIVcpus != 0 {
+		cnciVCPUs = clusterConfig.Configure.Controller.CNCIVcpus
+	}
+
+	if clusterConfig.Configure.Controller.CNCIMem != 0 {
+		cnciMem = clusterConfig.Configure.Controller.CNCIMem
+	}
+
+	if clusterConfig.Configure.Controller.CNCIDisk != 0 {
+		cnciDisk = clusterConfig.Configure.Controller.CNCIDisk
+	}
+
+	adminSSHKey = clusterConfig.Configure.Controller.AdminSSHKey
+
+	if clusterConfig.Configure.Controller.AdminPassword != "" {
+		adminPassword = clusterConfig.Configure.Controller.AdminPassword
+	}
+
+	ctl.ds.GenerateCNCIWorkload(cnciVCPUs, cnciMem, cnciDisk, adminSSHKey, adminPassword)
+
 	database.Logger = gloginterface.CiaoGlogLogger{}
 
 	logger := gloginterface.CiaoGlogLogger{}
 	osprepare.Bootstrap(context.TODO(), logger)
 	osprepare.InstallDeps(context.TODO(), controllerDeps, logger)
-
-	if *singleMachine {
-		hostname, _ := os.Hostname()
-		volumeURL := "https://" + hostname + ":" + strconv.Itoa(volumeAPIPort)
-		imageURL := "https://" + hostname + ":" + strconv.Itoa(imageAPIPort)
-		computeURL := "https://" + hostname + ":" + strconv.Itoa(computeAPIPort)
-		testIdentityConfig := testutil.IdentityConfig{
-			VolumeURL:  volumeURL,
-			ImageURL:   imageURL,
-			ComputeURL: computeURL,
-			ProjectID:  "f452bbc7-5076-44d5-922c-3b9d2ce1503f",
-		}
-
-		id := testutil.StartIdentityServer(testIdentityConfig)
-		defer id.Close()
-		identityURL = id.URL
-		glog.Errorf("========================")
-		glog.Errorf("Identity URL: %s", id.URL)
-		glog.Errorf("Please")
-		glog.Errorf("export CIAO_IDENTITY=%s", id.URL)
-		glog.Errorf("========================")
-		glog.Flush()
-	}
 
 	idConfig := identityConfig{
 		endpoint:        identityURL,
@@ -224,13 +226,17 @@ func main() {
 	wg.Add(1)
 	go ctl.startImageService()
 
-	host, _ := os.Hostname()
+	host := clusterConfig.Configure.Controller.ControllerFQDN
+	if host == "" {
+		host, _ = os.Hostname()
+	}
 	ctl.apiURL = fmt.Sprintf("https://%s:%d", host, controllerAPIPort)
 
 	wg.Add(1)
 	go ctl.startCiaoService()
 
 	wg.Wait()
+	ctl.qs.Shutdown()
 	ctl.ds.Exit()
 	ctl.client.Disconnect()
 }

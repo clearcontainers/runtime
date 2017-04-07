@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/01org/ciao/ciao-controller/types"
+	"github.com/01org/ciao/templateutils"
 )
 
 var tenantCommand = &command{
@@ -54,50 +55,22 @@ The template passed to the -f option operates on the following structs:
 
 no options:
 
-[]struct {
-	ID   string              // Tenant ID
-	Name string              // Tenant name
-}
-
+%s
 --all:
 
-[]struct {
-	Description string       // Tenant description
-	DomainID    string       // Tenant domain
-	Enabled     bool         // Indicates whether the tenant is enabled
-	ID          string       // Tenant ID
-	Links       struct { 
-		Self string      // Link to resource collection
-	}
-	Name        string       // Tenant name
-	ParentID    string       // ID or parent tenant
-}
-
+%s
 --quotas:
 
-struct {
-	ID            string    // Tenant ID
-	Timestamp     time.Time // Not currently used
-	InstanceLimit int       // Maximum number of instances allowed for tenant
-	InstanceUsage int       // Number of existing instances
-	VCPULimit     int       // Maximum number of CPUs that can be used by tenant
-	VCPUUsage     int       // Current number of CPUS used
-	MemLimit      int       // Maximum amount of RAM that can be used by tenant
-	MemUsage      int       // Current RAM consumed by tenant
-	DiskLimit     int       // Maximum amount of disk space that can be used by tenant
-	DiskUsage     int       // Current disk space consumed by tenant
-}
-
+%s
 --resources:
 
-[]struct {
-	VCPU      int        // Current number of CPUS used
-	Memory    int        // Current RAM consumed by tenant
-	Disk      int        // Current disk space consumed by tenant in MB
-	Timestamp time.Time  // Time resource snapshot was taken
-}
-`)
-	fmt.Fprintln(os.Stderr, templateFunctionHelp)
+%s`,
+		templateutils.GenerateUsageUndecorated([]Project{}),
+		templateutils.GenerateUsageUndecorated(IdentityProjects{}.Projects),
+		templateutils.GenerateUsageUndecorated(types.CiaoTenantResources{}),
+		templateutils.GenerateUsageUndecorated(types.CiaoUsageHistory{}.Usages))
+
+	fmt.Fprintln(os.Stderr, templateutils.TemplateFunctionHelp(nil))
 	os.Exit(2)
 }
 
@@ -112,7 +85,14 @@ func (cmd *tenantListCommand) parseArgs(args []string) []string {
 }
 
 func (cmd *tenantListCommand) run(args []string) error {
-	t := createTemplate("tenant-list", cmd.template)
+	var t *template.Template
+	if cmd.template != "" {
+		var err error
+		t, err = templateutils.CreateTemplate("tenant-list", cmd.template, nil)
+		if err != nil {
+			fatalf(err.Error())
+		}
+	}
 
 	if cmd.all {
 		return listAllTenants(t)

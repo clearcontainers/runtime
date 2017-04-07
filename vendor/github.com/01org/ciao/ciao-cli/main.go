@@ -94,6 +94,7 @@ var commands = map[string]subCommand{
 	"volume":      volumeCommand,
 	"pool":        poolCommand,
 	"external-ip": externalIPCommand,
+	"quotas":      quotasCommand,
 }
 
 var scopedToken string

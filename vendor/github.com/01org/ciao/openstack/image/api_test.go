@@ -23,6 +23,8 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"github.com/01org/ciao/service"
 )
 
 // TBD - can some of this stuff be pulled out into a common test area?
@@ -48,9 +50,17 @@ var tests = []test{
 		"POST",
 		"/v2/images",
 		createImage,
-		`{"container_format":"bare","disk_format":"raw","name":"Ubuntu","id":"b2173dd3-7ad6-4362-baa6-a68bce3565cb"}`,
+		`{"container_format":"bare","disk_format":"raw","name":"Ubuntu","id":"b2173dd3-7ad6-4362-baa6-a68bce3565cb","visibility":"private"}`,
 		http.StatusCreated,
 		`{"status":"queued","container_format":"bare","min_ram":0,"updated_at":"2015-11-29T22:21:42Z","owner":"bab7d5c60cd041a0a36f7c4b6e1dd978","min_disk":0,"tags":[],"locations":[],"visibility":"private","id":"b2173dd3-7ad6-4362-baa6-a68bce3565cb","size":null,"virtual_size":null,"name":"Ubuntu","checksum":null,"created_at":"2015-11-29T22:21:42Z","disk_format":"raw","properties":null,"protected":false,"self":"/v2/images/b2173dd3-7ad6-4362-baa6-a68bce3565cb","file":"/v2/images/b2173dd3-7ad6-4362-baa6-a68bce3565cb/file","schema":"/v2/schemas/image"}`,
+	},
+	{
+		"POST",
+		"/v2/images",
+		createImage,
+		"",
+		http.StatusInternalServerError,
+		fmt.Sprintf("unexpected end of JSON input\nnull"),
 	},
 	{
 		"GET",
@@ -86,6 +96,8 @@ var tests = []test{
 	},
 }
 
+const testTenantID = "1bea47ed-f6a9-463b-b423-14b9cca9ad27"
+
 func myHostname() string {
 	host, _ := os.Hostname()
 	return host
@@ -93,7 +105,7 @@ func myHostname() string {
 
 type testImageService struct{}
 
-func (is testImageService) CreateImage(req CreateImageRequest) (DefaultResponse, error) {
+func (is testImageService) CreateImage(tenantID string, req CreateImageRequest) (DefaultResponse, error) {
 	format := Bare
 	name := "Ubuntu"
 	createdAt, _ := time.Parse(time.RFC3339, "2015-11-29T22:21:42Z")
@@ -123,7 +135,7 @@ func (is testImageService) CreateImage(req CreateImageRequest) (DefaultResponse,
 	}, nil
 }
 
-func (is testImageService) ListImages() ([]DefaultResponse, error) {
+func (is testImageService) ListImages(tenantID string) ([]DefaultResponse, error) {
 	format := Bare
 	name := "Ubuntu"
 	createdAt, _ := time.Parse(time.RFC3339, "2015-11-29T22:21:42Z")
@@ -153,12 +165,15 @@ func (is testImageService) ListImages() ([]DefaultResponse, error) {
 	}
 
 	var images []DefaultResponse
-	images = append(images, image)
+
+	if tenantID == testTenantID {
+		images = append(images, image)
+	}
 
 	return images, nil
 }
 
-func (is testImageService) GetImage(ID string) (DefaultResponse, error) {
+func (is testImageService) GetImage(tenantID, ID string) (DefaultResponse, error) {
 	imageID := "1bea47ed-f6a9-463b-b423-14b9cca9ad27"
 	format := Bare
 	name := "cirros-0.3.2-x86_64-disk"
@@ -184,20 +199,21 @@ func (is testImageService) GetImage(ID string) (DefaultResponse, error) {
 		Protected:       false,
 		CheckSum:        &checksum,
 		ID:              imageID,
-		File:            fmt.Sprintf("/v2/images/%s/file", imageID),
-		Owner:           &owner,
-		MinRAM:          &minRAM,
-		Schema:          "/v2/schemas/image",
-		Name:            &name,
-		Size:            &size,
+
+		File:   fmt.Sprintf("/v2/images/%s/file", imageID),
+		Owner:  &owner,
+		MinRAM: &minRAM,
+		Schema: "/v2/schemas/image",
+		Name:   &name,
+		Size:   &size,
 	}, nil
 }
 
-func (is testImageService) UploadImage(string, io.Reader) (NoContentImageResponse, error) {
+func (is testImageService) UploadImage(string, string, io.Reader) (NoContentImageResponse, error) {
 	return NoContentImageResponse{}, nil
 }
 
-func (is testImageService) DeleteImage(string) (NoContentImageResponse, error) {
+func (is testImageService) DeleteImage(string, string) (NoContentImageResponse, error) {
 	return NoContentImageResponse{}, nil
 }
 
@@ -205,7 +221,7 @@ func TestRoutes(t *testing.T) {
 	var is testImageService
 	config := APIConfig{9292, is}
 
-	r := Routes(config)
+	r := Routes(config, nil)
 	if r == nil {
 		t.Fatalf("No routes returned")
 	}
@@ -217,18 +233,23 @@ func TestAPIResponse(t *testing.T) {
 	// TBD: add context to test definition so it can be created per
 	// endpoint with either a pass testVolumeService or a failure
 	// one.
-	context := &Context{9292, is}
+	context := &Context{9292, is, nil}
 
 	for _, tt := range tests {
 		req, err := http.NewRequest(tt.method, tt.pattern, bytes.NewBuffer([]byte(tt.request)))
 		if err != nil {
 			t.Fatal(err)
 		}
-
 		rr := httptest.NewRecorder()
 		handler := APIHandler{context, tt.handler}
 
-		handler.ServeHTTP(rr, req)
+		ctx := service.SetPrivilege(req.Context(), true)
+		ctx = service.SetTenantID(ctx, testTenantID)
+		if err != nil {
+			t.Fatalf("Error on setting tenant [%v]", testTenantID)
+		}
+
+		handler.ServeHTTP(rr, req.WithContext(ctx))
 
 		status := rr.Code
 		if status != tt.expectedStatus {

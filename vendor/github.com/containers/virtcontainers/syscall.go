@@ -32,6 +32,13 @@ const mountPerm = os.FileMode(0755)
 // * ensure the source exists
 // * recursively create the destination
 func bindMount(source, destination string) error {
+	if source == "" {
+		return fmt.Errorf("source must be specified")
+	}
+	if destination == "" {
+		return fmt.Errorf("destination must be specified")
+	}
+
 	absSource, err := filepath.EvalSymlinks(source)
 	if err != nil {
 		return fmt.Errorf("Could not resolve symlink for source %v", source)

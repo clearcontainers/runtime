@@ -17,13 +17,12 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
 	"github.com/01org/ciao/ciao-controller/types"
 	"github.com/01org/ciao/payloads"
-	"github.com/golang/glog"
+	"github.com/pkg/errors"
 )
 
 func (c *controller) evacuateNode(nodeID string) error {
@@ -34,21 +33,26 @@ func (c *controller) evacuateNode(nodeID string) error {
 
 func (c *controller) restartInstance(instanceID string) error {
 	// should I bother to see if instanceID is valid?
-	// get node id.  If there is no node id we can't send a restart
 	i, err := c.ds.GetInstance(instanceID)
 	if err != nil {
 		return err
-	}
-
-	if i.NodeID == "" {
-		return types.ErrInstanceNotAssigned
 	}
 
 	if i.State != "exited" {
 		return errors.New("You may only restart paused instances")
 	}
 
-	go c.client.RestartInstance(instanceID, i.NodeID)
+	w, err := c.ds.GetWorkload(i.TenantID, i.WorkloadID)
+	if err != nil {
+		return err
+	}
+
+	t, err := c.ds.GetTenant(i.TenantID)
+	if err != nil {
+		return err
+	}
+
+	go c.client.RestartInstance(i, &w, t)
 	return nil
 }
 
@@ -72,13 +76,14 @@ func (c *controller) stopInstance(instanceID string) error {
 }
 
 func (c *controller) deleteInstance(instanceID string) error {
-	// get node id.  If there is no node id we can't send a delete
+	// get node id.  If there is no node id and the instance is
+	// pending we can't send a delete
 	i, err := c.ds.GetInstance(instanceID)
 	if err != nil {
 		return err
 	}
 
-	if i.NodeID == "" {
+	if i.NodeID == "" && i.State == payloads.Pending {
 		return types.ErrInstanceNotAssigned
 	}
 
@@ -167,19 +172,18 @@ func (c *controller) confirmTenant(tenantID string) error {
 }
 
 func (c *controller) startWorkload(w types.WorkloadRequest) ([]*types.Instance, error) {
-
 	var e error
 
-	if instances <= 0 {
+	if w.Instances <= 0 {
 		return nil, errors.New("Missing number of instances to start")
 	}
 
-	wl, err := c.ds.GetWorkload(w.WorkloadID)
+	wl, err := c.ds.GetWorkload(w.TenantID, w.WorkloadID)
 	if err != nil {
 		return nil, err
 	}
 
-	if !isCNCIWorkload(wl) {
+	if !isCNCIWorkload(&wl) {
 		err := c.confirmTenant(w.TenantID)
 		if err != nil {
 			return nil, err
@@ -188,23 +192,27 @@ func (c *controller) startWorkload(w types.WorkloadRequest) ([]*types.Instance, 
 
 	var newInstances []*types.Instance
 
-	for i := 0; i < w.Instances; i++ {
+	for i := 0; i < w.Instances && e == nil; i++ {
 		startTime := time.Now()
-		instance, err := newInstance(c, w.TenantID, wl, w.Volumes)
+		instance, err := newInstance(c, w.TenantID, &wl, w.Volumes)
 		if err != nil {
-			glog.V(2).Info("error newInstance")
-			e = err
+			e = errors.Wrap(err, "Error creating instance")
 			continue
 		}
 		instance.startTime = startTime
 
 		ok, err := instance.Allowed()
+		if err != nil {
+			instance.Clean()
+			e = errors.Wrap(err, "Error checking if instance allowed")
+			continue
+		}
+
 		if ok {
 			err = instance.Add()
 			if err != nil {
-				glog.V(2).Info("error adding instance")
 				instance.Clean()
-				e = err
+				e = errors.Wrap(err, "Error adding instance")
 				continue
 			}
 
@@ -216,13 +224,9 @@ func (c *controller) startWorkload(w types.WorkloadRequest) ([]*types.Instance, 
 			}
 		} else {
 			instance.Clean()
-			if err != nil {
-				e = err
-				continue
-			} else {
-				// stop if we are over limits
-				return nil, errors.New("Over Tenant Limits")
-			}
+			// stop if we are over limits
+			e = errors.New("Over quota")
+			continue
 		}
 	}
 
@@ -268,4 +272,33 @@ func (c *controller) addTenant(id string) error {
 	// start up a CNCI. this will block till the
 	// CNCI started event is returned
 	return c.launchCNCI(id)
+}
+
+func (c *controller) deleteEphemeralStorage(instanceID string) error {
+	attachments := c.ds.GetStorageAttachments(instanceID)
+	for _, attachment := range attachments {
+		if !attachment.Ephemeral {
+			continue
+		}
+		err := c.ds.DeleteStorageAttachment(attachment.ID)
+		if err != nil {
+			return errors.Wrap(err, "Error deleting storage attachment from datastore")
+		}
+		bd, err := c.ds.GetBlockDevice(attachment.BlockID)
+		if err != nil {
+			return errors.Wrap(err, "Error getting block device from datastore")
+		}
+		err = c.ds.DeleteBlockDevice(attachment.BlockID)
+		if err != nil {
+			return errors.Wrap(err, "Error deleting block device from datastore")
+		}
+		err = c.DeleteBlockDevice(attachment.BlockID)
+		if err != nil {
+			return errors.Wrap(err, "Error deleting block device")
+		}
+		c.qs.Release(bd.TenantID,
+			payloads.RequestedResource{Type: payloads.Volume, Value: 1},
+			payloads.RequestedResource{Type: payloads.SharedDiskGiB, Value: bd.Size})
+	}
+	return nil
 }

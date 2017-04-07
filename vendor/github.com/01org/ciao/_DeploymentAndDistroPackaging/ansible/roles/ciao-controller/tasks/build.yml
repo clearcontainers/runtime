@@ -13,42 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-  - block:
-      - name: Setup GOROOT directory
-        connection: local
-        file: path={{ gopath }} state=directory
+  - name: Create GOPATH directory
+    file: name={{ gopath }} state=directory
 
-      - name: Build CIAO from sources
-        connection: local
-        shell: go get -v github.com/01org/ciao/...
-        register: ciao_build
-        async: 1800
-        poll: 0
-        environment:
-          GOPATH: "{{ gopath }}"
-    when: ciao_dev
-
-  - block:
-      - name: Create fetch directory
-        connection: local
-        file: path=fetch state=directory
-
-      - name: Fetch ciao files
-        fetch:
-          dest: fetch/{{ item }}
-          fail_on_missing: yes
-          flat: yes
-          src: /usr/bin/{{ item }}
-        with_items:
-          - ciao-cert
-          - ciao-cnci-agent
-          - ciao-cli
-
-      - name: Make ciao files runnable
-        connection: local
-        file: path=fetch/{{ item }} mode=0755
-        with_items:
-          - ciao-cert
-          - ciao-cnci-agent
-          - ciao-cli
-    when: not ciao_dev
+  - name: Building CIAO
+    shell: go get -v github.com/01org/ciao/...
+    environment:
+      GOPATH: "{{ gopath }}"
+    register: build
+    changed_when:
+      - "build_wait.stderr is defined
+      - 'github.com/01org/ciao/' in build_wait.stderr"

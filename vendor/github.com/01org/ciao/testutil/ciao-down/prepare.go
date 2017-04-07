@@ -29,6 +29,7 @@ import (
 	"text/template"
 
 	"github.com/01org/ciao/osprepare"
+	"github.com/01org/ciao/qemu"
 )
 
 type logger struct{}
@@ -71,6 +72,7 @@ type workspace struct {
 	instanceDir    string
 	keyPath        string
 	publicKeyPath  string
+	vmType         string
 }
 
 func installDeps(ctx context.Context) {
@@ -224,50 +226,46 @@ func prepareEnv(ctx context.Context) (*workspace, error) {
 		ws.UIPath = string(data)
 	}
 
+	data, err = ioutil.ReadFile(path.Join(ws.instanceDir, "vmtype.txt"))
+	if err == nil {
+		ws.vmType = string(data)
+	} else {
+		ws.vmType = CIAO
+	}
+
 	return ws, nil
 }
 
-// TODO: Code copied from launcher.  Needs to be moved to qemu
-
 func createCloudInitISO(ctx context.Context, instanceDir string, userData, metaData []byte) error {
-	configDrivePath := path.Join(instanceDir, "clr-cloud-init")
-	dataDirPath := path.Join(configDrivePath, "openstack", "latest")
-	metaDataPath := path.Join(dataDirPath, "meta_data.json")
-	userDataPath := path.Join(dataDirPath, "user_data")
 	isoPath := path.Join(instanceDir, "config.iso")
+	return qemu.CreateCloudInitISO(ctx, instanceDir, isoPath, userData, metaData)
+}
 
-	defer func() {
-		_ = os.RemoveAll(configDrivePath)
-	}()
-
-	err := os.MkdirAll(dataDirPath, 0755)
-	if err != nil {
-		return fmt.Errorf("Unable to create config drive directory %s", dataDirPath)
+func downloadFN(ws *workspace, URL, location string) string {
+	url := url.URL{
+		Scheme: "http",
+		Host:   fmt.Sprintf("10.0.2.2:%d", ws.HTTPServerPort),
+		Path:   "download",
 	}
-
-	err = ioutil.WriteFile(metaDataPath, metaData, 0644)
-	if err != nil {
-		return fmt.Errorf("Unable to create %s", metaDataPath)
-	}
-
-	err = ioutil.WriteFile(userDataPath, userData, 0644)
-	if err != nil {
-		return fmt.Errorf("Unable to create %s", userDataPath)
-	}
-
-	cmd := exec.CommandContext(ctx, "xorriso", "-as", "mkisofs", "-R", "-V", "config-2",
-		"-o", isoPath, configDrivePath)
-	err = cmd.Run()
-	if err != nil {
-		return fmt.Errorf("Unable to create cloudinit iso image %v", err)
-	}
-
-	return nil
+	q := url.Query()
+	q.Set(urlParam, URL)
+	url.RawQuery = q.Encode()
+	return fmt.Sprintf("wget %s -O %s", url.String(), location)
 }
 
 func buildISOImage(ctx context.Context, instanceDir string, ws *workspace, debug bool) error {
-	tmpl := fmt.Sprintf(userDataTemplate, ws.RunCmd)
-	udt := template.Must(template.New("user-data").Parse(tmpl))
+	var tmpl string
+	if ws.vmType == CLEARCONTAINERS {
+		tmpl = fmt.Sprintf(ccUserDataTemplate, ws.RunCmd)
+	} else {
+		tmpl = fmt.Sprintf(userDataTemplate, ws.RunCmd)
+	}
+
+	funcMap := template.FuncMap{
+		"download": downloadFN,
+	}
+
+	udt := template.Must(template.New("user-data").Funcs(funcMap).Parse(tmpl))
 	var udBuf bytes.Buffer
 	err := udt.Execute(&udBuf, ws)
 	if err != nil {

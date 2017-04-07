@@ -8,6 +8,7 @@ the following sub folders.
 .
 ├── base_bat     - Basic tests that verify that the cluster is functional
 ├── image_bat    - BAT tests for the image service
+├── quotas_bat   - Quota related BAT tests
 ├── storage_bat  - Storage related BAT tests
 ```
 

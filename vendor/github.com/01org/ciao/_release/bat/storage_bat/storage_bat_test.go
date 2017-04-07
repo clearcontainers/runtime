@@ -63,13 +63,25 @@ func createSpecificInstance(ctx context.Context, t *testing.T, tenant, workloadI
 }
 
 func createVMInstance(ctx context.Context, t *testing.T, tenant string) string {
-	const testWorkloadID = "79034317-3beb-447e-987d-4e310a8cf410"
-	return createSpecificInstance(ctx, t, tenant, testWorkloadID, true)
+	const testVMWorkload = "Fedora test VM"
+
+	w, err := bat.GetWorkloadByName(ctx, tenant, testVMWorkload)
+	if err != nil {
+		t.Skip()
+	}
+
+	return createSpecificInstance(ctx, t, tenant, w.ID, true)
 }
 
 func createContainerInstance(ctx context.Context, t *testing.T, tenant string) string {
-	const testWorkloadID = "ca957444-fa46-11e5-94f9-38607786d9ec"
-	return createSpecificInstance(ctx, t, tenant, testWorkloadID, true)
+	const testContainerWorkload = "Debian latest test container"
+
+	w, err := bat.GetWorkloadByName(ctx, tenant, testContainerWorkload)
+	if err != nil {
+		t.Skip()
+	}
+
+	return createSpecificInstance(ctx, t, tenant, w.ID, true)
 }
 
 func checkBootedVolume(ctx context.Context, t *testing.T, tenant, instanceID string) string {

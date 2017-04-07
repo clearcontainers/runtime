@@ -610,10 +610,10 @@ func (client *SsntpTestClient) SendStatsCmd() {
 
 // SendStatus pushes an ssntp status frame from the SsntpTestClient with
 // the indicated total and available memory statistics
-func (client *SsntpTestClient) SendStatus(memTotal int, memAvail int) {
+func (client *SsntpTestClient) SendStatus(memTotal int, memAvail int, networks []payloads.NetworkStat) {
 	var result Result
 
-	payload := ReadyPayload(client.UUID, memTotal, memAvail)
+	payload := ReadyPayload(client.UUID, memTotal, memAvail, networks)
 
 	y, err := yaml.Marshal(payload)
 	if err != nil {
@@ -683,6 +683,31 @@ func (client *SsntpTestClient) SendDeleteEvent(uuid string) {
 	}
 
 	go client.SendResultAndDelEventChan(ssntp.InstanceDeleted, result)
+}
+
+// SendStoppedEvent allows an SsntpTestClient to push an ssntp.InstanceStopped event frame
+func (client *SsntpTestClient) SendStoppedEvent(uuid string) {
+	var result Result
+
+	evt := payloads.InstanceStoppedEvent{
+		InstanceUUID: uuid,
+	}
+
+	event := payloads.EventInstanceStopped{
+		InstanceStopped: evt,
+	}
+
+	y, err := yaml.Marshal(event)
+	if err != nil {
+		result.Err = err
+	} else {
+		_, err = client.Ssntp.SendEvent(ssntp.InstanceStopped, y)
+		if err != nil {
+			result.Err = err
+		}
+	}
+
+	go client.SendResultAndDelEventChan(ssntp.InstanceStopped, result)
 }
 
 // SendTenantAddedEvent allows an SsntpTestClient to push an ssntp.TenantAdded event frame

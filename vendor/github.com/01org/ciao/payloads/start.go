@@ -71,6 +71,28 @@ const (
 	// ComputeNode indicates that a resource struct specifies whether the
 	// command in which it is embedded applies to a compute node.
 	ComputeNode = "compute_node"
+
+	// PhysicalNetwork indicates a resource is specifying an network on
+	// a network node (ie: only relevant when resource NetworkNode has
+	// value true.
+	PhysicalNetwork = "physical_network"
+
+	// Instance is used to indicate that this requested resource is an instance.
+	Instance = "instance"
+
+	// Volume is used to indicate that the requested resource is a volume.
+	Volume = "volume"
+
+	// Image is used to indicate that the requested resource is an image.
+	Image = "image"
+
+	// ExternalIP is used to indicate the the requested resource is an
+	// externally accessible IP address.
+	ExternalIP = "external_ip"
+
+	// SharedDiskGiB is used for shared storage across the cluster used for
+	// storing volume and images. (Measured in GiB)
+	SharedDiskGiB = "shared_disk_gib"
 )
 
 const (
@@ -122,6 +144,9 @@ type RequestedResource struct {
 
 	// Value specifies the integer value associated with that resource.
 	Value int `yaml:"value"`
+
+	// ValueString is an optional string format value instead of integer
+	ValueString string `yaml:"value_string,omitempty"`
 
 	// Mandatory indicates whether a resource is mandatory or not.
 	Mandatory bool `yaml:"mandatory"`
@@ -217,6 +242,10 @@ type StartCmd struct {
 	// Storage contains all the information required to attach or boot
 	// from storage for the new instance.
 	Storage []StorageResource `yaml:"storage,omitempty"`
+
+	// Restart is set to true if the payload represents a request to
+	// restart an existing instance on a new node.
+	Restart bool
 }
 
 // Start represents the unmarshalled version of the contents of a SSNTP START

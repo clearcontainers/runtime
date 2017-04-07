@@ -51,6 +51,7 @@ configure:
     compute_port: int
     compute_ca: string [The HTTPS compute endpoint CA]
     compute_cert: string [The HTTPS compute endpoint private key]
+    compute_fqdn: string [The HTTPS server fully qualified domain name, MUST match name for which compute_cert is valid]
     identity_user: string [The identity (e.g. Keystone) user]
     identity_password: string [The identity (e.g. Keystone) password]
   launcher:
@@ -77,6 +78,7 @@ configure:
   controller:
     compute_ca: /etc/pki/ciao/compute_ca.pem
     compute_cert: /etc/pki/ciao/compute_key.pem
+    compute_fqdn: compute.example.com
     identity_user: controller
     identity_password: ciao
   launcher:
@@ -102,6 +104,7 @@ configure:
     compute_port: 8774
     compute_ca: /etc/pki/ciao/compute_ca.pem
     compute_cert: /etc/pki/ciao/compute_key.pem
+    compute_fqdn: compute.example.com
     identity_user: controller
     identity_password: ciao
   launcher:

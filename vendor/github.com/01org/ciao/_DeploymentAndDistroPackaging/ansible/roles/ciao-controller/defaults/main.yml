@@ -36,12 +36,6 @@ ciao_admin_email: admin@example.com
 # this name is embedded in ciao certificates
 ciao_cert_organization: Example Inc.
 
-# CIAO virtual machines can be accessed with this username and it's public key
-ciao_guest_user: demouser
-
-# SSH public authentication key for `ciao_guest_user`
-ciao_guest_key: ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDB34XG8nbwKyrTiB83kqe2I25P9A8aNU2iTd4AsvnQgM9QbjE9tzndggeOLkz5Ea/IJegOJWfsiDu4ExJ3qXNYqfEFiam8FTdeOVLXkHu6MKpO1pQgmAiJTOO2NMeNqGPFCMAj0ogcKL2/Hl5JAdh+4aK1tLZHdqKTpJGwLp6jP1wo3w5lu0V/oBEPN4qwpzj+S+/6Z6P/cB9rwfTGCbhTyMGdkpj8SIFwhIBTKWYzjxYQMRpbpijXNDSeOekd6L2+QTPRdnEm2+Nh3MFrz5enDZrCGdP7f5nrO3fepz00wtTKcn5rg+0tyuZUNpUwsi40alVvJ6syfPSCRcbGpEDB demouser@localhost
-
 # CIAO Services to create in Keystone
 ciao_openstack_services:
   - service: ciao
@@ -95,3 +89,6 @@ clear_cloud_image_url: https://download.clearlinux.org/releases/11960/clear/clea
 
 # Clearlinux cloud image file name
 clear_cloud_image: "{{ clear_cloud_image_url.split('/') | last | regex_replace('(.*).xz', '\\1') }}"
+
+# URL for OVMF firmware
+firmware_image_url: https://download.clearlinux.org/image/OVMF.fd

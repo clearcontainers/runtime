@@ -19,6 +19,7 @@ package virtcontainers
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -54,7 +55,7 @@ func testQemuBuildKernelParams(t *testing.T, kernelParams []Param, expected stri
 	}
 }
 
-var testQemuKernelParamsBase = "root=/dev/pmem0p1 rootflags=dax,data=ordered,errors=remount-ro rw rootfstype=ext4 tsc=reliable no_timer_check rcupdate.rcu_expedited=1 i8042.direct=1 i8042.dumbkbd=1 i8042.nopnp=1 i8042.noaux=1 noreplace-smp reboot=k panic=1 console=hvc0 console=hvc1 initcall_debug init=/usr/lib/systemd/systemd systemd.unit=container.target iommu=off systemd.mask=systemd-networkd.service systemd.mask=systemd-networkd.socket cryptomgr.notests"
+var testQemuKernelParamsBase = "root=/dev/pmem0p1 rootflags=dax,data=ordered,errors=remount-ro rw rootfstype=ext4 tsc=reliable no_timer_check rcupdate.rcu_expedited=1 i8042.direct=1 i8042.dumbkbd=1 i8042.nopnp=1 i8042.noaux=1 noreplace-smp reboot=k panic=1 console=hvc0 console=hvc1 initcall_debug init=/usr/lib/systemd/systemd systemd.unit=cc-agent.target iommu=off systemd.mask=systemd-networkd.service systemd.mask=systemd-networkd.socket cryptomgr.notests"
 var testQemuKernelParamsNonDebug = "quiet systemd.show_status=false"
 var testQemuKernelParamsDebug = "debug systemd.show_status=true systemd.log_level=debug"
 
@@ -114,7 +115,7 @@ func testQemuAppend(t *testing.T, structure interface{}, expected []ciaoQemu.Dev
 	}
 
 	if reflect.DeepEqual(devices, expected) == false {
-		t.Fatal()
+		t.Fatalf("Got %v\nExpecting %v", devices, expected)
 	}
 }
 
@@ -126,7 +127,7 @@ func TestQemuAppendVolume(t *testing.T) {
 		ciaoQemu.FSDevice{
 			Driver:        ciaoQemu.Virtio9P,
 			FSDriver:      ciaoQemu.Local,
-			ID:            fmt.Sprintf("extra-%s-9p", mountTag),
+			ID:            fmt.Sprintf("extra-9p-%s", mountTag),
 			Path:          hostPath,
 			MountTag:      mountTag,
 			SecurityModel: ciaoQemu.None,
@@ -179,23 +180,23 @@ func TestQemuAppendFSDevices(t *testing.T) {
 		ciaoQemu.FSDevice{
 			Driver:        ciaoQemu.Virtio9P,
 			FSDriver:      ciaoQemu.Local,
-			ID:            fmt.Sprintf("ctr-%s-9p", fmt.Sprintf("%s.1", contID)),
+			ID:            "ctr-9p-0",
 			Path:          fmt.Sprintf("%s.1", contRootFs),
-			MountTag:      fmt.Sprintf("ctr-rootfs-%s.1", contID),
+			MountTag:      "ctr-rootfs-0",
 			SecurityModel: ciaoQemu.None,
 		},
 		ciaoQemu.FSDevice{
 			Driver:        ciaoQemu.Virtio9P,
 			FSDriver:      ciaoQemu.Local,
-			ID:            fmt.Sprintf("ctr-%s-9p", fmt.Sprintf("%s.2", contID)),
+			ID:            "ctr-9p-1",
 			Path:          fmt.Sprintf("%s.2", contRootFs),
-			MountTag:      fmt.Sprintf("ctr-rootfs-%s.2", contID),
+			MountTag:      "ctr-rootfs-1",
 			SecurityModel: ciaoQemu.None,
 		},
 		ciaoQemu.FSDevice{
 			Driver:        ciaoQemu.Virtio9P,
 			FSDriver:      ciaoQemu.Local,
-			ID:            fmt.Sprintf("extra-%s-9p", fmt.Sprintf("%s.1", volMountTag)),
+			ID:            fmt.Sprintf("extra-9p-%s", fmt.Sprintf("%s.1", volMountTag)),
 			Path:          fmt.Sprintf("%s.1", volHostPath),
 			MountTag:      fmt.Sprintf("%s.1", volMountTag),
 			SecurityModel: ciaoQemu.None,
@@ -203,7 +204,7 @@ func TestQemuAppendFSDevices(t *testing.T) {
 		ciaoQemu.FSDevice{
 			Driver:        ciaoQemu.Virtio9P,
 			FSDriver:      ciaoQemu.Local,
-			ID:            fmt.Sprintf("extra-%s-9p", fmt.Sprintf("%s.2", volMountTag)),
+			ID:            fmt.Sprintf("extra-9p-%s", fmt.Sprintf("%s.2", volMountTag)),
 			Path:          fmt.Sprintf("%s.2", volHostPath),
 			MountTag:      fmt.Sprintf("%s.2", volMountTag),
 			SecurityModel: ciaoQemu.None,
@@ -243,6 +244,8 @@ func TestQemuAppendFSDevices(t *testing.T) {
 
 func TestQemuAppendConsoles(t *testing.T) {
 	podID := "testPodID"
+	cID1 := "100"
+	cID2 := "200"
 	contConsolePath := "testContConsolePath"
 
 	expectedOut := []ciaoQemu.Device{
@@ -252,26 +255,35 @@ func TestQemuAppendConsoles(t *testing.T) {
 		},
 		ciaoQemu.CharDevice{
 			Driver:   ciaoQemu.Console,
-			Backend:  ciaoQemu.Serial,
+			Backend:  ciaoQemu.Socket,
 			DeviceID: "console0",
 			ID:       "charconsole0",
+			Path:     filepath.Join(runStoragePath, podID, defaultConsole),
+		},
+		ciaoQemu.CharDevice{
+			Driver:   ciaoQemu.Console,
+			Backend:  ciaoQemu.Serial,
+			DeviceID: "console1",
+			ID:       "charconsole1",
 			Path:     contConsolePath,
 		},
 		ciaoQemu.CharDevice{
 			Driver:   ciaoQemu.Console,
 			Backend:  ciaoQemu.Socket,
-			DeviceID: "console1",
-			ID:       "charconsole1",
-			Path:     fmt.Sprintf("%s/%s/console.sock", runStoragePath, podID),
+			DeviceID: "console2",
+			ID:       "charconsole2",
+			Path:     fmt.Sprintf("%s/%s/%s/%s", runStoragePath, podID, cID2, defaultConsole),
 		},
 	}
 
 	containers := []ContainerConfig{
 		{
+			ID:          cID1,
 			Interactive: true,
 			Console:     contConsolePath,
 		},
 		{
+			ID:          cID2,
 			Interactive: false,
 			Console:     "",
 		},
@@ -323,7 +335,7 @@ func TestQemuAppendImage(t *testing.T) {
 	}
 
 	if reflect.DeepEqual(devices, expectedOut) == false {
-		t.Fatal()
+		t.Fatalf("Got %v\nExpecting %v", devices, expectedOut)
 	}
 }
 
@@ -337,11 +349,11 @@ func TestQemuInit(t *testing.T) {
 	}
 
 	if reflect.DeepEqual(qemuConfig, q.config) == false {
-		t.Fatal()
+		t.Fatalf("Got %v\nExpecting %v", q.config, qemuConfig)
 	}
 
 	if reflect.DeepEqual(qemuConfig.HypervisorPath, q.path) == false {
-		t.Fatal()
+		t.Fatalf("Got %v\nExpecting %v", q.path, qemuConfig.HypervisorPath)
 	}
 
 	// non-debug is the default
@@ -375,7 +387,7 @@ func TestQemuSetCPUResources(t *testing.T) {
 	smp := q.setCPUResources(podConfig)
 
 	if reflect.DeepEqual(smp, expectedOut) == false {
-		t.Fatal()
+		t.Fatalf("Got %v\nExpecting %v", smp, expectedOut)
 	}
 }
 
@@ -401,7 +413,7 @@ func TestQemuSetMemoryResources(t *testing.T) {
 	memory := q.setMemoryResources(podConfig)
 
 	if reflect.DeepEqual(memory, expectedOut) == false {
-		t.Fatal()
+		t.Fatalf("Got %v\nExpecting %v", memory, expectedOut)
 	}
 }
 
@@ -414,7 +426,7 @@ func testQemuAddDevice(t *testing.T, devInfo interface{}, devType deviceType, ex
 	}
 
 	if reflect.DeepEqual(q.qemuConfig.Devices, expected) == false {
-		t.Fatal()
+		t.Fatalf("Got %v\nExpecting %v", q.qemuConfig.Devices, expected)
 	}
 }
 
@@ -426,7 +438,7 @@ func TestQemuAddDeviceFsDev(t *testing.T) {
 		ciaoQemu.FSDevice{
 			Driver:        ciaoQemu.Virtio9P,
 			FSDriver:      ciaoQemu.Local,
-			ID:            fmt.Sprintf("extra-%s-9p", mountTag),
+			ID:            fmt.Sprintf("extra-9p-%s", mountTag),
 			Path:          hostPath,
 			MountTag:      mountTag,
 			SecurityModel: ciaoQemu.None,
@@ -466,4 +478,14 @@ func TestQemuAddDeviceSerialPordDev(t *testing.T) {
 	}
 
 	testQemuAddDevice(t, socket, serialPortDev, expectedOut)
+}
+
+func TestQemuGetPodConsole(t *testing.T) {
+	q := &qemu{}
+	podID := "testPodID"
+	expected := filepath.Join(runStoragePath, podID, defaultConsole)
+
+	if result := q.getPodConsole(podID); result != expected {
+		t.Fatalf("Got %s\nExpecting %s", result, expected)
+	}
 }

@@ -18,7 +18,6 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net"
 	"time"
@@ -28,6 +27,7 @@ import (
 	"github.com/01org/ciao/payloads"
 	"github.com/01org/ciao/ssntp/uuid"
 	"github.com/golang/glog"
+	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 )
 
@@ -46,6 +46,11 @@ type instance struct {
 	startTime time.Time
 }
 
+type userData struct {
+	UUID     string `json:"uuid"`
+	Hostname string `json:"hostname"`
+}
+
 func isCNCIWorkload(workload *types.Workload) bool {
 	for r := range workload.Defaults {
 		if workload.Defaults[r].Type == payloads.NetworkNode {
@@ -58,15 +63,12 @@ func isCNCIWorkload(workload *types.Workload) bool {
 
 func newInstance(ctl *controller, tenantID string, workload *types.Workload,
 	volumes []storage.BlockDevice) (*instance, error) {
-
 	id := uuid.Generate()
 
 	config, err := newConfig(ctl, workload, id.String(), tenantID, volumes)
 	if err != nil {
 		return nil, err
 	}
-
-	usage := config.GetResources()
 
 	newInstance := types.Instance{
 		TenantID:   tenantID,
@@ -75,8 +77,9 @@ func newInstance(ctl *controller, tenantID string, workload *types.Workload,
 		ID:         id.String(),
 		CNCI:       config.cnci,
 		IPAddress:  config.ip,
+		VnicUUID:   config.sc.Start.Networking.VnicUUID,
+		Subnet:     config.sc.Start.Networking.Subnet,
 		MACAddress: config.mac,
-		Usage:      usage,
 		CreateTime: time.Now(),
 	}
 
@@ -91,24 +94,28 @@ func newInstance(ctl *controller, tenantID string, workload *types.Workload,
 
 func (i *instance) Add() error {
 	ds := i.ctl.ds
+	var err error
 	if i.CNCI == false {
-		ds.AddInstance(&i.Instance)
+		err = ds.AddInstance(&i.Instance)
 	} else {
-		ds.AddTenantCNCI(i.TenantID, i.ID, i.MACAddress)
+		err = ds.AddTenantCNCI(i.TenantID, i.ID, i.MACAddress)
+	}
+	if err != nil {
+		return errors.Wrapf(err, "Error creating instance in datastore")
 	}
 	for _, volume := range i.newConfig.sc.Start.Storage {
 		if volume.ID == "" && volume.Local {
 			// these are launcher auto-created ephemeral
 			continue
 		}
-		_, err := ds.GetBlockDevice(volume.ID)
+		_, err = ds.GetBlockDevice(volume.ID)
 		if err != nil {
 			return fmt.Errorf("Invalid block device mapping.  %s already in use", volume.ID)
 		}
 
 		_, err = ds.CreateStorageAttachment(i.Instance.ID, volume)
 		if err != nil {
-			glog.Error(err)
+			return errors.Wrap(err, "Error creating storage attachment")
 		}
 	}
 
@@ -116,10 +123,21 @@ func (i *instance) Add() error {
 }
 
 func (i *instance) Clean() error {
-	if i.CNCI == false {
-		i.ctl.ds.ReleaseTenantIP(i.TenantID, i.IPAddress)
+	if i.CNCI {
+		// CNCI resources are not tracked by quota system
+		return nil
 	}
 
+	i.ctl.ds.ReleaseTenantIP(i.TenantID, i.IPAddress)
+
+	wl, err := i.ctl.ds.GetWorkload(i.TenantID, i.WorkloadID)
+	if err != nil {
+		return errors.Wrap(err, "error getting workload from datastore")
+	}
+	resources := []payloads.RequestedResource{{Type: payloads.Instance, Value: 1}}
+	resources = append(resources, wl.Defaults...)
+	i.ctl.qs.Release(i.TenantID, resources...)
+	i.ctl.deleteEphemeralStorage(i.ID)
 	return nil
 }
 
@@ -131,37 +149,17 @@ func (i *instance) Allowed() (bool, error) {
 
 	ds := i.ctl.ds
 
-	tenant, err := ds.GetTenant(i.TenantID)
+	wl, err := ds.GetWorkload(i.TenantID, i.WorkloadID)
 	if err != nil {
-		return false, err
+		return true, errors.Wrap(err, "error getting workload from datastore")
 	}
 
-	for _, res := range tenant.Resources {
-		// check instance count separately
-		if res.Rtype == 1 {
-			if res.OverLimit(1) {
-				return false, nil
-			}
-			continue
-		}
-		if res.OverLimit(i.Usage[res.Rname]) {
-			return false, nil
-		}
-	}
+	resources := []payloads.RequestedResource{{Type: payloads.Instance, Value: 1}}
+	resources = append(resources, wl.Defaults...)
+	res := <-i.ctl.qs.Consume(i.TenantID, resources...)
 
-	return true, nil
-}
-
-func (c *config) GetResources() map[string]int {
-	rr := c.sc.Start.RequestedResources
-
-	// convert RequestedResources into a map[string]int
-	resources := make(map[string]int)
-	for i := range rr {
-		resources[string(rr[i].Type)] = rr[i].Value
-	}
-
-	return resources
+	// Cleanup on disallowed happens in Clean()
+	return res.Allowed(), nil
 }
 
 func addBlockDevice(c *controller, tenant string, instanceID string, device storage.BlockDevice, s types.StorageResource) (payloads.StorageResource, error) {
@@ -175,6 +173,16 @@ func addBlockDevice(c *controller, tenant string, instanceID string, device stor
 		Description: s.Tag,
 	}
 
+	res := <-c.qs.Consume(tenant,
+		payloads.RequestedResource{Type: payloads.Volume, Value: 1},
+		payloads.RequestedResource{Type: payloads.SharedDiskGiB, Value: device.Size})
+
+	if !res.Allowed() {
+		c.DeleteBlockDevice(device.ID)
+		c.qs.Release(tenant, res.Resources()...)
+		return payloads.StorageResource{}, fmt.Errorf("Error creating volume: %s", res.Reason())
+	}
+
 	err := c.ds.AddBlockDevice(data)
 	if err != nil {
 		c.DeleteBlockDevice(device.ID)
@@ -185,7 +193,6 @@ func addBlockDevice(c *controller, tenant string, instanceID string, device stor
 }
 
 func getStorage(c *controller, s types.StorageResource, tenant string, instanceID string) (payloads.StorageResource, error) {
-
 	// storage already exists, use preexisting definition.
 	if s.ID != "" {
 		return payloads.StorageResource{ID: s.ID, Bootable: s.Bootable}, nil
@@ -261,12 +268,7 @@ func controllerStorageResourceFromPayload(volume payloads.StorageResource) (s ty
 func newConfig(ctl *controller, wl *types.Workload, instanceID string, tenantID string,
 	volumes []storage.BlockDevice) (config, error) {
 
-	type UserData struct {
-		UUID     string `json:"uuid"`
-		Hostname string `json:"hostname"`
-	}
-
-	var userData UserData
+	var metaData userData
 	var config config
 
 	baseConfig := wl.Config
@@ -312,8 +314,8 @@ func newConfig(ctl *controller, wl *types.Workload, instanceID string, tenantID 
 		networking.ConcentratorIP = tenant.CNCIIP
 
 		// set the hostname and uuid for userdata
-		userData.UUID = instanceID
-		userData.Hostname = instanceID
+		metaData.UUID = instanceID
+		metaData.Hostname = instanceID
 
 		// handle storage resources for just this instance
 		for _, volume := range volumes {
@@ -354,8 +356,8 @@ func newConfig(ctl *controller, wl *types.Workload, instanceID string, tenantID 
 		networking.VnicMAC = tenant.CNCIMAC
 
 		// set the hostname and uuid for userdata
-		userData.UUID = instanceID
-		userData.Hostname = "cnci-" + tenantID
+		metaData.UUID = instanceID
+		metaData.Hostname = "cnci-" + tenantID
 	}
 
 	// handle storage resources in workload definition
@@ -398,7 +400,7 @@ func newConfig(ctl *controller, wl *types.Workload, instanceID string, tenantID 
 		glog.Warning("error marshalling config: ", err)
 	}
 
-	b, err := json.MarshalIndent(userData, "", "\t")
+	b, err := json.MarshalIndent(metaData, "", "\t")
 	if err != nil {
 		glog.Warning("error marshalling user data: ", err)
 	}

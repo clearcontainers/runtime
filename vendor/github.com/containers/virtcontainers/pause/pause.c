@@ -29,7 +29,6 @@ int main() {
 		return 1;
 	if (signal(SIGTERM, sigdown) == SIG_ERR)
 		return 2;
-	signal(SIGKILL, sigdown);
 	for (;;) pause();
 	fprintf(stderr, "error: infinite loop terminated\n");
 	return 42;

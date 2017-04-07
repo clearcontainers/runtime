@@ -23,20 +23,11 @@
     notify:
       - restart controller
 
-  - name: Copy tables/workload files
-    copy: dest=/var/lib/ciao/data/controller src={{ item }} owner=ciao group=ciao
-    with_items:
-      - tables
-      - workloads
-
-  - name: Copy test.yaml file
-    template: dest=/var/lib/ciao/data/controller/workloads/test.yaml src=workloads/test.yaml.j2 owner=ciao group=ciao
-
   - name: Create /etc/ciao config dir
     file: path=/etc/ciao state=directory owner=ciao group=ciao
 
   - name: Create configuration file
-    template: dest=/etc/ciao/configuration.yaml src=configuration.yaml.j2 owner=ciao group=ciao
+    template: dest=/etc/ciao/configuration.yaml src=configuration.yaml.j2 owner=ciao group=ciao mode=0600
 
   - meta: flush_handlers
 

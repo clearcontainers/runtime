@@ -17,7 +17,10 @@
 package types
 
 import (
+	"encoding/json"
 	"errors"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/01org/ciao/ciao-storage"
@@ -73,6 +76,7 @@ type StorageResource struct {
 // workload.
 type Workload struct {
 	ID          string                       `json:"id"`
+	TenantID    string                       `json:"-"`
 	Description string                       `json:"description"`
 	FWType      string                       `json:"fw_type"`
 	VMType      payloads.Hypervisor          `json:"vm_type"`
@@ -108,11 +112,12 @@ type Instance struct {
 	WorkloadID  string              `json:"workload_id"`
 	NodeID      string              `json:"node_id"`
 	MACAddress  string              `json:"mac_address"`
+	VnicUUID    string              `json:"vnic_uuid"`
+	Subnet      string              `json:"subnet"`
 	IPAddress   string              `json:"ip_address"`
 	SSHIP       string              `json:"ssh_ip"`
 	SSHPort     int                 `json:"ssh_port"`
 	CNCI        bool                `json:"-"`
-	Usage       map[string]int      `json:"-"`
 	Attachments []StorageAttachment `json:"-"`
 	CreateTime  time.Time           `json:"-"`
 }
@@ -133,28 +138,11 @@ func (s SortedComputeNodesByID) Less(i, j int) bool { return s[i].ID < s[j].ID }
 
 // Tenant contains information about a tenant or project.
 type Tenant struct {
-	ID        string
-	Name      string
-	CNCIID    string
-	CNCIMAC   string
-	CNCIIP    string
-	Resources []*Resource
-}
-
-// Resource contains quota or limit information on a resource type.
-type Resource struct {
-	Rname string
-	Rtype int
-	Limit int
-	Usage int
-}
-
-// OverLimit calculates whether a request will put a tenant over it's limit.
-func (r *Resource) OverLimit(request int) bool {
-	if r.Limit > 0 && r.Usage+request > r.Limit {
-		return true
-	}
-	return false
+	ID      string
+	Name    string
+	CNCIID  string
+	CNCIMAC string
+	CNCIIP  string
 }
 
 // LogEntry stores information about events.
@@ -566,6 +554,12 @@ var (
 	// ErrInstanceMapped is returned when an instance cannot be deleted
 	// due to having an external IP assigned to it.
 	ErrInstanceMapped = errors.New("Unmap the external IP prior to deletion")
+
+	// ErrWorkloadNotFound is returned when a workload ID cannot be found
+	ErrWorkloadNotFound = errors.New("Workload not found")
+
+	// ErrWorkloadInUse is returned by DeleteWorkload when an instance of a workload is still active.
+	ErrWorkloadInUse = errors.New("Workload definition still in use")
 )
 
 // Link provides a url and relationship for a resource.
@@ -666,4 +660,74 @@ type MappedIPShort struct {
 type MapIPRequest struct {
 	PoolName   *string `json:"pool_name"`
 	InstanceID string  `json:"instance_id"`
+}
+
+// QuotaDetails holds information for updating and querying quotas
+type QuotaDetails struct {
+	Name  string
+	Value int
+	Usage int
+}
+
+// MarshalJSON provides a custom marshaller for quota API
+func (qd *QuotaDetails) MarshalJSON() ([]byte, error) {
+	var v string
+	if qd.Value == -1 {
+		v = "unlimited"
+	} else {
+		v = strconv.Itoa(qd.Value)
+	}
+
+	if strings.Contains(qd.Name, "limit") {
+		return json.Marshal(&struct {
+			Name  string `json:"name"`
+			Value string `json:"value"`
+		}{
+			Name:  qd.Name,
+			Value: v,
+		})
+	}
+
+	return json.Marshal(&struct {
+		Name  string `json:"name"`
+		Value string `json:"value"`
+		Usage string `json:"usage"`
+	}{
+		Name:  qd.Name,
+		Value: v,
+		Usage: strconv.Itoa(qd.Usage),
+	})
+}
+
+// UnmarshalJSON provides a custom demarshaller for quota API
+func (qd *QuotaDetails) UnmarshalJSON(data []byte) error {
+	tmp := struct {
+		Name  string `json:"name"`
+		Value string `json:"value"`
+		Usage string `json:"usage"`
+	}{}
+
+	err := json.Unmarshal(data, &tmp)
+	if err != nil {
+		return err
+	}
+
+	qd.Name = tmp.Name
+	if tmp.Value == "unlimited" {
+		qd.Value = -1
+	} else {
+		qd.Value, _ = strconv.Atoi(tmp.Value)
+	}
+	qd.Usage, _ = strconv.Atoi(tmp.Usage)
+	return nil
+}
+
+// QuotaUpdateRequest holds the layout for updating quota API
+type QuotaUpdateRequest struct {
+	Quotas []QuotaDetails `json:"quotas"`
+}
+
+// QuotaListResponse holds the layout for returning quotas in the API
+type QuotaListResponse struct {
+	Quotas []QuotaDetails `json:"quotas"`
 }

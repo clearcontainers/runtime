@@ -56,10 +56,10 @@ func printCloudinit(data *payloads.Start) {
 	glog.Info("cloud-init file content")
 	glog.Info("-----------------------")
 	glog.Infof("Instance UUID:        %v", start.InstanceUUID)
-	glog.Infof("Disk image UUID:      %v", start.ImageUUID)
+	glog.Infof("Docker image:         %v", start.DockerImage)
 	glog.Infof("FW Type:              %v", start.FWType)
 	glog.Infof("VM Type:              %v", start.VMType)
-	glog.Infof("TenantUUID:          %v", start.TenantUUID)
+	glog.Infof("TenantUUID:           %v", start.TenantUUID)
 	net := &start.Networking
 	glog.Infof("VnicMAC:              %v", net.VnicMAC)
 	glog.Infof("VnicIP:               %v", net.PrivateIP)
@@ -67,6 +67,7 @@ func printCloudinit(data *payloads.Start) {
 	glog.Infof("SubnetIP:             %v", net.Subnet)
 	glog.Infof("ConcUUID:             %v", net.ConcentratorUUID)
 	glog.Infof("VnicUUID:             %v", net.VnicUUID)
+	glog.Infof("Restart:              %t", start.Restart)
 
 	glog.Info("Requested resources:")
 	for i := range start.RequestedResources {
@@ -105,21 +106,13 @@ func computeSSHPort(networkNode bool, vnicIP string) int {
 	return port
 }
 
-func parseVMTtype(start *payloads.StartCmd) (container bool, image string, err error) {
+func parseVMTtype(start *payloads.StartCmd) (bool, error) {
 	vmType := start.VMType
 	if vmType != "" && vmType != payloads.QEMU && vmType != payloads.Docker {
-		err = fmt.Errorf("Invalid vmtype received: %s", vmType)
-		return
+		return false, fmt.Errorf("Invalid vmtype received: %s", vmType)
 	}
 
-	container = vmType == payloads.Docker
-	if container {
-		image = start.DockerImage
-	} else {
-		image = start.ImageUUID
-	}
-
-	return
+	return vmType == payloads.Docker, nil
 }
 
 func parseStartPayload(data []byte) (*vmConfig, *payloadError) {
@@ -148,7 +141,7 @@ func parseStartPayload(data []byte) (*vmConfig, *payloadError) {
 
 	var cpus, mem int
 	var networkNode bool
-	container, image, err := parseVMTtype(start)
+	container, err := parseVMTtype(start)
 	if err != nil {
 		return nil, &payloadError{err, payloads.InvalidData}
 	}
@@ -185,7 +178,7 @@ func parseStartPayload(data []byte) (*vmConfig, *payloadError) {
 	return &vmConfig{Cpus: cpus,
 		Mem:         mem,
 		Instance:    instance,
-		Image:       image,
+		DockerImage: start.DockerImage,
 		Legacy:      legacy,
 		Container:   container,
 		NetworkNode: networkNode,
@@ -198,6 +191,7 @@ func parseStartPayload(data []byte) (*vmConfig, *payloadError) {
 		VnicUUID:    strings.TrimSpace(net.VnicUUID),
 		SSHPort:     sshPort,
 		Volumes:     volumes,
+		Restart:     clouddata.Start.Restart,
 	}, nil
 }
 
@@ -205,24 +199,9 @@ func generateStartError(instance string, startErr *startError) (out []byte, err 
 	sf := &payloads.ErrorStartFailure{
 		InstanceUUID: instance,
 		Reason:       startErr.code,
+		Restart:      startErr.restart,
 	}
 	return yaml.Marshal(sf)
-}
-
-func generateStopError(instance string, stopErr *stopError) (out []byte, err error) {
-	sf := &payloads.ErrorStopFailure{
-		InstanceUUID: instance,
-		Reason:       stopErr.code,
-	}
-	return yaml.Marshal(sf)
-}
-
-func generateRestartError(instance string, restartErr *restartError) (out []byte, err error) {
-	rf := &payloads.ErrorRestartFailure{
-		InstanceUUID: instance,
-		Reason:       restartErr.code,
-	}
-	return yaml.Marshal(rf)
 }
 
 func generateDeleteError(instance string, deleteErr *deleteError) (out []byte, err error) {
@@ -280,53 +259,20 @@ func generateNetEventPayload(ssntpEvent *libsnnet.SsntpEventInfo, agentUUID stri
 	return yaml.Marshal(event)
 }
 
-func parseRestartPayload(data []byte) (string, *payloadError) {
-	var clouddata payloads.Restart
-
-	err := yaml.Unmarshal(data, &clouddata)
-	if err != nil {
-		return "", &payloadError{err, payloads.RestartInvalidPayload}
-	}
-
-	instance := strings.TrimSpace(clouddata.Restart.InstanceUUID)
-	if !uuidRegexp.MatchString(instance) {
-		err = fmt.Errorf("Invalid instance id received: %s", instance)
-		return "", &payloadError{err, payloads.RestartInvalidData}
-	}
-	return instance, nil
-}
-
-func parseDeletePayload(data []byte) (string, *payloadError) {
+func parseDeletePayload(data []byte) (string, bool, *payloadError) {
 	var clouddata payloads.Delete
 
 	err := yaml.Unmarshal(data, &clouddata)
 	if err != nil {
-		return "", &payloadError{err, payloads.DeleteInvalidPayload}
+		return "", false, &payloadError{err, payloads.DeleteInvalidPayload}
 	}
 
 	instance := strings.TrimSpace(clouddata.Delete.InstanceUUID)
 	if !uuidRegexp.MatchString(instance) {
 		err = fmt.Errorf("Invalid instance id received: %s", instance)
-		return "", &payloadError{err, payloads.DeleteInvalidData}
+		return "", false, &payloadError{err, payloads.DeleteInvalidData}
 	}
-	return instance, nil
-}
-
-func parseStopPayload(data []byte) (string, *payloadError) {
-	var clouddata payloads.Stop
-
-	err := yaml.Unmarshal(data, &clouddata)
-	if err != nil {
-		glog.Errorf("YAML error: %v", err)
-		return "", &payloadError{err, payloads.StopInvalidPayload}
-	}
-
-	instance := strings.TrimSpace(clouddata.Stop.InstanceUUID)
-	if !uuidRegexp.MatchString(instance) {
-		err = fmt.Errorf("Invalid instance id received: %s", instance)
-		return "", &payloadError{err, payloads.StopInvalidData}
-	}
-	return instance, nil
+	return instance, clouddata.Delete.Stop, nil
 }
 
 func extractVolumeInfo(cmd *payloads.VolumeCmd, errString string) (string, string, *payloadError) {

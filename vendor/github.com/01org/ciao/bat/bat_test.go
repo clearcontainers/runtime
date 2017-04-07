@@ -88,45 +88,6 @@ func TestMissingCheckStatuses(t *testing.T) {
 	}
 }
 
-func TestParseInstances(t *testing.T) {
-	const goodOutput = `Created new instance: 50853f43-e308-4bbd-b75a-c2305bc40615
-Created new instance: c4a492dd-0df1-47e4-9407-a19c8e1820ee
-Created new instance: f7709d71-8a1e-4295-8940-b32a5c82ede4
-`
-	instances, err := parseInstances([]byte(goodOutput), 3)
-	if err != nil || len(instances) != 3 ||
-		instances[0] != "50853f43-e308-4bbd-b75a-c2305bc40615" ||
-		instances[1] != "c4a492dd-0df1-47e4-9407-a19c8e1820ee" ||
-		instances[2] != "f7709d71-8a1e-4295-8940-b32a5c82ede4" {
-		t.Errorf("parseInstance failed to parse positive test case")
-	}
-
-	const missingColon = `Created new instance: 50853f43-e308-4bbd-b75a-c2305bc40615
-Created new instance c4a492dd-0df1-47e4-9407-a19c8e1820ee
-Created new instance: f7709d71-8a1e-4295-8940-b32a5c82ede4
-`
-	instances, err = parseInstances([]byte(missingColon), 3)
-	if err == nil || instances != nil {
-		t.Errorf("parseInstance failed to parse missing colon error case")
-	}
-
-	const extraNewline = `Created new instance: 50853f43-e308-4bbd-b75a-c2305bc40615
-Created new instance c4a492dd-0df1-47e4-9407-a19c8e1820ee
-
-Created new instance: f7709d71-8a1e-4295-8940-b32a5c82ede4
-`
-
-	instances, err = parseInstances([]byte(extraNewline), 3)
-	if err == nil || instances != nil {
-		t.Errorf("parseInstance failed to parse extra newline error case")
-	}
-
-	instances, err = parseInstances([]byte(goodOutput), 4)
-	if err == nil || instances != nil {
-		t.Errorf("parseInstance failed on too few instances error case")
-	}
-}
-
 func TestImageOptions(t *testing.T) {
 	opts := &ImageOptions{
 		ContainerFormat:  "ovf",

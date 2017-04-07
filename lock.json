@@ -1,20 +1,11 @@
 {
-    "memo": "7279a2ee458c8adea23b1643b5ae1fa0c868bdd46dfc41a15669c56fcd49f2f8",
+    "memo": "2f92ae7a44bbadfbe4d06c0db49a8ea150780f05678f65b1809c55ab9cb9e5ed",
     "projects": [
         {
-            "name": "github.com/01org/cc-oci-runtime",
-            "version": "2.1.0-rc.5",
-            "revision": "7cb997eab88547afb4f088d151409a9a1fe28dc3",
-            "packages": [
-                "proxy/api"
-            ]
-        },
-        {
             "name": "github.com/01org/ciao",
-            "version": "85",
-            "revision": "7c6525a966fb194d40508cfad04757d1f52191ed",
+            "branch": "master",
+            "revision": "f143425a2d4db8fc48dae3e781669301d9b6f0e7",
             "packages": [
-                "networking/libsnnet",
                 "qemu",
                 "ssntp/uuid"
             ]
@@ -36,11 +27,10 @@
             ]
         },
         {
-            "name": "github.com/boltdb/bolt",
-            "version": "v1.3.0",
-            "revision": "583e8937c61f1af6513608ccc75c97b6abdf4ff9",
+            "name": "github.com/clearcontainers/proxy",
+            "revision": "1cbbed5d3de4749739234570641fc7afac2acc07",
             "packages": [
-                "."
+                "client"
             ]
         },
         {
@@ -50,72 +40,16 @@
             "packages": [
                 "libcni",
                 "pkg/ns",
+                "pkg/types",
                 "pkg/types/current"
             ]
         },
         {
             "name": "github.com/containers/virtcontainers",
-            "revision": "5c92f1f5efb746caf6c3d6986c86356affcfbfd6",
+            "revision": "9c9e19090764e5808268dffc43f7fa53c1064a41",
             "packages": [
                 ".",
                 "pkg/oci"
-            ]
-        },
-        {
-            "name": "github.com/coreos/go-iptables",
-            "version": "v0.1.0",
-            "revision": "fbb73372b87f6e89951c2b6b31470c2c9d5cfae3",
-            "packages": [
-                "iptables"
-            ]
-        },
-        {
-            "name": "github.com/docker/go-connections",
-            "version": "v0.2.1",
-            "revision": "990a1a1a70b0da4c4cb70e117971a4f0babfbf1a",
-            "packages": [
-                "tlsconfig"
-            ]
-        },
-        {
-            "name": "github.com/docker/libnetwork",
-            "branch": "master",
-            "revision": "dbb0722c99715b3d183e348d29b894f97f38634c",
-            "packages": [
-                "drivers/remote/api",
-                "ipams/remote/api"
-            ]
-        },
-        {
-            "name": "github.com/golang/glog",
-            "branch": "master",
-            "revision": "23def4e6c14b4da8ac2ed8007337bc5eb5007998",
-            "packages": [
-                "."
-            ]
-        },
-        {
-            "name": "github.com/gorilla/context",
-            "version": "v1.1",
-            "revision": "1ea25387ff6f684839d82767c1733ff4d4d15d0a",
-            "packages": [
-                "."
-            ]
-        },
-        {
-            "name": "github.com/gorilla/mux",
-            "version": "v1.3.0",
-            "revision": "392c28fe23e1c45ddba891b0320b3b5df220beea",
-            "packages": [
-                "."
-            ]
-        },
-        {
-            "name": "github.com/hyperhq/runv",
-            "branch": "master",
-            "revision": "ed95cfe252382c58b4884fc68161b9dc3b378d28",
-            "packages": [
-                "hyperstart/api/json"
             ]
         },
         {

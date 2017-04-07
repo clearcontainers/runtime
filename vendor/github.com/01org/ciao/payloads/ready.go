@@ -45,6 +45,10 @@ type Ready struct {
 	// cpu[0-9]+ entries in /proc/stat.
 	CpusOnline int `yaml:"cpus_online"`
 
+	// Array containing one entry for each network interface present on the
+	// CN/NN
+	Networks []NetworkStat
+
 	// Any changes to this struct should be accompanied by a change to
 	// the ciao-scheduler/scheduler.go:updateNodeStat() function
 }

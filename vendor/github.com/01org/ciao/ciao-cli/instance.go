@@ -32,33 +32,13 @@ import (
 
 	"github.com/01org/ciao/ciao-controller/types"
 	"github.com/01org/ciao/openstack/compute"
+	"github.com/01org/ciao/templateutils"
 )
 
 const (
-	osStart              = "os-start"
-	osStop               = "os-stop"
-	osDelete             = "os-delete"
-	instanceTemplateDesc = `struct {
-	HostID   string                               // ID of the host node
-	ID       string                               // Instance UUID
-	TenantID string                               // Tenant UUID
-	Flavor   struct {
-		ID string                             // Workload UUID
-	}
-	Image struct {
-		ID string                             // Backing image UUID
-	}
-	Status    string                              // Instance status
-	Addresses struct {
-		Private []struct {
-			Addr               string     // Instance IP address
-			OSEXTIPSMACMacAddr string     // Instance MAC address
-		}
-	}
-	SSHIP   string                                // Instance SSH IP address
-	SSHPort int                                   // Instance SSH Port
-	OsExtendedVolumesVolumesAttached []string     // list of attached volumes
-}`
+	osStart  = "os-start"
+	osStop   = "os-stop"
+	osDelete = "os-delete"
 )
 
 var instanceCommand = &command{
@@ -402,6 +382,7 @@ type instanceAddCommand struct {
 	instances int
 	label     string
 	volumes   volumeFlagSlice
+	template  string
 }
 
 func (cmd *instanceAddCommand) usage(...string) {
@@ -414,6 +395,7 @@ The add flags are:
 `)
 	cmd.Flag.PrintDefaults()
 	printVolumeFlagUsage()
+	fmt.Fprintf(os.Stderr, "\n%s", templateutils.GenerateUsageDecorated("f", []compute.ServerDetails{}, nil))
 	os.Exit(2)
 }
 
@@ -422,6 +404,7 @@ func (cmd *instanceAddCommand) parseArgs(args []string) []string {
 	cmd.Flag.IntVar(&cmd.instances, "instances", 1, "Number of instances to create")
 	cmd.Flag.StringVar(&cmd.label, "label", "", "Set a frame label. This will trigger frame tracing")
 	cmd.Flag.Var(&cmd.volumes, "volume", "volume descriptor argument list")
+	cmd.Flag.StringVar(&cmd.template, "f", "", "Template used to format output")
 	cmd.Flag.Usage = func() { cmd.usage() }
 	cmd.Flag.Parse(args)
 	return cmd.Flag.Args()
@@ -540,9 +523,19 @@ func (cmd *instanceAddCommand) run(args []string) error {
 		fatalf(err.Error())
 	}
 
+	if cmd.template != "" {
+		return templateutils.OutputToTemplate(os.Stdout, "instance-add", cmd.template,
+			&servers.Servers, nil)
+	}
+
+	if len(servers.Servers) < cmd.instances {
+		fmt.Println("Some instances failed to start - check the event log for details.")
+	}
+
 	for _, server := range servers.Servers {
 		fmt.Printf("Created new (pending) instance: %s\n", server.ID)
 	}
+
 	return nil
 }
 
@@ -719,12 +712,7 @@ The list flags are:
 
 `)
 	cmd.Flag.PrintDefaults()
-	fmt.Fprintf(os.Stderr, `
-The template passed to the -f option operates on a 
-
-[]%s
-`, instanceTemplateDesc)
-	fmt.Fprintln(os.Stderr, templateFunctionHelp)
+	fmt.Fprintf(os.Stderr, "\n%s", templateutils.GenerateUsageDecorated("f", []compute.ServerDetails{}, nil))
 	os.Exit(2)
 }
 
@@ -758,13 +746,8 @@ func (cmd *instanceListCommand) run(args []string) error {
 	}
 
 	var servers compute.Servers
-	var url string
 
-	if cmd.workload != "" {
-		url = buildComputeURL("flavors/%s/servers/detail", cmd.workload)
-	} else {
-		url = buildComputeURL("%s/servers/detail", cmd.tenant)
-	}
+	url := buildComputeURL("%s/servers/detail", cmd.tenant)
 
 	var values []queryValue
 	if cmd.limit > 0 {
@@ -788,6 +771,13 @@ func (cmd *instanceListCommand) run(args []string) error {
 		})
 	}
 
+	if cmd.workload != "" {
+		values = append(values, queryValue{
+			name:  "flavor",
+			value: cmd.workload,
+		})
+	}
+
 	resp, err := sendHTTPRequest("GET", url, values, nil)
 	if err != nil {
 		fatalf(err.Error())
@@ -805,8 +795,8 @@ func (cmd *instanceListCommand) run(args []string) error {
 	sort.Sort(byCreated(sortedServers))
 
 	if cmd.template != "" {
-		return outputToTemplate("instance-list", cmd.template,
-			&sortedServers)
+		return templateutils.OutputToTemplate(os.Stdout, "instance-list", cmd.template,
+			&sortedServers, nil)
 	}
 
 	w := new(tabwriter.Writer)
@@ -852,13 +842,7 @@ The show flags are:
 
 `)
 	cmd.Flag.PrintDefaults()
-
-	fmt.Fprintf(os.Stderr, `
-The template passed to the -f option operates on a 
-
-%s
-`, instanceTemplateDesc)
-	fmt.Fprintln(os.Stderr, templateFunctionHelp)
+	fmt.Fprintf(os.Stderr, "\n%s", templateutils.GenerateUsageDecorated("f", compute.ServerDetails{}, nil))
 	os.Exit(2)
 }
 
@@ -889,8 +873,8 @@ func (cmd *instanceShowCommand) run(args []string) error {
 	}
 
 	if cmd.template != "" {
-		return outputToTemplate("instance-show", cmd.template,
-			&server.Server)
+		return templateutils.OutputToTemplate(os.Stdout, "instance-show", cmd.template,
+			&server.Server, nil)
 	}
 
 	dumpInstance(&server.Server)

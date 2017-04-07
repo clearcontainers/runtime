@@ -1,0 +1,126 @@
+{
+    "memo": "4c76a118baef92b9fb5a98916d713b34f82809485387e5e398bbdef152b74a71",
+    "projects": [
+        {
+            "name": "github.com/01org/ciao",
+            "branch": "master",
+            "revision": "dda37852a178ecdc435c50efbe9a8e12ce705acb",
+            "packages": [
+                "qemu",
+                "ssntp/uuid"
+            ]
+        },
+        {
+            "name": "github.com/Sirupsen/logrus",
+            "branch": "master",
+            "revision": "1deb2db2a6fff8a35532079061b903c3a25eed52",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/clearcontainers/proxy",
+            "revision": "1cbbed5d3de4749739234570641fc7afac2acc07",
+            "packages": [
+                "client"
+            ]
+        },
+        {
+            "name": "github.com/containernetworking/cni",
+            "branch": "master",
+            "revision": "0799f5732f2a11b329d9e3d51b9c8f2e3759f2ff",
+            "packages": [
+                "libcni",
+                "pkg/ns",
+                "pkg/types",
+                "pkg/types/current"
+            ]
+        },
+        {
+            "name": "github.com/davecgh/go-spew",
+            "branch": "master",
+            "revision": "346938d642f2ec3594ed81d874461961cd0faa76",
+            "packages": [
+                "spew"
+            ]
+        },
+        {
+            "name": "github.com/mitchellh/mapstructure",
+            "branch": "master",
+            "revision": "53818660ed4955e899c0bcafa97299a388bd7c8e",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/opencontainers/runc",
+            "revision": "dcbcdf2470421e911211604c61ea3e8ca740d346",
+            "packages": [
+                "libcontainer/configs"
+            ]
+        },
+        {
+            "name": "github.com/opencontainers/runtime-spec",
+            "revision": "a5c4e91dae9533c46a98f122b5085c0b3fe27ee4",
+            "packages": [
+                "specs-go"
+            ]
+        },
+        {
+            "name": "github.com/pmezard/go-difflib",
+            "version": "v1.0.0",
+            "revision": "792786c7400a136282c1664665ae0a8db921c6c2",
+            "packages": [
+                "difflib"
+            ]
+        },
+        {
+            "name": "github.com/stretchr/testify",
+            "branch": "master",
+            "revision": "4d4bfba8f1d1027c4fdbe371823030df51419987",
+            "packages": [
+                "assert"
+            ]
+        },
+        {
+            "name": "github.com/urfave/cli",
+            "branch": "master",
+            "revision": "9e5b04886c4bfee2ceba1465b8121057355c4e53",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/vishvananda/netlink",
+            "branch": "master",
+            "revision": "fe3b5664d23a11b52ba59bece4ff29c52772a56b",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/vishvananda/netns",
+            "branch": "master",
+            "revision": "54f0e4339ce73702a0607f49922aaa1e749b418d",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "golang.org/x/crypto",
+            "branch": "master",
+            "revision": "728b753d0135da6801d45a38e6f43ff55779c5c2",
+            "packages": [
+                "ssh"
+            ]
+        },
+        {
+            "name": "golang.org/x/sys",
+            "branch": "master",
+            "revision": "99f16d856c9836c42d24e7ab64ea72916925fa97",
+            "packages": [
+                "unix"
+            ]
+        }
+    ]
+}

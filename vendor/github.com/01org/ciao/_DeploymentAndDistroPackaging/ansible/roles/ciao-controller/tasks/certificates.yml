@@ -18,39 +18,33 @@
     connection: local
     file: path=certificates/ciao state=directory
 
-  - name: Set ciao-cert location
-    set_fact: ciao_cert={{ (gopath + '/bin/ciao-cert') if ciao_dev else '../../fetch/ciao-cert' }}
-
   - name: Create Scheduler key and CA certificate
     become: no
     connection: local
     command: >
-      {{ ciao_cert }} -anchor -role scheduler
+      {{ gopath }}/bin/ciao-cert -anchor -role scheduler
       -email={{ ciao_admin_email }} -organization="{{ ciao_cert_organization }}"
       -ip={{ ciao_controller_ip }} -host={{ ciao_controller_fqdn }} -verify
     args:
       chdir: certificates/ciao
       creates: CAcert-{{ ciao_controller_fqdn }}.pem
 
+  - name: Clean dual_agent_keys if there are no dual_nodes
+    set_fact:
+      dual_agent_keys: [ ]
+    when: not dual_nodes
+
   - name: Create agent keys
     become: no
     connection: local
     command: >
-      {{ ciao_cert }} -role {{ item.role }} --anchor-cert
+      {{ gopath }}/bin/ciao-cert -role {{ item.role }} --anchor-cert
       cert-Scheduler-{{ ciao_controller_fqdn }}.pem -email={{ ciao_admin_email }}
       --organization="{{ ciao_cert_organization }}" -host=localhost -verify
     args:
       chdir: certificates/ciao
       creates: "{{ item.creates }}"
-    with_items:
-      - role: agent
-        creates: cert-CNAgent-localhost.pem
-      - role: netagent
-        creates: cert-NetworkingAgent-localhost.pem
-      - role: cnciagent
-        creates: cert-CNCIAgent-localhost.pem
-      - role: controller
-        creates: cert-Controller-localhost.pem
+    with_items: "{{ agent_keys + dual_agent_keys }}"
 
   - name: Copy certificates
     copy: src=certificates/{{ item }} dest=/etc/pki/{{ item }}

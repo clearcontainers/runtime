@@ -38,7 +38,7 @@ func processDetachVolume(storageDriver storage.BlockDriver, monitorCh chan inter
 		return detachErr
 	}
 
-	if cfg.Image == "" && vol.Bootable {
+	if vol.Bootable {
 		glog.Errorf("Unable to detach volume %s from instance %s. Volume is bootable!", volumeUUID, instance)
 		attachErr := &detachVolumeError{nil, payloads.DetachVolumeDetachFailure}
 		return attachErr

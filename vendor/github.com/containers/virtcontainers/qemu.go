@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
@@ -27,7 +28,6 @@ import (
 
 	ciaoQemu "github.com/01org/ciao/qemu"
 	"github.com/01org/ciao/ssntp/uuid"
-	"github.com/golang/glog"
 )
 
 type qmpChannel struct {
@@ -65,22 +65,34 @@ const (
 	defaultMemSlots uint8 = 2
 )
 
-type qmpGlogLogger struct{}
+const (
+	defaultConsole = "console.sock"
+)
 
-func (l qmpGlogLogger) V(level int32) bool {
-	return bool(glog.V(glog.Level(level)))
+const (
+	maxDevIDSize = 31
+)
+
+type qmpLogger struct{}
+
+func (l qmpLogger) V(level int32) bool {
+	if level != 0 {
+		return true
+	}
+
+	return false
 }
 
-func (l qmpGlogLogger) Infof(format string, v ...interface{}) {
-	glog.InfoDepth(2, fmt.Sprintf(format, v...))
+func (l qmpLogger) Infof(format string, v ...interface{}) {
+	virtLog.Infof(format, v...)
 }
 
-func (l qmpGlogLogger) Warningf(format string, v ...interface{}) {
-	glog.WarningDepth(2, fmt.Sprintf(format, v...))
+func (l qmpLogger) Warningf(format string, v ...interface{}) {
+	virtLog.Warnf(format, v...)
 }
 
-func (l qmpGlogLogger) Errorf(format string, v ...interface{}) {
-	glog.ErrorDepth(2, fmt.Sprintf(format, v...))
+func (l qmpLogger) Errorf(format string, v ...interface{}) {
+	virtLog.Errorf(format, v...)
 }
 
 var kernelDefaultParams = []Param{
@@ -101,7 +113,7 @@ var kernelDefaultParams = []Param{
 	{"console", "hvc1"},
 	{"initcall_debug", ""},
 	{"init", "/usr/lib/systemd/systemd"},
-	{"systemd.unit", "container.target"},
+	{"systemd.unit", "cc-agent.target"},
 	{"iommu", "off"},
 	{"systemd.mask", "systemd-networkd.service"},
 	{"systemd.mask", "systemd-networkd.socket"},
@@ -145,11 +157,16 @@ func (q *qemu) appendVolume(devices []ciaoQemu.Device, volume Volume) []ciaoQemu
 		return devices
 	}
 
+	devID := fmt.Sprintf("extra-9p-%s", volume.MountTag)
+	if len(devID) > maxDevIDSize {
+		devID = string(devID[:maxDevIDSize])
+	}
+
 	devices = append(devices,
 		ciaoQemu.FSDevice{
 			Driver:        ciaoQemu.Virtio9P,
 			FSDriver:      ciaoQemu.Local,
-			ID:            fmt.Sprintf("extra-%s-9p", volume.MountTag),
+			ID:            devID,
 			Path:          volume.HostPath,
 			MountTag:      volume.MountTag,
 			SecurityModel: ciaoQemu.None,
@@ -160,12 +177,17 @@ func (q *qemu) appendVolume(devices []ciaoQemu.Device, volume Volume) []ciaoQemu
 }
 
 func (q *qemu) appendSocket(devices []ciaoQemu.Device, socket Socket) []ciaoQemu.Device {
+	devID := socket.ID
+	if len(devID) > maxDevIDSize {
+		devID = string(devID[:maxDevIDSize])
+	}
+
 	devices = append(devices,
 		ciaoQemu.CharDevice{
 			Driver:   ciaoQemu.VirtioSerialPort,
 			Backend:  ciaoQemu.Socket,
 			DeviceID: socket.DeviceID,
-			ID:       socket.ID,
+			ID:       devID,
 			Path:     socket.HostPath,
 			Name:     socket.Name,
 		},
@@ -175,12 +197,12 @@ func (q *qemu) appendSocket(devices []ciaoQemu.Device, socket Socket) []ciaoQemu
 }
 
 func (q *qemu) appendNetworks(devices []ciaoQemu.Device, endpoints []Endpoint) []ciaoQemu.Device {
-	for _, endpoint := range endpoints {
+	for idx, endpoint := range endpoints {
 		devices = append(devices,
 			ciaoQemu.NetDevice{
 				Type:       ciaoQemu.TAP,
 				Driver:     ciaoQemu.VirtioNet,
-				ID:         fmt.Sprintf("network%s", endpoint.NetPair.ID),
+				ID:         fmt.Sprintf("network-%d", idx),
 				IFName:     endpoint.NetPair.TAPIface.Name,
 				MACAddress: endpoint.NetPair.VirtIface.HardAddr,
 			},
@@ -192,7 +214,7 @@ func (q *qemu) appendNetworks(devices []ciaoQemu.Device, endpoints []Endpoint) [
 
 func (q *qemu) appendFSDevices(devices []ciaoQemu.Device, podConfig PodConfig) []ciaoQemu.Device {
 	// Add the containers rootfs
-	for _, c := range podConfig.Containers {
+	for idx, c := range podConfig.Containers {
 		if c.RootFs == "" || c.ID == "" {
 			continue
 		}
@@ -201,9 +223,9 @@ func (q *qemu) appendFSDevices(devices []ciaoQemu.Device, podConfig PodConfig) [
 			ciaoQemu.FSDevice{
 				Driver:        ciaoQemu.Virtio9P,
 				FSDriver:      ciaoQemu.Local,
-				ID:            fmt.Sprintf("ctr-%s-9p", c.ID),
+				ID:            fmt.Sprintf("ctr-9p-%d", idx),
 				Path:          c.RootFs,
-				MountTag:      fmt.Sprintf("ctr-rootfs-%s", c.ID),
+				MountTag:      fmt.Sprintf("ctr-rootfs-%d", idx),
 				SecurityModel: ciaoQemu.None,
 			},
 		)
@@ -225,24 +247,36 @@ func (q *qemu) appendConsoles(devices []ciaoQemu.Device, podConfig PodConfig) []
 
 	devices = append(devices, serial)
 
-	for i, c := range podConfig.Containers {
-		var console ciaoQemu.CharDevice
-		if c.Interactive == false || c.Console == "" {
-			consolePath := fmt.Sprintf("%s/%s/console.sock", runStoragePath, podConfig.ID)
+	var console ciaoQemu.CharDevice
 
+	console = ciaoQemu.CharDevice{
+		Driver:   ciaoQemu.Console,
+		Backend:  ciaoQemu.Socket,
+		DeviceID: "console0",
+		ID:       "charconsole0",
+		Path:     q.getPodConsole(podConfig.ID),
+	}
+
+	devices = append(devices, console)
+
+	for i, c := range podConfig.Containers {
+		// Need to add an offset of 1 because of the console created for the pod.
+		idx := i + 1
+
+		if c.Interactive == false || c.Console == "" {
 			console = ciaoQemu.CharDevice{
 				Driver:   ciaoQemu.Console,
 				Backend:  ciaoQemu.Socket,
-				DeviceID: fmt.Sprintf("console%d", i),
-				ID:       fmt.Sprintf("charconsole%d", i),
-				Path:     consolePath,
+				DeviceID: fmt.Sprintf("console%d", idx),
+				ID:       fmt.Sprintf("charconsole%d", idx),
+				Path:     fmt.Sprintf("%s/%s/%s/%s", runStoragePath, podConfig.ID, c.ID, defaultConsole),
 			}
 		} else {
 			console = ciaoQemu.CharDevice{
 				Driver:   ciaoQemu.Console,
 				Backend:  ciaoQemu.Serial,
-				DeviceID: fmt.Sprintf("console%d", i),
-				ID:       fmt.Sprintf("charconsole%d", i),
+				DeviceID: fmt.Sprintf("console%d", idx),
+				ID:       fmt.Sprintf("charconsole%d", idx),
 				Path:     c.Console,
 			}
 		}
@@ -330,21 +364,21 @@ func (q *qemu) qmpMonitor(connectedCh chan struct{}) {
 		q.qmpMonitorCh.wg.Done()
 	}(q)
 
-	cfg := ciaoQemu.QMPConfig{Logger: qmpGlogLogger{}}
+	cfg := ciaoQemu.QMPConfig{Logger: qmpLogger{}}
 	qmp, ver, err := ciaoQemu.QMPStart(q.qmpMonitorCh.ctx, q.qmpMonitorCh.path, cfg, q.qmpMonitorCh.disconnectCh)
 	if err != nil {
-		glog.Errorf("Failed to connect to QEMU instance %v", err)
+		virtLog.Errorf("Failed to connect to QEMU instance %v", err)
 		return
 	}
 
 	q.qmpMonitorCh.qmp = qmp
 
-	glog.Infof("QMP version %d.%d.%d", ver.Major, ver.Minor, ver.Micro)
-	glog.Infof("QMP capabilities %s", ver.Capabilities)
+	virtLog.Infof("QMP version %d.%d.%d", ver.Major, ver.Minor, ver.Micro)
+	virtLog.Infof("QMP capabilities %s", ver.Capabilities)
 
 	err = q.qmpMonitorCh.qmp.ExecuteQMPCapabilities(q.qmpMonitorCh.ctx)
 	if err != nil {
-		glog.Errorf("Unable to send qmp_capabilities command: %v", err)
+		virtLog.Errorf("Unable to send qmp_capabilities command: %v", err)
 		return
 	}
 
@@ -472,7 +506,7 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 
 // startPod will start the Pod's VM.
 func (q *qemu) startPod(startCh, stopCh chan struct{}) error {
-	strErr, err := ciaoQemu.LaunchQemu(q.qemuConfig, qmpGlogLogger{})
+	strErr, err := ciaoQemu.LaunchQemu(q.qemuConfig, qmpLogger{})
 	if err != nil {
 		return fmt.Errorf("%s", strErr)
 	}
@@ -487,18 +521,18 @@ func (q *qemu) startPod(startCh, stopCh chan struct{}) error {
 
 // stopPod will stop the Pod's VM.
 func (q *qemu) stopPod() error {
-	cfg := ciaoQemu.QMPConfig{Logger: qmpGlogLogger{}}
+	cfg := ciaoQemu.QMPConfig{Logger: qmpLogger{}}
 	q.qmpControlCh.disconnectCh = make(chan struct{})
 
 	qmp, _, err := ciaoQemu.QMPStart(q.qmpControlCh.ctx, q.qmpControlCh.path, cfg, q.qmpControlCh.disconnectCh)
 	if err != nil {
-		glog.Errorf("Failed to connect to QEMU instance %v", err)
+		virtLog.Errorf("Failed to connect to QEMU instance %v", err)
 		return err
 	}
 
 	err = qmp.ExecuteQMPCapabilities(q.qmpMonitorCh.ctx)
 	if err != nil {
-		glog.Errorf("Failed to negotiate capabilities with QEMU %v", err)
+		virtLog.Errorf("Failed to negotiate capabilities with QEMU %v", err)
 		return err
 	}
 
@@ -522,4 +556,10 @@ func (q *qemu) addDevice(devInfo interface{}, devType deviceType) error {
 	}
 
 	return nil
+}
+
+// getPodConsole builds the path of the console where we can read
+// logs coming from the pod.
+func (q *qemu) getPodConsole(podID string) string {
+	return filepath.Join(runStoragePath, podID, defaultConsole)
 }

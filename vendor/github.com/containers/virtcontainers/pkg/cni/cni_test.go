@@ -358,7 +358,7 @@ func TestRemoveNetworkSuccessful(t *testing.T) {
 	}
 }
 
-func TestRemoveNetworkFailureNetworkDoesNotExist(t *testing.T) {
+func TestRemoveNetworkSuccessfulNetworkDoesNotExist(t *testing.T) {
 	createLoNetworkNoName(t)
 	defer removeLoNetwork(t)
 	createDefNetworkNoName(t)
@@ -378,8 +378,10 @@ func TestRemoveNetworkFailureNetworkDoesNotExist(t *testing.T) {
 	}
 
 	err = netPlugin.RemoveNetwork("testPodID", testNetNsPath, "testIfName")
-	if err == nil {
-		t.Fatal("Should fail because network not previously added")
+	if err != nil {
+		// CNI specification says that no error should be returned
+		// in case we try to tear down a non-existing network.
+		t.Fatalf("Should pass because network not previously added: %s", err)
 	}
 }
 

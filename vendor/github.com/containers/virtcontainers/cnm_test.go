@@ -21,7 +21,9 @@ import (
 	"reflect"
 	"testing"
 
+	cniTypes "github.com/containernetworking/cni/pkg/types"
 	types "github.com/containernetworking/cni/pkg/types/current"
+	"github.com/vishvananda/netlink"
 )
 
 type mockAddr struct {
@@ -62,6 +64,12 @@ func TestCNMCreateResults(t *testing.T) {
 				Address:   *ipNet,
 			},
 		},
+		Routes: []*cniTypes.Route{
+			{
+				Dst: *ipNet,
+				GW:  ipNet.IP,
+			},
+		},
 	}
 
 	iface := net.Interface{
@@ -77,7 +85,14 @@ func TestCNMCreateResults(t *testing.T) {
 
 	addrs := []net.Addr{net.Addr(addr)}
 
-	result, err := plugin.createResult(iface, addrs)
+	routes := []netlink.Route{
+		{
+			Dst: ipNet,
+			Gw:  ipNet.IP,
+		},
+	}
+
+	result, err := plugin.createResult(iface, addrs, routes)
 	if err != nil {
 		t.Fatal(err)
 	}

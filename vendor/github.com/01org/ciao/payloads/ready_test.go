@@ -41,6 +41,10 @@ func TestReadyMarshal(t *testing.T) {
 		DiskAvailableMB: 256000,
 		Load:            0,
 		CpusOnline:      4,
+		Networks: []NetworkStat{
+			{NodeIP: "192.168.1.1", NodeMAC: "02:00:15:03:6f:49"},
+			{NodeIP: "10.168.1.1", NodeMAC: "02:00:8c:ba:f9:45"},
+		},
 	}
 
 	y, err := yaml.Marshal(&cmd)
@@ -79,7 +83,8 @@ func TestReadyNodeNotAllStats(t *testing.T) {
 		cmd.DiskTotalMB != expectedCmd.DiskTotalMB ||
 		cmd.DiskAvailableMB != expectedCmd.DiskAvailableMB ||
 		cmd.Load != expectedCmd.Load ||
-		cmd.CpusOnline != expectedCmd.CpusOnline {
+		cmd.CpusOnline != expectedCmd.CpusOnline ||
+		len(cmd.Networks) != 0 {
 		t.Error("Unexpected values in Ready")
 	}
 }

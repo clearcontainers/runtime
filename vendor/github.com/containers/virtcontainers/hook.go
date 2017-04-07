@@ -24,7 +24,6 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/golang/glog"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
@@ -102,7 +101,7 @@ func (h *Hooks) preStartHooks() error {
 	for _, hook := range h.PreStartHooks {
 		err := hook.runHook()
 		if err != nil {
-			glog.Errorf("PreStartHook error: %s\n", err)
+			virtLog.Errorf("PreStartHook error: %s", err)
 			return err
 		}
 	}
@@ -120,7 +119,7 @@ func (h *Hooks) postStartHooks() error {
 		if err != nil {
 			// In case of post start hook, the error is not fatal,
 			// just need to be logged.
-			glog.Infof("PostStartHook error: %s\n", err)
+			virtLog.Infof("PostStartHook error: %s", err)
 		}
 	}
 
@@ -137,7 +136,7 @@ func (h *Hooks) postStopHooks() error {
 		if err != nil {
 			// In case of post stop hook, the error is not fatal,
 			// just need to be logged.
-			glog.Infof("PostStopHook error: %s\n", err)
+			virtLog.Infof("PostStopHook error: %s", err)
 		}
 	}
 

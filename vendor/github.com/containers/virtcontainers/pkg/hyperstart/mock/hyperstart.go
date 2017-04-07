@@ -24,7 +24,7 @@ import (
 	"sync"
 	"testing"
 
-	hyper "github.com/hyperhq/runv/hyperstart/api/json"
+	hyper "github.com/containers/virtcontainers/pkg/hyperstart"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -52,24 +52,24 @@ const (
 )
 
 var codeList = map[int]string{
-	hyper.INIT_VERSION:         Version,
-	hyper.INIT_STARTPOD:        StartPod,
-	hyper.INIT_DESTROYPOD:      DestroyPod,
-	hyper.INIT_EXECCMD:         ExecCmd,
-	hyper.INIT_READY:           Ready,
-	hyper.INIT_ACK:             Ack,
-	hyper.INIT_ERROR:           Error,
-	hyper.INIT_WINSIZE:         WinSize,
-	hyper.INIT_PING:            Ping,
-	hyper.INIT_NEXT:            Next,
-	hyper.INIT_WRITEFILE:       WriteFile,
-	hyper.INIT_READFILE:        ReadFile,
-	hyper.INIT_NEWCONTAINER:    NewContainer,
-	hyper.INIT_KILLCONTAINER:   KillContainer,
-	hyper.INIT_REMOVECONTAINER: RemoveContainer,
-	hyper.INIT_ONLINECPUMEM:    OnlineCPUMem,
-	hyper.INIT_SETUPINTERFACE:  SetupInterface,
-	hyper.INIT_SETUPROUTE:      SetupRoute,
+	hyper.VersionCode:         Version,
+	hyper.StartPodCode:        StartPod,
+	hyper.DestroyPodCode:      DestroyPod,
+	hyper.ExecCmdCode:         ExecCmd,
+	hyper.ReadyCode:           Ready,
+	hyper.AckCode:             Ack,
+	hyper.ErrorCode:           Error,
+	hyper.WinsizeCode:         WinSize,
+	hyper.PingCode:            Ping,
+	hyper.NextCode:            Next,
+	hyper.WriteFileCode:       WriteFile,
+	hyper.ReadFileCode:        ReadFile,
+	hyper.NewContainerCode:    NewContainer,
+	hyper.KillContainerCode:   KillContainer,
+	hyper.OnlineCPUMemCode:    OnlineCPUMem,
+	hyper.SetupInterfaceCode:  SetupInterface,
+	hyper.SetupRouteCode:      SetupRoute,
+	hyper.RemoveContainerCode: RemoveContainer,
 }
 
 // Hyperstart is an object mocking the hyperstart agent.
@@ -194,7 +194,7 @@ func (h *Hyperstart) readCtl(data []byte) error {
 func (h *Hyperstart) ackData(nBytes int) {
 	data := make([]byte, 4)
 	binary.BigEndian.PutUint32(data[:], uint32(nBytes))
-	h.SendMessage(hyper.INIT_NEXT, data)
+	h.SendMessage(hyper.NextCode, data)
 }
 
 func (h *Hyperstart) readMessage() (int, []byte, error) {
@@ -255,7 +255,7 @@ func (h *Hyperstart) handleCtl() {
 		// hyperstart to fail and test the reaction of proxy/clients
 		h.logf("ctl: <-- command %s executed successfully\n", cmdName)
 
-		h.SendMessage(hyper.INIT_ACK, nil)
+		h.SendMessage(hyper.AckCode, nil)
 
 	}
 
@@ -393,10 +393,11 @@ func (h *Hyperstart) Start() {
 func (h *Hyperstart) Stop() {
 	h.wgConnected.Wait()
 
-	h.ctlListener.Close()
-	h.ioListener.Close()
 	h.ctl.Close()
 	h.io.Close()
+
+	h.ctlListener.Close()
+	h.ioListener.Close()
 
 	h.wg.Wait()
 

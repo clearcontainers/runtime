@@ -375,7 +375,7 @@ type APIHandler struct {
 func (h APIHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	resp, err := h.Handler(h.Context, w, r)
 	if err != nil {
-		http.Error(w, http.StatusText(resp.status), resp.status)
+		http.Error(w, err.Error(), resp.status)
 	}
 
 	b, err := json.Marshal(resp.response)
@@ -390,13 +390,18 @@ func (h APIHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // not completed
 func listAPIVersions(context *Context, w http.ResponseWriter, r *http.Request) (APIResponse, error) {
-	host, err := os.Hostname()
-	if err != nil {
-		return APIResponse{http.StatusInternalServerError, nil}, err
+	host := r.Host
+	var href string
+	if host == "" {
+		var err error
+		host, err = os.Hostname()
+		if err != nil {
+			return APIResponse{http.StatusInternalServerError, nil}, err
+		}
+		href = fmt.Sprintf("https://%s:%d/v2/", host, context.port)
+	} else {
+		href = fmt.Sprintf("https://%s/v2/", host)
 	}
-
-	// maybe we should just put href in context
-	href := fmt.Sprintf("https://%s:%d/v2/", host, context.port)
 
 	// TBD clean up this code
 	var resp Versions
@@ -434,12 +439,18 @@ func listAPIVersions(context *Context, w http.ResponseWriter, r *http.Request) (
 
 // not completed
 func showAPIv2Details(context *Context, w http.ResponseWriter, r *http.Request) (APIResponse, error) {
-	host, err := os.Hostname()
-	if err != nil {
-		return APIResponse{http.StatusInternalServerError, nil}, err
+	host := r.Host
+	var href string
+	if host == "" {
+		var err error
+		host, err = os.Hostname()
+		if err != nil {
+			return APIResponse{http.StatusInternalServerError, nil}, err
+		}
+		href = fmt.Sprintf("https://%s:%d/v2/v2.json", host, context.port)
+	} else {
+		href = fmt.Sprintf("https://%s/v2/v2.json", host)
 	}
-
-	href := fmt.Sprintf("https://%s:%d/v2/v2.json", host, context.port)
 
 	// we only support json
 	mt := MediaType{

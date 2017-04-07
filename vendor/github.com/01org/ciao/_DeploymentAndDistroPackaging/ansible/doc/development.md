@@ -1,16 +1,13 @@
-# Development Mode
-By default, these playbooks install ciao on production environments from
-the latest packages available for each supported distro.
+## Ceph configuration
+Ciao requires a working ceph cluster already in place.
 
-However, there are some options that can be specified when running the playbooks
-to alter this default behaviour. These options are useful during development and
-are described in more detail below:
-
-## Deploy from source code
-In order to deploy ciao from the master branch in github set `ciao_dev = True` in [group_vars/all](../group_vars/all) file or pass the
-command line argument `--extra-vars "ciao_dev=true"`
-
-## Skip ceph configuration
-If you plan to manually setup ceph in your ciao nodes set `skip_ceph = True`
+If you already have configured all ciao nodes to be clients of the ceph cluster,
+you can tell ansible to skip the configuration of ceph by setting `ceph_config = none`
 in [group_vars/all](../group_vars/all) file or pass the command line argument
-`--extra-vars "skip_ceph=true"`
+`--extra-vars "ceph_config=none"`
+
+If you don't have a working ceph cluster, ansible can deploy a ceph container in the
+deployment node by setting `ceph_config = container` in [group_vars/all](../group_vars/all)
+file or pass the command line argument `--extra-vars "ceph_config=container"`
+
+Note that this container is for demo/development purposes and should NEVER be used in production.

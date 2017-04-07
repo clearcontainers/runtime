@@ -1,0 +1,53 @@
+{
+    "memo": "2c5c6395c29f3a93d2d11f27f8f99f52fd90dfaf14613ee8167c44e4ac9c5786",
+    "projects": [
+        {
+            "name": "github.com/Sirupsen/logrus",
+            "version": "v0.8.7",
+            "revision": "418b41d23a1bf978c06faea5313ba194650ac088",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/containers/virtcontainers",
+            "revision": "15ea5343f221e9976f00abee0feb672ca873739e",
+            "packages": [
+                "pkg/hyperstart",
+                "pkg/hyperstart/mock"
+            ]
+        },
+        {
+            "name": "github.com/davecgh/go-spew",
+            "version": "v1.1.0",
+            "revision": "346938d642f2ec3594ed81d874461961cd0faa76",
+            "packages": [
+                "spew"
+            ]
+        },
+        {
+            "name": "github.com/golang/glog",
+            "branch": "master",
+            "revision": "23def4e6c14b4da8ac2ed8007337bc5eb5007998",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/pmezard/go-difflib",
+            "version": "v1.0.0",
+            "revision": "c0b812dadcf4498dede02bb7f0c5c478be997e34",
+            "packages": [
+                "difflib"
+            ]
+        },
+        {
+            "name": "github.com/stretchr/testify",
+            "version": "v1.1.4",
+            "revision": "69483b4bd14f5845b5a1e55bca19e954e827f1d0",
+            "packages": [
+                "assert"
+            ]
+        }
+    ]
+}

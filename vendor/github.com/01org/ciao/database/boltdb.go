@@ -127,7 +127,6 @@ func (db *BoltDB) DbTablesInit(tables []string) (err error) {
 
 // DbAdd adds a new element to table in Bolt database
 func (db *BoltDB) DbAdd(table string, key string, value interface{}) (err error) {
-
 	err = db.DB.Update(func(tx *bolt.Tx) error {
 		var v bytes.Buffer
 
@@ -138,7 +137,10 @@ func (db *BoltDB) DbAdd(table string, key string, value interface{}) (err error)
 
 		bucket := tx.Bucket([]byte(table))
 		if bucket == nil {
-			return fmt.Errorf("Bucket %v not found", table)
+			bucket, err = tx.CreateBucketIfNotExists([]byte(table))
+			if err != nil {
+				return fmt.Errorf("Bucket %v creation failed", table)
+			}
 		}
 
 		err = bucket.Put([]byte(key), v.Bytes())
@@ -207,16 +209,19 @@ func (db *BoltDB) DbGetAll(table string, dbTable DbTable) (elements []interface{
 	err = db.DB.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(table))
 
-		err := b.ForEach(func(key, value []byte) error {
-			vr := bytes.NewReader(value)
-			elem := dbTable.NewElement()
-			if err := gob.NewDecoder(vr).Decode(elem); err != nil {
-				return err
-			}
-			elements = append(elements, elem)
-			return nil
-		})
-		return err
+		if b != nil {
+			err := b.ForEach(func(key, value []byte) error {
+				vr := bytes.NewReader(value)
+				elem := dbTable.NewElement()
+				if err := gob.NewDecoder(vr).Decode(elem); err != nil {
+					return err
+				}
+				elements = append(elements, elem)
+				return nil
+			})
+			return err
+		}
+		return nil
 	})
 
 	return elements, err

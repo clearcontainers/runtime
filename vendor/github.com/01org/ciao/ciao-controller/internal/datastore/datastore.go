@@ -47,7 +47,6 @@ type Config struct {
 	DBBackend         persistentStore
 	PersistentURI     string
 	TransientURI      string
-	InitTablesPath    string
 	InitWorkloadsPath string
 }
 
@@ -59,17 +58,13 @@ const (
 	userError userEventType = "error"
 )
 
-type workload struct {
-	types.Workload
-	filename string
-}
-
 type tenant struct {
 	types.Tenant
 	network   map[int]map[int]bool
 	subnets   []int
 	instances map[string]*types.Instance
 	devices   map[string]types.BlockData
+	workloads []types.Workload
 }
 
 type node struct {
@@ -92,13 +87,10 @@ type persistentStore interface {
 	getEventLog() (logEntries []*types.LogEntry, err error)
 
 	// interfaces related to workloads
-	getCNCIWorkloadID() (id string, err error)
-	getWorkload(id string) (*workload, error)
-	getWorkloads() ([]*workload, error)
-	updateWorkload(wl workload) error
+	updateWorkload(wl types.Workload) error
+	deleteWorkload(ID string) error
 
 	// interfaces related to tenants
-	addLimit(tenantID string, resourceID int, limit int) (err error)
 	addTenant(id string, MAC string) (err error)
 	getTenant(id string) (t *tenant, err error)
 	getTenants() ([]*tenant, error)
@@ -139,6 +131,10 @@ type persistentStore interface {
 	addMappedIP(m types.MappedIP) error
 	deleteMappedIP(ID string) error
 	getMappedIPs() map[string]types.MappedIP
+
+	// quotas
+	updateQuotas(tenantID string, qds []types.QuotaDetails) error
+	getQuotas(tenantID string) ([]types.QuotaDetails, error)
 }
 
 // Datastore provides context for the datastore package.
@@ -157,9 +153,7 @@ type Datastore struct {
 	tenants     map[string]*tenant
 	tenantsLock *sync.RWMutex
 
-	workloads      map[string]*workload
-	workloadsLock  *sync.RWMutex
-	cnciWorkloadID string
+	cnciWorkload types.Workload
 
 	nodes     map[string]*node
 	nodesLock *sync.RWMutex
@@ -262,24 +256,6 @@ func (ds *Datastore) Init(config Config) error {
 		ds.tenants[tenants[i].ID] = tenants[i]
 	}
 
-	// cache the workloads into a map so that we can
-	// quickly index
-	ds.workloadsLock = &sync.RWMutex{}
-	ds.workloads = make(map[string]*workload)
-	workloads, err := ds.getWorkloads()
-	if err != nil {
-		return errors.Wrap(err, "error getting workloads from database")
-	}
-
-	for i := range workloads {
-		ds.workloads[workloads[i].ID] = workloads[i]
-	}
-
-	ds.cnciWorkloadID, err = ds.db.getCNCIWorkloadID()
-	if err != nil {
-		return errors.Wrap(err, "error getting CNCI workload from database")
-	}
-
 	ds.nodesLock = &sync.RWMutex{}
 	ds.nodes = make(map[string]*node)
 
@@ -296,6 +272,15 @@ func (ds *Datastore) Init(config Config) error {
 			ds.nodes[i.NodeID] = n
 		}
 		ds.nodes[i.NodeID].instances[key] = i
+
+		// ds.tenants.instances should point to the same
+		// instances that we have in ds.instances, otherwise they
+		// will not get updated when we get new stats.
+
+		tenant := ds.tenants[i.TenantID]
+		if tenant != nil {
+			tenant.instances[i.ID] = i
+		}
 	}
 
 	ds.tenantUsage = make(map[string][]types.CiaoUsage)
@@ -322,6 +307,11 @@ func (ds *Datastore) Init(config Config) error {
 		}
 
 		ds.instanceVolumes[link] = key
+
+		instance := ds.instances[value.InstanceID]
+		if instance != nil {
+			instance.Attachments = append(instance.Attachments, value)
+		}
 	}
 
 	ds.attachLock = &sync.RWMutex{}
@@ -344,33 +334,6 @@ func (ds *Datastore) AddTenantChan(c chan bool, tenantID string) {
 	ds.cnciAddedLock.Lock()
 	ds.cnciAddedChans[tenantID] = c
 	ds.cnciAddedLock.Unlock()
-}
-
-// AddLimit allows the caller to store a limt for a specific resource for a tenant.
-func (ds *Datastore) AddLimit(tenantID string, resourceID int, limit int) error {
-	err := ds.db.addLimit(tenantID, resourceID, limit)
-	if err != nil {
-		return errors.Wrap(err, "error adding limit to database")
-	}
-
-	// update cache
-	ds.tenantsLock.Lock()
-
-	tenant := ds.tenants[tenantID]
-	if tenant != nil {
-		resources := tenant.Resources
-
-		for i := range resources {
-			if resources[i].Rtype == resourceID {
-				resources[i].Limit = limit
-				break
-			}
-		}
-	}
-
-	ds.tenantsLock.Unlock()
-
-	return nil
 }
 
 func newHardwareAddr() (net.HardwareAddr, error) {
@@ -448,85 +411,126 @@ func (ds *Datastore) GetTenant(id string) (*types.Tenant, error) {
 // AddWorkload is used to add a new workload to the datastore.
 // Both cache and persistent store are updated.
 func (ds *Datastore) AddWorkload(w types.Workload) error {
-	ds.workloadsLock.Lock()
-	defer ds.workloadsLock.Unlock()
+	ds.tenantsLock.Lock()
+	defer ds.tenantsLock.Unlock()
 
-	wl := workload{
-		Workload: w,
-		filename: fmt.Sprintf("%s_config.yaml", w.ID),
+	tenant, ok := ds.tenants[w.TenantID]
+	if !ok {
+		return ErrNoTenant
 	}
 
-	err := ds.db.updateWorkload(wl)
+	err := ds.db.updateWorkload(w)
 	if err != nil {
-		return errors.Wrapf(err, "error updating workload (%v) in database", wl.ID)
+		return errors.Wrapf(err, "error updating workload (%v) in database", w.ID)
 	}
 
 	// cache it.
-	ds.workloads[wl.ID] = &wl
+	ds.tenants[w.TenantID].workloads = append(tenant.workloads, w)
 
 	return nil
 }
 
-func (ds *Datastore) getWorkload(id string) (*workload, error) {
-	// check the cache first
-	ds.workloadsLock.RLock()
-	wl := ds.workloads[id]
-	ds.workloadsLock.RUnlock()
+// DeleteWorkload will delete an unused workload from the datastore.
+// workload ID out of the datastore.
+func (ds *Datastore) DeleteWorkload(tenantID string, workloadID string) error {
+	// make sure that this workload is not in use.
+	// always get from cache
+	ds.instancesLock.RLock()
+	defer ds.instancesLock.RUnlock()
 
-	if wl != nil {
-		return wl, nil
+	if len(ds.instances) > 0 {
+		for _, val := range ds.instances {
+			if val.WorkloadID == workloadID {
+				// we can't go on.
+				return types.ErrWorkloadInUse
+			}
+		}
 	}
 
-	wl, err := ds.db.getWorkload(id)
-	return wl, errors.Wrapf(err, "error getting workload (%v) from database", id)
+	// workload is not being used, find it so we can delete it.
+	ds.tenantsLock.Lock()
+	defer ds.tenantsLock.Unlock()
+
+	t, ok := ds.tenants[tenantID]
+	if ok {
+		for i, wl := range t.workloads {
+			if wl.ID == workloadID {
+				// delete from persistent datastore.
+				err := ds.db.deleteWorkload(workloadID)
+				if err != nil {
+					return errors.Wrapf(err, "error deleting workload %v from database", wl.ID)
+				}
+
+				// delete from cache.
+				ds.tenants[tenantID].workloads = append(ds.tenants[tenantID].workloads[:i], ds.tenants[tenantID].workloads[i+1:]...)
+				return nil
+			}
+		}
+	}
+
+	return types.ErrWorkloadNotFound
 }
 
 // GetWorkload returns details about a specific workload referenced by id
-func (ds *Datastore) GetWorkload(id string) (*types.Workload, error) {
-	wl, err := ds.getWorkload(id)
-	if err != nil {
-		return nil, err
+func (ds *Datastore) GetWorkload(tenantID string, ID string) (types.Workload, error) {
+	if ID == ds.cnciWorkload.ID {
+		return ds.cnciWorkload, nil
 	}
 
-	return &wl.Workload, nil
+	ds.tenantsLock.RLock()
+	defer ds.tenantsLock.RUnlock()
+
+	// get any public workloads. These are part of our
+	// dummy tenant "public".
+	public, ok := ds.tenants["public"]
+	if ok {
+		for _, wl := range public.workloads {
+			if wl.ID == ID {
+				return wl, nil
+			}
+		}
+	}
+
+	tenant, ok := ds.tenants[tenantID]
+	if !ok {
+		return types.Workload{}, ErrNoTenant
+	}
+
+	for _, wl := range tenant.workloads {
+		if wl.ID == ID {
+			return wl, nil
+		}
+	}
+
+	return types.Workload{}, types.ErrWorkloadNotFound
 }
 
-func (ds *Datastore) getWorkloads() ([]*workload, error) {
-	var workloads []*workload
+// GetWorkloads retrieves the list of workloads for a particular tenant.
+// if there are any public workloads, they will be included in the returned list.
+func (ds *Datastore) GetWorkloads(tenantID string) ([]types.Workload, error) {
+	var workloads []types.Workload
 
 	// check the cache first
-	ds.workloadsLock.RLock()
-	if len(ds.workloads) > 0 {
-		for _, wl := range ds.workloads {
+	ds.tenantsLock.RLock()
+	defer ds.tenantsLock.RUnlock()
+
+	// get any public workloads. These are part of our
+	// dummy tenant "public".
+	public, ok := ds.tenants["public"]
+	if ok {
+		for _, wl := range public.workloads {
 			workloads = append(workloads, wl)
 		}
-		ds.workloadsLock.RUnlock()
+	}
+
+	// if there isn't a tenant here, it isn't necessarily an
+	// error.
+	tenant, ok := ds.tenants[tenantID]
+	if !ok {
 		return workloads, nil
 	}
-	ds.workloadsLock.RUnlock()
 
-	workloads, err := ds.db.getWorkloads()
-	return workloads, errors.Wrapf(err, "error getting workloads from database")
-}
-
-// GetWorkloads returns all known tenant workloads
-func (ds *Datastore) GetWorkloads() ([]*types.Workload, error) {
-	var workloads []*types.Workload
-
-	// yes, we have loop through all the workloads twice
-	// now.  We can revisit this later if it proves to
-	// be something we should optimize, but for now I
-	// think it'd be better to reuse the code.
-	wls, err := ds.getWorkloads()
-	if err != nil {
-		return nil, err
-	}
-
-	if len(wls) > 0 {
-		for _, wl := range wls {
-			workloads = append(workloads, &wl.Workload)
-		}
-	}
+	workloads = append(workloads, tenant.workloads...)
 
 	return workloads, nil
 }
@@ -873,29 +877,10 @@ func (ds *Datastore) AddInstance(instance *types.Instance) error {
 	ds.instancesLock.Unlock()
 
 	ds.tenantsLock.Lock()
-
 	tenant := ds.tenants[instance.TenantID]
 	if tenant != nil {
-		for name, val := range instance.Usage {
-			for i := range tenant.Resources {
-				if tenant.Resources[i].Rname == name {
-					tenant.Resources[i].Usage += val
-					break
-				}
-			}
-		}
-
-		// increment instances count
-		for i := range tenant.Resources {
-			if tenant.Resources[i].Rtype == 1 {
-				tenant.Resources[i].Usage++
-				break
-			}
-		}
-
 		tenant.instances[instance.ID] = instance
 	}
-
 	ds.tenantsLock.Unlock()
 
 	// update database asynchronously
@@ -936,7 +921,12 @@ func (ds *Datastore) StopFailure(instanceID string, reason payloads.StopFailureR
 // for this tenant. If the instance was a normal tenant instance, the
 // IP address will be released and the instance will be deleted from the
 // datastore.
-func (ds *Datastore) StartFailure(instanceID string, reason payloads.StartFailureReason) error {
+//
+// Only instances whose status is pending are removed when a StartFailure event
+// is received.  StartFailure errors may also be generated when restarting an
+// exited instance and we want to make sure that a failure to restart such
+// an instance does not result in it being deleted.
+func (ds *Datastore) StartFailure(instanceID string, reason payloads.StartFailureReason, migration bool) error {
 	var tenantID string
 	var cnci bool
 
@@ -981,21 +971,8 @@ func (ds *Datastore) StartFailure(instanceID string, reason payloads.StartFailur
 		return errors.Wrapf(err, "error getting instance (%v)", instanceID)
 	}
 
-	switch reason {
-	case payloads.FullCloud,
-		payloads.FullComputeNode,
-		payloads.NoComputeNodes,
-		payloads.NoNetworkNodes,
-		payloads.InvalidPayload,
-		payloads.InvalidData,
-		payloads.ImageFailure,
-		payloads.NetworkFailure:
-
+	if reason.IsFatal() && !migration {
 		ds.deleteInstance(instanceID)
-
-	case payloads.LaunchFailure,
-		payloads.AlreadyRunning,
-		payloads.InstanceExists:
 	}
 
 	msg := fmt.Sprintf("Start Failure %s: %s", instanceID, reason.String())
@@ -1077,23 +1054,8 @@ func (ds *Datastore) deleteInstance(instanceID string) (string, error) {
 
 	ds.tenantsLock.Lock()
 	tenant := ds.tenants[i.TenantID]
-	delete(tenant.instances, instanceID)
 	if tenant != nil {
-		for name, val := range i.Usage {
-			for i := range tenant.Resources {
-				if tenant.Resources[i].Rname == name {
-					tenant.Resources[i].Usage -= val
-					break
-				}
-			}
-		}
-		// decrement instances count
-		for i := range tenant.Resources {
-			if tenant.Resources[i].Rtype == 1 {
-				tenant.Resources[i].Usage--
-				break
-			}
-		}
+		delete(tenant.instances, instanceID)
 	}
 	ds.tenantsLock.Unlock()
 
@@ -1132,6 +1094,71 @@ func (ds *Datastore) DeleteInstance(instanceID string) error {
 	msg := fmt.Sprintf("Deleted Instance %s", instanceID)
 	ds.db.logEvent(tenantID, string(userInfo), msg)
 
+	return nil
+}
+
+func (ds *Datastore) updateInstanceStatus(status, instanceID string) error {
+	instanceStat := types.CiaoServerStats{
+		ID:        instanceID,
+		Timestamp: time.Now(),
+		Status:    status,
+	}
+	ds.instanceLastStatLock.Lock()
+	ds.instanceLastStat[instanceID] = instanceStat
+	ds.instanceLastStatLock.Unlock()
+
+	stats := []payloads.InstanceStat{
+		{
+			InstanceUUID: instanceID,
+			State:        status,
+		},
+	}
+
+	return errors.Wrapf(ds.db.addInstanceStats(stats, ""), "error adding instance stats to database")
+}
+
+func (ds *Datastore) restartInstance(instanceID string) error {
+	ds.instancesLock.Lock()
+	i := ds.instances[instanceID]
+	i.State = payloads.Pending
+	ds.instancesLock.Unlock()
+
+	return ds.updateInstanceStatus(payloads.Pending, instanceID)
+}
+
+// RestartInstance resets a restarting instance's state to pending.
+func (ds *Datastore) RestartInstance(instanceID string) error {
+	err := ds.restartInstance(instanceID)
+	if err != nil {
+		return errors.Wrapf(err, "error restarting instance")
+	}
+	return nil
+}
+
+func (ds *Datastore) stopInstance(instanceID string) error {
+	ds.instancesLock.Lock()
+	i := ds.instances[instanceID]
+	oldNodeID := i.NodeID
+	i.NodeID = ""
+	i.State = payloads.Exited
+	ds.instancesLock.Unlock()
+
+	// we may not have received any node stats for this instance
+	if oldNodeID != "" {
+		ds.nodesLock.Lock()
+		delete(ds.nodes[oldNodeID].instances, instanceID)
+		ds.nodesLock.Unlock()
+	}
+
+	return ds.updateInstanceStatus(payloads.Exited, instanceID)
+}
+
+// StopInstance removes the link between an instance and its node
+func (ds *Datastore) StopInstance(instanceID string) error {
+	err := ds.stopInstance(instanceID)
+	if err != nil {
+		return errors.Wrapf(err, "error stopping instance")
+	}
 	return nil
 }
 
@@ -1424,11 +1451,11 @@ func (ds *Datastore) GetTenantCNCISummary(cnci string) ([]types.TenantCNCI, erro
 // GetCNCIWorkloadID returns the UUID of the workload template
 // for the CNCI workload
 func (ds *Datastore) GetCNCIWorkloadID() (string, error) {
-	if ds.cnciWorkloadID == "" {
+	if ds.cnciWorkload.ID == "" {
 		return "", errors.New("No CNCI Workload in datastore")
 	}
 
-	return ds.cnciWorkloadID, nil
+	return ds.cnciWorkload.ID, nil
 }
 
 // GetNodeSummary provides a summary the state and count of instances running per node.
@@ -1468,6 +1495,11 @@ func (ds *Datastore) ClearLog() error {
 // LogEvent will add a message to the persistent event log.
 func (ds *Datastore) LogEvent(tenant string, msg string) {
 	ds.db.logEvent(tenant, string(userInfo), msg)
+}
+
+// LogError will add a message to the persistent event log as an error
+func (ds *Datastore) LogError(tenant string, msg string) {
+	ds.db.logEvent(tenant, string(userError), msg)
 }
 
 // AddBlockDevice will store information about new BlockData into
@@ -2294,4 +2326,70 @@ func (ds *Datastore) UnMapExternalIP(address string) error {
 	ds.pools[pool.ID] = pool
 
 	return nil
+}
+
+// GenerateCNCIWorkload is used to create a workload definition for the CNCI.
+// This function should be called prior to any workload launch.
+func (ds *Datastore) GenerateCNCIWorkload(vcpus int, memMB int, diskMB int, key string, password string) {
+	// generate the CNCI workload.
+	config := `---
+#cloud-config
+users:
+  - name: cloud-admin
+    gecos: CIAO Cloud Admin
+    lock-passwd: false
+    passwd: ` + password + `
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    ssh-authorized-keys:
+    - ` + key + `
+...
+`
+	cpus := payloads.RequestedResource{
+		Type:      payloads.VCPUs,
+		Value:     vcpus,
+		Mandatory: false,
+	}
+
+	mem := payloads.RequestedResource{
+		Type:      payloads.MemMB,
+		Value:     memMB,
+		Mandatory: false,
+	}
+
+	network := payloads.RequestedResource{
+		Type:      payloads.NetworkNode,
+		Value:     1,
+		Mandatory: true,
+	}
+
+	storage := types.StorageResource{
+		ID:         "",
+		Bootable:   true,
+		Ephemeral:  false,
+		SourceType: types.ImageService,
+		SourceID:   "4e16e743-265a-4bf2-9fd1-57ada0b28904",
+	}
+
+	wl := types.Workload{
+		ID:          uuid.Generate().String(),
+		Description: "CNCI",
+		FWType:      string(payloads.EFI),
+		VMType:      payloads.QEMU,
+		Config:      config,
+		Defaults:    []payloads.RequestedResource{cpus, mem, network},
+		Storage:     []types.StorageResource{storage},
+	}
+
+	// for now we have a single global cnci workload.
+	ds.cnciWorkload = wl
+}
+
+// GetQuotas returns the set of quotas from the database without any caching.
+func (ds *Datastore) GetQuotas(tenantID string) ([]types.QuotaDetails, error) {
+	return ds.db.getQuotas(tenantID)
+}
+
+// UpdateQuotas updates the quotas for a tenant in the database.
+func (ds *Datastore) UpdateQuotas(tenantID string, qds []types.QuotaDetails) error {
+	return ds.db.updateQuotas(tenantID, qds)
 }

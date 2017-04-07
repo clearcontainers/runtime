@@ -1,0 +1,43 @@
+{
+    "dependencies": {
+        "github.com/01org/ciao": {
+            "branch": "master"
+        },
+        "github.com/Sirupsen/logrus": {
+            "branch": "master"
+        },
+        "github.com/clearcontainers/proxy": {
+            "revision": "1cbbed5d3de4749739234570641fc7afac2acc07"
+        },
+        "github.com/containernetworking/cni": {
+            "branch": "master"
+        },
+        "github.com/mitchellh/mapstructure": {
+            "branch": "master"
+        },
+        "github.com/opencontainers/runc": {
+            "revision": "dcbcdf2470421e911211604c61ea3e8ca740d346"
+        },
+        "github.com/opencontainers/runtime-spec": {
+            "revision": "a5c4e91dae9533c46a98f122b5085c0b3fe27ee4"
+        },
+        "github.com/stretchr/testify": {
+            "branch": "master"
+        },
+        "github.com/urfave/cli": {
+            "branch": "master"
+        },
+        "github.com/vishvananda/netlink": {
+            "branch": "master"
+        },
+        "github.com/vishvananda/netns": {
+            "branch": "master"
+        },
+        "golang.org/x/crypto": {
+            "branch": "master"
+        },
+        "golang.org/x/sys": {
+            "branch": "master"
+        }
+    }
+}

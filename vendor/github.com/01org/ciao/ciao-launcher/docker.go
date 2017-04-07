@@ -101,47 +101,52 @@ func (d *docker) initDockerClient() error {
 }
 
 func (d *docker) checkBackingImage() error {
-	glog.Infof("Checking backing docker image %s", d.cfg.Image)
-
-	err := d.initDockerClient()
-	if err != nil {
-		return err
-	}
+	glog.Infof("Checking backing docker image %s", d.cfg.DockerImage)
 
 	args := filters.NewArgs()
 	images, err := d.cli.ImageList(context.Background(),
 		types.ImageListOptions{
-			MatchName: d.cfg.Image,
+			MatchName: d.cfg.DockerImage,
 			All:       false,
 			Filters:   args,
 		})
 
 	if err != nil {
-		glog.Infof("Called to ImageList for %s failed: %v", d.cfg.Image, err)
+		glog.Infof("Called to ImageList for %s failed: %v", d.cfg.DockerImage, err)
 		return err
 	}
 
 	if len(images) == 0 {
-		glog.Infof("Docker Image not found %s", d.cfg.Image)
+		glog.Infof("Docker Image not found %s", d.cfg.DockerImage)
 		return errImageNotFound
 	}
 
-	glog.Infof("Docker Image %s is present on node", d.cfg.Image)
+	glog.Infof("Docker Image %s is present on node", d.cfg.DockerImage)
 
 	return nil
 }
 
-func (d *docker) downloadBackingImage() error {
-	glog.Infof("Downloading backing docker image %s", d.cfg.Image)
+func (d *docker) ensureBackingImage() error {
+	glog.Infof("Downloading backing docker image %s", d.cfg.DockerImage)
 
 	err := d.initDockerClient()
 	if err != nil {
 		return err
 	}
 
-	prog, err := d.cli.ImagePull(context.Background(), types.ImagePullOptions{ImageID: d.cfg.Image}, nil)
+	err = d.checkBackingImage()
+	if err == nil {
+		return nil
+	} else if err != errImageNotFound {
+		glog.Errorf("Backing image check failed")
+		return err
+	}
+
+	glog.Infof("Backing image not found.  Trying to download")
+
+	prog, err := d.cli.ImagePull(context.Background(), types.ImagePullOptions{ImageID: d.cfg.DockerImage}, nil)
 	if err != nil {
-		glog.Errorf("Unable to download image %s: %v\n", d.cfg.Image, err)
+		glog.Errorf("Unable to download image %s: %v\n", d.cfg.DockerImage, err)
 		return err
 
 	}
@@ -201,7 +206,7 @@ func (d *docker) createConfigs(bridge string, userData, metaData []byte, volumes
 
 	config = &container.Config{
 		Hostname: hostname,
-		Image:    d.cfg.Image,
+		Image:    d.cfg.DockerImage,
 		Cmd:      cmd,
 	}
 

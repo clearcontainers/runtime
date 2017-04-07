@@ -17,17 +17,18 @@
 package virtcontainers
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/url"
 
-	"github.com/01org/cc-oci-runtime/proxy/api"
+	"github.com/clearcontainers/proxy/client"
 )
 
 var defaultCCProxyURL = "unix:///run/cc-oci-runtime/proxy.sock"
 
 type ccProxy struct {
-	client *api.Client
+	client *client.Client
 }
 
 // CCProxyConfig is a structure storing information needed for
@@ -36,7 +37,7 @@ type CCProxyConfig struct {
 	URL string
 }
 
-func (p *ccProxy) connectProxy(proxyURL string) (*api.Client, error) {
+func (p *ccProxy) connectProxy(proxyURL string) (*client.Client, error) {
 	if proxyURL == "" {
 		proxyURL = defaultCCProxyURL
 	}
@@ -64,25 +65,7 @@ func (p *ccProxy) connectProxy(proxyURL string) (*api.Client, error) {
 		return nil, err
 	}
 
-	return api.NewClient(conn.(*net.UnixConn)), nil
-}
-
-func (p *ccProxy) allocateProxyInfo() (ProxyInfo, error) {
-	if p.client == nil {
-		return ProxyInfo{}, fmt.Errorf("allocateIOStream: Client is nil, we can't interact with cc-proxy")
-	}
-
-	ioBase, _, err := p.client.AllocateIo(2)
-	if err != nil {
-		return ProxyInfo{}, err
-	}
-
-	proxyInfo := ProxyInfo{
-		StdioID:  ioBase,
-		StderrID: ioBase + 1,
-	}
-
-	return proxyInfo, nil
+	return client.NewClient(conn), nil
 }
 
 // register is the proxy register implementation for ccProxy.
@@ -105,22 +88,31 @@ func (p *ccProxy) register(pod Pod) ([]ProxyInfo, string, error) {
 		return []ProxyInfo{}, "", fmt.Errorf("Wrong agent config type, should be HyperConfig type")
 	}
 
-	_, err = p.client.Hello(pod.id, hyperConfig.SockCtlName, hyperConfig.SockTtyName, nil)
+	registerVMOptions := &client.RegisterVMOptions{
+		Console:      pod.hypervisor.getPodConsole(pod.id),
+		NumIOStreams: len(pod.containers),
+	}
+
+	registerVMReturn, err := p.client.RegisterVM(pod.id, hyperConfig.SockCtlName,
+		hyperConfig.SockTtyName, registerVMOptions)
 	if err != nil {
 		return []ProxyInfo{}, "", err
 	}
 
-	// TODO: url will be given by the RegisterVM of the new proxy
-	url := ""
-
+	url := registerVMReturn.IO.URL
 	if url == "" {
 		url = defaultCCProxyURL
 	}
 
-	for i := 0; i < len(pod.containers); i++ {
-		proxyInfo, err := p.allocateProxyInfo()
-		if err != nil {
-			return []ProxyInfo{}, "", err
+	if len(registerVMReturn.IO.Tokens) != len(pod.containers) {
+		return []ProxyInfo{}, "", fmt.Errorf("%d tokens retrieved out of %d expected",
+			len(registerVMReturn.IO.Tokens),
+			len(pod.containers))
+	}
+
+	for _, token := range registerVMReturn.IO.Tokens {
+		proxyInfo := ProxyInfo{
+			Token: token,
 		}
 
 		proxyInfos = append(proxyInfos, proxyInfo)
@@ -135,7 +127,7 @@ func (p *ccProxy) unregister(pod Pod) error {
 		return fmt.Errorf("unregister: Client is nil, we can't interact with cc-proxy")
 	}
 
-	return p.client.Bye(pod.id)
+	return p.client.UnregisterVM(pod.id)
 }
 
 // connect is the proxy connect implementation for ccProxy.
@@ -152,28 +144,38 @@ func (p *ccProxy) connect(pod Pod, createToken bool) (ProxyInfo, string, error) 
 		return ProxyInfo{}, "", err
 	}
 
-	_, err = p.client.Attach(pod.id, nil)
+	// In case we are asked to create a token, this means the caller
+	// expects only one token to be generated.
+	numTokens := 0
+	if createToken {
+		numTokens = 1
+	}
+
+	attachVMOptions := &client.AttachVMOptions{
+		NumIOStreams: numTokens,
+	}
+
+	attachVMReturn, err := p.client.AttachVM(pod.id, attachVMOptions)
 	if err != nil {
 		return ProxyInfo{}, "", err
 	}
 
-	// TODO: url will be given by the AttachVM of the new proxy
-	url := ""
-
+	url := attachVMReturn.IO.URL
 	if url == "" {
 		url = defaultCCProxyURL
 	}
 
-	// createToken is intended to be true in case we don't want
-	// the proxy to create a new token, but instead only get a handle
-	// to be able to communicate with the agent inside the VM.
-	if createToken == false {
+	if len(attachVMReturn.IO.Tokens) != numTokens {
+		return ProxyInfo{}, "", fmt.Errorf("%d tokens retrieved out of %d expected",
+			len(attachVMReturn.IO.Tokens), numTokens)
+	}
+
+	if !createToken {
 		return ProxyInfo{}, url, nil
 	}
 
-	proxyInfo, err := p.allocateProxyInfo()
-	if err != nil {
-		return ProxyInfo{}, "", err
+	proxyInfo := ProxyInfo{
+		Token: attachVMReturn.IO.Tokens[0],
 	}
 
 	return proxyInfo, url, nil
@@ -201,10 +203,17 @@ func (p *ccProxy) sendCmd(cmd interface{}) (interface{}, error) {
 		return nil, fmt.Errorf("Wrong command type, should be hyperstartProxyCmd type")
 	}
 
-	err := p.client.Hyper(proxyCmd.cmd, proxyCmd.message)
+	data, err := json.Marshal(proxyCmd.message)
 	if err != nil {
 		return nil, err
 	}
 
-	return nil, nil
+	var tokens []string
+	if proxyCmd.token == "" {
+		tokens = nil
+	} else {
+		tokens = append(tokens, proxyCmd.token)
+	}
+
+	return nil, p.client.HyperWithTokens(proxyCmd.cmd, tokens, json.RawMessage(data))
 }
