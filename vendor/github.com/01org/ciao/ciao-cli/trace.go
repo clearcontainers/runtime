@@ -23,6 +23,7 @@ import (
 	"os"
 
 	"github.com/01org/ciao/ciao-controller/types"
+	"github.com/01org/ciao/templateutils"
 )
 
 var traceCommand = &command{
@@ -43,15 +44,8 @@ func (cmd *traceListCommand) usage(...string) {
 List all trace label
 `)
 	cmd.Flag.PrintDefaults()
-	fmt.Fprintf(os.Stderr, `
-The template passed to the -f option operates on
-
-[]struct {
-	Label     string // Trace label
-	Instances int    // Number of instances created with this label
-}
-`)
-	fmt.Fprintln(os.Stderr, templateFunctionHelp)
+	fmt.Fprintf(os.Stderr, "\n%s",
+		templateutils.GenerateUsageDecorated("f", types.CiaoTracesSummary{}.Summaries, nil))
 	os.Exit(2)
 }
 
@@ -78,8 +72,8 @@ func (cmd *traceListCommand) run(args []string) error {
 	}
 
 	if cmd.template != "" {
-		return outputToTemplate("trace-list", cmd.template,
-			&traces.Summaries)
+		return templateutils.OutputToTemplate(os.Stdout, "trace-list", cmd.template,
+			&traces.Summaries, nil)
 	}
 
 	fmt.Printf("%d trace label(s) available\n", len(traces.Summaries))
@@ -105,22 +99,8 @@ The show flags are:
 
 `)
 	cmd.Flag.PrintDefaults()
-	fmt.Fprintf(os.Stderr, `
-The template passed to the -f option operates on
-
-struct {
-	NumInstances             int     // Number of instances started
-	TotalElapsed             float64 // Total time to start all instances
-	AverageElapsed           float64 // Average instance start time
-	AverageControllerElapsed float64 // Average time spent in controller starting an instance
-	AverageLauncherElapsed   float64 // Average time spent in launcher starting an instance
-	AverageSchedulerElapsed  float64 // Average time spent in scheduler starting an instance
-	VarianceController       float64 // Controller start time variance
-	VarianceLauncher         float64 // Launcher start time variance
-	VarianceScheduler        float64 // Scheduler start time variance
-}
-`)
-	fmt.Fprintln(os.Stderr, templateFunctionHelp)
+	fmt.Fprintf(os.Stderr, "\n%s",
+		templateutils.GenerateUsageDecorated("f", types.CiaoTraceData{}.Summary, nil))
 	os.Exit(2)
 }
 
@@ -152,8 +132,8 @@ func (cmd *traceShowCommand) run(args []string) error {
 	}
 
 	if cmd.template != "" {
-		return outputToTemplate("trace-show", cmd.template,
-			&traceData.Summary)
+		return templateutils.OutputToTemplate(os.Stdout, "trace-show", cmd.template,
+			&traceData.Summary, nil)
 	}
 
 	fmt.Printf("Trace data for [%s]:\n", cmd.label)

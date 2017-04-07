@@ -13,44 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-  - name: Create directory for mariadb database
-    file: path="{{ mysql_data }}" state=directory
-
   - include: certificates.yml
-
-  - name: Create docker-keystone systemd unit
-    template: src=docker-keystone.service.j2 dest=/etc/systemd/system/docker-keystone.service mode=0600
-
-  - name: Enable docker-keystone systemd unit
-    systemd: name=docker-keystone.service enabled=yes daemon_reload=yes
-
-  - name: Start keystone container
-    docker_container:
-      name: ciao-keystone
-      image: clearlinux/keystone
-      state: started
-      privileged: True
-      etc_hosts: "{{ etc_hosts }}"
-      published_ports:
-        - 35357:35357
-        - 5000:5000
-      env:
-        IDENTITY_HOST: "{{ keystone_fqdn }}"
-        KEYSTONE_ADMIN_PASSWORD: "{{ keystone_admin_password }}"
-      volumes:
-        - "{{ mysql_data }}:/var/lib/mysql:rw"
-        - "/etc/keystone/ssl/keystone_key.pem:/etc/nginx/ssl/keystone_key.pem:ro"
-        - "/etc/keystone/ssl/keystone_cert.pem:/etc/nginx/ssl/keystone_cert.pem:ro"
-
-  - name: Create openrc file
-    become: no
-    connection: local
-    template: src=openrc.j2 dest=./openrc mode=0600
-
-  - name: Create clouds.yaml file
-    become: no
-    connection: local
-    template: src=clouds.yaml.j2 dest=./clouds.yaml mode=0600
-
+  - include: startservices.yml
   - include: access.yml
     connection: local

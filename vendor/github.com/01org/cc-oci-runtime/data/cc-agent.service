@@ -1,9 +1,0 @@
-[Unit]
-Description=Clear Container Agent
-
-[Service]
-StandardOutput=tty
-Type=simple
-ExecStart=/bin/hyperstart
-ExecStop=/usr/bin/systemctl --force poweroff
-FailureAction=poweroff

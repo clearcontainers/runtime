@@ -4,9 +4,9 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart={{ bindir }}/ciao-launcher --cacert=/etc/pki/ciao/CAcert-{{ ciao_controller_fqdn }}.pem \
-                                 --cert=/etc/pki/ciao/{{ agent_key }} \
-                                 --logtostderr -v 2
+ExecStart=/usr/local/bin/ciao-launcher --cacert=/etc/pki/ciao/CAcert-{{ ciao_controller_fqdn }}.pem \
+                                 --cert=/etc/pki/ciao/{{ role_key }} \
+                                 --v 3
 Restart=always
 KillMode=process
 

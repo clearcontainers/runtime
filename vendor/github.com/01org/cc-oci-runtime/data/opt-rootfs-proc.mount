@@ -1,7 +1,0 @@
-[Unit]
-After=opt-rootfs.mount
-
-[Mount]
-What=proc
-Where=/opt/rootfs/proc
-Type=proc

@@ -34,7 +34,6 @@ func getPersistentStore() (persistentStore, error) {
 	config := Config{
 		PersistentURI:     "file:memdb" + string(dbCount) + "?mode=memory&cache=shared",
 		TransientURI:      "file:memdb" + string(dbCount+1) + "?mode=memory&cache=shared",
-		InitTablesPath:    *tablesInitPath,
 		InitWorkloadsPath: *workloadsPath,
 	}
 	err := ps.init(config)
@@ -714,32 +713,6 @@ func TestDeleteMappedIP(t *testing.T) {
 	}
 }
 
-func TestSQLiteDBGetAllWorkloads(t *testing.T) {
-	db, err := getPersistentStore()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	wls, err := db.getWorkloads()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(wls) == 0 {
-		t.Fatal("Expected non-empty workload list")
-	}
-
-	for _, wl := range wls {
-		wl2, err := db.getWorkload(wl.ID)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !reflect.DeepEqual(wl, wl2) {
-			t.Fatal("Expected workload equality")
-		}
-	}
-}
-
 func createTestTenant(db persistentStore, t *testing.T) *tenant {
 	tid := uuid.Generate().String()
 	thw, err := newHardwareAddr()
@@ -953,7 +926,14 @@ func TestSQLiteDBInstanceStats(t *testing.T) {
 	}
 }
 
-func TestSQLiteDBUpdateWorkload(t *testing.T) {
+func TestSQLiteDBUpdateDeleteWorkload(t *testing.T) {
+	db, err := getPersistentStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tn := createTestTenant(db, t)
+
 	testConfig := `
 ---
 #cloud-config
@@ -985,30 +965,21 @@ users:
 		Size:      20,
 	}
 
-	w := types.Workload{
+	wl := types.Workload{
 		ID:          uuid.Generate().String(),
+		TenantID:    tn.ID,
 		Description: "testWorkload",
 		FWType:      string(payloads.EFI),
 		VMType:      payloads.QEMU,
 		ImageID:     uuid.Generate().String(),
 		ImageName:   "",
 		Config:      testConfig,
-		Defaults:    []payloads.RequestedResource{cpus, mem},
+		Defaults:    []payloads.RequestedResource{mem, cpus},
 		Storage:     []types.StorageResource{storage},
 	}
 
-	wl := workload{
-		Workload: w,
-		filename: fmt.Sprintf("%s_config.yaml", w.ID),
-	}
-
-	db, err := getPersistentStore()
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	// file will be added, so we will want to remove it.
-	filename := fmt.Sprintf("%s/%s", *workloadsPath, wl.filename)
+	filename := fmt.Sprintf("%s/%s_config.yaml", *workloadsPath, wl.ID)
 	defer os.Remove(filename)
 
 	err = db.updateWorkload(wl)
@@ -1016,16 +987,143 @@ users:
 		t.Fatal(err)
 	}
 
-	wl2, err := db.getWorkload(wl.ID)
+	tenant, err := db.getTenant(tn.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if !reflect.DeepEqual(wl, *wl2) {
+	if len(tenant.workloads) != 1 {
+		t.Fatal("Expected a workload associated with tenant")
+	}
+
+	wl2 := tenant.workloads[0]
+
+	if !reflect.DeepEqual(wl, wl2) {
 		fmt.Fprintf(os.Stderr, "got %v\n", wl2)
 		fmt.Fprintf(os.Stderr, "expected %v\n", wl)
 		t.Fatal("Expected workload equality")
 	}
 
+	// now try to delete the workload
+	err = db.deleteWorkload(wl.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tenant, err = db.getTenant(tn.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(tenant.workloads) != 0 {
+		t.Fatal("Expected no workloads associated with tenant")
+	}
+
 	db.disconnect()
+}
+
+func findQuota(qds []types.QuotaDetails, name string, value int) bool {
+	for _, qd := range qds {
+		if qd.Name == name && qd.Value == value {
+			return true
+		}
+	}
+
+	return false
+}
+
+func TestSQLiteDBAddQuotas(t *testing.T) {
+	db, err := getPersistentStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	qds, err := db.getQuotas("test-tenand-id")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(qds) != 0 {
+		t.Fatalf("Expected zero quota entries: got %d", len(qds))
+	}
+
+	err = db.updateQuotas("test-tenant-id", []types.QuotaDetails{{Name: "test-quota-name", Value: 10}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	qds, err = db.getQuotas("test-tenant-id")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !findQuota(qds, "test-quota-name", 10) {
+		t.Fatal("Added quota not found")
+	}
+
+	err = db.updateQuotas("test-tenant-id", []types.QuotaDetails{{Name: "test-quota-name-2", Value: 20}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	qds, err = db.getQuotas("test-tenant-id")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(qds) != 2 {
+		t.Fatalf("Expected 2 quotas: got %d", len(qds))
+	}
+
+	if !findQuota(qds, "test-quota-name-2", 20) {
+		t.Fatal("Added quota not found")
+	}
+}
+
+func TestSQLiteDBUpdateQuotas(t *testing.T) {
+	db, err := getPersistentStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	qds, err := db.getQuotas("test-tenand-id")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(qds) != 0 {
+		t.Fatalf("Expected zero quota entries: got %d", len(qds))
+	}
+
+	err = db.updateQuotas("test-tenant-id", []types.QuotaDetails{{Name: "test-quota-name", Value: 10}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	qds, err = db.getQuotas("test-tenant-id")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !findQuota(qds, "test-quota-name", 10) {
+		t.Fatal("Added quota not found")
+	}
+
+	err = db.updateQuotas("test-tenant-id", []types.QuotaDetails{{Name: "test-quota-name", Value: 20}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	qds, err = db.getQuotas("test-tenant-id")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(qds) != 1 {
+		t.Fatalf("Expected 1 quotas: got %d", len(qds))
+	}
+
+	if !findQuota(qds, "test-quota-name", 20) {
+		t.Fatal("Added quota not found")
+	}
 }

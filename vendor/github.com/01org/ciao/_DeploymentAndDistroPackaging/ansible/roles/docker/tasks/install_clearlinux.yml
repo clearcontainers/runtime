@@ -14,9 +14,7 @@
 # limitations under the License.
 
   - name: Install containers-basic bundle (ClearLinux)
-    command: swupd bundle-add containers-basic {{ swupd_args | default('') }}
-    args:
-      creates: /usr/share/clear/bundles/containers-basic
+    swupd: name=containers-basic state=present
 
   - name: Check if host has /dev/kvm (ClearLinux)
     stat: path=/dev/kvm

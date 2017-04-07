@@ -39,7 +39,7 @@ var cnciAgent *SsntpTestClient
 func TestSendAgentStatus(t *testing.T) {
 	serverCh := server.AddStatusChan(ssntp.READY)
 
-	go agent.SendStatus(16384, 16384)
+	go agent.SendStatus(16384, 16384, PartialComputeNetworks)
 
 	_, err := server.GetStatusChanResult(serverCh, ssntp.READY)
 	if err != nil {
@@ -50,7 +50,7 @@ func TestSendAgentStatus(t *testing.T) {
 func TestSendNetAgentStatus(t *testing.T) {
 	serverCh := server.AddStatusChan(ssntp.READY)
 
-	go netAgent.SendStatus(16384, 16384)
+	go netAgent.SendStatus(16384, 16384, MultipleComputeNetworks)
 
 	_, err := server.GetStatusChanResult(serverCh, ssntp.READY)
 	if err != nil {

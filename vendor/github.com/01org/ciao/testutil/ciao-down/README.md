@@ -109,6 +109,13 @@ git repo, ciao-down will perform no action other than to mount the directory
 in the guest VM.  It will not try to clone the repo or update it.  It assumes
 that the directory already contains the webui code.
 
+ciao-down by default creates a VM suitable for ciao development. It also supports
+setting up development enviornments for other projects.
+
+ciao-down prepare -vmtype clearcontainers
+
+will create a new ciao-down VM for development of clearcontainers.
+
 ### delete
 
 ciao-down delete, shuts down and deletes all the files associated with the VM.

@@ -23,7 +23,7 @@ import (
 	"strconv"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	vc "github.com/containers/virtcontainers"
 	spec "github.com/opencontainers/runtime-spec/specs-go"
 )
@@ -48,6 +48,15 @@ type RuntimeConfig struct {
 
 	ProxyType   vc.ProxyType
 	ProxyConfig interface{}
+
+	Console string
+}
+
+var ociLog = logrus.New()
+
+// SetLog sets the logger for oci package.
+func SetLog(logger *logrus.Logger) {
+	ociLog = logger
 }
 
 func cmdEnvs(spec spec.Spec, envs []vc.EnvVar) []vc.EnvVar {
@@ -130,7 +139,7 @@ func networkConfig(ocispec spec.Spec) (vc.NetworkConfig, error) {
 // to a virtcontainers pod configuration structure.
 func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodConfig, *spec.Spec, error) {
 	configPath := filepath.Join(bundlePath, "config.json")
-	log.Debugf("converting %s", configPath)
+	ociLog.Debugf("converting %s", configPath)
 
 	configByte, err := ioutil.ReadFile(configPath)
 	if err != nil {
@@ -143,7 +152,7 @@ func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodC
 	}
 
 	rootfs := filepath.Join(bundlePath, ocispec.Root.Path)
-	log.Debugf("container rootfs: %s", rootfs)
+	ociLog.Debugf("container rootfs: %s", rootfs)
 
 	cmd := vc.Cmd{
 		Args:    ocispec.Process.Args,
@@ -154,7 +163,8 @@ func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodC
 	}
 
 	containerConfig := vc.ContainerConfig{
-		RootFs:      rootfs,
+		ID:          cid,
+		RootFs:      ocispec.Root.Path,
 		Interactive: ocispec.Process.Terminal,
 		Console:     console,
 		Cmd:         cmd,

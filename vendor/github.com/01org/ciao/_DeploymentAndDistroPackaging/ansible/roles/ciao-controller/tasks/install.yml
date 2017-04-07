@@ -13,21 +13,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-  - name: Install ciao-controller
-    package: name=ciao-controller state=present
-    when: ansible_os_family == "Debian" or ansible_os_family == "RedHat"
+  - name: Install controller dependencies
+    package: name={{ item }} state=present
+    with_items: "{{ controller_deps }}"
+    when: "'Clear linux' not in ansible_os_family"
 
-  - include: build.yml
-    become: no
+  - name: Install controller dependencies (ClearLinux)
+    swupd: name={{ item }} state=present
+    with_items: "{{ controller_deps }}"
+    when: "'Clear linux' in ansible_os_family"
 
   - name: Install CIAO binaries
-    copy: src={{ gopath }}/bin/{{ item }} dest={{ bindir }}/{{ item }} mode=755
+    copy: src={{ gopath }}/bin/{{ item }} dest=/usr/local/bin/{{ item }} mode=0755
     with_items:
-      - ciao-cert
       - ciao-cli
       - ciao-controller
       - ciao-scheduler
-    when: ciao_dev
     notify:
       - restart scheduler
       - restart controller

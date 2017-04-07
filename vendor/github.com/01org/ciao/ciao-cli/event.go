@@ -23,6 +23,7 @@ import (
 	"os"
 
 	"github.com/01org/ciao/ciao-controller/types"
+	"github.com/01org/ciao/templateutils"
 )
 
 var eventCommand = &command{
@@ -48,17 +49,8 @@ The list flags are:
 
 `)
 	cmd.Flag.PrintDefaults()
-	fmt.Fprintf(os.Stderr, `
-The template passed to the -f option operates on a 
-
-[]struct {
-	Timestamp time.Time // Event timestamp
-	TenantID  string    // UUID of the tenant that generated this event
-	EventType string    // Type of event, e.g., info, warn, error.
-	Message   string    // Event message
-}
-`)
-	fmt.Fprintln(os.Stderr, templateFunctionHelp)
+	fmt.Fprintf(os.Stderr, "\n%s",
+		templateutils.GenerateUsageDecorated("f", types.CiaoEvents{}.Events, nil))
 	os.Exit(2)
 }
 
@@ -101,8 +93,8 @@ func (cmd *eventListCommand) run(args []string) error {
 	}
 
 	if cmd.template != "" {
-		return outputToTemplate("event-list", cmd.template,
-			&events.Events)
+		return templateutils.OutputToTemplate(os.Stdout, "event-list", cmd.template,
+			&events.Events, nil)
 	}
 
 	fmt.Printf("%d Ciao event(s):\n", len(events.Events))

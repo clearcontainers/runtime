@@ -12,11 +12,13 @@ start:
        value: 1
   instance_uuid: 67d86208-b46c-4465-0000-fe14087d415f
   tenant_uuid: 67d86208-0000-0000-9018-fe14087d415f
-  image_uuid: b286cd45-7d0c-4525-a140-4db6c95e41fa
   fw_type: legacy
   networking:
     vnic_mac: 02:00:e6:f5:af:f9
     vnic_uuid: 67d86208-b46c-0000-0000-fe14087d415f
+  storage:
+    - id: 4e16e743-265a-4bf2-9fd1-57ada0b28904
+      boot: true
 ...
 ---
 {

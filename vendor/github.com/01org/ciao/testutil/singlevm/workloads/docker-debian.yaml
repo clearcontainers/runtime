@@ -1,5 +1,0 @@
----
-#cloud-config
-runcmd:
-  - [ /bin/bash, -c, "top -b" ]
-...

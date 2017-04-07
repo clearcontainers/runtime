@@ -15,6 +15,7 @@
 package datastore
 
 import (
+	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -28,11 +29,34 @@ var metaDsTables = []string{"images"}
 var dbDir = "/tmp"
 var dbFile = "ciao-image.db"
 var testImageID = "12345678-1234-5678-1234-567812345678"
+var testTenantID = "34345678-1234-5678-1234-567812345345"
+
+func createTmpFile(t *testing.T) *os.File {
+	content := []byte("temporary file's content")
+	tmpfile, err := ioutil.TempFile("", "example")
+	if err != nil {
+		t.Fatal(err)
+		return nil
+	}
+
+	if _, err := tmpfile.Write(content); err != nil {
+		tmpfile.Close()
+		t.Fatal(err)
+		return nil
+	}
+	if err := tmpfile.Close(); err != nil {
+		t.Fatal(err)
+		return nil
+	}
+
+	return tmpfile
+}
 
 func testCreateAndGet(t *testing.T, d RawDataStore, m MetaDataStore) {
 	i := Image{
-		ID:    testImageID,
-		State: Created,
+		ID:       testImageID,
+		TenantID: testTenantID,
+		State:    Created,
 	}
 
 	imageStore := ImageStore{}
@@ -45,7 +69,41 @@ func testCreateAndGet(t *testing.T, d RawDataStore, m MetaDataStore) {
 	}
 
 	// retrieve the entry
-	image, err := imageStore.GetImage(i.ID)
+	image, err := imageStore.GetImage(i.TenantID, i.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if image.ID != i.ID {
+		t.Fatal(err)
+	}
+}
+
+func testCreateAndUpdate(t *testing.T, d RawDataStore, m MetaDataStore) {
+	i := Image{
+		ID:       testImageID,
+		TenantID: testTenantID,
+		State:    Created,
+	}
+
+	imageStore := ImageStore{}
+	_ = imageStore.Init(d, m)
+
+	// create the entry
+	err := imageStore.CreateImage(i)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// retrieve the entry
+	image, err := imageStore.GetImage(i.TenantID, i.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// create the entry
+	image.Name = "Updated name"
+	err = imageStore.UpdateImage(image)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,8 +115,9 @@ func testCreateAndGet(t *testing.T, d RawDataStore, m MetaDataStore) {
 
 func testGetAll(t *testing.T, d RawDataStore, m MetaDataStore) {
 	i := Image{
-		ID:    testImageID,
-		State: Created,
+		ID:       testImageID,
+		TenantID: testTenantID,
+		State:    Created,
 	}
 
 	imageStore := ImageStore{}
@@ -71,7 +130,7 @@ func testGetAll(t *testing.T, d RawDataStore, m MetaDataStore) {
 	}
 
 	// retrieve the entry
-	images, err := imageStore.GetAllImages()
+	images, err := imageStore.GetAllImages(i.TenantID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,8 +148,9 @@ func testGetAll(t *testing.T, d RawDataStore, m MetaDataStore) {
 
 func testDelete(t *testing.T, d RawDataStore, m MetaDataStore) {
 	i := Image{
-		ID:    testImageID,
-		State: Created,
+		ID:       testImageID,
+		TenantID: testTenantID,
+		State:    Created,
 	}
 
 	imageStore := ImageStore{}
@@ -102,15 +162,22 @@ func testDelete(t *testing.T, d RawDataStore, m MetaDataStore) {
 		t.Fatal(err)
 	}
 
+	// upload image file
+	tmpfile := createTmpFile(t)
+	err = imageStore.UploadImage(testTenantID, testImageID, tmpfile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// delete the entry
-	err = imageStore.DeleteImage(i.ID)
+	err = imageStore.DeleteImage(i.TenantID, i.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// now attempt to retrive the entry
 	if _, ok := m.(*Noop); !ok {
-		_, err = imageStore.GetImage(i.ID)
+		_, err = imageStore.GetImage(i.TenantID, i.ID)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -119,8 +186,9 @@ func testDelete(t *testing.T, d RawDataStore, m MetaDataStore) {
 
 func testUpload(t *testing.T, d RawDataStore, m MetaDataStore) {
 	i := Image{
-		ID:    testImageID,
-		State: Created,
+		ID:       testImageID,
+		TenantID: testTenantID,
+		State:    Created,
 	}
 
 	imageStore := ImageStore{}
@@ -133,7 +201,7 @@ func testUpload(t *testing.T, d RawDataStore, m MetaDataStore) {
 	}
 
 	// Upload a string
-	err = imageStore.UploadImage(i.ID, strings.NewReader("Upload file"))
+	err = imageStore.UploadImage(i.TenantID, i.ID, strings.NewReader("Upload file"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -172,7 +240,7 @@ func initMetaDs() *MetaDs {
 		DbDir:      dbDir,
 		DbFile:     dbFile,
 	}
-	metaDsTables := []string{"images"}
+	metaDsTables := []string{"public", "internal"}
 	_ = metaDs.DbInit(metaDs.DbDir, metaDs.DbFile)
 	_ = metaDs.DbTablesInit(metaDsTables)
 
@@ -183,6 +251,12 @@ func TestPosixMetaDsCreateAndGet(t *testing.T) {
 	metaDs := initMetaDs()
 	defer metaDs.DbClose()
 	testCreateAndGet(t, &Posix{MountPoint: mountPoint}, metaDs)
+}
+
+func TestPosixMetaDsCreateAndUpdate(t *testing.T) {
+	metaDs := initMetaDs()
+	defer metaDs.DbClose()
+	testCreateAndUpdate(t, &Posix{MountPoint: mountPoint}, metaDs)
 }
 
 func TestPosixMetaDsGetAll(t *testing.T) {

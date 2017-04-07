@@ -1,9 +1,0 @@
-{
-    "vm": {
-		"path": "QEMU-LITE",
-		"kernel": {
-			"path": "CONTAINER-KERNEL",
-			"parameters": "root=/dev/pmem0p1"
-		}
-    }
-}

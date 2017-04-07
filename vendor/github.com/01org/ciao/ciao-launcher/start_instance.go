@@ -34,25 +34,6 @@ type startTimes struct {
 	runStamp          time.Time
 }
 
-func ensureBackingImage(vm virtualizer) error {
-
-	err := vm.checkBackingImage()
-	if err == errImageNotFound {
-		glog.Infof("Backing image not found.  Trying to download")
-		err = vm.downloadBackingImage()
-		if err != nil {
-			//BUG(markus): Need to change overseer state here to Downloading
-			glog.Errorf("Unable to download backing image: %v", err)
-			return err
-		}
-	} else if err != nil {
-		glog.Errorf("Backing image check failed")
-		return err
-	}
-
-	return nil
-}
-
 func createInstance(vm virtualizer, instanceDir string, cfg *vmConfig, bridge string, userData, metaData []byte) (err error) {
 	err = os.MkdirAll(instanceDir, 0755)
 	if err != nil {
@@ -102,37 +83,28 @@ func processStart(cmd *insStartCmd, instanceDir string, vm virtualizer, conn ser
 	_, err = os.Stat(instanceDir)
 	if err == nil {
 		err = fmt.Errorf("Instance %s has already been created", cfg.Instance)
-		return nil, &startError{err, payloads.InstanceExists}
+		return nil, &startError{err, payloads.InstanceExists, cmd.cfg.Restart}
 	}
 
-	if cfg.Image == "" {
-		if !cfg.haveBootableVolume() {
-			err = fmt.Errorf("No backing image and no bootable volumes specified")
-			return nil, &startError{err, payloads.InvalidData}
-		}
+	err = vm.ensureBackingImage()
+	if err != nil {
+		return nil, &startError{err, payloads.ImageFailure, cmd.cfg.Restart}
 	}
+
+	st.backingImageCheck = time.Now()
 
 	if networking {
 		vnicCfg, err = createVnicCfg(cfg)
 		if err != nil {
 			glog.Errorf("Could not create VnicCFG: %s", err)
-			return nil, &startError{err, payloads.InvalidData}
+			return nil, &startError{err, payloads.InvalidData, cmd.cfg.Restart}
 		}
 	}
-
-	if cfg.Image != "" {
-		err = ensureBackingImage(vm)
-		if err != nil {
-			return nil, &startError{err, payloads.ImageFailure}
-		}
-	}
-
-	st.backingImageCheck = time.Now()
 
 	if vnicCfg != nil {
 		vnicName, bridge, err = createVnic(conn, vnicCfg)
 		if err != nil {
-			return nil, &startError{err, payloads.NetworkFailure}
+			return nil, &startError{err, payloads.NetworkFailure, cmd.cfg.Restart}
 		}
 	}
 
@@ -140,14 +112,14 @@ func processStart(cmd *insStartCmd, instanceDir string, vm virtualizer, conn ser
 
 	err = createInstance(vm, instanceDir, cfg, bridge, cmd.userData, cmd.metaData)
 	if err != nil {
-		return nil, &startError{err, payloads.ImageFailure}
+		return nil, &startError{err, payloads.ImageFailure, cmd.cfg.Restart}
 	}
 
 	st.creationStamp = time.Now()
 
 	err = vm.startVM(vnicName, getNodeIPAddress(), cephID)
 	if err != nil {
-		return nil, &startError{err, payloads.LaunchFailure}
+		return nil, &startError{err, payloads.LaunchFailure, cmd.cfg.Restart}
 	}
 
 	st.runStamp = time.Now()

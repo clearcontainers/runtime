@@ -68,9 +68,11 @@ type ssntpSchedulerServer struct {
 	//cnInactiveMap      map[string]nodeStat
 
 	// Network Nodes
-	nnMap   map[string]*nodeStat
-	nnMutex sync.RWMutex // Rlock traversing map, Lock modifying map
-	nnMRU   string
+	nnMap      map[string]*nodeStat
+	nnList     []*nodeStat
+	nnMutex    sync.RWMutex // Rlock traversing map, Lock modifying map
+	nnMRU      *nodeStat
+	nnMRUIndex int
 }
 
 func newSsntpSchedulerServer() *ssntpSchedulerServer {
@@ -79,6 +81,7 @@ func newSsntpSchedulerServer() *ssntpSchedulerServer {
 		cnMap:         make(map[string]*nodeStat),
 		cnMRUIndex:    -1,
 		nnMap:         make(map[string]*nodeStat),
+		nnMRUIndex:    -1,
 	}
 }
 
@@ -92,6 +95,8 @@ type nodeStat struct {
 	diskAvailMB int
 	load        int
 	cpus        int
+	isNetNode   bool
+	networks    []payloads.NetworkStat
 }
 
 type controllerStatus uint8
@@ -256,6 +261,7 @@ func connectComputeNode(sched *ssntpSchedulerServer, uuid string) {
 	var node nodeStat
 	node.status = ssntp.CONNECTED
 	node.uuid = uuid
+	node.isNetNode = false
 	sched.cnList = append(sched.cnList, &node)
 	sched.cnMap[uuid] = &node
 
@@ -307,6 +313,8 @@ func connectNetworkNode(sched *ssntpSchedulerServer, uuid string) {
 	var node nodeStat
 	node.status = ssntp.CONNECTED
 	node.uuid = uuid
+	node.isNetNode = true
+	sched.nnList = append(sched.nnList, &node)
 	sched.nnMap[uuid] = &node
 
 	sched.sendNodeConnectedEvents(uuid, payloads.NetworkNode)
@@ -318,13 +326,27 @@ func disconnectNetworkNode(sched *ssntpSchedulerServer, uuid string) {
 	sched.nnMutex.Lock()
 	defer sched.nnMutex.Unlock()
 
-	if sched.nnMap[uuid] == nil {
+	node := sched.nnMap[uuid]
+	if node == nil {
 		glog.Warningf("Unexpected disconnect from network compute node %s\n", uuid)
 		return
 	}
 
 	//TODO: consider moving to nnInactiveMap?
 	delete(sched.nnMap, uuid)
+
+	for i, n := range sched.nnList {
+		if n != node {
+			continue
+		}
+
+		sched.nnList = append(sched.nnList[:i], sched.nnList[i+1:]...)
+	}
+
+	if node == sched.nnMRU {
+		sched.nnMRU = nil
+		sched.nnMRUIndex = -1
+	}
 
 	sched.sendNodeDisconnectedEvents(uuid, payloads.NetworkNode)
 }
@@ -378,6 +400,7 @@ func (sched *ssntpSchedulerServer) updateNodeStat(node *nodeStat, status ssntp.S
 		node.diskAvailMB = stats.DiskAvailableMB
 		node.load = stats.Load
 		node.cpus = stats.CpusOnline
+		node.networks = stats.Networks
 
 		//any changes to the payloads.Ready struct should be
 		//accompanied by a change here
@@ -420,20 +443,45 @@ type workResources struct {
 	instanceUUID string
 	memReqMB     int
 	diskReqMB    int
-	networkNode  int
+	networkNode  bool
+	physNets     []string
 }
 
 func (sched *ssntpSchedulerServer) getWorkloadResources(work *payloads.Start) (workload workResources, err error) {
 	// loop the array to find resources
 	for idx := range work.Start.RequestedResources {
+		reqType := work.Start.RequestedResources[idx].Type
+		reqValue := work.Start.RequestedResources[idx].Value
+		reqString := work.Start.RequestedResources[idx].ValueString
+
 		// memory:
-		if work.Start.RequestedResources[idx].Type == payloads.MemMB {
-			workload.memReqMB = work.Start.RequestedResources[idx].Value
+		if reqType == payloads.MemMB {
+			workload.memReqMB = reqValue
 		}
 
 		// network node
-		if work.Start.RequestedResources[idx].Type == payloads.NetworkNode {
-			workload.networkNode = work.Start.RequestedResources[idx].Value
+		if reqType == payloads.NetworkNode {
+			wantsNetworkNode := reqValue
+
+			// validate input: requested resource values are always integers
+			if wantsNetworkNode != 0 && wantsNetworkNode != 1 {
+				return workload, fmt.Errorf("invalid start payload resource demand: network_node (%d) is not 0 or 1", wantsNetworkNode)
+			}
+
+			// convert to more natural bool for local struct
+			if wantsNetworkNode == 1 {
+				workload.networkNode = true
+			} else { //wantsNetworkNode == 0
+				workload.networkNode = false
+			}
+
+		}
+
+		// network node physical networks
+		if workload.networkNode {
+			if reqType == payloads.PhysicalNetwork {
+				workload.physNets = append(workload.physNets, reqString)
+			}
 		}
 
 		// etc...
@@ -453,9 +501,6 @@ func (sched *ssntpSchedulerServer) getWorkloadResources(work *payloads.Start) (w
 	if workload.diskReqMB < 0 {
 		return workload, fmt.Errorf("invalid start payload local disk demand: disk MB (%d) < 0, must be >= 0", workload.diskReqMB)
 	}
-	if workload.networkNode != 0 && workload.networkNode != 1 {
-		return workload, fmt.Errorf("invalid start payload resource demand: network_node (%d) is not 0 or 1", workload.networkNode)
-	}
 
 	// note the uuid
 	workload.instanceUUID = work.Start.InstanceUUID
@@ -463,22 +508,48 @@ func (sched *ssntpSchedulerServer) getWorkloadResources(work *payloads.Start) (w
 	return workload, nil
 }
 
+func networkDemandsSatisfied(node *nodeStat, workload *workResources) bool {
+	if !node.isNetNode {
+		return true
+	}
+
+	var matchedNetworksCount int
+	var requestedNetworksCount int
+
+	for _, requestedNetwork := range workload.physNets {
+		requestedNetworksCount++
+		for _, availableNetwork := range node.networks {
+			if requestedNetwork == availableNetwork.NodeIP {
+				matchedNetworksCount++
+				break
+			}
+		}
+	}
+	if requestedNetworksCount != matchedNetworksCount {
+		return false
+	}
+
+	return true
+}
+
 // Check resource demands are satisfiable by the referenced, locked nodeStat object
 func (sched *ssntpSchedulerServer) workloadFits(node *nodeStat, workload *workResources) bool {
 	// simple scheduling policy == first fit
 	if node.memAvailMB >= workload.memReqMB &&
 		node.diskAvailMB >= workload.diskReqMB &&
-		node.status == ssntp.READY {
+		node.status == ssntp.READY &&
+		networkDemandsSatisfied(node, workload) {
 
 		return true
 	}
 	return false
 }
 
-func (sched *ssntpSchedulerServer) sendStartFailureError(clientUUID string, instanceUUID string, reason payloads.StartFailureReason) {
+func (sched *ssntpSchedulerServer) sendStartFailureError(clientUUID string, instanceUUID string, reason payloads.StartFailureReason, restart bool) {
 	error := payloads.ErrorStartFailure{
 		InstanceUUID: instanceUUID,
 		Reason:       reason,
+		Restart:      restart,
 	}
 
 	payload, err := yaml.Marshal(&error)
@@ -609,13 +680,13 @@ func (sched *ssntpSchedulerServer) decrementResourceUsage(node *nodeStat, worklo
 }
 
 // Find suitable compute node, returning referenced to a locked nodeStat if found
-func pickComputeNode(sched *ssntpSchedulerServer, controllerUUID string, workload *workResources) (node *nodeStat) {
+func pickComputeNode(sched *ssntpSchedulerServer, controllerUUID string, workload *workResources, restart bool) (node *nodeStat) {
 	sched.cnMutex.RLock()
 	defer sched.cnMutex.RUnlock()
 
 	if len(sched.cnList) == 0 {
 		glog.Errorf("No compute nodes connected, unable to start workload")
-		sched.sendStartFailureError(controllerUUID, workload.instanceUUID, payloads.NoComputeNodes)
+		sched.sendStartFailureError(controllerUUID, workload.instanceUUID, payloads.NoComputeNodes, restart)
 		return nil
 	}
 
@@ -648,32 +719,51 @@ func pickComputeNode(sched *ssntpSchedulerServer, controllerUUID string, workloa
 		node.mutex.Unlock()
 	}
 
-	sched.sendStartFailureError(controllerUUID, workload.instanceUUID, payloads.FullCloud)
+	sched.sendStartFailureError(controllerUUID, workload.instanceUUID, payloads.FullCloud, restart)
 	return nil
 }
 
 // Find suitable net node, returning referenced to a locked nodeStat if found
-func (sched *ssntpSchedulerServer) pickNetworkNode(controllerUUID string, workload *workResources) (node *nodeStat) {
+func pickNetworkNode(sched *ssntpSchedulerServer, controllerUUID string, workload *workResources, restart bool) (node *nodeStat) {
 	sched.nnMutex.RLock()
 	defer sched.nnMutex.RUnlock()
 
-	if len(sched.nnMap) == 0 {
+	if len(sched.nnList) == 0 {
 		glog.Errorf("No network nodes connected, unable to start network workload")
-		sched.sendStartFailureError(controllerUUID, workload.instanceUUID, payloads.NoNetworkNodes)
+		sched.sendStartFailureError(controllerUUID, workload.instanceUUID, payloads.NoNetworkNodes, restart)
 		return nil
 	}
 
-	// with more than one node MRU gives simplistic spread
-	for _, node := range sched.nnMap {
-		node.mutex.Lock()
-		if (len(sched.nnMap) <= 1 || ((len(sched.nnMap) > 1) && (node.uuid != sched.nnMRU))) &&
-			sched.workloadFits(node, workload) {
-			sched.nnMRU = node.uuid
-			return node // locked nodeStat
+	/* First try nodes after the MRU */
+	if sched.nnMRUIndex != -1 && sched.nnMRUIndex < len(sched.nnList)-1 {
+		for i, node := range sched.nnList[sched.nnMRUIndex+1:] {
+			node.mutex.Lock()
+			if node == sched.nnMRU {
+				node.mutex.Unlock()
+				continue
+			}
+
+			if sched.workloadFits(node, workload) == true {
+				sched.nnMRUIndex = sched.nnMRUIndex + 1 + i
+				sched.nnMRU = node
+				return node // locked nodeStat
+			}
+			node.mutex.Unlock()
 		}
 	}
 
-	sched.sendStartFailureError(controllerUUID, workload.instanceUUID, payloads.NoNetworkNodes)
+	/* Then try the whole list, including the MRU */
+	for i, node := range sched.nnList {
+		node.mutex.Lock()
+		if sched.workloadFits(node, workload) == true {
+			sched.nnMRUIndex = i
+			sched.nnMRU = node
+			return node // locked nodeStat
+		}
+		node.mutex.Unlock()
+	}
+
+	sched.sendStartFailureError(controllerUUID, workload.instanceUUID, payloads.NoNetworkNodes, restart)
 	return nil
 }
 
@@ -697,10 +787,10 @@ func startWorkload(sched *ssntpSchedulerServer, controllerUUID string, payload [
 
 	var targetNode *nodeStat
 
-	if workload.networkNode == 0 {
-		targetNode = pickComputeNode(sched, controllerUUID, &workload)
-	} else { //workload.network_node == 1
-		targetNode = sched.pickNetworkNode(controllerUUID, &workload)
+	if workload.networkNode {
+		targetNode = pickNetworkNode(sched, controllerUUID, &workload, work.Start.Restart)
+	} else { //workload.network_node == false
+		targetNode = pickComputeNode(sched, controllerUUID, &workload, work.Start.Restart)
 	}
 
 	if targetNode != nil {
@@ -1002,6 +1092,10 @@ func setSSNTPForwardRules(sched *ssntpSchedulerServer) {
 		},
 		{ // all InstanceDeleted events go to all Controllers
 			Operand: ssntp.InstanceDeleted,
+			Dest:    ssntp.Controller,
+		},
+		{ // all InstanceStopped events go to all Controllers
+			Operand: ssntp.InstanceStopped,
 			Dest:    ssntp.Controller,
 		},
 		{ // all ConcentratorInstanceAdded events go to all Controllers

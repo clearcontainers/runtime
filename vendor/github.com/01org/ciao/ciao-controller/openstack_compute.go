@@ -31,7 +31,7 @@ import (
 )
 
 func instanceToServer(ctl *controller, instance *types.Instance) (compute.ServerDetails, error) {
-	workload, err := ctl.ds.GetWorkload(instance.WorkloadID)
+	workload, err := ctl.ds.GetWorkload(instance.TenantID, instance.WorkloadID)
 	if err != nil {
 		return compute.ServerDetails{}, err
 	}
@@ -381,19 +381,25 @@ func (c *controller) CreateServer(tenant string, server compute.CreateServerRequ
 		TraceLabel: label,
 		Volumes:    volumes,
 	}
+	var e error
 	instances, err := c.startWorkload(w)
 	if err != nil {
-		return server, err
+		e = err
 	}
 
 	var servers compute.Servers
 
 	for _, instance := range instances {
 		server, err := instanceToServer(c, instance)
-		if err != nil {
-			return server, err
+		if err != nil && e == nil {
+			e = err
 		}
 		servers.Servers = append(servers.Servers, server)
+	}
+
+	// If no instances launcher or if none converted bail early
+	if e != nil && len(servers.Servers) == 0 {
+		return server, e
 	}
 
 	servers.TotalServers = len(instances)
@@ -416,6 +422,9 @@ func (c *controller) CreateServer(tenant string, server compute.CreateServerRequ
 		},
 	}
 
+	if e != nil {
+		c.ds.LogError(tenant, fmt.Sprintf("Error launching instance(s): %v", e))
+	}
 	return builtServers, nil
 }
 
@@ -526,8 +535,7 @@ func (c *controller) StopServer(tenant string, ID string) error {
 func (c *controller) ListFlavors(tenant string) (compute.Flavors, error) {
 	flavors := compute.NewComputeFlavors()
 
-	// we are ignoring tenant for now
-	workloads, err := c.ds.GetWorkloads()
+	workloads, err := c.ds.GetWorkloads(tenant)
 	if err != nil {
 		return flavors, err
 	}
@@ -548,7 +556,7 @@ func (c *controller) ListFlavors(tenant string) (compute.Flavors, error) {
 	return flavors, nil
 }
 
-func buildFlavorDetails(workload *types.Workload) (compute.FlavorDetails, error) {
+func buildFlavorDetails(workload types.Workload) (compute.FlavorDetails, error) {
 	var details compute.FlavorDetails
 
 	defaults := workload.Defaults
@@ -576,9 +584,7 @@ func buildFlavorDetails(workload *types.Workload) (compute.FlavorDetails, error)
 func (c *controller) ListFlavorsDetail(tenant string) (compute.FlavorsDetails, error) {
 	flavors := compute.NewComputeFlavorsDetails()
 
-	// we ignore tenant for now
-
-	workloads, err := c.ds.GetWorkloads()
+	workloads, err := c.ds.GetWorkloads(tenant)
 	if err != nil {
 		return flavors, err
 	}
@@ -598,7 +604,7 @@ func (c *controller) ListFlavorsDetail(tenant string) (compute.FlavorsDetails, e
 func (c *controller) ShowFlavorDetails(tenant string, flavorID string) (compute.Flavor, error) {
 	var flavor compute.Flavor
 
-	workload, err := c.ds.GetWorkload(flavorID)
+	workload, err := c.ds.GetWorkload(tenant, flavorID)
 	if err != nil {
 		return flavor, err
 	}

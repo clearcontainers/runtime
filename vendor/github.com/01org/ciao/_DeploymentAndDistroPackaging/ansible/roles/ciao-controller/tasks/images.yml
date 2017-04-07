@@ -27,6 +27,8 @@
         dest: images/{{ fedora_cloud_image }}
       - url: "{{ clear_cloud_image_url }}"
         dest: images/{{ clear_cloud_image }}.xz
+      - url: "{{ firmware_image_url }}"
+        dest: images/OVMF.fd
 
   - name: Uncompress ClearLinux Image
     command: unxz -k {{ clear_cloud_image }}.xz

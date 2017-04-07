@@ -37,30 +37,11 @@ const minimalConfig = `
 			"TERM=xterm"
 		],
 		"cwd": "/",
-		"capabilities": {
-			"bounding": [
+		"capabilities": [
 				"CAP_AUDIT_WRITE",
 				"CAP_KILL",
 				"CAP_NET_BIND_SERVICE"
-			],
-			"permitted": [
-				"CAP_AUDIT_WRITE",
-				"CAP_KILL",
-				"CAP_NET_BIND_SERVICE"
-			],
-			"inheritable": [
-				"CAP_AUDIT_WRITE",
-				"CAP_KILL",
-				"CAP_NET_BIND_SERVICE"
-			],
-			"effective": [
-				"CAP_AUDIT_WRITE",
-				"CAP_KILL"
-			],
-			"ambient": [
-				"CAP_NET_BIND_SERVICE"
-			]
-		},
+		],
 		"rlimits": [
 			{
 				"type": "RLIMIT_NOFILE",

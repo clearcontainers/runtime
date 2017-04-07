@@ -67,10 +67,16 @@ const fullValidConf = `configure:
     volume_port: 8776
     compute_port: 8774
     ciao_port: 8889
+    compute_fqdn: ""
     compute_ca: /etc/pki/ciao/compute_ca.pem
     compute_cert: /etc/pki/ciao/compute_key.pem
     identity_user: controller
     identity_password: ciao
+    cnci_vcpus: 4
+    cnci_mem: 128
+    cnci_disk: 128
+    admin_ssh_key: ""
+    admin_password: ""
   launcher:
     compute_net:
     - 192.168.1.0/24
@@ -128,6 +134,9 @@ func fillPayload(conf *payloads.Configure) {
 	conf.Configure.Controller.HTTPSKey = httpsKey
 	conf.Configure.Controller.IdentityUser = identityUser
 	conf.Configure.Controller.IdentityPassword = identityPassword
+	conf.Configure.Controller.CNCIVcpus = 4
+	conf.Configure.Controller.CNCIMem = 128
+	conf.Configure.Controller.CNCIDisk = 128
 	conf.Configure.Launcher.ComputeNetwork = []string{computeNet}
 	conf.Configure.Launcher.ManagementNetwork = []string{mgmtNet}
 	conf.Configure.ImageService.URL = glanceURL

@@ -17,6 +17,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -24,6 +25,8 @@ import (
 	"sort"
 	"testing"
 	"time"
+
+	yaml "gopkg.in/yaml.v2"
 
 	"github.com/01org/ciao/ciao-controller/types"
 	"github.com/01org/ciao/openstack/compute"
@@ -78,13 +81,13 @@ func testCreateServer(t *testing.T, n int) compute.Servers {
 	}
 
 	// get a valid workload ID
-	wls, err := ctl.ds.GetWorkloads()
+	wls, err := ctl.ds.GetWorkloads(tenant.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if len(wls) == 0 {
-		t.Fatal("No valid workloads")
+		t.Fatalf("No valid workloads for tenant: %s\n", tenant.ID)
 	}
 
 	url := testutil.ComputeURL + "/v2.1/" + tenant.ID + "/servers"
@@ -139,7 +142,7 @@ func TestCreateSingleServerInvalidToken(t *testing.T) {
 	}
 
 	// get a valid workload ID
-	wls, err := ctl.ds.GetWorkloads()
+	wls, err := ctl.ds.GetWorkloads(tenant.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -197,7 +200,12 @@ func TestListServerDetailsTenantInvalidToken(t *testing.T) {
 
 func testListServerDetailsWorkload(t *testing.T, httpExpectedStatus int, validToken bool) {
 	// get a valid workload ID
-	wls, err := ctl.ds.GetWorkloads()
+	tenant, err := ctl.ds.GetTenant(testutil.ComputeUser)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wls, err := ctl.ds.GetWorkloads(tenant.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -500,26 +508,45 @@ func TestServerActionStart(t *testing.T) {
 
 	time.Sleep(1 * time.Second)
 
-	serverCh := server.AddCmdChan(ssntp.STOP)
+	serverCh := server.AddCmdChan(ssntp.DELETE)
 
 	err = ctl.stopInstance(servers.Servers[0].ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = server.GetCmdChanResult(serverCh, ssntp.STOP)
+	err = sendStopEvent(client, servers.Servers[0].ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	time.Sleep(1 * time.Second)
-
-	sendStatsCmd(client, t)
-
-	time.Sleep(1 * time.Second)
+	_, err = server.GetCmdChanResult(serverCh, ssntp.DELETE)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	url := testutil.ComputeURL + "/v2.1/" + tenant.ID + "/servers/" + servers.Servers[0].ID + "/action"
 	_ = testHTTPRequest(t, "POST", url, http.StatusAccepted, []byte(action), true)
+}
+
+func sendStopEvent(client *testutil.SsntpTestClient, instanceUUID string) error {
+	event := payloads.EventInstanceStopped{
+		InstanceStopped: payloads.InstanceStoppedEvent{
+			InstanceUUID: instanceUUID,
+		},
+	}
+	y, err := yaml.Marshal(event)
+	if err != nil {
+		return fmt.Errorf("Unable to create InstanceStopped payload : %v", err)
+	}
+	clientEvtCh := wrappedClient.addEventChan(ssntp.InstanceStopped)
+	client.Ssntp.SendEvent(ssntp.InstanceStopped, y)
+	err = wrappedClient.getEventChan(clientEvtCh, ssntp.InstanceStopped)
+	if err != nil {
+		return fmt.Errorf("InstanceStopped event not received: %v", err)
+	}
+
+	return nil
 }
 
 func testListFlavors(t *testing.T, httpExpectedStatus int, data []byte, validToken bool) {
@@ -530,7 +557,7 @@ func testListFlavors(t *testing.T, httpExpectedStatus int, data []byte, validTok
 
 	url := testutil.ComputeURL + "/v2.1/" + tenant.ID + "/flavors"
 
-	wls, err := ctl.ds.GetWorkloads()
+	wls, err := ctl.ds.GetWorkloads(tenant.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -582,7 +609,7 @@ func testShowFlavorDetails(t *testing.T, httpExpectedStatus int, validToken bool
 
 	tURL := testutil.ComputeURL + "/v2.1/" + tenant.ID + "/flavors/"
 
-	wls, err := ctl.ds.GetWorkloads()
+	wls, err := ctl.ds.GetWorkloads(tenant.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -711,24 +738,27 @@ func testListTenantQuotas(t *testing.T, httpExpectedStatus int, validToken bool)
 
 	var expected types.CiaoTenantResources
 
-	for _, resource := range tenant.Resources {
-		switch resource.Rtype {
-		case instances:
-			expected.InstanceLimit = resource.Limit
-			expected.InstanceUsage = resource.Usage
+	qds := ctl.qs.DumpQuotas(tenant.ID)
 
-		case vcpu:
-			expected.VCPULimit = resource.Limit
-			expected.VCPUUsage = resource.Usage
-
-		case memory:
-			expected.MemLimit = resource.Limit
-			expected.MemUsage = resource.Usage
-
-		case disk:
-			expected.DiskLimit = resource.Limit
-			expected.DiskUsage = resource.Usage
-		}
+	qd := findQuota(qds, "tenant-instances-quota")
+	if qd != nil {
+		expected.InstanceLimit = qd.Value
+		expected.InstanceUsage = qd.Usage
+	}
+	qd = findQuota(qds, "tenant-vcpu-quota")
+	if qd != nil {
+		expected.VCPULimit = qd.Value
+		expected.VCPUUsage = qd.Usage
+	}
+	qd = findQuota(qds, "tenant-mem-quota")
+	if qd != nil {
+		expected.MemLimit = qd.Value
+		expected.MemUsage = qd.Usage
+	}
+	qd = findQuota(qds, "tenant-storage-quota")
+	if qd != nil {
+		expected.DiskLimit = qd.Value
+		expected.DiskUsage = qd.Usage
 	}
 
 	expected.ID = tenant.ID

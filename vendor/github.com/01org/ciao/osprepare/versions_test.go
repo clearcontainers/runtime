@@ -18,6 +18,8 @@ package osprepare
 
 import (
 	"testing"
+
+	"github.com/01org/ciao/clogger"
 )
 
 func TestGetDocker(t *testing.T) {
@@ -33,7 +35,7 @@ func TestGetQemu(t *testing.T) {
 	if pathExists("/usr/bin/qemu-system-x86_64") == false {
 		t.Skip("Qemu not installed, cannot validate version get")
 	}
-	if vers := getQemuVersion(ospNullLogger{}); vers == "" {
+	if vers := getQemuVersion(clogger.CiaoNullLogger{}); vers == "" {
 		t.Fatal("Cannot determine qemu version")
 	}
 }

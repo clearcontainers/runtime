@@ -7,7 +7,6 @@ start:
        value: 256
   instance_uuid: 67d86208-b46c-4465-9018-fe14087d415
   tenant_uuid: 67d86208-000-4465-9018-fe14087d415f
-  image_uuid: clear-1ff6bf3883708a56446d863f20c810c99b3aea6f
   networking:
     vnic_mac: 02:00:fa:69:71:d0
     vnic_uuid: 00d86208-b46c-0000-9018-fe14087d415f
@@ -15,6 +14,10 @@ start:
     concentrator_uuid: 67d86208-b46c-4465-0000-fe14087d415f
     subnet: 192.168.8.0/21
     private_ip: 192.168.8.3
+  storage:
+    - id: df3768da-31f5-4ba6-82f0-127a1a705169
+      boot: true
+
 ...
 ---
 #cloud-config

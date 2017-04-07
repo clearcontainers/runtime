@@ -54,8 +54,17 @@ func TestControllerErrorChanTimeout(t *testing.T) {
 
 	controllerCh := controller.AddErrorChan(ssntp.StopFailure)
 
+	// should time out
 	_, err := controller.GetErrorChanResult(controllerCh, ssntp.StopFailure)
 	if err == nil {
+		t.Fatal(err)
+	}
+
+	// don't leave the result on the channel
+	var result Result
+	go controller.SendResultAndDelErrorChan(ssntp.StopFailure, result)
+	_, err = controller.GetErrorChanResult(controllerCh, ssntp.StopFailure)
+	if err != nil {
 		t.Fatal(err)
 	}
 }
@@ -83,8 +92,17 @@ func TestControllerEventChanTimeout(t *testing.T) {
 
 	controllerCh := controller.AddEventChan(ssntp.TraceReport)
 
+	// should time out
 	_, err := controller.GetEventChanResult(controllerCh, ssntp.TraceReport)
 	if err == nil {
+		t.Fatal(err)
+	}
+
+	// don't leave the result on the channel
+	var result Result
+	go controller.SendResultAndDelEventChan(ssntp.TraceReport, result)
+	_, err = controller.GetEventChanResult(controllerCh, ssntp.TraceReport)
+	if err != nil {
 		t.Fatal(err)
 	}
 }
@@ -112,8 +130,17 @@ func TestControllerCmdChanTimeout(t *testing.T) {
 
 	controllerCh := controller.AddCmdChan(ssntp.START)
 
+	// should time out
 	_, err := controller.GetCmdChanResult(controllerCh, ssntp.START)
 	if err == nil {
+		t.Fatal(err)
+	}
+
+	// don't leave the result on the channel
+	var result Result
+	go controller.SendResultAndDelCmdChan(ssntp.START, result)
+	_, err = controller.GetCmdChanResult(controllerCh, ssntp.START)
+	if err != nil {
 		t.Fatal(err)
 	}
 }

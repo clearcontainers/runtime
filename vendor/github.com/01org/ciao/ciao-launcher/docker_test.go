@@ -99,10 +99,6 @@ func (s dockerTestStorage) GetVolumeMapping() (map[string][]string, error) {
 	return nil, nil
 }
 
-func (s dockerTestStorage) cleanup() error {
-	return os.RemoveAll(s.root)
-}
-
 func (s dockerTestStorage) CopyBlockDevice(volumeUUID string) (storage.BlockDevice, error) {
 	return storage.BlockDevice{}, nil
 }
@@ -381,7 +377,7 @@ func TestDockerCheckBackingImage(t *testing.T) {
 
 // Check that docker.downloaBackingImage works correctly.
 //
-// We call downloadBackingImage 4 times.  The first time we provide it with some
+// We call ensureBackingImage 4 times.  The first time we provide it with some
 // valid progress information via containerManager.downloadImage, the second
 // time we provide progress information that contains an error, the third time
 // we force downloadImage to return an error and the fourth time downloadImage
@@ -389,7 +385,7 @@ func TestDockerCheckBackingImage(t *testing.T) {
 //
 // The first and last call to downloadBackingImage should succeed.  The second
 // and third should fail.
-func TestDockerDownloadBackingImage(t *testing.T) {
+func TestDockerEnsureBackingImage(t *testing.T) {
 	tc := &dockerTestClient{}
 	d := &docker{cfg: &vmConfig{}, cli: tc}
 
@@ -401,7 +397,7 @@ func TestDockerDownloadBackingImage(t *testing.T) {
 		}
 	}
 
-	err := d.downloadBackingImage()
+	err := d.ensureBackingImage()
 	if err != nil {
 		t.Errorf("Failed to download backing image : %v", err)
 	}
@@ -414,13 +410,13 @@ func TestDockerDownloadBackingImage(t *testing.T) {
 	if err := enc.Encode(&msg); err != nil {
 		t.Fatalf("Failed to encode JSONMessage : %v", err)
 	}
-	err = d.downloadBackingImage()
+	err = d.ensureBackingImage()
 	if err == nil {
 		t.Errorf("Error expected downloading backing image")
 	}
 
 	tc.err = fmt.Errorf("Force failing of downloading backing image")
-	err = d.downloadBackingImage()
+	err = d.ensureBackingImage()
 	if err == nil {
 		t.Errorf("Error expected downloading backing image")
 	}
@@ -432,7 +428,7 @@ func TestDockerDownloadBackingImage(t *testing.T) {
 
 	tc.imagePullProgress.Reset()
 	tc.err = nil
-	err = d.downloadBackingImage()
+	err = d.ensureBackingImage()
 	if err != nil {
 		t.Errorf("Error downloading image with no progress : %v", err)
 	}

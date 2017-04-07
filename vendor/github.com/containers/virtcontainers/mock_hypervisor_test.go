@@ -92,3 +92,13 @@ func TestMockHypervisorAddDevice(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestMockHypervisorGetPodConsole(t *testing.T) {
+	var m *mockHypervisor
+
+	expected := ""
+
+	if result := m.getPodConsole("testPodID"); result != expected {
+		t.Fatalf("Got %s\nExpecting %s", result, expected)
+	}
+}

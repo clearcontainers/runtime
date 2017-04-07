@@ -17,6 +17,7 @@
 package osprepare
 
 import (
+	"context"
 	"testing"
 )
 
@@ -62,7 +63,7 @@ func TestSudoFormatCommandLogging(t *testing.T) {
 	}
 	l := ospTestLogger{}
 
-	sudoFormatCommand("echo -n foo\nbar", []string{}, l)
+	sudoFormatCommand(context.Background(), "echo -n foo\nbar", []string{}, l)
 
 	if info[0] != "foo" && info[1] != "bar%!(EXTRA string=)" {
 		t.Fatal("Incorrect log message received")
@@ -76,7 +77,7 @@ func TestSudoFormatCommandBadCommandReturn(t *testing.T) {
 	}
 	l := ospTestLogger{}
 
-	if sudoFormatCommand("false", []string{}, l) {
+	if sudoFormatCommand(context.Background(), "false", []string{}, l) {
 		t.Fatal("Error return code not detected")
 	}
 	if len(error) != 1 && error[0] != "Error running command: %s" {

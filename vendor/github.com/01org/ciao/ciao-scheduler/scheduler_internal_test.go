@@ -23,6 +23,8 @@ import (
 	"sync"
 	"testing"
 
+	yaml "gopkg.in/yaml.v2"
+
 	"github.com/01org/ciao/payloads"
 	"github.com/01org/ciao/ssntp"
 	"github.com/01org/ciao/testutil"
@@ -63,6 +65,7 @@ func spinUpComputeNode(sched *ssntpSchedulerServer, ident int, RAM int) {
 	node.memAvailMB = RAM
 	node.load = 0
 	node.cpus = 4
+	node.isNetNode = false
 
 	sched.cnMutex.Lock()
 	defer sched.cnMutex.Unlock()
@@ -79,14 +82,11 @@ func spinUpComputeNode(sched *ssntpSchedulerServer, ident int, RAM int) {
 func spinUpComputeNodeLarge(sched *ssntpSchedulerServer, ident int) {
 	spinUpComputeNode(sched, ident, 141312)
 }
-func spinUpComputeNodeSmall(sched *ssntpSchedulerServer, ident int) {
-	spinUpComputeNode(sched, ident, 16384)
-}
 func spinUpComputeNodeVerySmall(sched *ssntpSchedulerServer, ident int) {
 	spinUpComputeNode(sched, ident, 200)
 }
 
-func spinUpNetworkNode(sched *ssntpSchedulerServer, ident int, RAM int) {
+func spinUpNetworkNode(sched *ssntpSchedulerServer, ident int, RAM int, networks []payloads.NetworkStat) {
 	var node nodeStat
 	node.status = ssntp.READY
 	node.uuid = fmt.Sprintf("%08d", ident)
@@ -94,6 +94,8 @@ func spinUpNetworkNode(sched *ssntpSchedulerServer, ident int, RAM int) {
 	node.memAvailMB = RAM
 	node.load = 0
 	node.cpus = 4
+	node.isNetNode = true
+	node.networks = networks
 
 	sched.nnMutex.Lock()
 	defer sched.nnMutex.Unlock()
@@ -103,17 +105,15 @@ func spinUpNetworkNode(sched *ssntpSchedulerServer, ident int, RAM int) {
 		return
 	}
 
+	sched.nnList = append(sched.nnList, &node)
 	sched.nnMap[node.uuid] = &node
 }
 
-func spinUpNetworkNodeLarge(sched *ssntpSchedulerServer, ident int) {
-	spinUpNetworkNode(sched, ident, 141312)
+func spinUpNetworkNodeLarge(sched *ssntpSchedulerServer, ident int, networks []payloads.NetworkStat) {
+	spinUpNetworkNode(sched, ident, 141312, networks)
 }
-func spinUpNetworkNodeSmall(sched *ssntpSchedulerServer, ident int) {
-	spinUpNetworkNode(sched, ident, 16384)
-}
-func spinUpNetworkNodeVerySmall(sched *ssntpSchedulerServer, ident int) {
-	spinUpNetworkNode(sched, ident, 200)
+func spinUpNetworkNodeVerySmall(sched *ssntpSchedulerServer, ident int, networks []payloads.NetworkStat) {
+	spinUpNetworkNode(sched, ident, 200, networks)
 }
 
 /****************************************************************************/
@@ -180,46 +180,46 @@ func TestPickComputeNode(t *testing.T) {
 	}
 
 	// no compute nodes
-	node := PickComputeNode(sched, "", &resources)
+	node := PickComputeNode(sched, "", &resources, false)
 	if node != nil {
-		t.Error("fount fit in empty node list")
+		t.Error("found compute fit in empty node list")
 	}
 
 	// 1st compute node, with little memory
 	spinUpComputeNodeVerySmall(sched, 1)
-	node = PickComputeNode(sched, "", &resources)
+	node = PickComputeNode(sched, "", &resources, false)
 	if node != nil {
-		t.Error("found fit when none should exist")
+		t.Error("found compute fit when none should exist")
 	}
 
 	// 2nd compute node, with little memory
 	spinUpComputeNodeVerySmall(sched, 2)
-	node = PickComputeNode(sched, "", &resources)
+	node = PickComputeNode(sched, "", &resources, false)
 	if node != nil {
-		t.Error("found fit when none should exist")
+		t.Error("found compute fit when none should exist")
 	}
 
 	// 3rd compute node, with a lot of memory
 	spinUpComputeNodeLarge(sched, 3)
-	node = PickComputeNode(sched, "", &resources)
+	node = PickComputeNode(sched, "", &resources, false)
 	if node == nil {
-		t.Error("found no fit when one should exist")
+		t.Error("found no compute fit when one should exist")
 	}
 
 	// 100 compute nodes := earlier 1 + 1 + 1 + now 97 more compute nodes
 	for i := 4; i < 100; i++ {
 		spinUpComputeNode(sched, i, 256*i)
 	}
-	node = PickComputeNode(sched, "", &resources)
+	node = PickComputeNode(sched, "", &resources, false)
 	if node == nil {
-		t.Error("failed to fit in hundred node list")
+		t.Error("failed to fit in hundred compute node list")
 	}
 
-	// MRU set somewhere arbitrary
+	// compute MRU set somewhere arbitrary
 	sched.cnMRUIndex = 42
-	node = PickComputeNode(sched, "", &resources)
+	node = PickComputeNode(sched, "", &resources, false)
 	if node == nil {
-		t.Error("failed to find fit after MRU")
+		t.Error("failed to find compute fit after MRU")
 	}
 }
 
@@ -244,7 +244,7 @@ func benchmarkPickComputeNode(b *testing.B, nodecount int) {
 	// setup complete
 
 	for i := 0; i < b.N; i++ {
-		PickComputeNode(sched, "", &resources)
+		PickComputeNode(sched, "", &resources, false)
 	}
 }
 
@@ -274,9 +274,138 @@ func BenchmarkPickComputeNode100000(b *testing.B) {
 }
 func BenchmarkPickComputeNode1000000(b *testing.B) {
 	if testing.Short() {
-		b.Skip("skipping 1Mc n picker bench in short mode.")
+		b.Skip("skipping 1M cn picker bench in short mode.")
 	}
 	benchmarkPickComputeNode(b, 1000000)
+}
+
+func TestPickNetworkNode(t *testing.T) {
+	sched = configSchedulerServer()
+	if sched == nil {
+		t.Fatal("unable to configure test scheduler")
+	}
+
+	var work payloads.Start
+	err := yaml.Unmarshal([]byte(testutil.CNCIStartYaml), &work)
+	if err != nil {
+		t.Fatalf("bad CNCI workload yaml: %s", err)
+	}
+
+	resources, err := sched.getWorkloadResources(&work)
+	if err != nil ||
+		resources.instanceUUID != testutil.CNCIInstanceUUID {
+		t.Fatalf("bad CNCI workload resources %s, %d", resources.instanceUUID, resources.memReqMB)
+	}
+
+	// no network nodes
+	node := PickNetworkNode(sched, "", &resources, false)
+	if node != nil {
+		t.Error("found network fit in empty node list")
+	}
+
+	// 1st network node, with little memory
+	spinUpNetworkNodeVerySmall(sched, 1, testutil.MultipleComputeNetworks)
+	node = PickNetworkNode(sched, "", &resources, false)
+	if node != nil {
+		t.Error("found network fit when none should exist")
+	}
+
+	// 2nd network node, with even less resources
+	spinUpNetworkNodeVerySmall(sched, 2, testutil.PartialComputeNetworks)
+	node = PickNetworkNode(sched, "", &resources, false)
+	if node != nil {
+		t.Error("found network fit when none should exist")
+	}
+
+	// 3rd network node, with a lot of memory, well connected
+	spinUpNetworkNodeLarge(sched, 3, testutil.MultipleComputeNetworks)
+	node = PickNetworkNode(sched, "", &resources, false)
+	if node == nil {
+		t.Error("found no network fit when one should exist")
+	}
+
+	// 100 network nodes := earlier 1 + 1 + 1 + 1 + now 96 more compute nodes
+	// half and half with all or partial connectivity
+	for i := 5; i < 100; i++ {
+		if i%2 == 0 {
+			spinUpNetworkNode(sched, i, 256*i, testutil.MultipleComputeNetworks)
+		} else {
+			spinUpNetworkNode(sched, i, 256*i, testutil.PartialComputeNetworks)
+		}
+	}
+	node = PickNetworkNode(sched, "", &resources, false)
+	if node == nil {
+		t.Error("failed to fit in hundred network node list")
+	}
+
+	// do a few more to insure we walk some nodes that don't have the
+	// requested network connectivity after network MRU is set somewhere
+	// arbitrary
+	sched.nnMRUIndex = 42
+	node = PickNetworkNode(sched, "", &resources, false)
+	if node == nil {
+		t.Error("failed to find network fit after MRU")
+	}
+	node = PickNetworkNode(sched, "", &resources, false)
+	if node == nil {
+		t.Error("failed to find network fit when many should exist")
+	}
+}
+
+func benchmarkPickNetworkNode(b *testing.B, nodecount int) {
+	sched = configSchedulerServer()
+	if sched == nil {
+		b.Fatal("unable to configure test scheduler")
+	}
+
+	// eg: idle, small network nodes
+	for i := 0; i < nodecount; i++ {
+		spinUpNetworkNode(sched, i, 16138, testutil.MultipleComputeNetworks)
+	}
+
+	var work = createStartWorkload(2, 256, 10000)
+	resources, err := sched.getWorkloadResources(work)
+	if err != nil {
+		b.Fatal("bad workload resources")
+	}
+
+	b.ResetTimer()
+	// setup complete
+
+	for i := 0; i < b.N; i++ {
+		PickNetworkNode(sched, "", &resources, false)
+	}
+}
+
+func BenchmarkPickNetworkNode10(b *testing.B) {
+	benchmarkPickNetworkNode(b, 10)
+}
+func BenchmarkPickNetworkNode100(b *testing.B) {
+	benchmarkPickNetworkNode(b, 100)
+}
+func BenchmarkPickNetworkNode1000(b *testing.B) {
+	if testing.Short() {
+		b.Skip("skipping 1k nn picker bench in short mode.")
+	}
+	benchmarkPickNetworkNode(b, 1000)
+}
+func BenchmarkPickNetworkNode10000(b *testing.B) {
+	if testing.Short() {
+		b.Skip("skipping 10k nn picker bench in short mode.")
+	}
+	benchmarkPickNetworkNode(b, 10000)
+}
+func BenchmarkPickNetworkNode100000(b *testing.B) {
+	if testing.Short() {
+		b.Skip("skipping 100k nn picker bench in short mode.")
+	}
+	benchmarkPickNetworkNode(b, 100000)
+}
+func BenchmarkPickNetworkNode1000000(b *testing.B) {
+	if testing.Short() {
+		b.Skip("skipping 1M nn picker bench in short mode.")
+	}
+	benchmarkPickNetworkNode(b, 1000000)
 }
 
 func TestHeartBeatController(t *testing.T) {
@@ -369,11 +498,11 @@ func TestHeartBeat(t *testing.T) {
 	spinUpComputeNode(sched, 3, 10000)
 	spinUpComputeNode(sched, 4, 42)
 	spinUpComputeNode(sched, 5, 44032)
-	spinUpNetworkNode(sched, 1001, 16138)
-	spinUpNetworkNode(sched, 1002, 256)
-	spinUpNetworkNode(sched, 1003, 10000)
-	spinUpNetworkNode(sched, 1004, 42)
-	spinUpNetworkNode(sched, 1005, 44032)
+	spinUpNetworkNode(sched, 1001, 16138, testutil.MultipleComputeNetworks)
+	spinUpNetworkNode(sched, 1002, 256, testutil.MultipleComputeNetworks)
+	spinUpNetworkNode(sched, 1003, 10000, testutil.MultipleComputeNetworks)
+	spinUpNetworkNode(sched, 1004, 42, testutil.MultipleComputeNetworks)
+	spinUpNetworkNode(sched, 1005, 44032, testutil.MultipleComputeNetworks)
 	beatTxt = heartBeat(sched, 1)
 	expected = "controller-00000001:MASTER, controller-00000002:BACKUP\t\tnode-00000001:READY:16138/16138,0, node-00000002:READY:256/256,0, node-00000003:READY:10000/10000,0, node-00000004:READY:42/42,0"
 	if beatTxt != expected {
@@ -561,11 +690,11 @@ func TestStartWorkload(t *testing.T) {
 	spinUpComputeNode(sched, 4, 42)
 	spinUpComputeNode(sched, 5, 44032)
 
-	spinUpNetworkNode(sched, 1001, 16138)
-	spinUpNetworkNode(sched, 1002, 256)
-	spinUpNetworkNode(sched, 1003, 10000)
-	spinUpNetworkNode(sched, 1004, 42)
-	spinUpNetworkNode(sched, 1005, 44032)
+	spinUpNetworkNode(sched, 1001, 16138, testutil.MultipleComputeNetworks)
+	spinUpNetworkNode(sched, 1002, 256, testutil.MultipleComputeNetworks)
+	spinUpNetworkNode(sched, 1003, 10000, testutil.MultipleComputeNetworks)
+	spinUpNetworkNode(sched, 1004, 42, testutil.MultipleComputeNetworks)
+	spinUpNetworkNode(sched, 1005, 44032, testutil.MultipleComputeNetworks)
 
 	var dest string
 

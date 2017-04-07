@@ -19,13 +19,16 @@ import (
 	"io"
 	"net/http"
 	"path/filepath"
+	"strings"
 	"time"
 
+	"github.com/01org/ciao/ciao-controller/internal/quotas"
 	imageDatastore "github.com/01org/ciao/ciao-image/datastore"
 	"github.com/01org/ciao/ciao-storage"
 	"github.com/01org/ciao/database"
 	osIdentity "github.com/01org/ciao/openstack/identity"
 	"github.com/01org/ciao/openstack/image"
+	"github.com/01org/ciao/payloads"
 	"github.com/01org/ciao/ssntp/uuid"
 	"github.com/golang/glog"
 	"github.com/gorilla/mux"
@@ -34,13 +37,15 @@ import (
 // ImageService is the context for the image service implementation.
 type ImageService struct {
 	ds imageDatastore.DataStore
+	qs *quotas.Quotas
 }
 
 // CreateImage will create an empty image in the image datastore.
-func (is ImageService) CreateImage(req image.CreateImageRequest) (image.DefaultResponse, error) {
+func (is *ImageService) CreateImage(tenantID string, req image.CreateImageRequest) (image.DefaultResponse, error) {
 	// create an ImageInfo struct and store it in our image
 	// datastore.
 	glog.Infof("Creating Image: %v", req.ID)
+
 	id := req.ID
 	if id == "" {
 		id = uuid.Generate().String()
@@ -50,23 +55,21 @@ func (is ImageService) CreateImage(req image.CreateImageRequest) (image.DefaultR
 			return image.DefaultResponse{}, image.ErrBadUUID
 		}
 
-		img, err := is.ds.GetImage(id)
-		if err != nil {
-			glog.Errorf("Error on decoding image: %v", err)
-			return image.DefaultResponse{}, image.ErrDecodeImage
-		}
-
+		img, _ := is.ds.GetImage(tenantID, id)
 		if img != (imageDatastore.Image{}) {
-			glog.Errorf("Image %v already exists", err)
+			glog.Errorf("Image [%v] already exists", id)
 			return image.DefaultResponse{}, image.ErrAlreadyExists
 		}
 	}
 
 	i := imageDatastore.Image{
 		ID:         id,
+		TenantID:   tenantID,
 		State:      imageDatastore.Created,
 		Name:       req.Name,
 		CreateTime: time.Now(),
+		Tags:       strings.Join(req.Tags, ","),
+		Visibility: req.Visibility,
 	}
 
 	err := is.ds.CreateImage(i)
@@ -75,15 +78,26 @@ func (is ImageService) CreateImage(req image.CreateImageRequest) (image.DefaultR
 		return image.DefaultResponse{}, err
 	}
 
+	res := <-is.qs.Consume(tenantID, payloads.RequestedResource{Type: payloads.Image, Value: 1})
+	if !res.Allowed() {
+		is.ds.DeleteImage(tenantID, id)
+		is.qs.Release(tenantID, payloads.RequestedResource{Type: payloads.Image, Value: 1})
+		return image.DefaultResponse{}, image.ErrQuota
+	}
+
 	glog.Infof("Image %v created", id)
 	size := int(i.Size)
+	tags := []string{}
+	if len(i.Tags) > 0 {
+		tags = strings.Split(i.Tags, ",")
+	}
 	return image.DefaultResponse{
 		Status:     image.Queued,
 		CreatedAt:  i.CreateTime,
-		Tags:       make([]string, 0),
+		Tags:       tags,
 		Locations:  make([]string, 0),
 		DiskFormat: image.Raw,
-		Visibility: i.Visibility(),
+		Visibility: i.Visibility,
 		Self:       fmt.Sprintf("/v2/images/%s", i.ID),
 		Protected:  false,
 		ID:         i.ID,
@@ -96,13 +110,17 @@ func (is ImageService) CreateImage(req image.CreateImageRequest) (image.DefaultR
 
 func createImageResponse(img imageDatastore.Image) (image.DefaultResponse, error) {
 	size := int(img.Size)
+	tags := []string{}
+	if len(img.Tags) > 0 {
+		tags = strings.Split(img.Tags, ",")
+	}
 	return image.DefaultResponse{
 		Status:     img.State.Status(),
 		CreatedAt:  img.CreateTime,
-		Tags:       make([]string, 0),
+		Tags:       tags,
 		Locations:  make([]string, 0),
 		DiskFormat: image.DiskFormat(img.Type),
-		Visibility: img.Visibility(),
+		Visibility: img.Visibility,
 		Self:       fmt.Sprintf("/v2/images/%s", img.ID),
 		Protected:  false,
 		ID:         img.ID,
@@ -114,13 +132,13 @@ func createImageResponse(img imageDatastore.Image) (image.DefaultResponse, error
 }
 
 // ListImages will return a list of all the images in the datastore.
-func (is ImageService) ListImages() ([]image.DefaultResponse, error) {
-	glog.Info("Listing images")
+func (is *ImageService) ListImages(tenant string) ([]image.DefaultResponse, error) {
+	glog.Infof("Listing images from [%v]", tenant)
 	response := []image.DefaultResponse{}
 
-	images, err := is.ds.GetAllImages()
+	images, err := is.ds.GetAllImages(tenant)
 	if err != nil {
-		glog.Errorf("Error on listing images: %v", err)
+		glog.Errorf("Error on retrieving images from tenant [%v]: %v", tenant, err)
 		return response, err
 	}
 
@@ -133,11 +151,11 @@ func (is ImageService) ListImages() ([]image.DefaultResponse, error) {
 }
 
 // UploadImage will upload a raw image data and update its status.
-func (is ImageService) UploadImage(imageID string, body io.Reader) (image.NoContentImageResponse, error) {
+func (is *ImageService) UploadImage(tenantID, imageID string, body io.Reader) (image.NoContentImageResponse, error) {
 	glog.Infof("Uploading image: %v", imageID)
 	var response image.NoContentImageResponse
 
-	err := is.ds.UploadImage(imageID, body)
+	err := is.ds.UploadImage(tenantID, imageID, body)
 	if err != nil {
 		glog.Errorf("Error on uploading image: %v", err)
 		return response, err
@@ -149,15 +167,17 @@ func (is ImageService) UploadImage(imageID string, body io.Reader) (image.NoCont
 }
 
 // DeleteImage will delete a raw image and its metadata
-func (is ImageService) DeleteImage(imageID string) (image.NoContentImageResponse, error) {
+func (is *ImageService) DeleteImage(tenantID, imageID string) (image.NoContentImageResponse, error) {
 	glog.Infof("Deleting image: %v", imageID)
 	var response image.NoContentImageResponse
 
-	err := is.ds.DeleteImage(imageID)
+	err := is.ds.DeleteImage(tenantID, imageID)
 	if err != nil {
 		glog.Errorf("Error on deleting image: %v", err)
 		return response, err
 	}
+
+	is.qs.Release(tenantID, payloads.RequestedResource{Type: payloads.Image, Value: 1})
 
 	response.ImageID = imageID
 	glog.Infof("Image %v deleted", imageID)
@@ -165,11 +185,11 @@ func (is ImageService) DeleteImage(imageID string) (image.NoContentImageResponse
 }
 
 // GetImage will get the raw image data
-func (is ImageService) GetImage(imageID string) (image.DefaultResponse, error) {
-	glog.Infof("Getting Image %v", imageID)
+func (is *ImageService) GetImage(tenantID, imageID string) (image.DefaultResponse, error) {
+	glog.Infof("Getting Image [%v] from [%v]", imageID, tenantID)
 	var response image.DefaultResponse
 
-	img, err := is.ds.GetImage(imageID)
+	img, err := is.ds.GetImage(tenantID, imageID)
 	if err != nil {
 		glog.Errorf("Error on getting image: %v", err)
 		return response, err
@@ -222,9 +242,10 @@ func (c *controller) startImageService() error {
 	glog.Infof("DbDir      : %v", metaDs.DbDir)
 	glog.Infof("DbFile     : %v", metaDs.DbFile)
 
-	metaDsTables := []string{"images"}
+	metaDsTables := []string{"public", "internal"}
 
 	err := metaDs.DbInit(metaDs.DbDir, metaDs.DbFile)
+
 	if err != nil {
 		glog.Fatalf("Error on DB Initialization: %v", err)
 	}
@@ -236,7 +257,7 @@ func (c *controller) startImageService() error {
 	}
 
 	rawDs := &imageDatastore.Ceph{
-		ImageTempDir: c.image.MountPoint,
+		ImageTempDir: *imagesPath,
 		BlockDriver: storage.CephDriver{
 			ID: *cephID,
 		},
@@ -262,7 +283,7 @@ func (c *controller) startImageService() error {
 	glog.Infof("RawDataStore  : %T", config.RawDataStore)
 	glog.Infof("MetaDataStore : %T", config.MetaDataStore)
 
-	is := ImageService{ds: &imageDatastore.ImageStore{}}
+	is := ImageService{ds: &imageDatastore.ImageStore{}, qs: c.qs}
 	err = is.ds.Init(config.RawDataStore, config.MetaDataStore)
 	if err != nil {
 		return err
@@ -270,11 +291,11 @@ func (c *controller) startImageService() error {
 
 	apiConfig := image.APIConfig{
 		Port:         config.Port,
-		ImageService: is,
+		ImageService: &is,
 	}
 
 	// get our routes.
-	r := image.Routes(apiConfig)
+	r := image.Routes(apiConfig, c.id.scV3)
 
 	// setup identity for these routes.
 	validServices := []osIdentity.ValidService{
@@ -296,7 +317,6 @@ func (c *controller) startImageService() error {
 		}
 
 		route.Handler(h)
-
 		return nil
 	})
 	if err != nil {

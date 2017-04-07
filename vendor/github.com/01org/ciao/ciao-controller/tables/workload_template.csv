@@ -1,5 +1,0 @@
-79034317-3beb-447e-987d-4e310a8cf410,Fedora 24 Cloud,test.yaml,legacy,qemu,"","", 0
-e35ed972-c46c-4aad-a1e7-ef103ae079a2,Clear Cloud,test.yaml,efi,qemu,"","", 0
-eba04826-62a5-48bd-876f-9119667b1487,CNCI,test.yaml,efi,qemu,"","", 1
-ca957444-fa46-11e5-94f9-38607786d9ec,Docker Ubuntu latest,docker-ubuntu.yaml,"",docker,fa7d86d8-fa46-11e5-8493-38607786d9ec,"ubuntu:latest",0
-ab68111c-03a6-11e6-87de-001320fb6e31,Docker Iperf,docker-iperf.yaml,"",docker,b5e696b8-03a6-11e6-a424-001320fb6e31,"mcastelino/iperf:latest",0

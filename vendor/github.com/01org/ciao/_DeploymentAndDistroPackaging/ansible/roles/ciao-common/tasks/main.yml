@@ -13,7 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-  - include: install.yml
+  - include_vars: "{{ ansible_os_family.split(' ') | first }}.yml"
+
+  - name: Create CIAO user
+    user:
+      name: ciao
+      comment: CIAO user
+      createhome: no
+      system: yes
 
   - name: Create directories required by ciao
     file: path={{ item }} state=directory owner=ciao group=ciao
@@ -26,14 +33,10 @@
       - /etc/pki/ciao
       - /etc/pki/keystone
 
-  - name: Create /etc/systemd/system if it does not exists
-    file: path=/etc/systemd/system state=directory owner=root group=root
-
-  - name: Set bindir location
-    set_fact: bindir={{ '/usr/local/bin' if ciao_dev else '/usr/bin' }}
-
-  - name: Ensure {{ bindir }} exists
-    file: path={{ bindir }} state=directory
-
-  - include: ceph.yml
-    when: not skip_ceph
+  - name: Create directories required by root
+    file: path={{ item }} state=directory owner=root group=root
+    with_items:
+      - /etc/systemd
+      - /etc/systemd/system
+      - /usr/local
+      - /usr/local/bin

@@ -29,6 +29,7 @@ import (
 	"net/http"
 
 	"github.com/01org/ciao/openstack/compute"
+	"github.com/01org/ciao/service"
 	"github.com/gorilla/mux"
 )
 
@@ -37,10 +38,20 @@ import (
 // and pass some package level context into the handler.
 type legacyAPIHandler struct {
 	*controller
-	Handler func(*controller, http.ResponseWriter, *http.Request) (APIResponse, error)
+	Handler    func(*controller, http.ResponseWriter, *http.Request) (APIResponse, error)
+	Privileged bool
 }
 
 func (h legacyAPIHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// check to see if we should send permission denied for this route.
+	if h.Privileged {
+		privileged := service.GetPrivilege(r.Context())
+		if !privileged {
+			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+			return
+		}
+	}
+
 	resp, err := h.Handler(h.controller, w, r)
 	if err != nil {
 		data := HTTPErrorData{
@@ -270,43 +281,43 @@ func listServerDetailsFlavors(c *controller, w http.ResponseWriter, r *http.Requ
 
 func legacyComputeRoutes(ctl *controller, r *mux.Router) *mux.Router {
 	r.Handle("/v2.1/{tenant}/servers/action",
-		legacyAPIHandler{ctl, tenantServersAction}).Methods("POST")
+		legacyAPIHandler{ctl, tenantServersAction, false}).Methods("POST")
 
 	r.Handle("/v2.1/flavors/{flavor}/servers/detail",
-		legacyAPIHandler{ctl, listServerDetailsFlavors}).Methods("GET")
+		legacyAPIHandler{ctl, listServerDetailsFlavors, true}).Methods("GET")
 
 	r.Handle("/v2.1/{tenant}/resources",
-		legacyAPIHandler{ctl, listTenantResources}).Methods("GET")
+		legacyAPIHandler{ctl, listTenantResources, false}).Methods("GET")
 
 	r.Handle("/v2.1/{tenant}/quotas",
-		legacyAPIHandler{ctl, listTenantQuotas}).Methods("GET")
+		legacyAPIHandler{ctl, listTenantQuotas, false}).Methods("GET")
 
 	r.Handle("/v2.1/tenants",
-		legacyAPIHandler{ctl, legacyListTenants}).Methods("GET")
+		legacyAPIHandler{ctl, legacyListTenants, true}).Methods("GET")
 
 	r.Handle("/v2.1/nodes",
-		legacyAPIHandler{ctl, legacyListNodes}).Methods("GET")
+		legacyAPIHandler{ctl, legacyListNodes, true}).Methods("GET")
 	r.Handle("/v2.1/nodes/summary",
-		legacyAPIHandler{ctl, legacyNodesSummary}).Methods("GET")
+		legacyAPIHandler{ctl, legacyNodesSummary, true}).Methods("GET")
 	r.Handle("/v2.1/nodes/{node}/servers/detail",
-		legacyAPIHandler{ctl, legacyListNodeServers}).Methods("GET")
+		legacyAPIHandler{ctl, legacyListNodeServers, true}).Methods("GET")
 
 	r.Handle("/v2.1/cncis",
-		legacyAPIHandler{ctl, legacyListCNCIs}).Methods("GET")
+		legacyAPIHandler{ctl, legacyListCNCIs, true}).Methods("GET")
 	r.Handle("/v2.1/cncis/{cnci}/detail",
-		legacyAPIHandler{ctl, legacyListCNCIDetails}).Methods("GET")
+		legacyAPIHandler{ctl, legacyListCNCIDetails, true}).Methods("GET")
 
 	r.Handle("/v2.1/events",
-		legacyAPIHandler{ctl, legacyListEvents}).Methods("GET")
+		legacyAPIHandler{ctl, legacyListEvents, true}).Methods("GET")
 	r.Handle("/v2.1/events",
-		legacyAPIHandler{ctl, legacyClearEvents}).Methods("DELETE")
+		legacyAPIHandler{ctl, legacyClearEvents, true}).Methods("DELETE")
 	r.Handle("/v2.1/{tenant}/events",
-		legacyAPIHandler{ctl, legacyListTenantEvents}).Methods("GET")
+		legacyAPIHandler{ctl, legacyListTenantEvents, false}).Methods("GET")
 
 	r.Handle("/v2.1/traces",
-		legacyAPIHandler{ctl, legacyListTraces}).Methods("GET")
+		legacyAPIHandler{ctl, legacyListTraces, true}).Methods("GET")
 	r.Handle("/v2.1/traces/{label}",
-		legacyAPIHandler{ctl, legacyTraceData}).Methods("GET")
+		legacyAPIHandler{ctl, legacyTraceData, true}).Methods("GET")
 
 	return r
 }

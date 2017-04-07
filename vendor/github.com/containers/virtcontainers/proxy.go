@@ -92,10 +92,6 @@ func newProxyConfig(config PodConfig) interface{} {
 // Each ProxyInfo relates to a process running inside a container.
 type ProxyInfo struct {
 	Token string
-
-	// Keep for legacy, will be removed when new proxy is ready.
-	StdioID  uint64
-	StderrID uint64
 }
 
 // proxy is the virtcontainers proxy interface.

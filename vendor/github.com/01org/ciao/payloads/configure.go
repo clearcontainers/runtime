@@ -69,10 +69,16 @@ type ConfigureController struct {
 	VolumePort       int    `yaml:"volume_port"`
 	ComputePort      int    `yaml:"compute_port"`
 	CiaoPort         int    `yaml:"ciao_port"`
+	ControllerFQDN   string `yaml:"compute_fqdn"`
 	HTTPSCACert      string `yaml:"compute_ca"`
 	HTTPSKey         string `yaml:"compute_cert"`
 	IdentityUser     string `yaml:"identity_user"`
 	IdentityPassword string `yaml:"identity_password"`
+	CNCIVcpus        int    `yaml:"cnci_vcpus"`
+	CNCIMem          int    `yaml:"cnci_mem"`
+	CNCIDisk         int    `yaml:"cnci_disk"`
+	AdminSSHKey      string `yaml:"admin_ssh_key"`
+	AdminPassword    string `yaml:"admin_password"`
 }
 
 // ConfigureLauncher contains the unmarshalled configurations for the

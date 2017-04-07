@@ -53,6 +53,7 @@ func (c *controller) CreateVolume(tenant string, req block.RequestedVolume) (blo
 	if req.ImageRef != nil {
 		// create bootable volume
 		bd, err = c.CreateBlockDeviceFromSnapshot(*req.ImageRef, "ciao-image")
+		bd.Bootable = true
 	} else if req.SourceVolID != nil {
 		// copy existing volume
 		bd, err = c.CopyBlockDevice(*req.SourceVolID)
@@ -84,9 +85,23 @@ func (c *controller) CreateVolume(tenant string, req block.RequestedVolume) (blo
 		data.Description = *req.Description
 	}
 
+	// It's best to make the quota request here as we don't know the volume
+	// size earlier. If the ceph cluster is full then it might error out
+	// earlier.
+	res := <-c.qs.Consume(tenant,
+		payloads.RequestedResource{Type: payloads.Volume, Value: 1},
+		payloads.RequestedResource{Type: payloads.SharedDiskGiB, Value: bd.Size})
+
+	if !res.Allowed() {
+		c.DeleteBlockDevice(bd.ID)
+		c.qs.Release(tenant, res.Resources()...)
+		return block.Volume{}, block.ErrQuota
+	}
+
 	err = c.ds.AddBlockDevice(data)
 	if err != nil {
 		c.DeleteBlockDevice(bd.ID)
+		c.qs.Release(tenant, res.Resources()...)
 		return block.Volume{}, err
 	}
 
@@ -99,7 +114,7 @@ func (c *controller) CreateVolume(tenant string, req block.RequestedVolume) (blo
 		CreatedAt:   &data.CreateTime,
 		ID:          bd.ID,
 		Size:        data.Size,
-		Bootable:    strconv.FormatBool(req.ImageRef != nil),
+		Bootable:    strconv.FormatBool(data.Bootable),
 	}, nil
 }
 
@@ -137,6 +152,11 @@ func (c *controller) DeleteVolume(tenant string, volume string) error {
 		return err
 	}
 
+	// release quota associated with this volume
+	c.qs.Release(info.TenantID,
+		payloads.RequestedResource{Type: payloads.Volume, Value: 1},
+		payloads.RequestedResource{Type: payloads.SharedDiskGiB, Value: info.Size})
+
 	return nil
 }
 
@@ -170,10 +190,6 @@ func (c *controller) AttachVolume(tenant string, volume string, instance string,
 
 	if i.TenantID != tenant {
 		return block.ErrInstanceOwner
-	}
-
-	if i.NodeID == "" {
-		return block.ErrInstanceNotAvailable
 	}
 
 	// update volume state to attaching
@@ -337,6 +353,7 @@ func (c *controller) ListVolumesDetail(tenant string) ([]block.VolumeDetail, err
 		vol.Size = data.Size
 		vol.OSVolTenantAttr = data.TenantID
 		vol.CreatedAt = &data.CreateTime
+		vol.Bootable = strconv.FormatBool(data.Bootable)
 
 		if data.Name != "" {
 			vol.Name = &data.Name
@@ -384,6 +401,7 @@ func (c *controller) ShowVolumeDetails(tenant string, volume string) (block.Volu
 	vol.Size = data.Size
 	vol.OSVolTenantAttr = data.TenantID
 	vol.CreatedAt = &data.CreateTime
+	vol.Bootable = strconv.FormatBool(data.Bootable)
 
 	if data.Name != "" {
 		vol.Name = &data.Name

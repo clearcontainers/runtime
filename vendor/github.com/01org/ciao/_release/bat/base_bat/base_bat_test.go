@@ -24,9 +24,91 @@ import (
 	"time"
 
 	"github.com/01org/ciao/bat"
+	"github.com/01org/ciao/payloads"
+	"github.com/01org/ciao/ssntp/uuid"
 )
 
 const standardTimeout = time.Second * 300
+
+// Verify that stopping and starting an instance affects a node's instance counts
+//
+// Retrieve information about all the nodes in the cluster.  Then start a new instance
+// and retrieve details on that instance.  If the instance is active check that the
+// instance count has changed on the node on which the instance is hosted and the stop
+// the instance. Check the instance counts on the host node once more.  The counts should
+// match the counts taken at the start of the test.  The tests is a little fragile and
+// assumes it is the only test running in the cluster at any one time.  We run it first
+// as any pending delete instance operations from preceding tests could cause this
+// test to fail.
+//
+// There should be no errors starting nodes or retrieving instance counts.  Assuming
+// the started instance was active the node counts on its host node should have
+// increased.  Once stopped the node counts should return to what they were before
+// the instance was started.
+func TestListComputeNodes(t *testing.T) {
+	ctx, cancelFunc := context.WithTimeout(context.Background(), standardTimeout)
+	defer cancelFunc()
+
+	beforeStart, err := bat.GetComputeNodes(ctx)
+	if err != nil {
+		t.Fatalf("Unable to retrieve list of compute nodes")
+	}
+
+	instances, err := bat.StartRandomInstances(ctx, "", 1)
+	if err != nil {
+		t.Fatalf("Failed to launch instance: %v", err)
+	}
+
+	defer func() {
+		_, err := bat.DeleteInstances(ctx, "", instances)
+		if err != nil {
+			t.Errorf("Failed to delete instances: %v", err)
+		}
+	}()
+
+	_, err = bat.WaitForInstancesLaunch(ctx, "", instances, false)
+	if err != nil {
+		t.Fatalf("Instance %s failed to launch correctly: %v", instances[0], err)
+	}
+
+	afterStart, err := bat.GetComputeNodes(ctx)
+	if err != nil {
+		t.Fatalf("Unable to retrieve list of compute nodes")
+	}
+
+	instanceDetails, err := bat.GetInstance(ctx, "", instances[0])
+	if err != nil {
+		t.Fatalf("Unable to retrieve instance[%s] details: %v",
+			instances[0], err)
+	}
+
+	hostID := instanceDetails.HostID
+	if instanceDetails.Status == "active" {
+		if beforeStart[hostID].TotalInstances >= afterStart[hostID].TotalInstances {
+			t.Fatalf("Starting an instance should increase instance count on node %v %v", beforeStart[hostID], afterStart[hostID])
+		}
+
+		if beforeStart[hostID].TotalRunningInstances >= afterStart[hostID].TotalRunningInstances {
+			t.Fatalf("Starting an active instance should increase running instance count on node %v %v", beforeStart[hostID], afterStart[hostID])
+		}
+		err = bat.StopInstanceAndWait(ctx, "", instances[0])
+		if err != nil {
+			t.Fatalf("Failed to stop instance %s : %v", instances[0], err)
+		}
+
+		afterStart, err = bat.GetComputeNodes(ctx)
+		if err != nil {
+			t.Fatalf("Unable to retrieve list of compute nodes")
+		}
+	}
+
+	if beforeStart[hostID].TotalInstances != afterStart[hostID].TotalInstances &&
+		beforeStart[hostID].TotalPendingInstances != afterStart[hostID].TotalPendingInstances &&
+		beforeStart[hostID].TotalRunningInstances != afterStart[hostID].TotalRunningInstances {
+		t.Fatalf("Node instance counts mismatched.  Expected %v found %v",
+			beforeStart[hostID], afterStart[hostID])
+	}
+}
 
 // Get all tenants
 //
@@ -152,6 +234,199 @@ func TestStartAllWorkloads(t *testing.T) {
 	}
 }
 
+func checkInstances(t *testing.T, a, b *bat.Instance) {
+	if !(a.TenantID == b.TenantID &&
+		a.FlavorID == b.FlavorID && a.ImageID == b.ImageID &&
+		a.PrivateIP == b.PrivateIP && a.MacAddress == b.MacAddress &&
+		a.SSHIP == b.SSHIP && a.SSHPort == b.SSHPort) {
+		t.Fatalf("Instance details do not match: %v %v", a, b)
+	}
+}
+
+// Test restart and stop
+//
+// Start a random instance and retrieve the instance's status. We then stop
+// the workload, assuming that it is running, restart it and delete it.
+//
+// The workload should be successfully started, stopped (if it's not running),
+// restarted, and finally deleted.
+func TestStopRestartInstance(t *testing.T) {
+	ctx, cancelFunc := context.WithTimeout(context.Background(), standardTimeout)
+	defer cancelFunc()
+
+	instances, err := bat.StartRandomInstances(ctx, "", 1)
+	if err != nil {
+		t.Fatalf("Failed to launch instance: %v", err)
+	}
+
+	defer func() {
+		err := bat.DeleteInstance(ctx, "", instances[0])
+		if err != nil {
+			t.Errorf("Failed to delete instance %s: %v", instances[0], err)
+		}
+	}()
+
+	_, err = bat.WaitForInstancesLaunch(ctx, "", instances, false)
+	if err != nil {
+		t.Fatalf("Instance %s did not launch: %v", instances[0], err)
+	}
+
+	instanceAfterStart, err := bat.GetInstance(ctx, "", instances[0])
+	if err != nil {
+		t.Fatalf("Failed to retrieve instance %s status: %v", instances[0], err)
+	}
+
+	if instanceAfterStart.Status == "active" {
+		err = bat.StopInstanceAndWait(ctx, "", instances[0])
+		if err != nil {
+			t.Fatalf("Failed to stop instance %s : %v", instances[0], err)
+		}
+
+		instanceAfterStop, err := bat.GetInstance(ctx, "", instances[0])
+		if err != nil {
+			t.Fatalf("Failed to retrieve instance %s status: %v", instances[0], err)
+		}
+
+		if instanceAfterStop.HostID != "" {
+			t.Fatalf("Expected HostID to be \"\".  It was %s",
+				instanceAfterStop.HostID)
+		}
+
+		checkInstances(t, instanceAfterStart, instanceAfterStop)
+	}
+
+	err = bat.RestartInstance(ctx, "", instances[0])
+	if err != nil {
+		t.Fatalf("Failed to restart instance %s : %v", instances[0], err)
+	}
+
+	// If the instance exited after startup assume that this instance is a short
+	// lived container.  There's no need to wait for it to restart it may never
+	// transition to the restarted state if it starts and quits faster than launcher
+	// polls.
+
+	if instanceAfterStart.Status != "active" {
+		return
+	}
+
+	_, err = bat.WaitForInstancesLaunch(ctx, "", instances, true)
+	if err != nil {
+		t.Errorf("Timed out waiting for instance %s to restart : %v",
+			instances[0], err)
+	}
+
+	instanceAfterRestart, err := bat.GetInstance(ctx, "", instances[0])
+	if err != nil {
+		t.Fatalf("Failed to retrieve instance %s status: %v", instances[0], err)
+	}
+
+	checkInstances(t, instanceAfterStart, instanceAfterRestart)
+
+	if instanceAfterRestart.HostID == "" {
+		t.Fatal("Expected HostID to be defined")
+	}
+}
+
+// Test deletion of stopped instances
+//
+// Start a random instance, try to stop it and then delete it.
+//
+// The workload should be successfully started and stopped.  We should be able to
+// delete the instance.
+func TestDeleteStoppedInstance(t *testing.T) {
+	ctx, cancelFunc := context.WithTimeout(context.Background(), standardTimeout)
+	defer cancelFunc()
+
+	instances, err := bat.StartRandomInstances(ctx, "", 1)
+	if err != nil {
+		t.Fatalf("Failed to launch instance: %v", err)
+	}
+
+	defer func() {
+		if len(instances) == 0 {
+			return
+		}
+		err := bat.DeleteInstance(ctx, "", instances[0])
+		if err != nil {
+			t.Errorf("Failed to delete instance %s: %v", instances[0], err)
+		}
+	}()
+
+	_, err = bat.WaitForInstancesLaunch(ctx, "", instances, false)
+	if err != nil {
+		t.Fatalf("Instance %s did not launch: %v", instances[0], err)
+	}
+
+	instance, err := bat.GetInstance(ctx, "", instances[0])
+	if err != nil {
+		t.Fatalf("Failed to retrieve instance %s status: %v", instances[0], err)
+	}
+
+	if instance.Status == "active" {
+		err = bat.StopInstanceAndWait(ctx, "", instances[0])
+		if err != nil {
+			t.Fatalf("Failed to stop instance %s : %v", instances[0], err)
+		}
+	}
+
+	i := instances[0]
+	instances = nil
+	err = bat.DeleteInstanceAndWait(ctx, "", i)
+	if err != nil {
+		t.Fatalf("Failed to delete instance %s : %v", i, err)
+	}
+}
+
+// Check that instances based off invalid workloads are deleted automatically.
+//
+// Create a new workload that launches a non-existent docker image.  Wait for
+// the launch to fail and then delete the workload.
+//
+// The workload should be created correctly and the instance launch should
+// succeed.  However, the instance will never actually be launched as the
+// underlying container image doesn't really exist.  The image should be
+// automatically deleted by controller as verified by calling
+// WaitForInstancesLaunch and then the workload should be deleted correctly.
+func TestStartBadWorkload(t *testing.T) {
+	ctx, cancelFunc := context.WithTimeout(context.Background(), standardTimeout)
+	defer cancelFunc()
+
+	opt := bat.WorkloadOptions{
+		Description: "BAD Workload test",
+		VMType:      payloads.Docker,
+		ImageName:   uuid.Generate().String(),
+		Defaults: bat.DefaultResources{
+			VCPUs: 2,
+			MemMB: 128,
+		},
+	}
+
+	config := `#cloud-config
+`
+	ID, err := bat.CreateWorkload(ctx, "", opt, config)
+	if err != nil {
+		t.Fatalf("Failed to create BAD workload: %v", err)
+	}
+
+	defer func() {
+		err = bat.DeleteWorkload(ctx, "", ID)
+		if err != nil {
+			t.Errorf("Failed to delete workload")
+		}
+	}()
+
+	instances, err := bat.LaunchInstances(ctx, "", ID, 1)
+	if err != nil {
+		t.Fatalf("Failed to launch instance: %v", err)
+	}
+
+	_, err = bat.WaitForInstancesLaunch(ctx, "", instances, false)
+	if err == nil {
+		_, _ = bat.DeleteInstances(ctx, "", instances)
+		t.Fatalf("Instance based on invalid workload should not exist")
+	}
+}
+
 // Start a random workload, then get CNCI information
 //
 // Start a random workload and verify that there is at least one CNCI present, and that
@@ -266,7 +541,7 @@ func TestGetAllInstances(t *testing.T) {
 // The instance should be started and scheduled, the DeleteAllInstances command should
 // succeed and GetAllInstances command should return 0 instances.
 func TestDeleteAllInstances(t *testing.T) {
-	const retryCount = 5
+	const retryCount = 15
 
 	ctx, cancelFunc := context.WithTimeout(context.Background(), standardTimeout)
 	defer cancelFunc()

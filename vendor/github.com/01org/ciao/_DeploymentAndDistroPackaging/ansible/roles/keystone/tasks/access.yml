@@ -13,6 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+  - name: Create openrc file
+    become: no
+    template: src=openrc.j2 dest=./openrc mode=0600
+
+  - name: Create clouds.yaml file
+    become: no
+    template: src=clouds.yaml.j2 dest=./clouds.yaml mode=0600
+
   - name: Wait for keystone to be ready
     wait_for: host="{{ keystone_fqdn }}" port=5000 state=started
 

@@ -21,9 +21,6 @@ import (
 	"fmt"
 	"net"
 	"sync"
-
-	"github.com/golang/glog"
-	hyper "github.com/hyperhq/runv/hyperstart/api/json"
 )
 
 type ctlDataType string
@@ -34,39 +31,41 @@ const (
 )
 
 type multicast struct {
-	bufReplies []*hyper.DecodedMessage
-	reply      []chan *hyper.DecodedMessage
-	event      map[string]chan *hyper.DecodedMessage
+	bufReplies []*DecodedMessage
+	reply      []chan *DecodedMessage
+	event      map[string]chan *DecodedMessage
 	ctl        net.Conn
 	sync.Mutex
 }
 
 func newMulticast(ctlConn net.Conn) *multicast {
 	return &multicast{
-		bufReplies: []*hyper.DecodedMessage{},
-		reply:      []chan *hyper.DecodedMessage{},
-		event:      make(map[string]chan *hyper.DecodedMessage),
+		bufReplies: []*DecodedMessage{},
+		reply:      []chan *DecodedMessage{},
+		event:      make(map[string]chan *DecodedMessage),
 		ctl:        ctlConn,
 	}
 }
 
-func startCtlMonitor(ctlConn net.Conn) *multicast {
+func startCtlMonitor(ctlConn net.Conn, done chan<- interface{}) *multicast {
 	ctlMulticast := newMulticast(ctlConn)
 
 	go func() {
 		for {
 			msg, err := ReadCtlMessage(ctlMulticast.ctl)
 			if err != nil {
-				glog.Infof("Read on CTL channel ended: %s\n", err)
+				hyperLog.Infof("Read on CTL channel ended: %s", err)
 				break
 			}
 
 			err = ctlMulticast.write(msg)
 			if err != nil {
-				glog.Errorf("Multicaster write error: %s\n", err)
+				hyperLog.Errorf("Multicaster write error: %s", err)
 				break
 			}
 		}
+
+		close(done)
 	}()
 
 	return ctlMulticast
@@ -76,8 +75,8 @@ func (m *multicast) buildEventID(containerID, processID string) string {
 	return fmt.Sprintf("%s-%s", containerID, processID)
 }
 
-func (m *multicast) sendEvent(msg *hyper.DecodedMessage) error {
-	var paeData hyper.ProcessAsyncEvent
+func (m *multicast) sendEvent(msg *DecodedMessage) error {
+	var paeData PAECommand
 
 	err := json.Unmarshal(msg.Message, paeData)
 	if err != nil {
@@ -97,7 +96,7 @@ func (m *multicast) sendEvent(msg *hyper.DecodedMessage) error {
 	return nil
 }
 
-func (m *multicast) sendReply(msg *hyper.DecodedMessage) error {
+func (m *multicast) sendReply(msg *DecodedMessage) error {
 	m.Lock()
 	if len(m.reply) == 0 {
 		m.bufReplies = append(m.bufReplies, msg)
@@ -118,7 +117,7 @@ func (m *multicast) sendReply(msg *hyper.DecodedMessage) error {
 	return nil
 }
 
-func (m *multicast) processBufferedReply(channel chan *hyper.DecodedMessage) {
+func (m *multicast) processBufferedReply(channel chan *DecodedMessage) {
 	m.Lock()
 
 	if len(m.bufReplies) == 0 {
@@ -140,21 +139,21 @@ func (m *multicast) processBufferedReply(channel chan *hyper.DecodedMessage) {
 	channel <- msg
 }
 
-func (m *multicast) write(msg *hyper.DecodedMessage) error {
+func (m *multicast) write(msg *DecodedMessage) error {
 	switch msg.Code {
-	case hyper.INIT_NEXT:
+	case NextCode:
 		return nil
-	case hyper.INIT_PROCESSASYNCEVENT:
+	case ProcessAsyncEventCode:
 		return m.sendEvent(msg)
 	default:
 		return m.sendReply(msg)
 	}
 }
 
-func (m *multicast) listen(containerID, processID string, dataType ctlDataType) (chan *hyper.DecodedMessage, error) {
+func (m *multicast) listen(containerID, processID string, dataType ctlDataType) (chan *DecodedMessage, error) {
 	switch dataType {
 	case replyType:
-		newChan := make(chan *hyper.DecodedMessage)
+		newChan := make(chan *DecodedMessage)
 
 		go m.processBufferedReply(newChan)
 
@@ -167,7 +166,7 @@ func (m *multicast) listen(containerID, processID string, dataType ctlDataType) 
 			return nil, fmt.Errorf("Channel already assigned for ID %s", uniqueID)
 		}
 
-		m.event[uniqueID] = make(chan *hyper.DecodedMessage)
+		m.event[uniqueID] = make(chan *DecodedMessage)
 
 		return m.event[uniqueID], nil
 	default:

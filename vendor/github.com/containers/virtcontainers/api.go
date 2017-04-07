@@ -19,7 +19,16 @@ package virtcontainers
 import (
 	"os"
 	"syscall"
+
+	"github.com/Sirupsen/logrus"
 )
+
+var virtLog = logrus.New()
+
+// SetLog sets the logger for virtcontainers package.
+func SetLog(logger *logrus.Logger) {
+	virtLog = logger
+}
 
 // CreatePod is the virtcontainers pod creation entry point.
 // CreatePod creates a pod and its containers. It does not start them.

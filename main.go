@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	vc "github.com/containers/virtcontainers"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/urfave/cli"
 )
@@ -112,6 +113,10 @@ func main() {
 		default:
 			return fmt.Errorf("unknown log-format %q", context.GlobalString("log-format"))
 		}
+
+		// Set virtcontainers logger.
+		vc.SetLog(ccLog)
+
 		return nil
 	}
 

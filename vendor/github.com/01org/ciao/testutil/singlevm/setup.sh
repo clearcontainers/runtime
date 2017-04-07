@@ -59,8 +59,8 @@ fi
 # Variables for ciao binaries
 export CIAO_DEMO_PATH="$ciao_bin"
 export CIAO_CONTROLLER="$ciao_host"
-export CIAO_USERNAME="$ciao_username"
-export CIAO_PASSWORD="$ciao_password"
+export CIAO_USERNAME="$ciao_demo_username"
+export CIAO_PASSWORD="$ciao_demo_password"
 export CIAO_ADMIN_USERNAME="$ciao_admin_username"
 export CIAO_ADMIN_PASSWORD="$ciao_admin_password"
 export CIAO_CA_CERT_FILE="$ciao_bin"/"CAcert-""$ciao_host"".pem"
@@ -110,6 +110,134 @@ function ctrl_c() {
     exit 1
 }
 
+function createWorkloads() {
+	mkdir -p ${ciao_bin}/workload_examples
+	if [ ! -d ${ciao_bin}/workload_examples ]
+	then
+		echo "FATAL ERROR: Unable to create ${ciao_bin}/workload_examples"
+		exit 1
+
+	fi
+
+	sudo chmod 755 "$ciao_bin"/workload_examples
+
+	# create a VM test workload with ssh capability
+	echo "Generating VM cloud-init"
+	(
+	cat <<-EOF
+	---
+	#cloud-config
+	users:
+	  - name: demouser
+	    gecos: CIAO Demo User
+	    lock-passwd: false
+	    passwd: ${test_passwd}
+	    sudo: ALL=(ALL) NOPASSWD:ALL
+	    ssh-authorized-keys:
+	      - ${test_sshkey}
+	...
+	EOF
+	) > "$ciao_bin"/workload_examples/vm-test.yaml
+
+	# Get the image ID for the fedora cloud image
+	id=$(ciao-cli image list -f='{{$x := filter . "Name" "Fedora Cloud Base 24-1.2"}}{{if gt (len $x) 0}}{{(index $x 0).ID}}{{end}}')
+
+	# add 2 vm test workloads
+	echo "Generating Fedora VM test workload"
+	(
+	cat <<-EOF
+	description: "Fedora test VM"
+	vm_type: qemu
+	fw_type: legacy
+	defaults:
+	    vcpus: 2
+	    mem_mb: 128
+	    disk_mb: 80
+	cloud_init: "vm-test.yaml"
+	disks:
+	  - source:
+	       service: image
+	       id: "$id"
+	    ephemeral: true
+	    bootable: true
+	EOF
+	) > "$ciao_bin"/workload_examples/fedora_vm.yaml
+
+	# get the clear image id
+	clear_id=$(ciao-cli image list -f='{{$x := filter . "Name" "Clear Linux '"${LATEST}"'"}}{{if gt (len $x) 0}}{{(index $x 0).ID}}{{end}}')
+
+	# create a clear VM workload definition
+	echo "Creating Clear test workload"
+	(
+	cat <<-EOF
+	description: "Clear Linux test VM"
+	vm_type: qemu
+	fw_type: efi
+	defaults:
+	    vcpus: 2
+	    mem_mb: 128
+	    disk_mb: 80
+	cloud_init: "vm-test.yaml"
+	disks:
+	  - source:
+	       service: image
+	       id: "$clear_id"
+	    ephemeral: true
+	    bootable: true
+	EOF
+	) > "$ciao_bin"/workload_examples/clear_vm.yaml
+
+	# create a container test cloud init
+	echo "Creating Container cloud init"
+	(
+	cat <<-EOF
+	---
+	#cloud-config
+	runcmd:
+	    - [ /bin/bash, -c, "while true; do sleep 60; done" ]
+	...
+	EOF
+	) > "$ciao_bin"/workload_examples/container-test.yaml
+
+	# create a Debian container workload definition
+	echo "Creating Debian Container test workload"
+	(
+	cat <<-EOF
+	description: "Debian latest test container"
+	vm_type: docker
+	image_name: "debian:latest"
+	defaults:
+	  vcpus: 2
+	  mem_mb: 128
+	  disk_mb: 80
+	cloud_init: "container-test.yaml"
+	EOF
+	) > "$ciao_bin"/workload_examples/debian_latest.yaml
+
+	# create an Ubuntu container workload definition
+	echo "Creating Ubuntu Container test workload"
+	(
+	cat <<-EOF
+	description: "Ubuntu latest test container"
+	vm_type: docker
+	image_name: "ubuntu:latest"
+	defaults:
+	  vcpus: 2
+	  mem_mb: 128
+	  disk_mb: 80
+	cloud_init: "container-test.yaml"
+	EOF
+	) > "$ciao_bin"/workload_examples/ubuntu_latest.yaml
+
+	# store the new workloads into ciao
+	pushd "$ciao_bin"/workload_examples
+	"$ciao_gobin"/ciao-cli workload create -yaml fedora_vm.yaml
+	"$ciao_gobin"/ciao-cli workload create -yaml clear_vm.yaml
+	"$ciao_gobin"/ciao-cli workload create -yaml ubuntu_latest.yaml
+	"$ciao_gobin"/ciao-cli workload create -yaml debian_latest.yaml
+	popd
+}
+
 usage="$(basename "$0") [--download] The script will download dependencies if needed. Specifying --download will force download the dependencies even if they are cached locally"
 
 while :
@@ -139,6 +267,14 @@ done
 
 set -o nounset
 
+echo "Generating workload ssh key $workload_sshkey"
+rm -f "$workload_sshkey" "$workload_sshkey".pub
+ssh-keygen -f "$workload_sshkey" -t rsa -N ''
+test_sshkey=$(< "$workload_sshkey".pub)
+chmod 600 "$workload_sshkey".pub
+#Note: Password is set to ciao
+test_passwd='$6$rounds=4096$w9I3hR4g/hu$AnYjaC2DfznbPSG3vxsgtgAS4mJwWBkcR74Y/KHNB5OsfAlA4gpU5j6CHWMOkkt9j.9d7OYJXJ4icXHzKXTAO.'
+
 echo "Generating configuration file $conf_file"
 (
 cat <<-EOF
@@ -152,6 +288,11 @@ configure:
     compute_cert: $keystone_key
     identity_user: ${ciao_username}
     identity_password: ${ciao_password}
+    cnci_vcpus: 4
+    cnci_mem: 128
+    cnci_disk: 128
+    admin_ssh_key: ${test_sshkey}
+    admin_password: ${test_passwd}
   image_service:
     type: glance
     url: https://${ciao_host}
@@ -332,11 +473,24 @@ if [ x"$cacert_prog_ubuntu" != x ] && [ -x "$cacert_prog_ubuntu" ]; then
     # Do it a second time with nothing new to make it clean out the old
     sudo "$cacert_prog_ubuntu" --fresh
 elif [ x"$cacert_prog_fedora" != x ] && [ -x "$cacert_prog_fedora" ]; then
-    cacert_dir=/etc/pki/ca-trust/source/anchors/
+    cacert_dir_fedora=/etc/pki/ca-trust/source/anchors/
+    cacert_dir_archlinux=/etc/ca-certificates/trust-source/anchors
+    cacert_dir=""
+
+    if [ -d "$cacert_dir_fedora" ]; then
+	cacert_dir=$cacert_dir_fedora
+    elif [ -d "$cacert_dir_archlinux" ]; then
+	cacert_dir=$cacert_dir_archlinux
+    fi
+    
     if [ -d "$cacert_dir" ]; then
         sudo install -m 0644 -t "$cacert_dir" "$keystone_cert"
         sudo install -m 0644 -t "$cacert_dir" "$CIAO_CA_CERT_FILE"
         sudo "$cacert_prog_fedora" extract
+    else
+	echo "Unable to add keystone's CA certificate to your system's trusted \
+             store!"
+	exit 1
     fi
 else
     echo "Unable to add keystone's CA certificate to your system's trusted \
@@ -344,61 +498,15 @@ else
     exit 1
 fi
 
+
 #Create controller dirs
-
-sudo mkdir -p ${ciao_ctl_dir}/tables
-if [ ! -d ${ciao_ctl_dir}/tables ]
-then
-	echo "FATAL ERROR: Unable to create ${ciao_ctl_dir}/tables"
-	exit 1
-
-fi
-
+echo "Making ciao workloads dir: ${ciao_ctl_dir}/workloads"
 sudo mkdir -p ${ciao_ctl_dir}/workloads
 if [ ! -d ${ciao_ctl_dir}/workloads ]
 then
-	echo "FATAL ERROR: Unable to create ${ciao_ctl_dir}/workloads"
+	echo "FATAL ERROR: Unable to create ${ciao_ctl_dir}/workloads}"
 	exit 1
-
 fi
-
-#Copy the configuration
-cd "$ciao_bin"
-sudo cp -a "$ciao_src"/ciao-controller/tables ${ciao_ctl_dir}
-sudo cp -a "$ciao_src"/ciao-controller/workloads ${ciao_ctl_dir}
-
-#Over ride the configuration with test specific defaults
-sudo cp -f "$ciao_scripts"/workloads/* ${ciao_ctl_dir}/workloads
-sudo cp -f "$ciao_scripts"/tables/* ${ciao_ctl_dir}/tables
-
-#Over ride the cloud-init configuration
-echo "Generating workload ssh key $workload_sshkey"
-rm -f "$workload_sshkey" "$workload_sshkey".pub
-ssh-keygen -f "$workload_sshkey" -t rsa -N ''
-test_sshkey=$(< "$workload_sshkey".pub)
-chmod 600 "$workload_sshkey".pub
-#Note: Password is set to ciao
-test_passwd='$6$rounds=4096$w9I3hR4g/hu$AnYjaC2DfznbPSG3vxsgtgAS4mJwWBkcR74Y/KHNB5OsfAlA4gpU5j6CHWMOkkt9j.9d7OYJXJ4icXHzKXTAO.'
-
-workload_cloudinit=${ciao_ctl_dir}/workloads/test.yaml
-sudo echo "Generating workload cloud-init file $workload_cloudinit"
-(
-cat <<-EOF
----
-#cloud-config
-users:
-  - name: demouser
-    gecos: CIAO Demo User
-    lock-passwd: false
-    passwd: ${test_passwd}
-    sudo: ALL=(ALL) NOPASSWD:ALL
-    ssh-authorized-keys:
-    - ${test_sshkey}
-...
-EOF
-) > $workload_cloudinit
-
-
 
 #Copy the launch scripts
 cp "$ciao_scripts"/run_scheduler.sh "$ciao_bin"
@@ -450,9 +558,17 @@ qemu-img convert -f raw -O qcow2 "$ciao_cnci_image" "$ciao_cnci_image".qcow
 
 #Clear
 cd "$ciao_bin"
-LATEST=$(curl https://download.clearlinux.org/latest)
 
-if [ $download -eq 1 ] || [ ! -f clear-"${LATEST}"-cloud.img ] 
+if [ $download -eq 1 ]
+then
+	LATEST=$(curl https://download.clearlinux.org/latest)
+else
+	# replace this will a function that looks in ~local cache
+	# for the last version of clear to use.
+	LATEST="12620"
+fi
+
+if [ $download -eq 1 ] || [ ! -f clear-"${LATEST}"-cloud.img ]
 then
 	rm -f clear-"${LATEST}"-cloud.img.xz
 	rm -f clear-"${LATEST}"-cloud.img
@@ -550,7 +666,7 @@ sudo docker run -d -it --name keystone \
     -v "$ciao_bin"/post-keystone.sh:/usr/bin/post-keystone.sh \
     -v $mysql_data_dir:/var/lib/mysql \
     -v "$keystone_cert":/etc/nginx/ssl/keystone_cert.pem \
-    -v "$keystone_key":/etc/nginx/ssl/keystone_key.pem clearlinux/keystone
+    -v "$keystone_key":/etc/nginx/ssl/keystone_key.pem clearlinux/keystone:stable
 
 echo -n "Waiting up to $keystone_wait_time seconds for keystone identity" \
     "service to become available"
@@ -601,26 +717,42 @@ while : ; do
     break
 done
 
+# become admin for now.
+ciao_user=$CIAO_USERNAME
+ciao_passwd=$CIAO_PASSWORD
+export CIAO_USERNAME=$CIAO_ADMIN_USERNAME
+export CIAO_PASSWORD=$CIAO_ADMIN_PASSWORD
+
 echo ""
 echo "Uploading test images to image service"
 echo "---------------------------------------------------------------------------------------"
 if [ -f "$ciao_cnci_image".qcow ]; then
     "$ciao_gobin"/ciao-cli \
         image add --file "$ciao_cnci_image".qcow \
-        --name "ciao CNCI image" --id 4e16e743-265a-4bf2-9fd1-57ada0b28904
+        --name "ciao CNCI image" --id 4e16e743-265a-4bf2-9fd1-57ada0b28904 \
+	--visibility internal
 fi
 
 if [ -f clear-"${LATEST}"-cloud.img ]; then
     "$ciao_gobin"/ciao-cli \
         image add --file clear-"${LATEST}"-cloud.img \
-        --name "Clear Linux ${LATEST}" --id df3768da-31f5-4ba6-82f0-127a1a705169
+        --name "Clear Linux ${LATEST}" --id df3768da-31f5-4ba6-82f0-127a1a705169 \
+	--visibility public
 fi
 
 if [ -f $fedora_cloud_image ]; then
     "$ciao_gobin"/ciao-cli \
         image add --file $fedora_cloud_image \
-        --name "Fedora Cloud Base 24-1.2" --id 73a86d7e-93c0-480e-9c41-ab42f69b7799
+        --name "Fedora Cloud Base 24-1.2" --id 73a86d7e-93c0-480e-9c41-ab42f69b7799 \
+	--visibility public
 fi
+
+echo ""
+echo "Creating public test workloads"
+echo "---------------------------------------------------------------------------------------"
+createWorkloads
+export CIAO_USERNAME=$ciao_user
+export CIAO_PASSWORD=$ciao_password
 
 echo "---------------------------------------------------------------------------------------"
 echo ""

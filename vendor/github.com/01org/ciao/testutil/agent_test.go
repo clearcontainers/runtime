@@ -59,8 +59,17 @@ func TestAgentStatusChanTimeout(t *testing.T) {
 
 	agentCh := agent.AddStatusChan(ssntp.READY)
 
+	// should time out
 	_, err := agent.GetStatusChanResult(agentCh, ssntp.READY)
 	if err == nil {
+		t.Fatal(err)
+	}
+
+	// don't leave the result on the channel
+	var result Result
+	go agent.SendResultAndDelStatusChan(ssntp.READY, result)
+	_, err = agent.GetStatusChanResult(agentCh, ssntp.READY)
+	if err != nil {
 		t.Fatal(err)
 	}
 }
@@ -88,8 +97,17 @@ func TestAgentErrorChanTimeout(t *testing.T) {
 
 	agentCh := agent.AddErrorChan(ssntp.StopFailure)
 
+	// should time out
 	_, err := agent.GetErrorChanResult(agentCh, ssntp.StopFailure)
 	if err == nil {
+		t.Fatal(err)
+	}
+
+	// don't leave the result on the channel
+	var result Result
+	go agent.SendResultAndDelErrorChan(ssntp.StopFailure, result)
+	_, err = agent.GetErrorChanResult(agentCh, ssntp.StopFailure)
+	if err != nil {
 		t.Fatal(err)
 	}
 }
@@ -117,8 +135,17 @@ func TestAgentEventChanTimeout(t *testing.T) {
 
 	agentCh := agent.AddEventChan(ssntp.TraceReport)
 
+	// should time out
 	_, err := agent.GetEventChanResult(agentCh, ssntp.TraceReport)
 	if err == nil {
+		t.Fatal(err)
+	}
+
+	// don't leave the result on the channel
+	var result Result
+	go agent.SendResultAndDelEventChan(ssntp.TraceReport, result)
+	_, err = agent.GetEventChanResult(agentCh, ssntp.TraceReport)
+	if err != nil {
 		t.Fatal(err)
 	}
 }
@@ -146,8 +173,17 @@ func TestAgentCmdChanTimeout(t *testing.T) {
 
 	agentCh := agent.AddCmdChan(ssntp.START)
 
+	// should time out
 	_, err := agent.GetCmdChanResult(agentCh, ssntp.START)
 	if err == nil {
+		t.Fatal(err)
+	}
+
+	// don't leave the result on the channel
+	var result Result
+	go agent.SendResultAndDelCmdChan(ssntp.START, result)
+	_, err = agent.GetCmdChanResult(agentCh, ssntp.START)
+	if err != nil {
 		t.Fatal(err)
 	}
 }

@@ -27,11 +27,6 @@ import (
 	"github.com/golang/glog"
 )
 
-type dockerNetworkState struct {
-	done chan struct{}
-	err  error
-}
-
 var dockerNetworkLock sync.Mutex
 
 func createDockerVnic(vnicCfg *libsnnet.VnicConfig) (*libsnnet.Vnic, *libsnnet.SsntpEventInfo, *libsnnet.ContainerInfo, error) {

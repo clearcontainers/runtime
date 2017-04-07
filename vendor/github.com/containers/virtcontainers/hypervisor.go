@@ -172,4 +172,5 @@ type hypervisor interface {
 	startPod(startCh, stopCh chan struct{}) error
 	stopPod() error
 	addDevice(devInfo interface{}, devType deviceType) error
+	getPodConsole(podID string) string
 }

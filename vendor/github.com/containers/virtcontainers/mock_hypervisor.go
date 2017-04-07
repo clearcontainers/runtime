@@ -45,3 +45,7 @@ func (m *mockHypervisor) stopPod() error {
 func (m *mockHypervisor) addDevice(devInfo interface{}, devType deviceType) error {
 	return nil
 }
+
+func (m *mockHypervisor) getPodConsole(podID string) string {
+	return ""
+}

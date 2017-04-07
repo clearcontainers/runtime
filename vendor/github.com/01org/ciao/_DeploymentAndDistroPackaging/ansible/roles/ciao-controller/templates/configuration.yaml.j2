@@ -8,15 +8,16 @@ configure:
     compute_cert: /etc/pki/keystone/keystone_key.pem
     identity_user: {{ ciao_service_user }}
     identity_password: {{ ciao_service_password }}
+    compute_fqdn: {{ ciao_controller_fqdn }}
   image_service:
     url: https://{{ ciao_controller_fqdn }}:9292
   storage:
     ceph_id: {{ ceph_id }}
   launcher:
     compute_net:
-      {{ ciao_compute_subnets | to_nice_yaml }}
+      {{ ciao_compute_subnets | to_json | from_json | to_nice_yaml }}
     mgmt_net:
-      {{ ciao_mgmt_subnets | to_nice_yaml }}
+      {{ ciao_mgmt_subnets | to_json | from_json | to_nice_yaml }}
     disk_limit: true
     mem_limit: true
   identity_service:

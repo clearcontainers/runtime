@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/01org/ciao/ssntp/uuid"
-	"github.com/golang/glog"
 )
 
 // controlSocket is the pod control socket.
@@ -500,7 +499,7 @@ func fetchPod(podID string) (*Pod, error) {
 		return nil, err
 	}
 
-	glog.Infof("Info structure:\n%+v\n", config)
+	virtLog.Infof("Info structure: %+v", config)
 
 	return createPod(config)
 }
@@ -591,7 +590,7 @@ func (p *Pod) startVM() error {
 		return err
 	}
 
-	glog.Infof("VM started\n")
+	virtLog.Infof("VM started")
 
 	return nil
 }
@@ -615,7 +614,7 @@ func (p *Pod) start() error {
 		return err
 	}
 
-	glog.Infof("Started Pod %s\n", p.ID())
+	virtLog.Infof("Started Pod %s", p.ID())
 
 	return nil
 }

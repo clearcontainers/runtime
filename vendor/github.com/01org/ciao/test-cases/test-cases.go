@@ -702,7 +702,7 @@ func generateTAPOutput(tests []*PackageTests) {
 		pkgName := p.Name[len(prefix):]
 		fmt.Printf("# Tests for %s\n", pkgName)
 		for _, t := range p.Tests {
-			if t.Result == "PASS" {
+			if t.Result == "PASS" || t.Result == "SKIP" {
 				fmt.Printf("ok ")
 			} else {
 				fmt.Printf("not ok ")

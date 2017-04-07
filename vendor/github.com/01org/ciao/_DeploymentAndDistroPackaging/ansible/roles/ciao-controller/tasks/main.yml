@@ -13,6 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+  - include: build.yml
+    become: no
+    connection: local
+
   - include: install.yml
 
   - include: images.yml
@@ -22,24 +26,12 @@
   - include: endpoints.yml
     connection: local
 
-  - name: Wait for ciao build
-    become: no
-    connection: local
-    async_status:
-      jid: "{{ ciao_build.ansible_job_id }}"
-    register: ciao_build_wait
-    until: ciao_build_wait.finished
-    retries: 30
-    changed_when: "ciao_build_wait.stderr is defined and 'github.com/01org/ciao/' in ciao_build_wait.stderr"
-    when: ciao_dev
-
   - name: Create directories required by ciao-controller
     file: path={{ item }} state=directory owner=ciao group=ciao
     with_items:
       - /var/lib/ciao/data
       - /var/lib/ciao/data/controller
       - /var/lib/ciao/data/controller/workloads
-      - /var/lib/ciao/data/controller/tables
       - /var/lib/ciao/data/image
 
   - include: certificates.yml
@@ -56,6 +48,7 @@
     with_items:
       - admin-ciaorc
       - demo-ciaorc
+      - bat-ciaorc
 
   # TODO: (albertom) os_image module should be used as soon as ciao-image
   # is compatible with shade
@@ -67,9 +60,12 @@
       - name: '"Clear Cloud"'
         file: "{{ clear_cloud_image }}"
         id: df3768da-31f5-4ba6-82f0-127a1a705169
+        visibility: public
       - name: "CNCI"
         file: "{{ cnci_image }}"
         id: 4e16e743-265a-4bf2-9fd1-57ada0b28904
+        visibility: internal
       - name: '"Fedora 24 Cloud"'
         file: "{{ fedora_cloud_image }}"
         id: 73a86d7e-93c0-480e-9c41-ab42f69b7799
+        visibility: public

@@ -254,6 +254,15 @@ func (q *QMP) processQMPInput(line []byte, cmdQueue *list.List) {
 	}
 }
 
+func currentCommandDoneCh(cmdQueue *list.List) <-chan struct{} {
+	cmdEl := cmdQueue.Front()
+	if cmdEl == nil {
+		return nil
+	}
+	cmd := cmdEl.Value.(*qmpCommand)
+	return cmd.ctx.Done()
+}
+
 func (q *QMP) writeNextQMPCommand(cmdQueue *list.List) {
 	cmdEl := cmdQueue.Front()
 	cmd := cmdEl.Value.(*qmpCommand)
@@ -293,6 +302,16 @@ func failOutstandingCommands(cmdQueue *list.List) {
 	}
 }
 
+func (q *QMP) cancelCurrentCommand(cmdQueue *list.List) {
+	cmdEl := cmdQueue.Front()
+	cmd := cmdEl.Value.(*qmpCommand)
+	if cmd.resultReceived {
+		q.finaliseCommand(cmdEl, cmdQueue, false)
+	} else {
+		cmd.filter = nil
+	}
+}
+
 func (q *QMP) parseVersion(version []byte) *QMPVersion {
 	var qmp map[string]interface{}
 	err := json.Unmarshal(version, &qmp)
@@ -327,6 +346,39 @@ func (q *QMP) parseVersion(version []byte) *QMPVersion {
 	}
 }
 
+// The qemu package allows multiple QMP commands to be submitted concurrently
+// from different Go routines.  Unfortunately, QMP doesn't really support parallel
+// commands as there is no way reliable way to associate a command response
+// with a request.  For this reason we need to submit our commands to
+// QMP serially.  The qemu package performs this serialisation using a
+// queue (cmdQueue owned by mainLoop).  We use a queue rather than a simple
+// mutex so we can support cancelling of commands (see below) and ordered
+// execution of commands, i.e., if command B is issued before command C,
+// it should be executed before command C even if both commands are initially
+// blocked waiting for command A to finish.  This would be hard to achieve with
+// a simple mutex.
+//
+// Cancelling is a little tricky.  Commands such as ExecuteQMPCapabilities
+// can be cancelled by cancelling or timing out their contexts.  When a
+// command is cancelled the calling function, e.g., ExecuteQMPCapabilities,
+// will return but we may not be able to remove the command's entry from
+// the command queue or issue the next command.  There are two scenarios
+// here.
+//
+// 1. The command has been processed by QMP, i.e., we have received a
+// return or an error, but is still blocking as it is waiting for
+// an event.  For example, the ExecuteDeviceDel blocks until a DEVICE_DELETED
+// event is received.  When such a command is cancelled we can remove it
+// from the queue and start issuing the next command.  When the DEVICE_DELETED
+// event eventually arrives it will just be ignored.
+//
+// 2. The command has not been processed by QMP.  In this case the command
+// needs to remain on the cmdQueue until the response to this command is
+// received from QMP.  During this time no new commands can be issued.  When the
+// response is received, it is discarded (as no one is interested in the result
+// any more), the entry is removed from the cmdQueue and we can proceed to
+// execute the next command.
+
 func (q *QMP) mainLoop() {
 	cmdQueue := list.New().Init()
 	fromVMCh := make(chan []byte)
@@ -343,6 +395,7 @@ func (q *QMP) mainLoop() {
 	}()
 
 	version := []byte{}
+	var cmdDoneCh <-chan struct{}
 
 DONE:
 	for {
@@ -359,6 +412,7 @@ DONE:
 			}
 			if cmdQueue.Len() >= 1 {
 				q.writeNextQMPCommand(cmdQueue)
+				cmdDoneCh = currentCommandDoneCh(cmdQueue)
 			}
 			break DONE
 		}
@@ -373,14 +427,25 @@ DONE:
 				return
 			}
 			_ = cmdQueue.PushBack(&cmd)
-			if cmdQueue.Len() >= 1 {
+
+			// We only want to execute the new cmd if there
+			// are no other commands pending.  If there are
+			// commands pending our new command will get
+			// run when the pending commands complete.
+
+			if cmdQueue.Len() == 1 {
 				q.writeNextQMPCommand(cmdQueue)
+				cmdDoneCh = currentCommandDoneCh(cmdQueue)
 			}
 		case line, ok := <-fromVMCh:
 			if !ok {
 				return
 			}
 			q.processQMPInput(line, cmdQueue)
+			cmdDoneCh = currentCommandDoneCh(cmdQueue)
+		case <-cmdDoneCh:
+			q.cancelCurrentCommand(cmdQueue)
+			cmdDoneCh = currentCommandDoneCh(cmdQueue)
 		}
 	}
 }

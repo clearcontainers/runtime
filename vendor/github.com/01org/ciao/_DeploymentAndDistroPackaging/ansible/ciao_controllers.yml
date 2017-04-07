@@ -16,7 +16,9 @@
   - hosts: controllers
     become: yes
     roles:
+      - ciao-common
       - docker
+      - ceph
       - keystone
       - ciao-controller
       - ciao-webui

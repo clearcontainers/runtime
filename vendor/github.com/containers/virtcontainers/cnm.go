@@ -17,11 +17,15 @@
 package virtcontainers
 
 import (
+	"fmt"
 	"net"
 
 	"github.com/01org/ciao/ssntp/uuid"
 	"github.com/containernetworking/cni/pkg/ns"
+	cniTypes "github.com/containernetworking/cni/pkg/types"
 	types "github.com/containernetworking/cni/pkg/types/current"
+	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netns"
 )
 
 // cnm is a network implementation for the CNM plugin.
@@ -29,7 +33,37 @@ type cnm struct {
 	config NetworkConfig
 }
 
-func (n *cnm) createResult(iface net.Interface, addrs []net.Addr) (types.Result, error) {
+func (n *cnm) getNetIfaceRoutesWithinNetNs(networkNSPath string, ifaceName string) ([]netlink.Route, error) {
+	if networkNSPath == "" {
+		return []netlink.Route{}, fmt.Errorf("Network namespace path cannot be empty")
+	}
+
+	netnsHandle, err := netns.GetFromPath(networkNSPath)
+	if err != nil {
+		return []netlink.Route{}, err
+	}
+	defer netnsHandle.Close()
+
+	netHandle, err := netlink.NewHandleAt(netnsHandle)
+	if err != nil {
+		return []netlink.Route{}, err
+	}
+	defer netHandle.Delete()
+
+	link, err := netHandle.LinkByName(ifaceName)
+	if err != nil {
+		return []netlink.Route{}, err
+	}
+
+	routes, err := netHandle.RouteList(link, netlink.FAMILY_ALL)
+	if err != nil {
+		return []netlink.Route{}, err
+	}
+
+	return routes, nil
+}
+
+func (n *cnm) createResult(iface net.Interface, addrs []net.Addr, routes []netlink.Route) (types.Result, error) {
 	var ipConfigs []*types.IPConfig
 	for _, addr := range addrs {
 		ip, ipNet, err := net.ParseCIDR(addr.String())
@@ -59,18 +93,33 @@ func (n *cnm) createResult(iface net.Interface, addrs []net.Addr) (types.Result,
 		},
 	}
 
+	var resultRoutes []*cniTypes.Route
+	for _, route := range routes {
+		if route.Dst == nil {
+			continue
+		}
+
+		r := &cniTypes.Route{
+			Dst: *(route.Dst),
+			GW:  route.Gw,
+		}
+
+		resultRoutes = append(resultRoutes, r)
+	}
+
 	res := types.Result{
 		Interfaces: ifaceList,
 		IPs:        ipConfigs,
+		Routes:     resultRoutes,
 	}
 
 	return res, nil
 }
 
-func (n *cnm) createEndpointsFromScan() ([]Endpoint, error) {
+func (n *cnm) createEndpointsFromScan(networkNSPath string) ([]Endpoint, error) {
 	var endpoints []Endpoint
 
-	ifaces, err := net.Interfaces()
+	netIfaces, err := getIfacesFromNetNs(networkNSPath)
 	if err != nil {
 		return []Endpoint{}, err
 	}
@@ -78,24 +127,24 @@ func (n *cnm) createEndpointsFromScan() ([]Endpoint, error) {
 	uniqueID := uuid.Generate().String()
 
 	idx := 0
-	for _, iface := range ifaces {
+	for _, netIface := range netIfaces {
 		var endpoint Endpoint
 
-		addrs, err := iface.Addrs()
-		if err != nil {
-			return []Endpoint{}, err
-		}
-
-		if iface.Name == "lo" {
+		if netIface.iface.Name == "lo" {
 			continue
 		} else {
-			endpoint, err = createNetworkEndpoint(idx, uniqueID, iface.Name)
+			endpoint, err = createNetworkEndpoint(idx, uniqueID, netIface.iface.Name)
 			if err != nil {
 				return []Endpoint{}, err
 			}
 		}
 
-		endpoint.Properties, err = n.createResult(iface, addrs)
+		routes, err := n.getNetIfaceRoutesWithinNetNs(networkNSPath, netIface.iface.Name)
+		if err != nil {
+			return []Endpoint{}, err
+		}
+
+		endpoint.Properties, err = n.createResult(netIface.iface, netIface.addrs, routes)
 		if err != nil {
 			return []Endpoint{}, err
 		}
@@ -131,7 +180,7 @@ func (n *cnm) run(networkNSPath string, cb func() error) error {
 
 // add adds all needed interfaces inside the network namespace for the CNM network.
 func (n *cnm) add(pod Pod, config NetworkConfig) (NetworkNamespace, error) {
-	endpoints, err := n.createEndpointsFromScan()
+	endpoints, err := n.createEndpointsFromScan(config.NetNSPath)
 	if err != nil {
 		return NetworkNamespace{}, err
 	}

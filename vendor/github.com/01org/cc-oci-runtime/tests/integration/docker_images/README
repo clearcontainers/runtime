@@ -1,7 +1,0 @@
-# Testing the most popular docker images from docker hub
-
-To run these tests you just do
-
-bats popular-containers-images.bats
-
-In order to run all these tests you need a minimum of 8GB 

@@ -21,25 +21,16 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"text/template"
 	"time"
 
+	"github.com/01org/ciao/templateutils"
 	"github.com/rackspace/gophercloud"
 	"github.com/rackspace/gophercloud/openstack"
 	"github.com/rackspace/gophercloud/openstack/blockstorage/v2/extensions/volumeactions"
 	"github.com/rackspace/gophercloud/openstack/blockstorage/v2/volumes"
 	"github.com/rackspace/gophercloud/pagination"
 )
-
-const volumeTemplateDesc = `struct {
-	ID          string // Volume UUID
-	Size        int    // Volume Size in GB
-	TenantID    string // Tenant to which volume belongs
-	CreatedAt   string // Volume creation time
-	Name        string // Volume name
-	Description string // Volume description
-	Status      string // Volume status
-}
-`
 
 var volumeCommand = &command{
 	SubCommands: map[string]subCommand{
@@ -126,13 +117,12 @@ List all volumes
 	fmt.Fprintf(os.Stderr, `
 The template passed to the -f option operates on a 
 
-[]%s
-
+%s
 As volumes are retrieved in pages, the template may be applied multiple
 times.  You can not therefore rely on the length of the slice passed
 to the template to determine the total number of volumes.
-`, volumeTemplateDesc)
-	fmt.Fprintln(os.Stderr, templateFunctionHelp)
+`, templateutils.GenerateUsageUndecorated([]volumes.Volume{}))
+	fmt.Fprintln(os.Stderr, templateutils.TemplateFunctionHelp(nil))
 	os.Exit(2)
 }
 
@@ -159,7 +149,13 @@ func (cmd *volumeListCommand) run(args []string) error {
 		fatalf("Could not get volume service client [%s]\n", err)
 	}
 
-	t := createTemplate("volume-list", cmd.template)
+	var t *template.Template
+	if cmd.template != "" {
+		t, err = templateutils.CreateTemplate("volume-list", cmd.template, nil)
+		if err != nil {
+			fatalf(err.Error())
+		}
+	}
 
 	pager := volumes.List(client, volumes.ListOpts{})
 
@@ -206,12 +202,7 @@ Show information about a volume
 The show flags are:
 `)
 	cmd.Flag.PrintDefaults()
-	fmt.Fprintf(os.Stderr, `
-The template passed to the -f option operates on a 
-
-%s
-`, volumeTemplateDesc)
-	fmt.Fprintln(os.Stderr, templateFunctionHelp)
+	fmt.Fprintf(os.Stderr, "\n%s", templateutils.GenerateUsageDecorated("f", volumes.Volume{}, nil))
 	os.Exit(2)
 }
 
@@ -240,8 +231,8 @@ func (cmd *volumeShowCommand) run(args []string) error {
 	}
 
 	if cmd.template != "" {
-		return outputToTemplate("volume-show", cmd.template,
-			&volume)
+		return templateutils.OutputToTemplate(os.Stdout, "volume-show", cmd.template,
+			&volume, nil)
 	}
 
 	dumpVolume(volume)

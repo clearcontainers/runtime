@@ -1,9 +1,0 @@
-{
-    "vm": {
-		"path": "QEMU-LITE",
-		"image": "CLEAR-CONTAINERS.img",
-		"kernel": {
-			"path": "CONTAINER-KERNEL"
-		}
-    }
-}

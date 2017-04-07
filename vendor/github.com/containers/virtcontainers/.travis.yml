@@ -4,9 +4,13 @@ go:
 - 1.7
 - 1.8
 - tip
+go_import_path: github.com/containers/virtcontainers
 
 env:
 - COVERALLS_TOKEN=3NUr5Z9zvjIoGRlKi6WIA3Q9em3x22rZp
+
+services:
+- docker
 
 before_install:
 - go get github.com/mattn/goveralls
@@ -20,48 +24,22 @@ before_install:
 - go get github.com/opencontainers/runc/libcontainer/configs
 
 install:
-- mkdir -p $HOME/build
-- pushd $HOME/build
-- git clone https://github.com/containernetworking/cni.git
-- cd cni
-- "./build"
-- sudo mkdir -p /tmp/cni/bin
-- sudo cp ./bin/bridge /tmp/cni/bin/cni-bridge
-- sudo cp ./bin/loopback /tmp/cni/bin/loopback
-- sudo cp ./bin/host-local /tmp/cni/bin/host-local
-- popd
-- mkdir -p $HOME/build_hook
-- pushd $HOME/build_hook
-- sudo mkdir -p /tmp/bin
-- go build -o hook $GOPATH/src/github.com/containers/virtcontainers/hook/mock/hook.go
-- sudo cp hook /tmp/bin/
-- popd
-- sudo mkdir -p /etc/cni/net.d
-- sudo cp $GOPATH/src/github.com/containers/virtcontainers/test/cni/10-mynet.conf
-  /etc/cni/net.d/
-- sudo cp $GOPATH/src/github.com/containers/virtcontainers/test/cni/99-loopback.conf
-  /etc/cni/net.d/
-- sudo mkdir -p /opt/cni/bin
-- sudo cp /tmp/cni/bin/cni-bridge /opt/cni/bin/
-- sudo cp /tmp/cni/bin/loopback /opt/cni/bin/
-- sudo cp /tmp/cni/bin/host-local /opt/cni/bin/
-- go get -t -v ./...
+- sudo env "PATH=$PATH" bash $GOPATH/src/github.com/containers/virtcontainers/ci/ci-setup.sh
+- go_packages=$(go list ./... | grep -v vendor)
+- go_files=`go list -f '{{.Dir}}/*.go' $go_packages`
+- go get -t -v $go_packages
 
 script:
 - go env
-- go list ./... | xargs -t misspell
-- go list ./... | xargs -t go vet
-- if [[ "$TRAVIS_GO_VERSION" != "tip" ]] ; then go list ./... | xargs -tL 1 golint
-  -set_exit_status ; fi
-- go list ./... | xargs go list -f '{{.Dir}}/*.go' | xargs -I % bash -c "misspell
-  -error %"
-- go list ./... | xargs go list -f '{{.Dir}}' | xargs gocyclo -over 15
-- go list ./... | xargs go list -f '{{.Dir}}' | xargs -L 1 ineffassign
-- go list ./... | xargs go list -f '{{.Dir}}' | xargs gofmt -s -l | wc -l | xargs
-  -I % bash -c "test % -eq 0"
-- go build ./...
+- misspell -error $go_packages
+- go vet $go_packages
+- if [[ "$TRAVIS_GO_VERSION" != "tip" ]] ; then golint $go_packages; fi
+- gocyclo -over 15 $go_files
+- go list -f '{{.Dir}}' $go_packages | xargs -L 1 ineffassign
+- gofmt -s -l $go_files | wc -l | xargs -I % bash -c "test % -eq 0"
+- go build $go_packages
 - export GOROOT=`go env GOROOT` && sudo -E PATH=$PATH:$GOROOT/bin:/tmp/cni/bin $GOPATH/bin/test-cases
-  -v -timeout 9 -short -coverprofile /tmp/cover.out github.com/containers/virtcontainers/...
+  -v -timeout 9 -short -coverprofile /tmp/cover.out $go_packages
 
 after_success:
 - "$GOPATH/bin/goveralls -service=travis-ci -coverprofile=/tmp/cover.out"

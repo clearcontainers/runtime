@@ -23,35 +23,8 @@ import (
 	"text/template"
 
 	"github.com/01org/ciao/ciao-controller/types"
+	"github.com/01org/ciao/templateutils"
 )
-
-const cnciTemplateDesc = `struct {
-	ID        string // UUID of network node
-	TenantID  string // UUID of tenant to which this CNCI pertains
-	IPv4      string // IP address of CNCI
-	Geography string // Physical location of the network node
-	Subnets   []struct {
-		Subnet string // Subnet used by the CNCI
-	}
-}
-`
-
-const computeTemplateDesc = `struct {
-	ID                    string // UUID of the compute node
-	Timestamp             time.Time
-	Status                string // Node status, e.g., READY, FULL
-	MemTotal              int    // Total amount of RAM on Compute Node in MB
-	MemAvailable          int    // Memory available on Compute Node in MB
-	DiskTotal             int    // Total amount of Disk Space on Compute Node in MB
-	DiskAvailable         int    // Disk Space available on Compute Node in MB
-	Load                  int    // Compute node load
-	OnlineCPUs            int    // Number of CPUs
-	TotalInstances        int    // Number of instances hosted by the Compute Node
-	TotalRunningInstances int    // Number of running instances
-	TotalPendingInstances int    // Number of pending instances
-	TotalPausedInstances  int    // Number of paused instances
-}
-`
 
 var nodeCommand = &command{
 	SubCommands: map[string]subCommand{
@@ -82,13 +55,14 @@ The template passed to the -f option operates on one of the following types:
 
 --cnci
 
-[]%s
+%s
 
 --compute
 
-[]%s
-`, cnciTemplateDesc, computeTemplateDesc)
-	fmt.Fprintln(os.Stderr, templateFunctionHelp)
+%s`,
+		templateutils.GenerateUsageUndecorated([]types.CiaoCNCI{}),
+		templateutils.GenerateUsageUndecorated([]types.CiaoComputeNode{}))
+	fmt.Fprintln(os.Stderr, templateutils.TemplateFunctionHelp(nil))
 	os.Exit(2)
 }
 
@@ -102,7 +76,14 @@ func (cmd *nodeListCommand) parseArgs(args []string) []string {
 }
 
 func (cmd *nodeListCommand) run(args []string) error {
-	t := createTemplate("node-list", cmd.template)
+	var t *template.Template
+	if cmd.template != "" {
+		var err error
+		t, err = templateutils.CreateTemplate("node-list", cmd.template, nil)
+		if err != nil {
+			fatalf(err.Error())
+		}
+	}
 
 	if cmd.compute {
 		return listComputeNodes(t)
@@ -197,18 +178,8 @@ func (cmd *nodeStatusCommand) usage(...string) {
 Show cluster status
 `)
 	cmd.Flag.PrintDefaults()
-	fmt.Fprintf(os.Stderr, `
-The template passed to the -f option operates on a
-
-struct {
-	TotalNodes            int
-	TotalNodesReady       int
-	TotalNodesFull        int
-	TotalNodesOffline     int
-	TotalNodesMaintenance int
-}
-`)
-	fmt.Fprintln(os.Stderr, templateFunctionHelp)
+	fmt.Fprintf(os.Stderr, "\n%s",
+		templateutils.GenerateUsageDecorated("f", types.CiaoClusterStatus{}.Status, nil))
 	os.Exit(2)
 }
 
@@ -234,8 +205,8 @@ func (cmd *nodeStatusCommand) run(args []string) error {
 	}
 
 	if cmd.template != "" {
-		return outputToTemplate("node-status", cmd.template,
-			&status.Status)
+		return templateutils.OutputToTemplate(os.Stdout, "node-status", cmd.template,
+			&status.Status, nil)
 	}
 
 	fmt.Printf("Total Nodes %d\n", status.Status.TotalNodes)
@@ -267,9 +238,8 @@ The template passed to the -f option operates on one of the following types:
 
 --cnci
 
-%s
-`, cnciTemplateDesc)
-	fmt.Fprintln(os.Stderr, templateFunctionHelp)
+%s`, templateutils.GenerateUsageUndecorated(types.CiaoCNCI{}))
+	fmt.Fprintln(os.Stderr, templateutils.TemplateFunctionHelp(nil))
 	os.Exit(2)
 }
 
@@ -311,8 +281,8 @@ func showCNCINode(cmd *nodeShowCommand) error {
 	}
 
 	if cmd.template != "" {
-		return outputToTemplate("node-show", cmd.template,
-			&cnci)
+		return templateutils.OutputToTemplate(os.Stdout, "node-show", cmd.template,
+			&cnci, nil)
 	}
 
 	fmt.Printf("\tCNCI UUID: %s\n", cnci.ID)

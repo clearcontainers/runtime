@@ -28,23 +28,23 @@ func (n *Noop) Write(i Image) error {
 
 // Delete is the noop image metadata delete implementation.
 // It drops data.
-func (n *Noop) Delete(id string) error {
+func (n *Noop) Delete(tenant, id string) error {
 	return nil
 }
 
 // GetImageSize is the noop image implementation of image size querying
-func (n *Noop) GetImageSize(ID string) (uint64, error) {
+func (n *Noop) GetImageSize(tenant, id string) (uint64, error) {
 	return 0, nil
 }
 
 // Get is the noop image metadata get an image implementation.
 // It drops data.
-func (n *Noop) Get(id string) (Image, error) {
-	return Image{ID: id}, nil
+func (n *Noop) Get(tenant, id string) (Image, error) {
+	return Image{ID: id, TenantID: tenant}, nil
 }
 
 // GetAll is the noop image metadata get all images implementation.
 // It drops data.
-func (n *Noop) GetAll() ([]Image, error) {
+func (n *Noop) GetAll(tenant string) ([]Image, error) {
 	return []Image{}, nil
 }

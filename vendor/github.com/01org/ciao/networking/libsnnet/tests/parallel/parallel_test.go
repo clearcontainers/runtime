@@ -323,7 +323,7 @@ func dockerRunVerify(t *testing.T, name string, ip net.IP, mac net.HardwareAddr,
 func dockerContainerDelete(t *testing.T, name string) error {
 	assert := assert.New(t)
 	defer logTime(t, time.Now(), "dockerContainerDelete")
-	_, _ := exec.Command("docker", "stop", name).CombinedOutput()
+	_ = exec.Command("docker", "stop", name).Run()
 	out, err := exec.Command("docker", "rm", name).CombinedOutput()
 	assert.Nil(err, string(out))
 	return err
@@ -335,7 +335,7 @@ func dockerContainerInfo(t *testing.T, name string) error {
 	_, err := exec.Command("docker", "ps", "-a").CombinedOutput()
 	assert.Nil(err)
 
-	out, err = exec.Command("docker", "inspect", name).CombinedOutput()
+	out, err := exec.Command("docker", "inspect", name).CombinedOutput()
 	assert.Nil(err, string(out))
 	return err
 }

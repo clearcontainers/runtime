@@ -24,7 +24,7 @@
       register: pull_images
       changed_when: "'Image is up to date' not in pull_images.stdout"
       with_items:
-        - clearlinux/keystone
+        - clearlinux/keystone:stable
         - clearlinux/ciao-webui
 
     - name: Stop containers running from an old image

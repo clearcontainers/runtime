@@ -14,7 +14,7 @@
 // limitations under the License.
 //
 
-package hyperstart
+package hyperstart_test
 
 import (
 	"math"
@@ -23,8 +23,8 @@ import (
 	"testing"
 	"time"
 
+	. "github.com/containers/virtcontainers/pkg/hyperstart"
 	"github.com/containers/virtcontainers/pkg/hyperstart/mock"
-	hyper "github.com/hyperhq/runv/hyperstart/api/json"
 )
 
 const (
@@ -34,22 +34,7 @@ const (
 )
 
 func connectHyperstartNoMulticast(h *Hyperstart) error {
-	var err error
-
-	h.ctl, err = net.Dial(h.sockType, h.ctlSerial)
-	if err != nil {
-		return err
-	}
-	h.ctlState.open()
-
-	h.io, err = net.Dial(h.sockType, h.ioSerial)
-	if err != nil {
-		h.ctl.Close()
-		return err
-	}
-	h.ioState.open()
-
-	return nil
+	return h.OpenSocketsNoMulticast()
 }
 
 func connectHyperstart(h *Hyperstart) error {
@@ -67,11 +52,7 @@ func connectMockHyperstart(t *testing.T, multiCast bool) (*mock.Hyperstart, *Hyp
 
 	ctlSock, ioSock := mockHyper.GetSocketPaths()
 
-	h := &Hyperstart{
-		ctlSerial: ctlSock,
-		ioSerial:  ioSock,
-		sockType:  testSockType,
-	}
+	h := NewHyperstart(ctlSock, ioSock, testSockType)
 
 	var err error
 	if multiCast {
@@ -92,16 +73,22 @@ func TestNewHyperstart(t *testing.T) {
 	ioSock := "/tmp/test_tty.sock"
 	sockType := "test_unix"
 
-	expectedOut := &Hyperstart{
-		ctlSerial: ctlSock,
-		ioSerial:  ioSock,
-		sockType:  sockType,
-	}
-
 	h := NewHyperstart(ctlSock, ioSock, sockType)
 
-	if reflect.DeepEqual(h, expectedOut) == false {
-		t.Fatal()
+	resultCtlSockPath := h.GetCtlSockPath()
+	resultIoSockPath := h.GetIoSockPath()
+	resultSockType := h.GetSockType()
+
+	if resultCtlSockPath != ctlSock {
+		t.Fatalf("CTL sock result %s should be the same than %s", resultCtlSockPath, ctlSock)
+	}
+
+	if resultIoSockPath != ioSock {
+		t.Fatalf("IO sock result %s should be the same than %s", resultIoSockPath, ioSock)
+	}
+
+	if resultSockType != sockType {
+		t.Fatalf("Sock type result %s should be the same than %s", resultSockType, sockType)
 	}
 }
 
@@ -109,20 +96,18 @@ func TestOpenSockets(t *testing.T) {
 	mockHyper := mock.NewHyperstart(t)
 
 	mockHyper.Start()
-	defer mockHyper.Stop()
 
 	ctlSock, ioSock := mockHyper.GetSocketPaths()
 
-	h := &Hyperstart{
-		ctlSerial: ctlSock,
-		ioSerial:  ioSock,
-		sockType:  testSockType,
-	}
+	h := NewHyperstart(ctlSock, ioSock, testSockType)
 
 	err := h.OpenSockets()
 	if err != nil {
+		mockHyper.Stop()
 		t.Fatal()
 	}
+
+	mockHyper.Stop()
 
 	disconnectHyperstart(h)
 }
@@ -132,7 +117,8 @@ func TestCloseSockets(t *testing.T) {
 	if err != nil {
 		t.Fatal()
 	}
-	defer mockHyper.Stop()
+
+	mockHyper.Stop()
 
 	err = h.CloseSockets()
 	if err != nil {
@@ -145,8 +131,8 @@ func TestSetDeadline(t *testing.T) {
 	if err != nil {
 		t.Fatal()
 	}
-	defer mockHyper.Stop()
 	defer disconnectHyperstart(h)
+	defer mockHyper.Stop()
 
 	timeoutDuration := 1 * time.Second
 
@@ -155,10 +141,10 @@ func TestSetDeadline(t *testing.T) {
 		t.Fatal()
 	}
 
-	mockHyper.SendMessage(hyper.INIT_READY, []byte{})
+	mockHyper.SendMessage(ReadyCode, []byte{})
 
 	buf := make([]byte, 512)
-	_, err = h.ctl.Read(buf)
+	_, err = h.GetCtlSock().Read(buf)
 	if err != nil {
 		t.Fatal()
 	}
@@ -170,7 +156,7 @@ func TestSetDeadline(t *testing.T) {
 
 	time.Sleep(timeoutDuration)
 
-	_, err = h.ctl.Read(buf)
+	_, err = h.GetCtlSock().Read(buf)
 	netErr, ok := err.(net.Error)
 	if ok && netErr.Timeout() == false {
 		t.Fatal()
@@ -190,8 +176,8 @@ func TestIsStartedTrue(t *testing.T) {
 	if err != nil {
 		t.Fatal()
 	}
-	defer mockHyper.Stop()
 	defer disconnectHyperstart(h)
+	defer mockHyper.Stop()
 
 	if h.IsStarted() == false {
 		t.Fatal()
@@ -237,17 +223,17 @@ func TestReadCtlMessage(t *testing.T) {
 	if err != nil {
 		t.Fatal()
 	}
-	defer mockHyper.Stop()
 	defer disconnectHyperstart(h)
+	defer mockHyper.Stop()
 
-	expected := &hyper.DecodedMessage{
-		Code:    hyper.INIT_READY,
+	expected := &DecodedMessage{
+		Code:    ReadyCode,
 		Message: []byte{},
 	}
 
 	mockHyper.SendMessage(int(expected.Code), expected.Message)
 
-	reply, err := ReadCtlMessage(h.ctl)
+	reply, err := ReadCtlMessage(h.GetCtlSock())
 	if err != nil {
 		t.Fatal()
 	}
@@ -262,30 +248,30 @@ func TestWriteCtlMessage(t *testing.T) {
 	if err != nil {
 		t.Fatal()
 	}
-	defer mockHyper.Stop()
 	defer disconnectHyperstart(h)
+	defer mockHyper.Stop()
 
-	msg := hyper.DecodedMessage{
-		Code:    hyper.INIT_PING,
+	msg := DecodedMessage{
+		Code:    PingCode,
 		Message: []byte{},
 	}
 
-	err = h.WriteCtlMessage(h.ctl, &msg)
+	err = h.WriteCtlMessage(h.GetCtlSock(), &msg)
 	if err != nil {
 		t.Fatal()
 	}
 
 	for {
-		reply, err := ReadCtlMessage(h.ctl)
+		reply, err := ReadCtlMessage(h.GetCtlSock())
 		if err != nil {
 			t.Fatal()
 		}
 
-		if reply.Code == hyper.INIT_NEXT {
+		if reply.Code == NextCode {
 			continue
 		}
 
-		err = h.checkReturnedCode(reply.Code, hyper.INIT_ACK)
+		err = h.CheckReturnedCode(reply.Code, AckCode)
 		if err != nil {
 			t.Fatal()
 		}
@@ -308,8 +294,8 @@ func TestReadIoMessage(t *testing.T) {
 	if err != nil {
 		t.Fatal()
 	}
-	defer mockHyper.Stop()
 	defer disconnectHyperstart(h)
+	defer mockHyper.Stop()
 
 	mockHyper.SendIo(testSequence, []byte(testMessage))
 
@@ -328,12 +314,12 @@ func TestReadIoMessageWithConn(t *testing.T) {
 	if err != nil {
 		t.Fatal()
 	}
-	defer mockHyper.Stop()
 	defer disconnectHyperstart(h)
+	defer mockHyper.Stop()
 
 	mockHyper.SendIo(testSequence, []byte(testMessage))
 
-	msg, err := ReadIoMessageWithConn(h.io)
+	msg, err := ReadIoMessageWithConn(h.GetIoSock())
 	if err != nil {
 		t.Fatal()
 	}
@@ -348,10 +334,10 @@ func TestSendIoMessage(t *testing.T) {
 	if err != nil {
 		t.Fatal()
 	}
-	defer mockHyper.Stop()
 	defer disconnectHyperstart(h)
+	defer mockHyper.Stop()
 
-	msg := &hyper.TtyMessage{
+	msg := &TtyMessage{
 		Session: testSequence,
 		Message: []byte(testMessage),
 	}
@@ -364,7 +350,7 @@ func TestSendIoMessage(t *testing.T) {
 	buf := make([]byte, 512)
 	n, seqRecv := mockHyper.ReadIo(buf)
 
-	if seqRecv != testSequence || string(buf[ttyHdrSize:n]) != testMessage {
+	if seqRecv != testSequence || string(buf[TtyHdrSize:n]) != testMessage {
 		t.Fatal()
 	}
 }
@@ -374,15 +360,15 @@ func TestSendIoMessageWithConn(t *testing.T) {
 	if err != nil {
 		t.Fatal()
 	}
-	defer mockHyper.Stop()
 	defer disconnectHyperstart(h)
+	defer mockHyper.Stop()
 
-	msg := &hyper.TtyMessage{
+	msg := &TtyMessage{
 		Session: testSequence,
 		Message: []byte(testMessage),
 	}
 
-	err = SendIoMessageWithConn(h.io, msg)
+	err = SendIoMessageWithConn(h.GetIoSock(), msg)
 	if err != nil {
 		t.Fatal()
 	}
@@ -390,88 +376,96 @@ func TestSendIoMessageWithConn(t *testing.T) {
 	buf := make([]byte, 512)
 	n, seqRecv := mockHyper.ReadIo(buf)
 
-	if seqRecv != testSequence || string(buf[ttyHdrSize:n]) != testMessage {
+	if seqRecv != testSequence || string(buf[TtyHdrSize:n]) != testMessage {
 		t.Fatal()
 	}
 }
 
 func testCodeFromCmd(t *testing.T, cmd string, expected uint32) {
-	code, err := codeFromCmd(cmd)
+	h := &Hyperstart{}
+
+	code, err := h.CodeFromCmd(cmd)
 	if err != nil || code != expected {
 		t.Fatal()
 	}
 }
 
 func TestCodeFromCmdVersion(t *testing.T) {
-	testCodeFromCmd(t, Version, hyper.INIT_VERSION)
+	testCodeFromCmd(t, Version, VersionCode)
 }
 
 func TestCodeFromCmdStartPod(t *testing.T) {
-	testCodeFromCmd(t, StartPod, hyper.INIT_STARTPOD)
+	testCodeFromCmd(t, StartPod, StartPodCode)
 }
 
 func TestCodeFromCmdDestroyPod(t *testing.T) {
-	testCodeFromCmd(t, DestroyPod, hyper.INIT_DESTROYPOD)
+	testCodeFromCmd(t, DestroyPod, DestroyPodCode)
 }
 
 func TestCodeFromCmdExecCmd(t *testing.T) {
-	testCodeFromCmd(t, ExecCmd, hyper.INIT_EXECCMD)
+	testCodeFromCmd(t, ExecCmd, ExecCmdCode)
 }
 
 func TestCodeFromCmdReady(t *testing.T) {
-	testCodeFromCmd(t, Ready, hyper.INIT_READY)
+	testCodeFromCmd(t, Ready, ReadyCode)
 }
 
 func TestCodeFromCmdAck(t *testing.T) {
-	testCodeFromCmd(t, Ack, hyper.INIT_ACK)
+	testCodeFromCmd(t, Ack, AckCode)
 }
 
 func TestCodeFromCmdError(t *testing.T) {
-	testCodeFromCmd(t, Error, hyper.INIT_ERROR)
+	testCodeFromCmd(t, Error, ErrorCode)
 }
 
 func TestCodeFromCmdWinSize(t *testing.T) {
-	testCodeFromCmd(t, WinSize, hyper.INIT_WINSIZE)
+	testCodeFromCmd(t, WinSize, WinsizeCode)
 }
 
 func TestCodeFromCmdPing(t *testing.T) {
-	testCodeFromCmd(t, Ping, hyper.INIT_PING)
+	testCodeFromCmd(t, Ping, PingCode)
 }
 
 func TestCodeFromCmdNext(t *testing.T) {
-	testCodeFromCmd(t, Next, hyper.INIT_NEXT)
+	testCodeFromCmd(t, Next, NextCode)
 }
 
 func TestCodeFromCmdWriteFile(t *testing.T) {
-	testCodeFromCmd(t, WriteFile, hyper.INIT_WRITEFILE)
+	testCodeFromCmd(t, WriteFile, WriteFileCode)
 }
 
 func TestCodeFromCmdReadFile(t *testing.T) {
-	testCodeFromCmd(t, ReadFile, hyper.INIT_READFILE)
+	testCodeFromCmd(t, ReadFile, ReadFileCode)
 }
 
 func TestCodeFromCmdNewContainer(t *testing.T) {
-	testCodeFromCmd(t, NewContainer, hyper.INIT_NEWCONTAINER)
+	testCodeFromCmd(t, NewContainer, NewContainerCode)
 }
 
 func TestCodeFromCmdKillContainer(t *testing.T) {
-	testCodeFromCmd(t, KillContainer, hyper.INIT_KILLCONTAINER)
+	testCodeFromCmd(t, KillContainer, KillContainerCode)
 }
 
 func TestCodeFromCmdOnlineCPUMem(t *testing.T) {
-	testCodeFromCmd(t, OnlineCPUMem, hyper.INIT_ONLINECPUMEM)
+	testCodeFromCmd(t, OnlineCPUMem, OnlineCPUMemCode)
 }
 
 func TestCodeFromCmdSetupInterface(t *testing.T) {
-	testCodeFromCmd(t, SetupInterface, hyper.INIT_SETUPINTERFACE)
+	testCodeFromCmd(t, SetupInterface, SetupInterfaceCode)
 }
 
 func TestCodeFromCmdSetupRoute(t *testing.T) {
-	testCodeFromCmd(t, SetupRoute, hyper.INIT_SETUPROUTE)
+	testCodeFromCmd(t, SetupRoute, SetupRouteCode)
+}
+
+func TestCodeFromCmdRemoveContainer(t *testing.T) {
+	testCodeFromCmd(t, RemoveContainer, RemoveContainerCode)
 }
 
 func TestCodeFromCmdUnknown(t *testing.T) {
-	code, err := codeFromCmd("unknown")
+	h := &Hyperstart{}
+
+	code, err := h.CodeFromCmd("unknown")
 	if err == nil || code != math.MaxUint32 {
 		t.Fatal()
 	}
@@ -480,14 +474,14 @@ func TestCodeFromCmdUnknown(t *testing.T) {
 func testCheckReturnedCode(t *testing.T, code, refCode uint32) {
 	h := &Hyperstart{}
 
-	err := h.checkReturnedCode(code, refCode)
+	err := h.CheckReturnedCode(code, refCode)
 	if err != nil {
 		t.Fatal()
 	}
 }
 
 func TestCheckReturnedCodeList(t *testing.T) {
-	for _, code := range codeList {
+	for _, code := range CodeList {
 		testCheckReturnedCode(t, code, code)
 	}
 }
@@ -495,18 +489,18 @@ func TestCheckReturnedCodeList(t *testing.T) {
 func testCheckReturnedCodeFailure(t *testing.T, code, refCode uint32) {
 	h := &Hyperstart{}
 
-	err := h.checkReturnedCode(code, refCode)
+	err := h.CheckReturnedCode(code, refCode)
 	if err == nil {
 		t.Fatal()
 	}
 }
 
 func TestCheckReturnedCodeListWrong(t *testing.T) {
-	for _, code := range codeList {
-		if code != hyper.INIT_READY {
-			testCheckReturnedCodeFailure(t, code, hyper.INIT_READY)
+	for _, code := range CodeList {
+		if code != ReadyCode {
+			testCheckReturnedCodeFailure(t, code, ReadyCode)
 		} else {
-			testCheckReturnedCodeFailure(t, code, hyper.INIT_PING)
+			testCheckReturnedCodeFailure(t, code, PingCode)
 		}
 	}
 }
@@ -516,10 +510,10 @@ func TestWaitForReady(t *testing.T) {
 	if err != nil {
 		t.Fatal()
 	}
-	defer mockHyper.Stop()
 	defer disconnectHyperstart(h)
+	defer mockHyper.Stop()
 
-	mockHyper.SendMessage(int(hyper.INIT_READY), []byte{})
+	mockHyper.SendMessage(int(ReadyCode), []byte{})
 
 	err = h.WaitForReady()
 	if err != nil {
@@ -532,10 +526,10 @@ func TestWaitForReadyError(t *testing.T) {
 	if err != nil {
 		t.Fatal()
 	}
-	defer mockHyper.Stop()
 	defer disconnectHyperstart(h)
+	defer mockHyper.Stop()
 
-	mockHyper.SendMessage(int(hyper.INIT_ERROR), []byte{})
+	mockHyper.SendMessage(int(ErrorCode), []byte{})
 
 	err = h.WaitForReady()
 	if err == nil {
@@ -559,6 +553,7 @@ var cmdList = []string{
 	OnlineCPUMem,
 	SetupInterface,
 	SetupRoute,
+	RemoveContainer,
 }
 
 func testSendCtlMessage(t *testing.T, cmd string) {
@@ -566,15 +561,15 @@ func testSendCtlMessage(t *testing.T, cmd string) {
 	if err != nil {
 		t.Fatal()
 	}
-	defer mockHyper.Stop()
 	defer disconnectHyperstart(h)
+	defer mockHyper.Stop()
 
 	msg, err := h.SendCtlMessage(cmd, []byte{})
 	if err != nil {
 		t.Fatal()
 	}
 
-	if msg.Code != hyper.INIT_ACK {
+	if msg.Code != AckCode {
 		t.Fatal()
 	}
 }

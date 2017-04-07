@@ -21,18 +21,17 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
+	"os/exec"
 	"path"
+	"path/filepath"
 )
 
-// Constants for the Guest image used by ciao-down
-
-const (
-	guestDownloadURL       = "https://cloud-images.ubuntu.com/xenial/current/xenial-server-cloudimg-amd64-disk1.img"
-	guestImageName         = "xenial-server-cloudimg-amd64-disk1.img"
-	guestImageTmpName      = "xenial-server-cloudimg-amd64-disk1.img.part"
-	guestImageFriendlyName = "Ubuntu 16.04"
-)
+type downloadInfo struct {
+	imageName    string
+	imageTmpName string
+}
 
 type progressCB func(p progress)
 
@@ -61,14 +60,26 @@ func (pr *progressReader) Read(p []byte) (int, error) {
 	return read, err
 }
 
-func getUbuntu(ctx context.Context, dest io.WriteCloser, cb progressCB) (err error) {
+func makeDownloadInfo(URL string) (downloadInfo, error) {
+	u, err := url.Parse(URL)
+	if err != nil {
+		return downloadInfo{}, fmt.Errorf("unable to parse %s:%v", err, URL)
+	}
+	di := downloadInfo{
+		imageName: filepath.Base(u.Path),
+	}
+	di.imageTmpName = di.imageName + ".part"
+	return di, nil
+}
+
+func getFile(ctx context.Context, URL string, dest io.WriteCloser, cb progressCB) (err error) {
 	defer func() {
 		err1 := dest.Close()
 		if err == nil && err1 != nil {
 			err = err1
 		}
 	}()
-	req, err := http.NewRequest("GET", guestDownloadURL, nil)
+	req, err := http.NewRequest("GET", URL, nil)
 	if err != nil {
 		return
 	}
@@ -76,6 +87,13 @@ func getUbuntu(ctx context.Context, dest io.WriteCloser, cb progressCB) (err err
 	cli := &http.Client{Transport: http.DefaultTransport}
 	resp, err := cli.Do(req)
 	if err != nil {
+		return
+	}
+
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		err = fmt.Errorf("Failed to download %s : %s", URL, resp.Status)
 		return
 	}
 
@@ -88,25 +106,50 @@ func getUbuntu(ctx context.Context, dest io.WriteCloser, cb progressCB) (err err
 
 	buf := make([]byte, 1<<20)
 	_, err = io.CopyBuffer(dest, pr, buf)
-	_ = resp.Body.Close()
 
 	if err == nil && int(pr.downloaded/1000000)%10 != 0 {
-		downloadProgress(progress{downloadedMB: pr.totalMB, totalMB: pr.totalMB})
+		cb(progress{downloadedMB: pr.totalMB, totalMB: pr.totalMB})
 	}
 
 	return
 }
 
-func downloadUbuntu(ctx context.Context, instanceDir string, cb progressCB) (string, error) {
-	imgPath := path.Join(instanceDir, guestImageName)
+func downloadProgress(p progress) {
+	if p.totalMB >= 0 {
+		fmt.Printf("Downloaded %d MB of %d\n", p.downloadedMB, p.totalMB)
+	} else {
+		fmt.Printf("Downloaded %d MB\n", p.downloadedMB)
+	}
+}
+
+func downloadFile(ctx context.Context, URL, ciaoDir string, cb progressCB) (string, error) {
+	di, err := makeDownloadInfo(URL)
+	if err != nil {
+		return "", err
+	}
+
+	cacheDir := path.Join(ciaoDir, "cache")
+	imgPath := path.Join(cacheDir, di.imageName)
 
 	if _, err := os.Stat(imgPath); err == nil {
 		return imgPath, nil
 	}
 
-	fmt.Printf("Downloading %s\n", guestImageFriendlyName)
+	if err := os.MkdirAll(cacheDir, 0755); err != nil {
+		return "", fmt.Errorf("Unable to create directory %s : %v",
+			cacheDir, err)
+	}
 
-	tmpImgPath := path.Join(instanceDir, guestImageTmpName)
+	// Handles legacy code in which the ubuntu image used to be stored in
+	// the root of the ~/.ciao_down directory.  We don't want to move the
+	// old image as this would break any existing VMs based off it.
+
+	oldImgPath := path.Join(ciaoDir, di.imageName)
+	if err := exec.Command("cp", oldImgPath, imgPath).Run(); err == nil {
+		return imgPath, nil
+	}
+
+	tmpImgPath := path.Join(cacheDir, di.imageTmpName)
 
 	if _, err := os.Stat(imgPath); err == nil {
 		return imgPath, nil
@@ -121,11 +164,11 @@ func downloadUbuntu(ctx context.Context, instanceDir string, cb progressCB) (str
 		return "", fmt.Errorf("Unable to create download file: %v", err)
 	}
 
-	err = getUbuntu(ctx, f, cb)
+	err = getFile(ctx, URL, f, cb)
 	if err != nil {
 		_ = os.Remove(tmpImgPath)
 		return "", fmt.Errorf("Unable download file %s: %v",
-			guestDownloadURL, err)
+			URL, err)
 	}
 
 	err = os.Rename(tmpImgPath, imgPath)

@@ -114,6 +114,33 @@ const AgentUUID = "4cb19522-1e18-439a-883a-f9b2a3a95f5e"
 // VolumeUUID is a node UUID for storage tests
 const VolumeUUID = "67d86208-b46c-4465-9018-e14187d4010"
 
+var computeNetwork001 = payloads.NetworkStat{
+	NodeIP:  "198.51.100.1",
+	NodeMAC: "02:00:aa:cb:84:41",
+}
+var computeNetwork002 = payloads.NetworkStat{
+	NodeIP:  "10.168.1.1",
+	NodeMAC: "02:00:8c:ba:f9:45",
+}
+var computeNetwork003 = payloads.NetworkStat{
+	NodeIP:  ComputeNet,
+	NodeMAC: "02:00:15:03:6f:49",
+}
+
+// PartialComputeNetworks is meant to represent a node with partial access to
+// compute networks in the testutil cluster
+var PartialComputeNetworks = []payloads.NetworkStat{
+	computeNetwork002,
+}
+
+// MultipleComputeNetworks is meant to represent a node with full access to
+// all compute networks in the testutil cluster
+var MultipleComputeNetworks = []payloads.NetworkStat{
+	computeNetwork001,
+	computeNetwork002,
+	computeNetwork003,
+}
+
 //////////////////////////////////////////////////////////////////////////////
 
 // StartYaml is a sample workload START ssntp.Command payload for test usage
@@ -147,6 +174,7 @@ const StartYaml = `start:
     subnet_uuid: ""
     private_ip: ""
     public_ip: false
+  restart: false
 `
 
 // CNCIStartYaml is a sample CNCI workload START ssntp.Command payload for test cases
@@ -166,6 +194,8 @@ const CNCIStartYaml = `start:
     - type: network_node
       value: 1
       mandatory: true
+    - type: physical_network
+      value_string: ` + ComputeNet + `
   networking:
     vnic_mac: ` + VNICMAC + `
     vnic_uuid: ` + VNICUUID + `
@@ -195,6 +225,7 @@ const PartialStartYaml = `start:
 // StartFailureYaml is a sample workload StartFailure ssntp.Error payload for test cases
 const StartFailureYaml = `instance_uuid: ` + InstanceUUID + `
 reason: full_cloud
+restart: false
 `
 
 // RestartYaml is a sample workload RESTART ssntp.Command payload for test cases
@@ -250,6 +281,7 @@ reason: already_running
 const StopYaml = `stop:
   instance_uuid: ` + InstanceUUID + `
   workload_agent_uuid: ` + AgentUUID + `
+  stop: false
 `
 
 // StopFailureYaml is a sample workload StopFailure ssntp.Error payload for test cases
@@ -261,6 +293,15 @@ reason: already_stopped
 const DeleteYaml = `delete:
   instance_uuid: ` + InstanceUUID + `
   workload_agent_uuid: ` + AgentUUID + `
+  stop: false
+`
+
+// MigrateYaml is a sample workload DELETE ssntp.Command payload for test cases
+// that indicates that an instance is to be migrated rather than deleted.
+const MigrateYaml = `delete:
+  instance_uuid: ` + InstanceUUID + `
+  workload_agent_uuid: ` + AgentUUID + `
+  stop: true
 `
 
 // EvacuateYaml is a sample node EVACUATE ssntp.Command payload for test cases
@@ -348,10 +389,16 @@ const ConfigureYaml = `configure:
     volume_port: ` + VolumePort + `
     compute_port: ` + ComputePort + `
     ciao_port: ` + CiaoPort + `
+    compute_fqdn: ""
     compute_ca: ` + HTTPSCACert + `
     compute_cert: ` + HTTPSKey + `
     identity_user: ` + IdentityUser + `
     identity_password: ` + IdentityPassword + `
+    cnci_vcpus: 0
+    cnci_mem: 0
+    cnci_disk: 0
+    admin_ssh_key: ""
+    admin_password: ""
   launcher:
     compute_net:
     - ` + ComputeNet + `
@@ -377,6 +424,11 @@ const InsDelYaml = `instance_deleted:
   instance_uuid: ` + InstanceUUID + `
 `
 
+// InsStopYaml is a sample workload InstanceStopped ssntp.Event payload for test cases
+const InsStopYaml = `instance_stopped:
+  instance_uuid: ` + InstanceUUID + `
+`
+
 // NodeConnectedYaml is a sample node NodeConnected ssntp.Event payload for test cases
 const NodeConnectedYaml = `node_connected:
   node_uuid: ` + AgentUUID + `
@@ -384,8 +436,8 @@ const NodeConnectedYaml = `node_connected:
 `
 
 // ReadyPayload is a helper to craft a mostly fixed ssntp.READY status
-// payload, with parameters to specify the source node uuid and memory metrics
-func ReadyPayload(uuid string, memTotal int, memAvail int) payloads.Ready {
+// payload, with parameters to specify the source node uuid and available resources
+func ReadyPayload(uuid string, memTotal int, memAvail int, networks []payloads.NetworkStat) payloads.Ready {
 	p := payloads.Ready{
 		NodeUUID:        uuid,
 		MemTotalMB:      memTotal,
@@ -394,6 +446,7 @@ func ReadyPayload(uuid string, memTotal int, memAvail int) payloads.Ready {
 		DiskAvailableMB: 256000,
 		Load:            0,
 		CpusOnline:      4,
+		Networks:        networks,
 	}
 	return p
 }
@@ -406,6 +459,11 @@ disk_total_mb: 500000
 disk_available_mb: 256000
 load: 0
 cpus_online: 4
+networks:
+- ip: 192.168.1.1
+  mac: 02:00:15:03:6f:49
+- ip: 10.168.1.1
+  mac: 02:00:8c:ba:f9:45
 `
 
 // PartialReadyYaml is a sample minimal node READY ssntp.Status payload for test cases

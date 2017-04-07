@@ -53,7 +53,7 @@ func TestSendAgentStatus(t *testing.T) {
 
 	wg.Add(1)
 	go func() {
-		agent.SendStatus(163840, 163840)
+		agent.SendStatus(163840, 163840, testutil.PartialComputeNetworks)
 		wg.Done()
 	}()
 
@@ -82,7 +82,7 @@ func TestSendNetAgentStatus(t *testing.T) {
 
 	wg.Add(1)
 	go func() {
-		netAgent.SendStatus(163840, 163840)
+		netAgent.SendStatus(163840, 163840, testutil.MultipleComputeNetworks)
 		wg.Done()
 	}()
 
@@ -304,7 +304,7 @@ func TestRestartFailure(t *testing.T) {
 	}
 }
 
-func doDelete(fail bool) error {
+func doDelete(fail bool, payload string) error {
 	agentCh := agent.AddCmdChan(ssntp.DELETE)
 
 	var controllerErrorCh chan testutil.Result
@@ -322,7 +322,7 @@ func doDelete(fail bool) error {
 		}()
 	}
 
-	go controller.Ssntp.SendCommand(ssntp.DELETE, []byte(testutil.DeleteYaml))
+	go controller.Ssntp.SendCommand(ssntp.DELETE, []byte(payload))
 
 	_, err := agent.GetCmdChanResult(agentCh, ssntp.DELETE)
 	if fail == false && err != nil { // agent unexpected fail
@@ -359,10 +359,27 @@ func propagateInstanceDeleted() error {
 	return nil
 }
 
+func propagateInstanceStopped() error {
+	agentCh := agent.AddEventChan(ssntp.InstanceStopped)
+	controllerCh := controller.AddEventChan(ssntp.InstanceStopped)
+
+	go agent.SendStoppedEvent(testutil.InstanceUUID)
+
+	_, err := agent.GetEventChanResult(agentCh, ssntp.InstanceStopped)
+	if err != nil {
+		return err
+	}
+	_, err = controller.GetEventChanResult(controllerCh, ssntp.InstanceStopped)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func TestDelete(t *testing.T) {
 	fail := false
 
-	err := doDelete(fail)
+	err := doDelete(fail, testutil.DeleteYaml)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -373,10 +390,24 @@ func TestDelete(t *testing.T) {
 	}
 }
 
+func TestDeleteMigration(t *testing.T) {
+	fail := false
+
+	err := doDelete(fail, testutil.MigrateYaml)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = propagateInstanceStopped()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestDeleteFailure(t *testing.T) {
 	fail := true
 
-	err := doDelete(fail)
+	err := doDelete(fail, testutil.DeleteYaml)
 	if err != nil {
 		t.Fatal(err)
 	}

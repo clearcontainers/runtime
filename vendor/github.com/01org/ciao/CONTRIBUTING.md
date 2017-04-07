@@ -59,6 +59,15 @@ If you want to work on github.com/01org/ciao and your fork on the same workstati
 
 Once you've finished making your changes push them to your fork and send the PR via the github UI.  If you don't need to maintain the github.com/01org/ciao repo and your fork on the same workstation you can skip steps 2 and 3.
 
+## Quality Controls
+
+We request you give quality assurance some consideration by:
+* Adding go unit tests for changes where it makes sense.
+* Using our [test-cases](https://github.com/01org/ciao/tree/master/test-cases) package to run unit tests because a simple ```gotest ./...``` can result in multiple packages' unit tests running in parallel which may be unsafe.  Simply replace ```go test``` with ```test-cases``` in your workflow.
+* Running basic cluster acceptance tests which are available in [_release/bat](https://github.com/01org/ciao/tree/master/_release/bat) and are most easily run inside a [singlevm](https://github.com/01org/ciao/tree/master/testutil/singlevm) test environment, but may also be run on a hardware cluster which has your code installed/configured/running.  In some cases it will be necessary to test on real hardware, but in many a virtual cluster is an easy and fully sufficient path to test.
+* Adding BAT tests for changes where it makes sense.  The BAT tests themselves are implemented in go in the [bat package](https://github.com/01org/ciao/tree/master/bat), which is essentially a wrapper/driver around ciao-cli.  Both the [bat package](https://github.com/01org/ciao/tree/master/bat) and [BAT tests](https://github.com/01org/ciao/tree/master/_release/bat) are easy to extend.
+* Enabling [Travis CI](https://travis-ci.org/01org/ciao) on your github fork of Ciao to get continuous integration feedback on your dev/test branches. We have thresholds on code coverage tracked by [coveralls](https://coveralls.io/github/01org/ciao) which you will see reported once you submit your pull request.
+
 ## Issue tracking
 
 If you have a problem, please let us know.  IRC is a perfectly fine place

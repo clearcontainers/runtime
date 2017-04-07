@@ -25,6 +25,11 @@ type StopCmd struct {
 	// running.  This information is needed by the scheduler to route
 	// the command to the correct CN/NN.
 	WorkloadAgentUUID string `yaml:"workload_agent_uuid"`
+
+	// Stop is true if the instance is being stopped rather than deleted.
+	// In this case the delete command should only delete the instance from
+	// the node to which it is sent and not the entire cluster.
+	Stop bool
 }
 
 // Stop represents the unmarshalled version of the contents of a SSNTP STOP

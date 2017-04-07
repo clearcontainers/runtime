@@ -29,40 +29,7 @@ import (
 
 	"github.com/01org/ciao/ciao-controller/api"
 	"github.com/01org/ciao/ciao-controller/types"
-)
-
-const (
-	externalSubnetDesc = `struct {
-	ID	string			// ID of the external subnet
-	CIDR	string			// CIDR representation of the subnet
-}`
-	externalIPDesc = `struct {
-	ID	string			// ID of the external IP
-	Address	string			// the IPv4 Address
-}`
-	poolTemplateDesc = `struct {
-	ID       string                 // ID of the pool (Admin only)
-	Name     string                 // Name of the pool
-	TotalIPs int                    // Total IPs in pool (Admin only)
-	Free	 int                    // Total Free IPs in pool (Admin only)
-}`
-	poolShowTemplateDesc = `struct {
-	ID	string			// ID of the pool
-	Name	string			// name of the pool
-	Free	int			// Total free IPs in pool
-	TotalIPs int			// Total IPs in pool
-	Subnets []ExternalSubnet	// Subnets in this pool
-	IPs	[]ExternalIP		// Individual IPs in this pool
-}`
-	externalIPTemplate = `struct {
-	ID		string		// ID of the mapped IP
-	ExternalIP 	string		// External IP address
-	InternalIP	string		// Internal IP address
-	InstanceID	string		// ID of the instance that is mapped (Admin only)
-	TenantID	string		// ID of the tenant (Admin only)
-	PoolID		string		// ID of the allocation pool (Admin only)
-	PoolName	string		// Name of the allocation pool (Admin only)
-}`
+	"github.com/01org/ciao/templateutils"
 )
 
 func getCiaoExternalIPsResource() (string, string, error) {
@@ -193,13 +160,7 @@ The list flags are:
 
 `)
 	cmd.Flag.PrintDefaults()
-
-	fmt.Fprintf(os.Stderr, `
-The template passed to the -f option operates on a
-
-[]%s
-`, externalIPTemplate)
-	fmt.Fprintln(os.Stderr, templateFunctionHelp)
+	fmt.Fprintf(os.Stderr, "\n%s", templateutils.GenerateUsageDecorated("f", []types.MappedIP{}, nil))
 	os.Exit(2)
 }
 
@@ -233,8 +194,8 @@ func (cmd *externalIPListCommand) run(args []string) error {
 	}
 
 	if cmd.template != "" {
-		return outputToTemplate("external-ip-list", cmd.template,
-			&IPs)
+		return templateutils.OutputToTemplate(os.Stdout, "external-ip-list", cmd.template,
+			&IPs, nil)
 	}
 
 	w := new(tabwriter.Writer)
@@ -477,13 +438,8 @@ The list flags are:
 
 `)
 	cmd.Flag.PrintDefaults()
-	fmt.Fprintf(os.Stderr, `
-The template passed to the -f option operates on a
-
-[]%s
-`, poolTemplateDesc)
-	fmt.Fprintln(os.Stderr, templateFunctionHelp)
-
+	fmt.Fprintf(os.Stderr, "\n%s",
+		templateutils.GenerateUsageDecorated("f", types.ListPoolsResponse{}.Pools, nil))
 	os.Exit(2)
 }
 
@@ -518,8 +474,8 @@ func (cmd *poolListCommand) run(args []string) error {
 	}
 
 	if cmd.template != "" {
-		return outputToTemplate("pool-list", cmd.template,
-			&pools.Pools)
+		return templateutils.OutputToTemplate(os.Stdout, "pool-list", cmd.template,
+			&pools.Pools, nil)
 	}
 
 	w := new(tabwriter.Writer)
@@ -566,24 +522,7 @@ The show flags are:
 
 `)
 	cmd.Flag.PrintDefaults()
-	fmt.Fprintf(os.Stderr, `
-The template passed to the -f option operates on a
-
-%s
-`, poolShowTemplateDesc)
-	fmt.Fprintf(os.Stderr, `
-The externalSubnets are described by
-
-%s
-`, externalSubnetDesc)
-
-	fmt.Fprintf(os.Stderr, `
-The externalIPs are described by
-
-%s
-`, externalIPDesc)
-	fmt.Fprintln(os.Stderr, templateFunctionHelp)
-
+	fmt.Fprintf(os.Stderr, "\n%s", templateutils.GenerateUsageDecorated("f", types.Pool{}, nil))
 	os.Exit(2)
 }
 
@@ -624,8 +563,8 @@ func (cmd *poolShowCommand) run(args []string) error {
 	}
 
 	if cmd.template != "" {
-		return outputToTemplate("pool-show", cmd.template,
-			&pool)
+		return templateutils.OutputToTemplate(os.Stdout, "pool-show", cmd.template,
+			&pool, nil)
 	}
 
 	dumpPool(pool)
