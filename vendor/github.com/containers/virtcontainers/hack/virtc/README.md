@@ -1,11 +1,11 @@
 # virtc
 
-`virtc` is a simple command-line tool that serves to demonstrate typical usage of the `virt` API.
-This is example software; unlike other projects like runc, runv, or rkt, `virt` is not a full container runtime.
+`virtc` is a simple command-line tool that serves to demonstrate typical usage of the virtcontainers API.
+This is example software; unlike other projects like runc, runv, or rkt, virtcontainers is not a full container runtime.
 
 ## Virtc example
 
-Here we explain how to use the pod API from __virtc__ command line.
+Here we explain how to use the pod and container API from `virtc` command line.
 
 ### Prepare your environment
 
@@ -13,92 +13,130 @@ Here we explain how to use the pod API from __virtc__ command line.
 
 _Fedora_
 ```
-$ sudo -E dnf config-manager --add-repo http://download.opensuse.org/repositories/home:clearlinux:preview:clear-containers-2.0/Fedora_24/home:clearlinux:preview:clear-containers-2.0.repo
+$ sudo -E dnf config-manager --add-repo http://download.opensuse.org/repositories/home:clearlinux:preview:clear-containers-2.1/Fedora_25/home:clearlinux:preview:clear-containers-2.1.repo
 $ sudo dnf install linux-container 
 ```
 
 _Ubuntu_
 ```
-$ sudo sh -c "echo 'deb http://download.opensuse.org/repositories/home:/clearlinux:/preview:/clear-containers-2.0/xUbuntu_16.04/ /' >> /etc/apt/sources.list.d/cc-oci-runtime.list"
+$ sudo sh -c "echo 'deb http://download.opensuse.org/repositories/home:/clearlinux:/preview:/clear-containers-2.1/xUbuntu_16.10/ /' >> /etc/apt/sources.list.d/cc-oci-runtime.list"
 $ sudo apt install linux-container
 ```
 
 #### Get your image
 
-It has to be a recent Clear Linux image to make sure it contains hyperstart binary.
-You can dowload the following tested [image](https://download.clearlinux.org/releases/12210/clear/clear-12210-containers.img.xz), or any version more recent.
+Retrieve a recent Clear Containers image to make sure it contains a recent version of hyperstart agent.
+
+To download and install the latest image:
 
 ```
-$ wget https://download.clearlinux.org/releases/12210/clear/clear-12210-containers.img.xz
-$ unxz clear-12210-containers.img.xz
-$ sudo cp clear-12210-containers.img /usr/share/clear-containers/clear-containers.img
+$ latest_version=$(curl -sL https://download.clearlinux.org/latest)
+$ curl -LO "https://download.clearlinux.org/current/clear-${latest_version}-containers.img.xz"
+$ unxz clear-${latest_version}-containers.img.xz
+$ sudo mkdir -p /usr/share/clear-containers/
+$ sudo install --owner root --group root --mode 0644 clear-${latest_version}-containers.img /usr/share/clear-containers/
+$ sudo ln -fs /usr/share/clear-containers/clear-${latest_version}-containers.img /usr/share/clear-containers/clear-containers.img
 ```
 
 #### Get virtc
 
-_Download virtc_
+_Download virtcontainers project_
 ```
 $ go get github.com/containers/virtcontainers
 ```
 
-_Build and install pause binary_
+_Build and setup your environment_
 ```
 $ cd $GOPATH/src/github.com/containers/virtcontainers
-$ make
-$ make install
+$ go build -o virtc hack/virtc/main.go
+$ sudo ./utils/virtcontainers-setup.sh
 ```
 
-_Go to virtc_
+`virtcontainers-setup.sh` setup your environment performing different tasks. Particularly, it creates a __busybox__ bundle, and it creates CNI configuration files needed to run `virtc` with CNI plugins.
+
+### Get cc-proxy (optional)
+
+If you plan to start `virtc` with the hyperstart agent, you will have to use [cc-proxy](https://github.com/clearcontainers/proxy) as a proxy, meaning you have to perform extra steps to setup your environment.
+
 ```
-$ cd hack/virtc
+$ go get github.com/clearcontainers/proxy
+$ make
+$ sudo make install
+```
+If you want to see the traces from the proxy when `virtc` will run, you can manually start it with appropriate debug level:
+
+```
+$ sudo /usr/libexec/clearcontainers/cc-proxy -v 3
+```
+This will generate output similar to the following:
+```
+I0410 08:58:49.058881    5384 proxy.go:521] listening on /var/run/clearcontainers/proxy.sock
+I0410 08:58:49.059044    5384 proxy.go:566] proxy started
+```
+The proxy socket specified in the example log output has to be used as `virtc`'s `--proxy-url` option.
+
+### Get cc-shim (optional)
+
+If you plan to start `virtc` with the hyperstart agent (implying the use of `cc-proxy` as a proxy), you will have the possibility to enable [cc-shim](https://github.com/clearcontainers/shim) in order to interact with the process running inside your container. First, you will have to perform extra steps to setup your environment.
+
+```
+$ go get github.com/clearcontainers/shim
+$ make
+$ sudo make install
+```
+
+The shim will be installed at the following location: `/usr/libexec/cc-shim`. There will be two cases where you will be able to enable `cc-shim`:
+
+_Start a new container_
+
+```
+# ./virtc container start -id=1 -pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8 -cc-shim -cc-shim-path="/usr/libexec/cc-shim"
+```
+_Execute a new process on a running container_
+```
+# ./virtc container enter -id=1 -pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8 -cmd="/bin/ifconfig" -cc-shim -cc-shim-path="/usr/libexec/cc-shim"
 ```
 
 ### Run virtc
 
-All following commands needs to be run as root. Currently, __virtc__ only starts single container pods.
-
-_Create your container bundle_
-
-As an example we will create a busybox bundle:
-
-```
-$ mkdir -p /tmp/bundles/busybox/
-$ docker pull busybox
-$ cd /tmp/bundles/busybox/
-$ mkdir rootfs
-$ docker export $(docker create busybox) | tar -C rootfs -xvf -
-$ echo -e '#!/bin/sh\ncd "\"\n"sh"' > rootfs/.containerexec
-$ echo -e 'HOME=/root\nPATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\nTERM=xterm' > rootfs/.containerenv
-```
+All following commands __MUST__ be run as root. By default, and unless you decide to modify it and rebuild it, `virtc` starts empty pods (no container started).
 
 #### Run a new pod (Create + Start)
 ```
-./virtc pod run --agent="hyperstart" --network="CNI" --proxy="ccProxy"
+# ./virtc pod run -agent="hyperstart" -network="CNI" -proxy="ccProxy" -proxy-url="unix:///var/run/clearcontainers/proxy.sock" -pause-path="/tmp/bundles/pause_bundle/rootfs/bin/pause"
 ```
 #### Create a new pod
 ```
-./virtc pod create --agent="hyperstart" --network="CNI" --proxy="ccProxy"
+# ./virtc pod run -agent="hyperstart" -network="CNI" -proxy="ccProxy" -proxy-url="unix:///var/run/clearcontainers/proxy.sock" -pause-path="/tmp/bundles/pause_bundle/rootfs/bin/pause"
 ```
-This should generate that kind of output
+This will generate output similar to the following:
 ```
-Created pod 306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+Pod 306ecdcf-0a6f-4a06-a03e-86a7b868ffc8 created
 ```
 
 #### Start an existing pod
 ```
-./virtc pod start --id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+# ./virtc pod start -id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+```
+This will generate output similar to the following:
+```
+Pod 306ecdcf-0a6f-4a06-a03e-86a7b868ffc8 started
 ```
 
 #### Stop an existing pod
 ```
-./virtc pod stop --id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+# ./virtc pod stop -id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+```
+This will generate output similar to the following:
+```
+Pod 306ecdcf-0a6f-4a06-a03e-86a7b868ffc8 stopped
 ```
 
 #### Get the status of an existing pod and its containers
 ```
-./virtc pod status --id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+# ./virtc pod status -id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
 ```
-This should generate the following output:
+This will generate output similar to the following (assuming the pod has been started):
 ```
 POD ID                                  STATE   HYPERVISOR      AGENT
 306ecdcf-0a6f-4a06-a03e-86a7b868ffc8    running qemu            hyperstart
@@ -108,12 +146,16 @@ CONTAINER ID    STATE
 
 #### Delete an existing pod
 ```
-./virtc pod delete --id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+# ./virtc pod delete -id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+```
+This will generate output similar to the following:
+```
+Pod 306ecdcf-0a6f-4a06-a03e-86a7b868ffc8 deleted
 ```
 
 #### List all existing pods
 ```
-./virtc pod list
+# ./virtc pod list
 ```
 This should generate that kind of output
 ```
@@ -122,4 +164,59 @@ POD ID                                  STATE   HYPERVISOR      AGENT
 92d73f74-4514-4a0d-81df-db1cc4c59100    running qemu            hyperstart
 7088148c-049b-4be7-b1be-89b3ae3c551c    ready   qemu            hyperstart
 6d57654e-4804-4a91-b72d-b5fe375ed3e1    ready   qemu            hyperstart
+```
+
+#### Create a new container
+```
+# ./virtc container create -id=1 -pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8 -rootfs="/tmp/bundles/busybox/rootfs" -cmd="/bin/ifconfig"
+```
+This will generate output similar to the following:
+```
+Container 1 created
+```
+
+#### Start an existing container
+```
+# ./virtc container start -id=1 -pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+```
+This will generate output similar to the following:
+```
+Container 1 started
+```
+
+#### Run a new process on an existing container
+```
+# ./virtc container enter -id=1 -pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8 -cmd="/bin/ps"
+```
+This will generate output similar to the following:
+```
+Container 1 entered
+```
+
+#### Stop an existing container
+```
+# ./virtc container stop -id=1 -pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+```
+This will generate output similar to the following:
+```
+Container 1 stopped
+```
+
+#### Delete an existing container
+```
+# ./virtc container delete -id=1 -pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+```
+This will generate output similar to the following:
+```
+Container 1 deleted
+```
+
+#### Get the status of an existing container
+```
+# ./virtc container status -id=1 -pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+```
+This will generate output similar to the following (assuming the container has been started):
+```
+CONTAINER ID    STATE
+1               running
 ```

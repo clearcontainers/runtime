@@ -27,12 +27,12 @@ type ShimConfig struct {
 	Path string
 }
 
-func startShim(process *vc.Process, config ShimConfig, url string) (int, error) {
+func startShim(process *vc.Process, config ShimConfig) (int, error) {
 	if process.Token == "" {
 		return -1, fmt.Errorf("Token cannot be empty")
 	}
 
-	if url == "" {
+	if process.URL == "" {
 		return -1, fmt.Errorf("URL cannot be empty")
 	}
 
@@ -41,7 +41,7 @@ func startShim(process *vc.Process, config ShimConfig, url string) (int, error) 
 	}
 	ccLog.Infof("Shim binary path: %s", config.Path)
 
-	cmd := exec.Command(config.Path, "-t", process.Token, "-u", url)
+	cmd := exec.Command(config.Path, "-t", process.Token, "-u", process.URL)
 	cmd.Env = os.Environ()
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
@@ -54,10 +54,10 @@ func startShim(process *vc.Process, config ShimConfig, url string) (int, error) 
 	return cmd.Process.Pid, nil
 }
 
-func startContainerShim(container *vc.Container, config ShimConfig, url string) (int, error) {
+func startContainerShim(container *vc.Container, config ShimConfig) (int, error) {
 	process := container.Process()
 
-	pid, err := startShim(&process, config, url)
+	pid, err := startShim(&process, config)
 	if err != nil {
 		return -1, err
 	}

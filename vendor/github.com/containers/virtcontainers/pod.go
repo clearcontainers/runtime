@@ -339,8 +339,6 @@ type Pod struct {
 	runPath    string
 	configPath string
 
-	url string
-
 	state State
 
 	lockFile *os.File
@@ -359,11 +357,6 @@ func (p *Pod) Annotations(key string) (string, error) {
 	}
 
 	return value, nil
-}
-
-// URL returns the pod URL for any runtime to connect to the proxy.
-func (p *Pod) URL() string {
-	return p.url
 }
 
 // GetContainers returns a container config list.

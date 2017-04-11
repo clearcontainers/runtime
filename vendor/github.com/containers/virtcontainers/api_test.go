@@ -151,6 +151,62 @@ func newTestPodConfigHyperstartAgentCNINetwork() PodConfig {
 	return podConfig
 }
 
+func newTestPodConfigHyperstartAgentCNMNetwork() PodConfig {
+	// Define the container command and bundle.
+	container := ContainerConfig{
+		ID:     "1",
+		RootFs: filepath.Join(testDir, testBundle),
+		Cmd:    newBasicTestCmd(),
+	}
+
+	// Sets the hypervisor configuration.
+	hypervisorConfig := HypervisorConfig{
+		KernelPath:     filepath.Join(testDir, testKernel),
+		ImagePath:      filepath.Join(testDir, testImage),
+		HypervisorPath: filepath.Join(testDir, testHypervisor),
+	}
+
+	sockets := []Socket{{}, {}}
+
+	agentConfig := HyperConfig{
+		SockCtlName: testHyperstartCtlSocket,
+		SockTtyName: testHyperstartTtySocket,
+		Sockets:     sockets,
+	}
+
+	hooks := Hooks{
+		PreStartHooks: []Hook{
+			{
+				Path: testBinHookPath,
+				Args: []string{testKeyHook, testContainerIDHook, testControllerIDHook},
+			},
+		},
+		PostStartHooks: []Hook{},
+		PostStopHooks:  []Hook{},
+	}
+
+	netConfig := NetworkConfig{
+		NumInterfaces: len(hooks.PreStartHooks),
+	}
+
+	podConfig := PodConfig{
+		Hooks: hooks,
+
+		HypervisorType:   MockHypervisor,
+		HypervisorConfig: hypervisorConfig,
+
+		AgentType:   HyperstartAgent,
+		AgentConfig: agentConfig,
+
+		NetworkModel:  CNMNetworkModel,
+		NetworkConfig: netConfig,
+
+		Containers: []ContainerConfig{container},
+	}
+
+	return podConfig
+}
+
 func TestCreatePodNoopAgentSuccessful(t *testing.T) {
 	config := newTestPodConfigNoop()
 
@@ -813,6 +869,44 @@ func TestStartStopPodHyperstartAgentSuccessfulWithCNINetwork(t *testing.T) {
 	}
 
 	config := newTestPodConfigHyperstartAgentCNINetwork()
+
+	pauseBinPath := filepath.Join(testDir, testHyperstartPauseBinName)
+	_, err := os.Create(pauseBinPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	hyperConfig := config.AgentConfig.(HyperConfig)
+	hyperConfig.PauseBinPath = pauseBinPath
+	config.AgentConfig = hyperConfig
+
+	p, _, err := createAndStartPod(config)
+	if p == nil || err != nil {
+		t.Fatal(err)
+	}
+
+	p, err = StopPod(p.id)
+	if p == nil || err != nil {
+		t.Fatal(err)
+	}
+
+	p, err = DeletePod(p.id)
+	if p == nil || err != nil {
+		t.Fatal(err)
+	}
+
+	err = os.Remove(pauseBinPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestStartStopPodHyperstartAgentSuccessfulWithCNMNetwork(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip(testDisabledAsNonRoot)
+	}
+
+	config := newTestPodConfigHyperstartAgentCNMNetwork()
 
 	pauseBinPath := filepath.Join(testDir, testHyperstartPauseBinName)
 	_, err := os.Create(pauseBinPath)

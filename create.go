@@ -88,7 +88,7 @@ func create(containerID, bundlePath, console, pidFilePath string) error {
 		return fmt.Errorf("BUG: Container list from pod is wrong, expecting only one container, found %d containers", len(containers))
 	}
 
-	pid, err := startContainerShim(containers[0], shimConfig, pod.URL())
+	pid, err := startContainerShim(containers[0], shimConfig)
 	if err != nil {
 		return err
 	}

@@ -27,6 +27,7 @@ import (
 
 // Process gathers data related to a container process.
 type Process struct {
+	URL   string
 	Token string
 	Pid   int
 }

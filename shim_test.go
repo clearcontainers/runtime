@@ -28,7 +28,11 @@ var testToken = "test-token"
 var testURL = "sheme://ipAddress:8080/path"
 
 func TestStartShimTokenEmptyFailure(t *testing.T) {
-	if _, err := startShim(&vc.Process{}, ShimConfig{}, testURL); err == nil {
+	process := &vc.Process{
+		URL: testURL,
+	}
+
+	if _, err := startShim(process, ShimConfig{}); err == nil {
 		t.Fatalf("This test should fail because process.Token is empty")
 	}
 }
@@ -38,13 +42,13 @@ func TestStartShimURLEmptyFailure(t *testing.T) {
 		Token: testToken,
 	}
 
-	if _, err := startShim(process, ShimConfig{}, ""); err == nil {
+	if _, err := startShim(process, ShimConfig{}); err == nil {
 		t.Fatalf("This test should fail because process.Token is empty")
 	}
 }
 
-func testStartShimSuccessful(t *testing.T, process *vc.Process, shimConfig ShimConfig, url string) {
-	pid, err := startShim(process, shimConfig, url)
+func testStartShimSuccessful(t *testing.T, process *vc.Process, shimConfig ShimConfig) {
+	pid, err := startShim(process, shimConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,14 +71,16 @@ func TestStartShimDefaultShimPathSuccessful(t *testing.T) {
 	defaultShimPath = mockShimPath
 
 	process := &vc.Process{
+		URL:   testURL,
 		Token: testToken,
 	}
 
-	testStartShimSuccessful(t, process, ShimConfig{}, testURL)
+	testStartShimSuccessful(t, process, ShimConfig{})
 }
 
 func TestStartShimSuccessful(t *testing.T) {
 	process := &vc.Process{
+		URL:   testURL,
 		Token: testToken,
 	}
 
@@ -82,11 +88,11 @@ func TestStartShimSuccessful(t *testing.T) {
 		Path: mockShimPath,
 	}
 
-	testStartShimSuccessful(t, process, shimConfig, testURL)
+	testStartShimSuccessful(t, process, shimConfig)
 }
 
 func TestStartContainerShimContainerEmptyFailure(t *testing.T) {
-	if _, err := startContainerShim(&vc.Container{}, ShimConfig{}, testURL); err == nil {
+	if _, err := startContainerShim(&vc.Container{}, ShimConfig{}); err == nil {
 		t.Fatal("This test should fail because container is empty")
 	}
 }
