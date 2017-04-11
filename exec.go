@@ -208,13 +208,13 @@ func execute(params execParams) error {
 		return err
 	}
 
-	pod, _, process, err := vc.EnterContainer(params.cID, podStatus.ContainersStatus[0].ID, cmd)
+	_, _, process, err := vc.EnterContainer(params.cID, podStatus.ContainersStatus[0].ID, cmd)
 	if err != nil {
 		return err
 	}
 
 	// Start the shim to retrieve its PID.
-	pid, err := startShim(process, shimConfig, pod.URL())
+	pid, err := startShim(process, shimConfig)
 	if err != nil {
 		return err
 	}

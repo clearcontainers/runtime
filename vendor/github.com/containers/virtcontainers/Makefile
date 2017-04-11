@@ -1,5 +1,5 @@
 all: binaries
-	go build ./...
+	go build $(go list ./... | grep -v /vendor/)
 	cd hack/virtc && go build
 
 pause:
