@@ -18,10 +18,15 @@ package virtcontainers
 
 import (
 	"os"
+	"runtime"
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
 )
+
+func init() {
+	runtime.LockOSThread()
+}
 
 var virtLog = logrus.New()
 
@@ -88,6 +93,10 @@ func CreatePod(podConfig PodConfig) (*Pod, error) {
 // DeletePod is the virtcontainers pod deletion entry point.
 // DeletePod will stop an already running container and then delete it.
 func DeletePod(podID string) (*Pod, error) {
+	if podID == "" {
+		return nil, ErrNeedPodID
+	}
+
 	lockFile, err := lockPod(podID)
 	if err != nil {
 		return nil, err
@@ -137,6 +146,10 @@ func DeletePod(podID string) (*Pod, error) {
 // pod and all its containers.
 // It returns the pod ID.
 func StartPod(podID string) (*Pod, error) {
+	if podID == "" {
+		return nil, ErrNeedPodID
+	}
+
 	lockFile, err := lockPod(podID)
 	if err != nil {
 		return nil, err
@@ -180,6 +193,10 @@ func StartPod(podID string) (*Pod, error) {
 // StopPod is the virtcontainers pod stopping entry point.
 // StopPod will talk to the given agent to stop an existing pod and destroy all containers within that pod.
 func StopPod(podID string) (*Pod, error) {
+	if podID == "" {
+		return nil, ErrNeedPod
+	}
+
 	lockFile, err := lockPod(podID)
 	if err != nil {
 		return nil, err
@@ -328,6 +345,10 @@ func ListPod() ([]PodStatus, error) {
 
 // StatusPod is the virtcontainers pod status entry point.
 func StatusPod(podID string) (PodStatus, error) {
+	if podID == "" {
+		return PodStatus{}, ErrNeedPodID
+	}
+
 	pod, err := fetchPod(podID)
 	if err != nil {
 		return PodStatus{}, err
@@ -359,6 +380,10 @@ func StatusPod(podID string) (PodStatus, error) {
 // CreateContainer is the virtcontainers container creation entry point.
 // CreateContainer creates a container on a given pod.
 func CreateContainer(podID string, containerConfig ContainerConfig) (*Pod, *Container, error) {
+	if podID == "" {
+		return nil, nil, ErrNeedPodID
+	}
+
 	lockFile, err := lockPod(podID)
 	if err != nil {
 		return nil, nil, err
@@ -401,6 +426,14 @@ func CreateContainer(podID string, containerConfig ContainerConfig) (*Pod, *Cont
 // DeleteContainer deletes a Container from a Pod. If the container is running,
 // it needs to be stopped first.
 func DeleteContainer(podID, containerID string) (*Container, error) {
+	if podID == "" {
+		return nil, ErrNeedPodID
+	}
+
+	if containerID == "" {
+		return nil, ErrNeedContainerID
+	}
+
 	lockFile, err := lockPod(podID)
 	if err != nil {
 		return nil, err
@@ -447,6 +480,14 @@ func DeleteContainer(podID, containerID string) (*Container, error) {
 // StartContainer is the virtcontainers container starting entry point.
 // StartContainer starts an already created container.
 func StartContainer(podID, containerID string) (*Container, error) {
+	if podID == "" {
+		return nil, ErrNeedPodID
+	}
+
+	if containerID == "" {
+		return nil, ErrNeedContainerID
+	}
+
 	lockFile, err := lockPod(podID)
 	if err != nil {
 		return nil, err
@@ -482,6 +523,14 @@ func StartContainer(podID, containerID string) (*Container, error) {
 // StopContainer is the virtcontainers container stopping entry point.
 // StopContainer stops an already running container.
 func StopContainer(podID, containerID string) (*Container, error) {
+	if podID == "" {
+		return nil, ErrNeedPodID
+	}
+
+	if containerID == "" {
+		return nil, ErrNeedContainerID
+	}
+
 	lockFile, err := lockPod(podID)
 	if err != nil {
 		return nil, err
@@ -517,6 +566,14 @@ func StopContainer(podID, containerID string) (*Container, error) {
 // EnterContainer is the virtcontainers container command execution entry point.
 // EnterContainer enters an already running container and runs a given command.
 func EnterContainer(podID, containerID string, cmd Cmd) (*Pod, *Container, *Process, error) {
+	if podID == "" {
+		return nil, nil, nil, ErrNeedPodID
+	}
+
+	if containerID == "" {
+		return nil, nil, nil, ErrNeedContainerID
+	}
+
 	lockFile, err := lockPod(podID)
 	if err != nil {
 		return nil, nil, nil, err
@@ -551,6 +608,14 @@ func EnterContainer(podID, containerID string, cmd Cmd) (*Pod, *Container, *Proc
 // StatusContainer is the virtcontainers container status entry point.
 // StatusContainer returns a detailed container status.
 func StatusContainer(podID, containerID string) (ContainerStatus, error) {
+	if podID == "" {
+		return ContainerStatus{}, ErrNeedPodID
+	}
+
+	if containerID == "" {
+		return ContainerStatus{}, ErrNeedContainerID
+	}
+
 	var contStatus ContainerStatus
 
 	pod, err := fetchPod(podID)
@@ -575,6 +640,14 @@ func StatusContainer(podID, containerID string) (ContainerStatus, error) {
 // KillContainer is the virtcontainers entry point to send a signal
 // to a container running inside a pod.
 func KillContainer(podID, containerID string, signal syscall.Signal) error {
+	if podID == "" {
+		return ErrNeedPodID
+	}
+
+	if containerID == "" {
+		return ErrNeedContainerID
+	}
+
 	lockFile, err := lockPod(podID)
 	if err != nil {
 		return err

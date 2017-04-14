@@ -114,6 +114,14 @@ type proxy interface {
 	// disconnect disconnects from the proxy.
 	disconnect() error
 
-	// sendCmd sends a command to the agent inside the VM through the proxy.
+	// sendCmd sends a command to the agent inside the VM through the
+	// proxy.
+	// This function will always be used from a specific agent
+	// implementation because a proxy type is always tied to an agent
+	// type. That's the reason why it takes an interface as parameter
+	// and it returns another interface.
+	// Those interfaces allows consumers (agent implementations) of this
+	// proxy interface to be able to use specific structures that can only
+	// be understood by a specific agent<=>proxy pair.
 	sendCmd(cmd interface{}) (interface{}, error)
 }

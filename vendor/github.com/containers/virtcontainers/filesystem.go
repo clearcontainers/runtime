@@ -24,7 +24,10 @@ import (
 	"path/filepath"
 )
 
-// podResource is an int representing a pod resource type
+// podResource is an int representing a pod resource type.
+//
+// Note that some are specific to the pod itself and others can apply to
+// pods and containers.
 type podResource int
 
 const (
@@ -34,13 +37,13 @@ const (
 	// stateFileType represents a state file type
 	stateFileType
 
-	// networkFileType represents a network file type
+	// networkFileType represents a network file type (pod only)
 	networkFileType
 
 	// processFileType represents a process file type
 	processFileType
 
-	// lockFileType represents a lock file type
+	// lockFileType represents a lock file type (pod only)
 	lockFileType
 )
 
@@ -145,8 +148,12 @@ func (fs *filesystem) createAllResources(pod Pod) (err error) {
 	return nil
 }
 
-func (fs *filesystem) storeFile(path string, data interface{}) error {
-	f, err := os.Create(path)
+func (fs *filesystem) storeFile(file string, data interface{}) error {
+	if file == "" {
+		return ErrNeedFile
+	}
+
+	f, err := os.Create(file)
 	if err != nil {
 		return err
 	}
@@ -161,8 +168,12 @@ func (fs *filesystem) storeFile(path string, data interface{}) error {
 	return nil
 }
 
-func (fs *filesystem) fetchFile(path string, data interface{}) error {
-	fileData, err := ioutil.ReadFile(path)
+func (fs *filesystem) fetchFile(file string, data interface{}) error {
+	if file == "" {
+		return ErrNeedFile
+	}
+
+	fileData, err := ioutil.ReadFile(file)
 	if err != nil {
 		return err
 	}
@@ -175,12 +186,32 @@ func (fs *filesystem) fetchFile(path string, data interface{}) error {
 	return nil
 }
 
-func resourceDir(podID, containerID string, resource podResource) (string, error) {
-	var path string
+// resourceNeedsContainerID determines if the specified
+// podResource needs a containerID. Since some podResources can
+// be used for both pods and containers, it is necessary to specify
+// whether the resource is being used in a pod-specific context using
+// the podSpecific parameter.
+func resourceNeedsContainerID(podSpecific bool, resource podResource) bool {
 
-	if podID == "" {
-		return "", fmt.Errorf("PodID cannot be empty")
+	switch resource {
+	case lockFileType, networkFileType:
+		// pod-specific resources
+		return false
+	default:
+		return !podSpecific
 	}
+}
+
+func resourceDir(podSpecific bool, podID, containerID string, resource podResource) (string, error) {
+	if podID == "" {
+		return "", ErrNeedPodID
+	}
+
+	if resourceNeedsContainerID(podSpecific, resource) == true && containerID == "" {
+		return "", ErrNeedContainerID
+	}
+
+	var path string
 
 	switch resource {
 	case configFileType:
@@ -198,14 +229,18 @@ func resourceDir(podID, containerID string, resource podResource) (string, error
 	return dirPath, nil
 }
 
-func (fs *filesystem) resourceURI(podID, containerID string, resource podResource) (string, string, error) {
-	var filename string
-
+// If podSpecific is true, the resource is being applied for an empty
+// pod (meaning containerID may be blank).
+// Note that this function defers determining if containerID can be
+// blank to resourceDIR()
+func (fs *filesystem) resourceURI(podSpecific bool, podID, containerID string, resource podResource) (string, string, error) {
 	if podID == "" {
-		return "", "", fmt.Errorf("Pod ID cannot be empty")
+		return "", "", ErrNeedPodID
 	}
 
-	dirPath, err := resourceDir(podID, containerID, resource)
+	var filename string
+
+	dirPath, err := resourceDir(podSpecific, podID, containerID, resource)
 	if err != nil {
 		return "", "", err
 	}
@@ -233,25 +268,47 @@ func (fs *filesystem) resourceURI(podID, containerID string, resource podResourc
 }
 
 func (fs *filesystem) containerURI(podID, containerID string, resource podResource) (string, string, error) {
-	if containerID == "" {
-		return "", "", fmt.Errorf("Container ID cannot be empty")
+	if podID == "" {
+		return "", "", ErrNeedPodID
 	}
 
-	return fs.resourceURI(podID, containerID, resource)
+	if containerID == "" {
+		return "", "", ErrNeedContainerID
+	}
+
+	return fs.resourceURI(false, podID, containerID, resource)
 }
 
 func (fs *filesystem) podURI(podID string, resource podResource) (string, string, error) {
-	return fs.resourceURI(podID, "", resource)
+	return fs.resourceURI(true, podID, "", resource)
 }
 
-func (fs *filesystem) storeResource(podID, containerID string, resource podResource, data interface{}) error {
+// commonResourceChecks performs basic checks common to both setting and
+// getting a podResource.
+func (fs *filesystem) commonResourceChecks(podSpecific bool, podID, containerID string, resource podResource) error {
+	if podID == "" {
+		return ErrNeedPodID
+	}
+
+	if resourceNeedsContainerID(podSpecific, resource) == true && containerID == "" {
+		return ErrNeedContainerID
+	}
+
+	return nil
+}
+
+func (fs *filesystem) storeResource(podSpecific bool, podID, containerID string, resource podResource, data interface{}) error {
+	if err := fs.commonResourceChecks(podSpecific, podID, containerID, resource); err != nil {
+		return err
+	}
+
 	switch file := data.(type) {
 	case PodConfig, ContainerConfig:
 		if resource != configFileType {
 			return fmt.Errorf("Invalid pod resource")
 		}
 
-		configFile, _, err := fs.resourceURI(podID, containerID, configFileType)
+		configFile, _, err := fs.resourceURI(podSpecific, podID, containerID, configFileType)
 		if err != nil {
 			return err
 		}
@@ -263,7 +320,7 @@ func (fs *filesystem) storeResource(podID, containerID string, resource podResou
 			return fmt.Errorf("Invalid pod resource")
 		}
 
-		stateFile, _, err := fs.resourceURI(podID, containerID, stateFileType)
+		stateFile, _, err := fs.resourceURI(podSpecific, podID, containerID, stateFileType)
 		if err != nil {
 			return err
 		}
@@ -275,7 +332,8 @@ func (fs *filesystem) storeResource(podID, containerID string, resource podResou
 			return fmt.Errorf("Invalid pod resource")
 		}
 
-		networkFile, _, err := fs.resourceURI(podID, containerID, networkFileType)
+		// pod only resource
+		networkFile, _, err := fs.resourceURI(true, podID, containerID, networkFileType)
 		if err != nil {
 			return err
 		}
@@ -287,7 +345,7 @@ func (fs *filesystem) storeResource(podID, containerID string, resource podResou
 			return fmt.Errorf("Invalid pod resource")
 		}
 
-		processFile, _, err := fs.resourceURI(podID, containerID, processFileType)
+		processFile, _, err := fs.resourceURI(podSpecific, podID, containerID, processFileType)
 		if err != nil {
 			return err
 		}
@@ -299,8 +357,12 @@ func (fs *filesystem) storeResource(podID, containerID string, resource podResou
 	}
 }
 
-func (fs *filesystem) fetchResource(podID, containerID string, resource podResource) (interface{}, error) {
-	path, _, err := fs.resourceURI(podID, containerID, resource)
+func (fs *filesystem) fetchResource(podSpecific bool, podID, containerID string, resource podResource) (interface{}, error) {
+	if err := fs.commonResourceChecks(podSpecific, podID, containerID, resource); err != nil {
+		return nil, err
+	}
+
+	path, _, err := fs.resourceURI(podSpecific, podID, containerID, resource)
 	if err != nil {
 		return nil, err
 	}
@@ -357,11 +419,11 @@ func (fs *filesystem) fetchResource(podID, containerID string, resource podResou
 }
 
 func (fs *filesystem) storePodResource(podID string, resource podResource, data interface{}) error {
-	return fs.storeResource(podID, "", resource, data)
+	return fs.storeResource(true, podID, "", resource, data)
 }
 
 func (fs *filesystem) fetchPodConfig(podID string) (PodConfig, error) {
-	data, err := fs.fetchResource(podID, "", configFileType)
+	data, err := fs.fetchResource(true, podID, "", configFileType)
 	if err != nil {
 		return PodConfig{}, err
 	}
@@ -375,7 +437,7 @@ func (fs *filesystem) fetchPodConfig(podID string) (PodConfig, error) {
 }
 
 func (fs *filesystem) fetchPodState(podID string) (State, error) {
-	data, err := fs.fetchResource(podID, "", stateFileType)
+	data, err := fs.fetchResource(true, podID, "", stateFileType)
 	if err != nil {
 		return State{}, err
 	}
@@ -389,7 +451,7 @@ func (fs *filesystem) fetchPodState(podID string) (State, error) {
 }
 
 func (fs *filesystem) fetchPodNetwork(podID string) (NetworkNamespace, error) {
-	data, err := fs.fetchResource(podID, "", networkFileType)
+	data, err := fs.fetchResource(true, podID, "", networkFileType)
 	if err != nil {
 		return NetworkNamespace{}, err
 	}
@@ -427,19 +489,27 @@ func (fs *filesystem) deletePodResources(podID string, resources []podResource) 
 }
 
 func (fs *filesystem) storeContainerResource(podID, containerID string, resource podResource, data interface{}) error {
-	if containerID == "" {
-		return fmt.Errorf("Container ID cannot be empty")
+	if podID == "" {
+		return ErrNeedPodID
 	}
 
-	return fs.storeResource(podID, containerID, resource, data)
+	if containerID == "" {
+		return ErrNeedContainerID
+	}
+
+	return fs.storeResource(false, podID, containerID, resource, data)
 }
 
 func (fs *filesystem) fetchContainerConfig(podID, containerID string) (ContainerConfig, error) {
-	if containerID == "" {
-		return ContainerConfig{}, fmt.Errorf("Container ID cannot be empty")
+	if podID == "" {
+		return ContainerConfig{}, ErrNeedPodID
 	}
 
-	data, err := fs.fetchResource(podID, containerID, configFileType)
+	if containerID == "" {
+		return ContainerConfig{}, ErrNeedContainerID
+	}
+
+	data, err := fs.fetchResource(false, podID, containerID, configFileType)
 	if err != nil {
 		return ContainerConfig{}, err
 	}
@@ -453,11 +523,15 @@ func (fs *filesystem) fetchContainerConfig(podID, containerID string) (Container
 }
 
 func (fs *filesystem) fetchContainerState(podID, containerID string) (State, error) {
-	if containerID == "" {
-		return State{}, fmt.Errorf("Container ID cannot be empty")
+	if podID == "" {
+		return State{}, ErrNeedPodID
 	}
 
-	data, err := fs.fetchResource(podID, containerID, stateFileType)
+	if containerID == "" {
+		return State{}, ErrNeedContainerID
+	}
+
+	data, err := fs.fetchResource(false, podID, containerID, stateFileType)
 	if err != nil {
 		return State{}, err
 	}
@@ -471,11 +545,15 @@ func (fs *filesystem) fetchContainerState(podID, containerID string) (State, err
 }
 
 func (fs *filesystem) fetchContainerProcess(podID, containerID string) (Process, error) {
-	if containerID == "" {
-		return Process{}, fmt.Errorf("Container ID cannot be empty")
+	if podID == "" {
+		return Process{}, ErrNeedPodID
 	}
 
-	data, err := fs.fetchResource(podID, containerID, processFileType)
+	if containerID == "" {
+		return Process{}, ErrNeedContainerID
+	}
+
+	data, err := fs.fetchResource(false, podID, containerID, processFileType)
 	if err != nil {
 		return Process{}, err
 	}

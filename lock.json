@@ -1,5 +1,5 @@
 {
-    "memo": "2f92ae7a44bbadfbe4d06c0db49a8ea150780f05678f65b1809c55ab9cb9e5ed",
+    "memo": "ce0e0bdaf8d2746e88c45a8ff3a38ea009c3fad10bd3f012d70be2fa9b5fe7a3",
     "projects": [
         {
             "name": "github.com/01org/ciao",
@@ -46,7 +46,7 @@
         },
         {
             "name": "github.com/containers/virtcontainers",
-            "revision": "9c9e19090764e5808268dffc43f7fa53c1064a41",
+            "revision": "a49af6834700cdfdbcfd8d572ea20fec6f347fd9",
             "packages": [
                 ".",
                 "pkg/oci"

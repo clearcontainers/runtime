@@ -295,7 +295,10 @@ func (h *hyper) start(pod *Pod) error {
 		return fmt.Errorf("Retrieved %d proxy infos, expecting %d", len(proxyInfos), len(pod.containers))
 	}
 
-	pod.url = url
+	pod.state.URL = url
+	if err := pod.setPodState(pod.state); err != nil {
+		return err
+	}
 
 	for idx := range pod.containers {
 		pod.containers[idx].process = Process{
@@ -330,7 +333,9 @@ func (h *hyper) exec(pod *Pod, c Container, cmd Cmd) (*Process, error) {
 		return nil, err
 	}
 
-	pod.url = url
+	if pod.state.URL != url {
+		return nil, fmt.Errorf("Pod URL %s and URL from proxy %s MUST be similar", pod.state.URL, url)
+	}
 
 	process, err := h.buildHyperContainerProcess(cmd, c.config.Interactive)
 	if err != nil {
@@ -365,7 +370,7 @@ func (h *hyper) exec(pod *Pod, c Container, cmd Cmd) (*Process, error) {
 
 // startPod is the agent Pod starting implementation for hyperstart.
 func (h *hyper) startPod(pod Pod) error {
-	proxyInfo, _, err := h.proxy.connect(pod, true)
+	_, _, err := h.proxy.connect(pod, false)
 	if err != nil {
 		return err
 	}
@@ -392,7 +397,7 @@ func (h *hyper) startPod(pod Pod) error {
 		return err
 	}
 
-	if err := h.startPauseContainer(pod.id, proxyInfo.Token); err != nil {
+	if err := h.startPauseContainer(pod.id); err != nil {
 		return err
 	}
 
@@ -442,7 +447,7 @@ func (h *hyper) stopPod(pod Pod) error {
 }
 
 // startPauseContainer starts a specific container running the pause binary provided.
-func (h *hyper) startPauseContainer(podID, token string) error {
+func (h *hyper) startPauseContainer(podID string) error {
 	cmd := Cmd{
 		Args:    []string{fmt.Sprintf("./%s", pauseBinName)},
 		Envs:    []EnvVar{},
@@ -468,7 +473,6 @@ func (h *hyper) startPauseContainer(podID, token string) error {
 	proxyCmd := hyperstartProxyCmd{
 		cmd:     hyperstart.NewContainer,
 		message: container,
-		token:   token,
 	}
 
 	if _, err := h.proxy.sendCmd(proxyCmd); err != nil {
@@ -516,7 +520,9 @@ func (h *hyper) createContainer(pod *Pod, c *Container) error {
 		return err
 	}
 
-	pod.url = url
+	if pod.state.URL != url {
+		return fmt.Errorf("Pod URL %s and URL from proxy %s MUST be similar", pod.state.URL, url)
+	}
 
 	c.process = Process{
 		Token: proxyInfo.Token,

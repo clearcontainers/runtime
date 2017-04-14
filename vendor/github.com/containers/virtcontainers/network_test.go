@@ -21,6 +21,10 @@ import (
 	"os"
 	"reflect"
 	"testing"
+
+	"github.com/containernetworking/cni/pkg/ns"
+	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netns"
 )
 
 func testNetworkModelSet(t *testing.T, value string, expected NetworkModel) {
@@ -230,8 +234,129 @@ func TestCreateNetworkEndpoints(t *testing.T) {
 }
 
 func TestCreateNetworkEndpointsFailure(t *testing.T) {
-	_, err := createNetworkEndpoints(0)
+	numOfEndpoints := 0
+
+	_, err := createNetworkEndpoints(numOfEndpoints)
 	if err == nil {
+		t.Fatalf("Should fail because %d endpoints is invalid",
+			numOfEndpoints)
+	}
+}
+
+func TestGetIfacesFromNetNsFailureEmptyNetNsPath(t *testing.T) {
+	if _, err := getIfacesFromNetNs(""); err == nil {
+		t.Fatal("Should fail because network namespace is empty")
+	}
+}
+
+func testGetIfacesFromNetNsSuccessful(t *testing.T, link netlink.Link, expected []netIfaceAddrs) {
+	lAttrs := link.Attrs()
+
+	n, err := ns.NewNS()
+	if err != nil {
 		t.Fatal(err)
+	}
+	defer n.Close()
+
+	netnsHandle, err := netns.GetFromPath(n.Path())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer netnsHandle.Close()
+
+	netlinkHandle, err := netlink.NewHandleAt(netnsHandle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer netlinkHandle.Delete()
+
+	if err := netlinkHandle.LinkAdd(link); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := netlinkHandle.LinkSetHardwareAddr(link, lAttrs.HardwareAddr); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := getIfacesFromNetNs(n.Path())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if reflect.DeepEqual(result, expected) == false {
+		t.Fatalf("Got %+v\nExpecting %+v", result, expected)
+	}
+}
+
+func TestGetIfacesFromNetNsSuccessfulBridge(t *testing.T) {
+	testNetIface := "testIface0"
+	testMTU := 1500
+	testMACAddr := "00:00:00:00:00:01"
+
+	hwAddr, err := net.ParseMAC(testMACAddr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	link := &netlink.Bridge{
+		LinkAttrs: netlink.LinkAttrs{
+			Name:         testNetIface,
+			MTU:          testMTU,
+			HardwareAddr: hwAddr,
+			TxQLen:       -1,
+		},
+	}
+
+	expected := []netIfaceAddrs{
+		{
+			iface: net.Interface{
+				Index: 1,
+				MTU:   65536,
+				Name:  "lo",
+				Flags: net.FlagLoopback,
+			},
+		},
+		{
+			iface: net.Interface{
+				Index:        2,
+				MTU:          testMTU,
+				Name:         testNetIface,
+				HardwareAddr: hwAddr,
+				Flags:        net.FlagBroadcast | net.FlagMulticast,
+			},
+		},
+	}
+
+	testGetIfacesFromNetNsSuccessful(t, link, expected)
+}
+
+func TestGetNetIfaceByNameFailureEmptyList(t *testing.T) {
+	if _, err := getNetIfaceByName("testIface", []netIfaceAddrs{}); err == nil {
+		t.Fatal("Should fail because network interface list is empty")
+	}
+}
+
+func TestGetNetIfaceByNameSuccessful(t *testing.T) {
+	testIfaceName := "testIfaceName"
+
+	expected := net.Interface{
+		Name: testIfaceName,
+	}
+
+	netIfaces := []netIfaceAddrs{
+		{
+			iface: net.Interface{
+				Name: testIfaceName,
+			},
+		},
+	}
+
+	result, err := getNetIfaceByName(testIfaceName, netIfaces)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if reflect.DeepEqual(result, expected) == false {
+		t.Fatalf("Got %+v\nExpecting %+v", result, expected)
 	}
 }
