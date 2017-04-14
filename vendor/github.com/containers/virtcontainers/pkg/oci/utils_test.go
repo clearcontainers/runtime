@@ -78,7 +78,7 @@ func TestMinimalPodConfig(t *testing.T) {
 
 	expectedContainerConfig := vc.ContainerConfig{
 		ID:          containerID,
-		RootFs:      "rootfs",
+		RootFs:      path.Join(tempBundlePath, "rootfs"),
 		Interactive: true,
 		Console:     consolePath,
 		Cmd:         expectedCmd,

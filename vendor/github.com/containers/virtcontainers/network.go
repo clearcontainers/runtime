@@ -302,6 +302,10 @@ func setNetNS(netNSPath string) error {
 	return n.Set()
 }
 
+// doNetNS makes some subsequent calls to a go routine and LockOSThread
+// in order to protect the current process from other thread switching
+// to different netns. Unless we have to make sure the thread ID has to
+// stay the same, this function should be used by default.
 func doNetNS(netNSPath string, cb func(ns.NetNS) error) error {
 	n, err := ns.GetNS(netNSPath)
 	if err != nil {
@@ -309,6 +313,30 @@ func doNetNS(netNSPath string, cb func(ns.NetNS) error) error {
 	}
 
 	return n.Do(cb)
+}
+
+// safeDoNetNS is free from any call to a go routine, meaning it will
+// not be executed in a different thread than the one expected by the
+// caller. This is used in case of CNM network, because we need to
+// make sure the process switched to the given netns has PID == TID.
+func safeDoNetNS(netNSPath string, cb func(ns.NetNS) error) error {
+	currentNS, err := ns.GetCurrentNS()
+	if err != nil {
+		return err
+	}
+	defer currentNS.Close()
+
+	targetNS, err := ns.GetNS(netNSPath)
+	if err != nil {
+		return err
+	}
+
+	if err := targetNS.Set(); err != nil {
+		return err
+	}
+	defer currentNS.Set()
+
+	return cb(targetNS)
 }
 
 func deleteNetNS(netNSPath string, mounted bool) error {

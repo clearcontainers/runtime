@@ -47,6 +47,23 @@ var testQemuPath = ""
 var testHyperstartCtlSocket = ""
 var testHyperstartTtySocket = ""
 
+// cleanUp Removes any stale pod/container state that can affect
+// the next test to run.
+func cleanUp() {
+	for _, dir := range []string{testDir, defaultSharedDir} {
+		os.RemoveAll(dir)
+		os.MkdirAll(dir, dirMode)
+	}
+
+	os.Mkdir(filepath.Join(testDir, testBundle), dirMode)
+
+	_, err := os.Create(filepath.Join(testDir, testImage))
+	if err != nil {
+		fmt.Println("Could not recreate test image:", err)
+		os.Exit(1)
+	}
+}
+
 // TestMain is the common main function used by ALL the test functions
 // for this package.
 func TestMain(m *testing.M) {

@@ -70,6 +70,8 @@ func testRunHook(t *testing.T, timeout int) {
 }
 
 func TestRunHook(t *testing.T) {
+	cleanUp()
+
 	testRunHook(t, 0)
 }
 

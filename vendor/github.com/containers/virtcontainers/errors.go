@@ -22,6 +22,9 @@ import (
 
 // common error objects used for argument checking
 var (
+	ErrNeedPod         = errors.New("Pod must be specified")
 	ErrNeedPodID       = errors.New("Pod ID cannot be empty")
 	ErrNeedContainerID = errors.New("Container ID cannot be empty")
+	ErrNeedFile        = errors.New("File cannot be empty")
+	ErrNeedState       = errors.New("State cannot be empty")
 )

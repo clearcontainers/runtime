@@ -26,6 +26,7 @@ import (
 
 const (
 	testHyperstartPauseBinName = "pause"
+	containerID                = "1"
 )
 
 func newBasicTestCmd() Cmd {
@@ -48,7 +49,7 @@ func newBasicTestCmd() Cmd {
 func newTestPodConfigNoop() PodConfig {
 	// Define the container command and bundle.
 	container := ContainerConfig{
-		ID:     "1",
+		ID:     containerID,
 		RootFs: filepath.Join(testDir, testBundle),
 		Cmd:    newBasicTestCmd(),
 	}
@@ -61,6 +62,7 @@ func newTestPodConfigNoop() PodConfig {
 	}
 
 	podConfig := PodConfig{
+		ID:               testPodID,
 		HypervisorType:   MockHypervisor,
 		HypervisorConfig: hypervisorConfig,
 
@@ -75,7 +77,7 @@ func newTestPodConfigNoop() PodConfig {
 func newTestPodConfigHyperstartAgent() PodConfig {
 	// Define the container command and bundle.
 	container := ContainerConfig{
-		ID:     "1",
+		ID:     containerID,
 		RootFs: filepath.Join(testDir, testBundle),
 		Cmd:    newBasicTestCmd(),
 	}
@@ -96,6 +98,7 @@ func newTestPodConfigHyperstartAgent() PodConfig {
 	}
 
 	podConfig := PodConfig{
+		ID:               testPodID,
 		HypervisorType:   MockHypervisor,
 		HypervisorConfig: hypervisorConfig,
 
@@ -111,7 +114,7 @@ func newTestPodConfigHyperstartAgent() PodConfig {
 func newTestPodConfigHyperstartAgentCNINetwork() PodConfig {
 	// Define the container command and bundle.
 	container := ContainerConfig{
-		ID:     "1",
+		ID:     containerID,
 		RootFs: filepath.Join(testDir, testBundle),
 		Cmd:    newBasicTestCmd(),
 	}
@@ -136,6 +139,7 @@ func newTestPodConfigHyperstartAgentCNINetwork() PodConfig {
 	}
 
 	podConfig := PodConfig{
+		ID:               testPodID,
 		HypervisorType:   MockHypervisor,
 		HypervisorConfig: hypervisorConfig,
 
@@ -151,7 +155,66 @@ func newTestPodConfigHyperstartAgentCNINetwork() PodConfig {
 	return podConfig
 }
 
+func newTestPodConfigHyperstartAgentCNMNetwork() PodConfig {
+	// Define the container command and bundle.
+	container := ContainerConfig{
+		ID:     containerID,
+		RootFs: filepath.Join(testDir, testBundle),
+		Cmd:    newBasicTestCmd(),
+	}
+
+	// Sets the hypervisor configuration.
+	hypervisorConfig := HypervisorConfig{
+		KernelPath:     filepath.Join(testDir, testKernel),
+		ImagePath:      filepath.Join(testDir, testImage),
+		HypervisorPath: filepath.Join(testDir, testHypervisor),
+	}
+
+	sockets := []Socket{{}, {}}
+
+	agentConfig := HyperConfig{
+		SockCtlName: testHyperstartCtlSocket,
+		SockTtyName: testHyperstartTtySocket,
+		Sockets:     sockets,
+	}
+
+	hooks := Hooks{
+		PreStartHooks: []Hook{
+			{
+				Path: testBinHookPath,
+				Args: []string{testKeyHook, testContainerIDHook, testControllerIDHook},
+			},
+		},
+		PostStartHooks: []Hook{},
+		PostStopHooks:  []Hook{},
+	}
+
+	netConfig := NetworkConfig{
+		NumInterfaces: len(hooks.PreStartHooks),
+	}
+
+	podConfig := PodConfig{
+		ID:    testPodID,
+		Hooks: hooks,
+
+		HypervisorType:   MockHypervisor,
+		HypervisorConfig: hypervisorConfig,
+
+		AgentType:   HyperstartAgent,
+		AgentConfig: agentConfig,
+
+		NetworkModel:  CNMNetworkModel,
+		NetworkConfig: netConfig,
+
+		Containers: []ContainerConfig{container},
+	}
+
+	return podConfig
+}
+
 func TestCreatePodNoopAgentSuccessful(t *testing.T) {
+	cleanUp()
+
 	config := newTestPodConfigNoop()
 
 	p, err := CreatePod(config)
@@ -167,6 +230,8 @@ func TestCreatePodNoopAgentSuccessful(t *testing.T) {
 }
 
 func TestCreatePodHyperstartAgentSuccessful(t *testing.T) {
+	cleanUp()
+
 	config := newTestPodConfigHyperstartAgent()
 
 	p, err := CreatePod(config)
@@ -182,6 +247,8 @@ func TestCreatePodHyperstartAgentSuccessful(t *testing.T) {
 }
 
 func TestCreatePodFailing(t *testing.T) {
+	cleanUp()
+
 	config := PodConfig{}
 
 	p, err := CreatePod(config)
@@ -191,6 +258,8 @@ func TestCreatePodFailing(t *testing.T) {
 }
 
 func TestDeletePodNoopAgentSuccessful(t *testing.T) {
+	cleanUp()
+
 	config := newTestPodConfigNoop()
 
 	p, err := CreatePod(config)
@@ -216,6 +285,8 @@ func TestDeletePodNoopAgentSuccessful(t *testing.T) {
 }
 
 func TestDeletePodHyperstartAgentSuccessful(t *testing.T) {
+	cleanUp()
+
 	config := newTestPodConfigHyperstartAgent()
 
 	p, err := CreatePod(config)
@@ -241,6 +312,8 @@ func TestDeletePodHyperstartAgentSuccessful(t *testing.T) {
 }
 
 func TestDeletePodFailing(t *testing.T) {
+	cleanUp()
+
 	podDir := filepath.Join(configStoragePath, testPodID)
 	os.Remove(podDir)
 
@@ -251,6 +324,8 @@ func TestDeletePodFailing(t *testing.T) {
 }
 
 func TestStartPodNoopAgentSuccessful(t *testing.T) {
+	cleanUp()
+
 	config := newTestPodConfigNoop()
 
 	p, _, err := createAndStartPod(config)
@@ -260,6 +335,8 @@ func TestStartPodNoopAgentSuccessful(t *testing.T) {
 }
 
 func TestStartPodHyperstartAgentSuccessful(t *testing.T) {
+	cleanUp()
+
 	if os.Geteuid() != 0 {
 		t.Skip(testDisabledAsNonRoot)
 	}
@@ -290,6 +367,8 @@ func TestStartPodHyperstartAgentSuccessful(t *testing.T) {
 }
 
 func TestStartPodFailing(t *testing.T) {
+	cleanUp()
+
 	podDir := filepath.Join(configStoragePath, testPodID)
 	os.Remove(podDir)
 
@@ -300,6 +379,8 @@ func TestStartPodFailing(t *testing.T) {
 }
 
 func TestStopPodNoopAgentSuccessful(t *testing.T) {
+	cleanUp()
+
 	config := newTestPodConfigNoop()
 
 	p, _, err := createAndStartPod(config)
@@ -317,6 +398,8 @@ func TestStopPodHyperstartAgentSuccessful(t *testing.T) {
 	if os.Geteuid() != 0 {
 		t.Skip(testDisabledAsNonRoot)
 	}
+
+	cleanUp()
 
 	config := newTestPodConfigHyperstartAgent()
 
@@ -347,6 +430,8 @@ func TestStopPodHyperstartAgentSuccessful(t *testing.T) {
 }
 
 func TestStopPodFailing(t *testing.T) {
+	cleanUp()
+
 	podDir := filepath.Join(configStoragePath, testPodID)
 	os.Remove(podDir)
 
@@ -357,6 +442,8 @@ func TestStopPodFailing(t *testing.T) {
 }
 
 func TestRunPodNoopAgentSuccessful(t *testing.T) {
+	cleanUp()
+
 	config := newTestPodConfigNoop()
 
 	p, err := RunPod(config)
@@ -375,6 +462,8 @@ func TestRunPodHyperstartAgentSuccessful(t *testing.T) {
 	if os.Geteuid() != 0 {
 		t.Skip(testDisabledAsNonRoot)
 	}
+
+	cleanUp()
 
 	config := newTestPodConfigHyperstartAgent()
 
@@ -408,6 +497,8 @@ func TestRunPodHyperstartAgentSuccessful(t *testing.T) {
 }
 
 func TestRunPodFailing(t *testing.T) {
+	cleanUp()
+
 	config := PodConfig{}
 
 	p, err := RunPod(config)
@@ -417,6 +508,8 @@ func TestRunPodFailing(t *testing.T) {
 }
 
 func TestListPodSuccessful(t *testing.T) {
+	cleanUp()
+
 	os.RemoveAll(configStoragePath)
 
 	config := newTestPodConfigNoop()
@@ -433,6 +526,8 @@ func TestListPodSuccessful(t *testing.T) {
 }
 
 func TestListPodFailing(t *testing.T) {
+	cleanUp()
+
 	os.RemoveAll(configStoragePath)
 
 	_, err := ListPod()
@@ -442,6 +537,8 @@ func TestListPodFailing(t *testing.T) {
 }
 
 func TestStatusPodSuccessful(t *testing.T) {
+	cleanUp()
+
 	config := newTestPodConfigNoop()
 
 	p, err := CreatePod(config)
@@ -456,6 +553,8 @@ func TestStatusPodSuccessful(t *testing.T) {
 }
 
 func TestListPodFailingFetchPodConfig(t *testing.T) {
+	cleanUp()
+
 	config := newTestPodConfigNoop()
 
 	p, err := CreatePod(config)
@@ -473,6 +572,8 @@ func TestListPodFailingFetchPodConfig(t *testing.T) {
 }
 
 func TestListPodFailingFetchPodState(t *testing.T) {
+	cleanUp()
+
 	config := newTestPodConfigNoop()
 
 	p, err := CreatePod(config)
@@ -500,6 +601,8 @@ func newTestContainerConfigNoop(contID string) ContainerConfig {
 }
 
 func TestCreateContainerSuccessful(t *testing.T) {
+	cleanUp()
+
 	contID := "100"
 	config := newTestPodConfigNoop()
 
@@ -529,6 +632,8 @@ func TestCreateContainerSuccessful(t *testing.T) {
 }
 
 func TestCreateContainerFailingNoPod(t *testing.T) {
+	cleanUp()
+
 	contID := "100"
 	config := newTestPodConfigNoop()
 
@@ -557,6 +662,8 @@ func TestCreateContainerFailingNoPod(t *testing.T) {
 }
 
 func TestDeleteContainerSuccessful(t *testing.T) {
+	cleanUp()
+
 	contID := "100"
 	config := newTestPodConfigNoop()
 
@@ -596,6 +703,8 @@ func TestDeleteContainerSuccessful(t *testing.T) {
 }
 
 func TestDeleteContainerFailingNoPod(t *testing.T) {
+	cleanUp()
+
 	podDir := filepath.Join(configStoragePath, testPodID)
 	contID := "100"
 	os.RemoveAll(podDir)
@@ -607,6 +716,8 @@ func TestDeleteContainerFailingNoPod(t *testing.T) {
 }
 
 func TestDeleteContainerFailingNoContainer(t *testing.T) {
+	cleanUp()
+
 	contID := "100"
 	config := newTestPodConfigNoop()
 
@@ -628,6 +739,8 @@ func TestDeleteContainerFailingNoContainer(t *testing.T) {
 }
 
 func TestStartContainerNoopAgentSuccessful(t *testing.T) {
+	cleanUp()
+
 	contID := "100"
 	config := newTestPodConfigNoop()
 
@@ -655,6 +768,8 @@ func TestStartContainerNoopAgentSuccessful(t *testing.T) {
 }
 
 func TestStartContainerFailingNoPod(t *testing.T) {
+	cleanUp()
+
 	podDir := filepath.Join(configStoragePath, testPodID)
 	contID := "100"
 	os.RemoveAll(podDir)
@@ -666,6 +781,8 @@ func TestStartContainerFailingNoPod(t *testing.T) {
 }
 
 func TestStartContainerFailingNoContainer(t *testing.T) {
+	cleanUp()
+
 	contID := "100"
 	config := newTestPodConfigNoop()
 
@@ -687,6 +804,8 @@ func TestStartContainerFailingNoContainer(t *testing.T) {
 }
 
 func TestStartContainerFailingPodNotStarted(t *testing.T) {
+	cleanUp()
+
 	contID := "100"
 	config := newTestPodConfigNoop()
 
@@ -721,6 +840,8 @@ func TestStartContainerFailingPodNotStarted(t *testing.T) {
 }
 
 func TestStopContainerNoopAgentSuccessful(t *testing.T) {
+	cleanUp()
+
 	contID := "100"
 	config := newTestPodConfigNoop()
 
@@ -757,6 +878,8 @@ func TestStartStopContainerHyperstartAgentSuccessful(t *testing.T) {
 	if os.Geteuid() != 0 {
 		t.Skip(testDisabledAsNonRoot)
 	}
+
+	cleanUp()
 
 	contID := "100"
 	config := newTestPodConfigHyperstartAgent()
@@ -812,6 +935,8 @@ func TestStartStopPodHyperstartAgentSuccessfulWithCNINetwork(t *testing.T) {
 		t.Skip(testDisabledAsNonRoot)
 	}
 
+	cleanUp()
+
 	config := newTestPodConfigHyperstartAgentCNINetwork()
 
 	pauseBinPath := filepath.Join(testDir, testHyperstartPauseBinName)
@@ -845,7 +970,47 @@ func TestStartStopPodHyperstartAgentSuccessfulWithCNINetwork(t *testing.T) {
 	}
 }
 
+func TestStartStopPodHyperstartAgentSuccessfulWithCNMNetwork(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip(testDisabledAsNonRoot)
+	}
+
+	config := newTestPodConfigHyperstartAgentCNMNetwork()
+
+	pauseBinPath := filepath.Join(testDir, testHyperstartPauseBinName)
+	_, err := os.Create(pauseBinPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	hyperConfig := config.AgentConfig.(HyperConfig)
+	hyperConfig.PauseBinPath = pauseBinPath
+	config.AgentConfig = hyperConfig
+
+	p, _, err := createAndStartPod(config)
+	if p == nil || err != nil {
+		t.Fatal(err)
+	}
+
+	p, err = StopPod(p.id)
+	if p == nil || err != nil {
+		t.Fatal(err)
+	}
+
+	p, err = DeletePod(p.id)
+	if p == nil || err != nil {
+		t.Fatal(err)
+	}
+
+	err = os.Remove(pauseBinPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestStopContainerFailingNoPod(t *testing.T) {
+	cleanUp()
+
 	podDir := filepath.Join(configStoragePath, testPodID)
 	contID := "100"
 	os.RemoveAll(podDir)
@@ -857,6 +1022,8 @@ func TestStopContainerFailingNoPod(t *testing.T) {
 }
 
 func TestStopContainerFailingNoContainer(t *testing.T) {
+	cleanUp()
+
 	contID := "100"
 	config := newTestPodConfigNoop()
 
@@ -878,6 +1045,8 @@ func TestStopContainerFailingNoContainer(t *testing.T) {
 }
 
 func TestStopContainerFailingContNotStarted(t *testing.T) {
+	cleanUp()
+
 	contID := "100"
 	config := newTestPodConfigNoop()
 
@@ -906,6 +1075,8 @@ func TestStopContainerFailingContNotStarted(t *testing.T) {
 }
 
 func TestEnterContainerNoopAgentSuccessful(t *testing.T) {
+	cleanUp()
+
 	contID := "100"
 	config := newTestPodConfigNoop()
 
@@ -944,6 +1115,8 @@ func TestEnterContainerHyperstartAgentSuccessful(t *testing.T) {
 	if os.Geteuid() != 0 {
 		t.Skip(testDisabledAsNonRoot)
 	}
+
+	cleanUp()
 
 	contID := "100"
 	config := newTestPodConfigHyperstartAgent()
@@ -1002,6 +1175,8 @@ func TestEnterContainerHyperstartAgentSuccessful(t *testing.T) {
 }
 
 func TestEnterContainerFailingNoPod(t *testing.T) {
+	cleanUp()
+
 	podDir := filepath.Join(configStoragePath, testPodID)
 	contID := "100"
 	os.RemoveAll(podDir)
@@ -1015,6 +1190,8 @@ func TestEnterContainerFailingNoPod(t *testing.T) {
 }
 
 func TestEnterContainerFailingNoContainer(t *testing.T) {
+	cleanUp()
+
 	contID := "100"
 	config := newTestPodConfigNoop()
 
@@ -1038,6 +1215,8 @@ func TestEnterContainerFailingNoContainer(t *testing.T) {
 }
 
 func TestEnterContainerFailingContNotStarted(t *testing.T) {
+	cleanUp()
+
 	contID := "100"
 	config := newTestPodConfigNoop()
 
@@ -1068,6 +1247,8 @@ func TestEnterContainerFailingContNotStarted(t *testing.T) {
 }
 
 func TestStatusContainerSuccessful(t *testing.T) {
+	cleanUp()
+
 	contID := "100"
 	config := newTestPodConfigNoop()
 
@@ -1102,6 +1283,8 @@ func TestStatusContainerSuccessful(t *testing.T) {
 }
 
 func TestStatusContainerFailing(t *testing.T) {
+	cleanUp()
+
 	contID := "100"
 	config := newTestPodConfigNoop()
 
@@ -1134,6 +1317,7 @@ func createNewPodConfig(hType HypervisorType, aType AgentType, aConfig interface
 	}
 
 	return PodConfig{
+		ID:               testPodID,
 		HypervisorType:   hType,
 		HypervisorConfig: hypervisorConfig,
 
@@ -1190,6 +1374,11 @@ func createAndStartPod(config PodConfig) (pod *Pod, podDir string,
 	podDir = filepath.Join(configStoragePath, pod.id)
 	_, err = os.Stat(podDir)
 	if err != nil {
+		return nil, "", err
+	}
+
+	// Start the VM
+	if err := pod.startVM(); err != nil {
 		return nil, "", err
 	}
 

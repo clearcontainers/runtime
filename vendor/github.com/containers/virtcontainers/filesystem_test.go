@@ -326,25 +326,31 @@ func TestFilesystemFetchContainerConfigFailingPodIDEmpty(t *testing.T) {
 }
 
 func TestFilesystemResourceDirFailingPodIDEmpty(t *testing.T) {
-	_, err := resourceDir("", "", configFileType)
-	if err == nil {
-		t.Fatal()
+	for _, b := range []bool{true, false} {
+		_, err := resourceDir(b, "", "", configFileType)
+		if err == nil {
+			t.Fatal()
+		}
 	}
 }
 
 func TestFilesystemResourceDirFailingInvalidResource(t *testing.T) {
-	_, err := resourceDir(testPodID, "100", podResource(-1))
-	if err == nil {
-		t.Fatal()
+	for _, b := range []bool{true, false} {
+		_, err := resourceDir(b, testPodID, "100", podResource(-1))
+		if err == nil {
+			t.Fatal()
+		}
 	}
 }
 
 func TestFilesystemResourceURIFailingResourceDir(t *testing.T) {
 	fs := &filesystem{}
 
-	_, _, err := fs.resourceURI(testPodID, "100", podResource(-1))
-	if err == nil {
-		t.Fatal()
+	for _, b := range []bool{true, false} {
+		_, _, err := fs.resourceURI(b, testPodID, "100", podResource(-1))
+		if err == nil {
+			t.Fatal()
+		}
 	}
 }
 
@@ -352,9 +358,11 @@ func TestFilesystemStoreResourceFailingPodConfigStateFileType(t *testing.T) {
 	fs := &filesystem{}
 	data := PodConfig{}
 
-	err := fs.storeResource(testPodID, "100", stateFileType, data)
-	if err == nil {
-		t.Fatal()
+	for _, b := range []bool{true, false} {
+		err := fs.storeResource(b, testPodID, "100", stateFileType, data)
+		if err == nil {
+			t.Fatal()
+		}
 	}
 }
 
@@ -362,9 +370,11 @@ func TestFilesystemStoreResourceFailingContainerConfigStateFileType(t *testing.T
 	fs := &filesystem{}
 	data := ContainerConfig{}
 
-	err := fs.storeResource(testPodID, "100", stateFileType, data)
-	if err == nil {
-		t.Fatal()
+	for _, b := range []bool{true, false} {
+		err := fs.storeResource(b, testPodID, "100", stateFileType, data)
+		if err == nil {
+			t.Fatal()
+		}
 	}
 }
 
@@ -372,9 +382,11 @@ func TestFilesystemStoreResourceFailingPodConfigResourceURI(t *testing.T) {
 	fs := &filesystem{}
 	data := PodConfig{}
 
-	err := fs.storeResource("", "100", configFileType, data)
-	if err == nil {
-		t.Fatal()
+	for _, b := range []bool{true, false} {
+		err := fs.storeResource(b, "", "100", configFileType, data)
+		if err == nil {
+			t.Fatal()
+		}
 	}
 }
 
@@ -382,9 +394,11 @@ func TestFilesystemStoreResourceFailingContainerConfigResourceURI(t *testing.T) 
 	fs := &filesystem{}
 	data := ContainerConfig{}
 
-	err := fs.storeResource("", "100", configFileType, data)
-	if err == nil {
-		t.Fatal()
+	for _, b := range []bool{true, false} {
+		err := fs.storeResource(b, "", "100", configFileType, data)
+		if err == nil {
+			t.Fatal()
+		}
 	}
 }
 
@@ -392,9 +406,11 @@ func TestFilesystemStoreResourceFailingStateConfigFileType(t *testing.T) {
 	fs := &filesystem{}
 	data := State{}
 
-	err := fs.storeResource(testPodID, "100", configFileType, data)
-	if err == nil {
-		t.Fatal()
+	for _, b := range []bool{true, false} {
+		err := fs.storeResource(b, testPodID, "100", configFileType, data)
+		if err == nil {
+			t.Fatal()
+		}
 	}
 }
 
@@ -402,9 +418,11 @@ func TestFilesystemStoreResourceFailingStateResourceURI(t *testing.T) {
 	fs := &filesystem{}
 	data := State{}
 
-	err := fs.storeResource("", "100", stateFileType, data)
-	if err == nil {
-		t.Fatal()
+	for _, b := range []bool{true, false} {
+		err := fs.storeResource(b, "", "100", stateFileType, data)
+		if err == nil {
+			t.Fatal()
+		}
 	}
 }
 
@@ -412,17 +430,21 @@ func TestFilesystemStoreResourceFailingWrongDataType(t *testing.T) {
 	fs := &filesystem{}
 	data := TestNoopStructure{}
 
-	err := fs.storeResource(testPodID, "100", configFileType, data)
-	if err == nil {
-		t.Fatal()
+	for _, b := range []bool{true, false} {
+		err := fs.storeResource(b, testPodID, "100", configFileType, data)
+		if err == nil {
+			t.Fatal()
+		}
 	}
 }
 
 func TestFilesystemFetchResourceFailingWrongResourceType(t *testing.T) {
 	fs := &filesystem{}
 
-	_, err := fs.fetchResource(testPodID, "100", lockFileType)
-	if err == nil {
-		t.Fatal()
+	for _, b := range []bool{true, false} {
+		_, err := fs.fetchResource(b, testPodID, "100", lockFileType)
+		if err == nil {
+			t.Fatal()
+		}
 	}
 }

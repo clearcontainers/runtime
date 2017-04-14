@@ -70,34 +70,41 @@ The high level `virtcontainers` API is the following one:
 ### Pod API
 
 * `CreatePod(podConfig PodConfig)` creates a Pod.
-The Pod is prepared and will run into a virtual machine. It is not started, i.e. the VM is not running after `CreatePod()` is called.
+The virtual machine is started and the Pod is prepared.
 
 * `DeletePod(podID string)` deletes a Pod.
-The function will fail if the Pod is running. In that case `StopPod()` needs to be called first.
+The virtual machine is shut down and all information related to the Pod are removed.
+The function will fail if the Pod is running. In that case `StopPod()` has to be called first.
 
 * `StartPod(podID string)` starts an already created Pod.
+The Pod and all its containers are started.
+
+* `RunPod(podConfig PodConfig)` creates and starts a Pod.
+This performs `CreatePod()` + `StartPod()`.
 
 * `StopPod(podID string)` stops an already running Pod.
+The Pod and all its containers are stopped.
 
-* `ListPod()` lists all running Pods on the host.
+* `StatusPod(podID string)` returns a detailed Pod status.
 
-* `EnterPod(cmd Cmd)` enters a Pod root filesystem and runs a given command.
-
-* `PodStatus(podID string)` returns a detailed Pod status.
+* `ListPod()` lists all Pods on the host.
+It returns a detailed status for every Pod.
 
 ### Container API
 
-* `CreateContainer(podID string, container ContainerConfig)` creates a Container on a given Pod.
+* `CreateContainer(podID string, containerConfig ContainerConfig)` creates a Container on an existing Pod.
 
-* `DeleteContainer(podID, containerID string)` deletes a Container from a Pod. If the container is running it needs to be stopped first.
+* `DeleteContainer(podID, containerID string)` deletes a Container from a Pod.
+If the Container is running it has to be stopped first.
 
-* `StartContainer(podID, containerID string)` starts an already created container.
+* `StartContainer(podID, containerID string)` starts an already created Container.
+The Pod has to be running.
 
-* `StopContainer(podID, containerID string)` stops an already running container.
+* `StopContainer(podID, containerID string)` stops an already running Container.
 
-* `EnterContainer(podID, containerID string, cmd Cmd)` enters an already running container and runs a given command.
+* `EnterContainer(podID, containerID string, cmd Cmd)` enters an already running Container and runs a given command.
 
-* `ContainerStatus(podID, containerID string)` returns a detailed container status.
+* `StatusContainer(podID, containerID string)` returns a detailed Container status.
 
 
 An example tool using the `virtcontainers` API is provided in the `hack/virtc` package.

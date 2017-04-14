@@ -37,7 +37,7 @@ script:
 - gocyclo -over 15 $go_files
 - go list -f '{{.Dir}}' $go_packages | xargs -L 1 ineffassign
 - gofmt -s -l $go_files | wc -l | xargs -I % bash -c "test % -eq 0"
-- go build $go_packages
+- make
 - export GOROOT=`go env GOROOT` && sudo -E PATH=$PATH:$GOROOT/bin:/tmp/cni/bin $GOPATH/bin/test-cases
   -v -timeout 9 -short -coverprofile /tmp/cover.out $go_packages
 

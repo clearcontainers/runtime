@@ -209,9 +209,7 @@ func (p *ccProxy) sendCmd(cmd interface{}) (interface{}, error) {
 	}
 
 	var tokens []string
-	if proxyCmd.token == "" {
-		tokens = nil
-	} else {
+	if proxyCmd.token != "" {
 		tokens = append(tokens, proxyCmd.token)
 	}
 

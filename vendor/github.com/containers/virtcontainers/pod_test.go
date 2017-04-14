@@ -94,11 +94,9 @@ func TestCreatePodEmtpyID(t *testing.T) {
 	hConfig := newHypervisorConfig(nil, nil)
 
 	p, err := testCreatePod(t, "", MockHypervisor, hConfig, NoopAgentType, NoopNetworkModel, NetworkConfig{}, nil, nil)
-	if err != nil {
-		t.Fatal(err)
+	if err == nil {
+		t.Fatalf("Expected pod with empty ID to fail, but got pod %v", p)
 	}
-
-	t.Logf("Got new ID %s", p.id)
 }
 
 func testPodStateTransition(t *testing.T, state stateString, newState stateString) error {
@@ -455,7 +453,8 @@ func TestPodSetPodStateFailingStorePodResource(t *testing.T) {
 		storage: fs,
 	}
 
-	err := pod.setPodState(StateReady)
+	pod.state.State = StateReady
+	err := pod.setPodState(pod.state)
 	if err == nil {
 		t.Fatal()
 	}

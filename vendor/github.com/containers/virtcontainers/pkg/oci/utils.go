@@ -151,7 +151,10 @@ func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodC
 		return nil, nil, err
 	}
 
-	rootfs := filepath.Join(bundlePath, ocispec.Root.Path)
+	rootfs := ocispec.Root.Path
+	if !filepath.IsAbs(rootfs) {
+		rootfs = filepath.Join(bundlePath, ocispec.Root.Path)
+	}
 	ociLog.Debugf("container rootfs: %s", rootfs)
 
 	cmd := vc.Cmd{
@@ -164,7 +167,7 @@ func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodC
 
 	containerConfig := vc.ContainerConfig{
 		ID:          cid,
-		RootFs:      ocispec.Root.Path,
+		RootFs:      rootfs,
 		Interactive: ocispec.Process.Terminal,
 		Console:     console,
 		Cmd:         cmd,
