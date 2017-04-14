@@ -23,6 +23,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/Sirupsen/logrus"
 )
 
 const testPodID = "7f49d00d-1995-4156-8c79-5f5ab24ce138"
@@ -70,6 +72,13 @@ func TestMain(m *testing.M) {
 	var err error
 
 	flag.Parse()
+
+	virtLog.Level = logrus.ErrorLevel
+	for _, arg := range flag.Args() {
+		if arg == "debug-logs" {
+			virtLog.Level = logrus.DebugLevel
+		}
+	}
 
 	testDir, err = ioutil.TempDir("", "virtcontainers-tmp-")
 	if err != nil {

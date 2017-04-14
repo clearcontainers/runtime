@@ -25,6 +25,7 @@ import (
 )
 
 const (
+	testHyperstartPausePath    = "/tmp/bundles/pause_bundle/rootfs/bin"
 	testHyperstartPauseBinName = "pause"
 	containerID                = "1"
 )
@@ -1377,11 +1378,6 @@ func createAndStartPod(config PodConfig) (pod *Pod, podDir string,
 		return nil, "", err
 	}
 
-	// Start the VM
-	if err := pod.startVM(); err != nil {
-		return nil, "", err
-	}
-
 	// Start pod
 	pod, err = StartPod(pod.id)
 	if pod == nil || err != nil {
@@ -1394,19 +1390,19 @@ func createAndStartPod(config PodConfig) (pod *Pod, podDir string,
 func createStartStopDeletePod(b *testing.B, podConfig PodConfig) {
 	p, _, err := createAndStartPod(podConfig)
 	if p == nil || err != nil {
-		b.Logf("Could not create and start pod: %s", err)
+		b.Fatalf("Could not create and start pod: %s", err)
 	}
 
 	// Stop pod
 	_, err = StopPod(p.id)
 	if err != nil {
-		b.Logf("Could not stop pod: %s", err)
+		b.Fatalf("Could not stop pod: %s", err)
 	}
 
 	// Delete pod
 	_, err = DeletePod(p.id)
 	if err != nil {
-		b.Logf("Could not delete pod: %s", err)
+		b.Fatalf("Could not delete pod: %s", err)
 	}
 }
 
@@ -1414,20 +1410,20 @@ func createStartStopDeleteContainers(b *testing.B, podConfig PodConfig, contConf
 	// Create pod
 	p, err := CreatePod(podConfig)
 	if err != nil {
-		b.Logf("Could not create pod: %s", err)
+		b.Fatalf("Could not create pod: %s", err)
 	}
 
 	// Start pod
 	_, err = StartPod(p.id)
 	if err != nil {
-		b.Logf("Could not start pod: %s", err)
+		b.Fatalf("Could not start pod: %s", err)
 	}
 
 	// Create containers
 	for _, contConfig := range contConfigs {
 		_, _, err := CreateContainer(p.id, contConfig)
 		if err != nil {
-			b.Logf("Could not create container %s: %s", contConfig.ID, err)
+			b.Fatalf("Could not create container %s: %s", contConfig.ID, err)
 		}
 	}
 
@@ -1435,7 +1431,7 @@ func createStartStopDeleteContainers(b *testing.B, podConfig PodConfig, contConf
 	for _, contConfig := range contConfigs {
 		_, err := StartContainer(p.id, contConfig.ID)
 		if err != nil {
-			b.Logf("Could not start container %s: %s", contConfig.ID, err)
+			b.Fatalf("Could not start container %s: %s", contConfig.ID, err)
 		}
 	}
 
@@ -1443,7 +1439,7 @@ func createStartStopDeleteContainers(b *testing.B, podConfig PodConfig, contConf
 	for _, contConfig := range contConfigs {
 		_, err := StopContainer(p.id, contConfig.ID)
 		if err != nil {
-			b.Logf("Could not stop container %s: %s", contConfig.ID, err)
+			b.Fatalf("Could not stop container %s: %s", contConfig.ID, err)
 		}
 	}
 
@@ -1451,26 +1447,30 @@ func createStartStopDeleteContainers(b *testing.B, podConfig PodConfig, contConf
 	for _, contConfig := range contConfigs {
 		_, err := DeleteContainer(p.id, contConfig.ID)
 		if err != nil {
-			b.Logf("Could not delete container %s: %s", contConfig.ID, err)
+			b.Fatalf("Could not delete container %s: %s", contConfig.ID, err)
 		}
 	}
 
 	// Stop pod
 	_, err = StopPod(p.id)
 	if err != nil {
-		b.Logf("Could not stop pod: %s", err)
+		b.Fatalf("Could not stop pod: %s", err)
 	}
 
 	// Delete pod
 	_, err = DeletePod(p.id)
 	if err != nil {
-		b.Logf("Could not delete pod: %s", err)
+		b.Fatalf("Could not delete pod: %s", err)
 	}
+}
+
+var benchmarkHyperConfig = HyperConfig{
+	PauseBinPath: filepath.Join(testHyperstartPausePath, testHyperstartPauseBinName),
 }
 
 func BenchmarkCreateStartStopDeletePodQemuHypervisorHyperstartAgentNetworkCNI(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		podConfig := createNewPodConfig(QemuHypervisor, HyperstartAgent, HyperConfig{}, CNINetworkModel)
+		podConfig := createNewPodConfig(QemuHypervisor, HyperstartAgent, benchmarkHyperConfig, CNINetworkModel)
 		createStartStopDeletePod(b, podConfig)
 	}
 }
@@ -1484,7 +1484,7 @@ func BenchmarkCreateStartStopDeletePodQemuHypervisorNoopAgentNetworkCNI(b *testi
 
 func BenchmarkCreateStartStopDeletePodQemuHypervisorHyperstartAgentNetworkNoop(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		podConfig := createNewPodConfig(QemuHypervisor, HyperstartAgent, HyperConfig{}, NoopNetworkModel)
+		podConfig := createNewPodConfig(QemuHypervisor, HyperstartAgent, benchmarkHyperConfig, NoopNetworkModel)
 		createStartStopDeletePod(b, podConfig)
 	}
 }
@@ -1505,7 +1505,7 @@ func BenchmarkCreateStartStopDeletePodMockHypervisorNoopAgentNetworkNoop(b *test
 
 func BenchmarkStartStop1ContainerQemuHypervisorHyperstartAgentNetworkNoop(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		podConfig := createNewPodConfig(QemuHypervisor, HyperstartAgent, HyperConfig{}, NoopNetworkModel)
+		podConfig := createNewPodConfig(QemuHypervisor, HyperstartAgent, benchmarkHyperConfig, NoopNetworkModel)
 		contConfigs := createNewContainerConfigs(1)
 		createStartStopDeleteContainers(b, podConfig, contConfigs)
 	}
@@ -1513,7 +1513,7 @@ func BenchmarkStartStop1ContainerQemuHypervisorHyperstartAgentNetworkNoop(b *tes
 
 func BenchmarkStartStop10ContainerQemuHypervisorHyperstartAgentNetworkNoop(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		podConfig := createNewPodConfig(QemuHypervisor, HyperstartAgent, HyperConfig{}, NoopNetworkModel)
+		podConfig := createNewPodConfig(QemuHypervisor, HyperstartAgent, benchmarkHyperConfig, NoopNetworkModel)
 		contConfigs := createNewContainerConfigs(10)
 		createStartStopDeleteContainers(b, podConfig, contConfigs)
 	}

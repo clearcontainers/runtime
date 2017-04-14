@@ -17,7 +17,6 @@
 package virtcontainers
 
 import (
-	"encoding/json"
 	"fmt"
 	"net"
 	"net/url"
@@ -203,15 +202,10 @@ func (p *ccProxy) sendCmd(cmd interface{}) (interface{}, error) {
 		return nil, fmt.Errorf("Wrong command type, should be hyperstartProxyCmd type")
 	}
 
-	data, err := json.Marshal(proxyCmd.message)
-	if err != nil {
-		return nil, err
-	}
-
 	var tokens []string
 	if proxyCmd.token != "" {
 		tokens = append(tokens, proxyCmd.token)
 	}
 
-	return nil, p.client.HyperWithTokens(proxyCmd.cmd, tokens, json.RawMessage(data))
+	return nil, p.client.HyperWithTokens(proxyCmd.cmd, tokens, proxyCmd.message)
 }
