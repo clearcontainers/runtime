@@ -72,7 +72,7 @@ func create(containerID, bundlePath, console, pidFilePath string) error {
 		return err
 	}
 
-	podConfig, shimConfig, ociSpec, err := getConfigs(bundlePath, containerID, console)
+	podConfig, ociSpec, err := getConfigs(bundlePath, containerID, console)
 	if err != nil {
 		return err
 	}
@@ -88,10 +88,7 @@ func create(containerID, bundlePath, console, pidFilePath string) error {
 		return fmt.Errorf("BUG: Container list from pod is wrong, expecting only one container, found %d containers", len(containers))
 	}
 
-	pid, err := startContainerShim(containers[0], shimConfig, pod.URL())
-	if err != nil {
-		return err
-	}
+	process := containers[0].Process()
 
 	// config.json provides a cgroups path that has to be used to create "tasks"
 	// and "cgroups.procs" files. Those files have to be filled with a PID, which
@@ -103,32 +100,32 @@ func create(containerID, bundlePath, console, pidFilePath string) error {
 		return err
 	}
 
-	if err := createCgroupsFiles(cgroupsPathList, pid); err != nil {
+	if err := createCgroupsFiles(cgroupsPathList, process.Pid); err != nil {
 		return err
 	}
 
 	// Creation of PID file has to be the last thing done in the create
 	// because containerd considers the create complete after this file
 	// is created.
-	if err := createPIDFile(pidFilePath, pid); err != nil {
+	if err := createPIDFile(pidFilePath, process.Pid); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func getConfigs(bundlePath, containerID, console string) (vc.PodConfig, ShimConfig, specs.Spec, error) {
-	runtimeConfig, shimConfig, err := loadConfiguration("")
+func getConfigs(bundlePath, containerID, console string) (vc.PodConfig, specs.Spec, error) {
+	runtimeConfig, err := loadConfiguration("")
 	if err != nil {
-		return vc.PodConfig{}, ShimConfig{}, specs.Spec{}, err
+		return vc.PodConfig{}, specs.Spec{}, err
 	}
 
 	podConfig, ociSpec, err := oci.PodConfig(runtimeConfig, bundlePath, containerID, console)
 	if err != nil {
-		return vc.PodConfig{}, ShimConfig{}, specs.Spec{}, err
+		return vc.PodConfig{}, specs.Spec{}, err
 	}
 
-	return *podConfig, shimConfig, *ociSpec, nil
+	return *podConfig, *ociSpec, nil
 }
 
 func createCgroupsFiles(cgroupsPathList []string, pid int) error {

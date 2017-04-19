@@ -57,6 +57,9 @@ const runtimeMinimalConfig = `
 
 [proxy.cc]
 url = "` + proxyURL + `"
+
+[shim.cc]
+path = "` + shimPath + `"
 `
 
 func createConfig(fileName string, fileData string) (string, error) {
@@ -77,7 +80,7 @@ func TestRuntimeConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	config, shimConfig, err := loadConfiguration(configPath)
+	config, err := loadConfiguration(configPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,6 +99,10 @@ func TestRuntimeConfig(t *testing.T) {
 		URL: proxyURL,
 	}
 
+	expectedShimConfig := vc.CCShimConfig{
+		Path: shimPath,
+	}
+
 	expectedConfig := oci.RuntimeConfig{
 		HypervisorType:   defaultHypervisor,
 		HypervisorConfig: expectedHypervisorConfig,
@@ -105,18 +112,13 @@ func TestRuntimeConfig(t *testing.T) {
 
 		ProxyType:   defaultProxy,
 		ProxyConfig: expectedProxyConfig,
-	}
 
-	expectedShimConfig := ShimConfig{
-		Path: shimPath,
+		ShimType:   defaultShim,
+		ShimConfig: expectedShimConfig,
 	}
 
 	if reflect.DeepEqual(config, expectedConfig) == false {
 		t.Fatalf("Got %v\n expecting %v", config, expectedConfig)
-	}
-
-	if reflect.DeepEqual(shimConfig, expectedShimConfig) == false {
-		t.Fatalf("Got %v\n expecting %v", shimConfig, expectedShimConfig)
 	}
 
 	if err := os.Remove(configPath); err != nil {
@@ -130,7 +132,7 @@ func TestMinimalRuntimeConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	config, shimConfig, err := loadConfiguration(configPath)
+	config, err := loadConfiguration(configPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,12 +143,16 @@ func TestMinimalRuntimeConfig(t *testing.T) {
 		ImagePath:      defaultImagePath,
 	}
 
+	expectedAgentConfig := vc.HyperConfig{
+		PauseBinPath: filepath.Join(defaultPauseRootPath, pauseBinRelativePath),
+	}
+
 	expectedProxyConfig := vc.CCProxyConfig{
 		URL: proxyURL,
 	}
 
-	expectedAgentConfig := vc.HyperConfig{
-		PauseBinPath: filepath.Join(defaultPauseRootPath, pauseBinRelativePath),
+	expectedShimConfig := vc.CCShimConfig{
+		Path: shimPath,
 	}
 
 	expectedConfig := oci.RuntimeConfig{
@@ -158,18 +164,13 @@ func TestMinimalRuntimeConfig(t *testing.T) {
 
 		ProxyType:   defaultProxy,
 		ProxyConfig: expectedProxyConfig,
-	}
 
-	expectedShimConfig := ShimConfig{
-		Path: defaultShimPath,
+		ShimType:   defaultShim,
+		ShimConfig: expectedShimConfig,
 	}
 
 	if reflect.DeepEqual(config, expectedConfig) == false {
 		t.Fatalf("Got %v\n expecting %v", config, expectedConfig)
-	}
-
-	if reflect.DeepEqual(shimConfig, expectedShimConfig) == false {
-		t.Fatalf("Got %v\n expecting %v", shimConfig, expectedShimConfig)
 	}
 
 	if err := os.Remove(configPath); err != nil {
