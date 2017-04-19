@@ -18,10 +18,12 @@ package main
 import (
 	"fmt"
 	"io"
+	"log/syslog"
 	"os"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	logrus_syslog "github.com/Sirupsen/logrus/hooks/syslog"
 	vc "github.com/containers/virtcontainers"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/urfave/cli"
@@ -47,6 +49,13 @@ cc-runtime is a command line program for running applications packaged
 according to the Open Container Initiative (OCI).`
 
 var ccLog = logrus.New()
+
+func init() {
+	syslogHook, err := logrus_syslog.NewSyslogHook("", "", syslog.LOG_INFO, "")
+	if err == nil {
+		ccLog.Hooks.Add(syslogHook)
+	}
+}
 
 func main() {
 	app := cli.NewApp()
