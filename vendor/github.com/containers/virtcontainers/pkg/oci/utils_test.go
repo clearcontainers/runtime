@@ -56,6 +56,7 @@ func TestMinimalPodConfig(t *testing.T) {
 		HypervisorType: vc.QemuHypervisor,
 		AgentType:      vc.HyperstartAgent,
 		ProxyType:      vc.CCProxyType,
+		ShimType:       vc.CCShimType,
 		Console:        consolePath,
 	}
 
@@ -94,6 +95,7 @@ func TestMinimalPodConfig(t *testing.T) {
 		HypervisorType: vc.QemuHypervisor,
 		AgentType:      vc.HyperstartAgent,
 		ProxyType:      vc.CCProxyType,
+		ShimType:       vc.CCShimType,
 
 		NetworkModel:  vc.CNMNetworkModel,
 		NetworkConfig: expectedNetworkConfig,

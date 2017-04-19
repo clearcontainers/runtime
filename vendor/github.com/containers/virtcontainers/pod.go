@@ -265,6 +265,9 @@ type PodConfig struct {
 	ProxyType   ProxyType
 	ProxyConfig interface{}
 
+	ShimType   ShimType
+	ShimConfig interface{}
+
 	NetworkModel  NetworkModel
 	NetworkConfig NetworkConfig
 

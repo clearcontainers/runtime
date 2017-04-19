@@ -199,7 +199,7 @@ func createContainers(pod *Pod, contConfigs []ContainerConfig) ([]*Container, er
 
 	var containers []*Container
 
-	for _, contConfig := range contConfigs {
+	for idx, contConfig := range contConfigs {
 		if contConfig.valid() == false {
 			return containers, fmt.Errorf("Invalid container configuration")
 		}
@@ -208,7 +208,7 @@ func createContainers(pod *Pod, contConfigs []ContainerConfig) ([]*Container, er
 			id:            contConfig.ID,
 			podID:         pod.id,
 			rootFs:        contConfig.RootFs,
-			config:        &contConfig,
+			config:        &contConfigs[idx],
 			pod:           pod,
 			runPath:       filepath.Join(runStoragePath, pod.id, contConfig.ID),
 			configPath:    filepath.Join(configStoragePath, pod.id, contConfig.ID),
