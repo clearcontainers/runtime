@@ -117,6 +117,8 @@ func main() {
 		// Set virtcontainers logger.
 		vc.SetLog(ccLog)
 
+		ccLog.Infof("%v (version %v, commit %v) called as: %v", name, version, commit, context.Args())
+
 		return nil
 	}
 
