@@ -17,3 +17,6 @@ check-go-test:
 
 check-go-static:
 	.ci/go-static-checks.sh $(GO_STATIC_CHECKS_ARGS)
+
+clean:
+	rm -f $(TARGET)
