@@ -22,24 +22,16 @@ import (
 	"io/ioutil"
 	"net/url"
 	"os"
-	"os/signal"
 	"path/filepath"
-	"syscall"
 )
 
 const logFileName = "mock_shim.log"
-const dirMode = os.FileMode(0750)
 const numArgsExpected = 2
 
 func main() {
 	logDirPath, err := ioutil.TempDir("", "cc-shim-")
 	if err != nil {
 		fmt.Printf("ERROR: Could not generate temporary log directory path: %s\n", err)
-		os.Exit(1)
-	}
-
-	if err := os.MkdirAll(logDirPath, dirMode); err != nil {
-		fmt.Printf("ERROR: Could not create temporary log directory %q: %s\n", logDirPath, err)
 		os.Exit(1)
 	}
 
@@ -74,11 +66,6 @@ func main() {
 		fmt.Fprintf(f, "ERROR: Could not parse the URL %q: %s\n", *urlFlag, err)
 		os.Exit(1)
 	}
-
-	exitShim := make(chan os.Signal)
-	signal.Notify(exitShim, syscall.SIGUSR1)
-
-	<-exitShim
 
 	fmt.Fprintf(f, "INFO: Shim exited properly\n")
 }

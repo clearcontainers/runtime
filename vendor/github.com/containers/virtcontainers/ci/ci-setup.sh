@@ -49,20 +49,22 @@ cp -r /tmp/bundles/busybox/* /tmp/bundles/pause_bundle/
 
 echo "Move to /tmp/virtcontainers/build"
 pushd /tmp/virtcontainers/build
-echo "Clone virtcontainers"
-git clone https://github.com/containers/virtcontainers.git
 echo "Clone cni"
 git clone https://github.com/containernetworking/cni.git
 echo "Copy CNI config files"
-cp virtcontainers/test/cni/10-mynet.conf /etc/cni/net.d/
-cp virtcontainers/test/cni/99-loopback.conf /etc/cni/net.d/
+cp $GOPATH/src/github.com/containers/virtcontainers/test/cni/10-mynet.conf /etc/cni/net.d/
+cp $GOPATH/src/github.com/containers/virtcontainers/test/cni/99-loopback.conf /etc/cni/net.d/
 echo "Build hook binary and copy it to /tmp/bin"
-go build virtcontainers/hook/mock/hook.go
+go build -o hook $GOPATH/src/github.com/containers/virtcontainers/hook/mock/hook.go
 cp hook /tmp/bin/
+echo "Build cc-shim-mock binary and copy it to /tmp/bin"
+go build -o cc-shim-mock $GOPATH/src/github.com/containers/virtcontainers/shim/mock/shim.go
+cp cc-shim-mock /tmp/bin/
 echo "Build pause binary and copy it to pause bundle (/tmp/bundles/pause_bundle/rootfs/bin)"
-pushd virtcontainers/pause
+pushd $GOPATH/src/github.com/containers/virtcontainers/pause
 make
 cp pause /tmp/bundles/pause_bundle/rootfs/bin/
+make clean
 popd
 pushd cni
 ./build.sh

@@ -18,11 +18,6 @@ after_success:
 - go get github.com/mattn/goveralls
 - "$GOPATH/bin/goveralls -service=travis-ci -coverprofile=profile.cov"
 
-install:
-- sudo mkdir -p /tmp/cc-runtime/bin
-- go build -o cc-shim $GOPATH/src/github.com/clearcontainers/runtime/shim/mock/shim.go
-- sudo cp cc-shim /tmp/cc-runtime/bin/
-
 notifications:
   slack:
     secure: nJc3XJ9vx9pI/7MRyt6/lg0CW3xdCaOKerTqcJbRUyDchrp6SuKYv47fPY6pBK+S5x2hQuwV25mT5J6QLXL8rIKA/1ThRqbnvaGkfYm2714O5F+QcdXf6APaB9GHXpJOdSYjfdT1bvwCANjSvKpj3Xfe6+V6jyiOmnjiAJkk1n+qtt/LNEk8CwFTMx2nz+KKQuBY3PTbtFvsOV6p+njO3vPYA+QGbxftsweMUx4IrtGzc8j7/aPXrI8oGhFYuM0cQF1WJheHR8qPqHPtoTsXLhCPfdzTZfUW42EnraUziq5bCgKVqH8kMJAUZl7p3XdYwOyJXs0G8B7JBDzmPozrJFyw7su85zda88Upt48VxbacyBygFdRL/Ue6uRHAR6vz0nRmGwqVd7pDhbIAEX3U8ulCG78qa5oQPmAlKtcp+QSotCBGEJI4nmuAsLxvb4y8eohIQ6uR+o2KFDPoG0JSNF9OlKVRDDFSHocoXc1aDpFN+GF7dXxRjkcZZH1JmhiQCnSJjosQ7srGigVsNXq5COl2JKuO1bZKXnR8vUPO3Mt9S28Yafms0mldxvquOJCxMD8fmhPVSVhqgcLzaT/6zUb2+TIq9Y8V7WMk1cptCdUdhuC71wnYdNPae8WPvFtF8ElQUn21iiWhkJX0Wg3G07FMh4S1jnJ/UuKn9LH2vc8=

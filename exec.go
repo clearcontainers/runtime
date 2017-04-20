@@ -203,18 +203,11 @@ func execute(params execParams) error {
 		User:    params.ociProcess.User.Username,
 	}
 
-	_, shimConfig, err := loadConfiguration("")
-	if err != nil {
+	if _, err := loadConfiguration(""); err != nil {
 		return err
 	}
 
-	pod, _, process, err := vc.EnterContainer(params.cID, podStatus.ContainersStatus[0].ID, cmd)
-	if err != nil {
-		return err
-	}
-
-	// Start the shim to retrieve its PID.
-	pid, err := startShim(process, shimConfig, pod.URL())
+	_, _, process, err := vc.EnterContainer(params.cID, podStatus.ContainersStatus[0].ID, cmd)
 	if err != nil {
 		return err
 	}
@@ -222,7 +215,7 @@ func execute(params execParams) error {
 	// Creation of PID file has to be the last thing done in the exec
 	// because containerd considers the exec to have finished starting
 	// after this file is created.
-	if err := createPIDFile(params.pidFile, pid); err != nil {
+	if err := createPIDFile(params.pidFile, process.Pid); err != nil {
 		return err
 	}
 

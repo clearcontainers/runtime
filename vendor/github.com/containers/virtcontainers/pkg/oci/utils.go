@@ -49,6 +49,9 @@ type RuntimeConfig struct {
 	ProxyType   vc.ProxyType
 	ProxyConfig interface{}
 
+	ShimType   vc.ShimType
+	ShimConfig interface{}
+
 	Console string
 }
 
@@ -193,6 +196,9 @@ func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodC
 
 		ProxyType:   runtime.ProxyType,
 		ProxyConfig: runtime.ProxyConfig,
+
+		ShimType:   runtime.ShimType,
+		ShimConfig: runtime.ShimConfig,
 
 		NetworkModel:  vc.CNMNetworkModel,
 		NetworkConfig: networkConfig,

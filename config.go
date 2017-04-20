@@ -30,6 +30,7 @@ const (
 	defaultRuntimeConfiguration = "/etc/clear-containers/configuration.toml"
 	defaultHypervisor           = vc.QemuHypervisor
 	defaultProxy                = vc.CCProxyType
+	defaultShim                 = vc.CCShimType
 	defaultAgent                = vc.HyperstartAgent
 	defaultKernelPath           = "/usr/share/clear-containers/vmlinux.container"
 	defaultImagePath            = "/usr/share/clear-containers/clear-containers.img"
@@ -208,14 +209,15 @@ func updateRuntimeConfig(tomlConf tomlConfig, config *oci.RuntimeConfig) error {
 		}
 	}
 
-	return nil
-}
-
-func updateShimConfig(tomlConf tomlConfig, config *ShimConfig) error {
 	for k, shim := range tomlConf.Shim {
 		switch k {
 		case ccShim:
-			config.Path = shim.path()
+			shConfig := vc.CCShimConfig{
+				Path: shim.path(),
+			}
+
+			config.ShimType = vc.CCShimType
+			config.ShimConfig = shConfig
 
 			break
 		}
@@ -224,7 +226,7 @@ func updateShimConfig(tomlConf tomlConfig, config *ShimConfig) error {
 	return nil
 }
 
-func loadConfiguration(configPath string) (oci.RuntimeConfig, ShimConfig, error) {
+func loadConfiguration(configPath string) (oci.RuntimeConfig, error) {
 	defaultHypervisorConfig := vc.HypervisorConfig{
 		HypervisorPath: defaultHypervisorPath,
 		KernelPath:     defaultKernelPath,
@@ -242,10 +244,7 @@ func loadConfiguration(configPath string) (oci.RuntimeConfig, ShimConfig, error)
 		AgentType:        defaultAgent,
 		AgentConfig:      defaultAgentConfig,
 		ProxyType:        defaultProxy,
-	}
-
-	shimConfig := ShimConfig{
-		Path: defaultShimPath,
+		ShimType:         defaultShim,
 	}
 
 	if configPath == "" {
@@ -254,28 +253,24 @@ func loadConfiguration(configPath string) (oci.RuntimeConfig, ShimConfig, error)
 
 	configData, err := ioutil.ReadFile(configPath)
 	if err != nil {
-		return config, shimConfig, err
+		return config, err
 	}
 
 	var tomlConf tomlConfig
 	_, err = toml.Decode(string(configData), &tomlConf)
 	if err != nil {
-		return config, shimConfig, err
+		return config, err
 	}
 
 	ccLog.Debugf("TOML configuration: %v", tomlConf)
 
 	if err := checkConfigParams(tomlConf); err != nil {
-		return config, shimConfig, err
+		return config, err
 	}
 
 	if err := updateRuntimeConfig(tomlConf, &config); err != nil {
-		return config, shimConfig, err
+		return config, err
 	}
 
-	if err := updateShimConfig(tomlConf, &shimConfig); err != nil {
-		return config, shimConfig, err
-	}
-
-	return config, shimConfig, nil
+	return config, nil
 }
