@@ -205,10 +205,6 @@ func execute(params execParams) error {
 		Console:     params.console,
 	}
 
-	if _, err := loadConfiguration(""); err != nil {
-		return err
-	}
-
 	_, _, process, err := vc.EnterContainer(params.cID, podStatus.ContainersStatus[0].ID, cmd)
 	if err != nil {
 		return err
