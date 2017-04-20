@@ -41,6 +41,11 @@ var (
 var cgroupsMemDirPath = "/sys/fs/cgroup"
 
 func containerExists(containerID string) (bool, error) {
+
+	if containerID == "" {
+		return false, fmt.Errorf("Missing container ID")
+	}
+
 	podStatusList, err := vc.ListPod()
 	if err != nil {
 		return false, err
