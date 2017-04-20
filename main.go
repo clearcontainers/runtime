@@ -99,7 +99,7 @@ func main() {
 			ccLog.Level = logrus.DebugLevel
 		}
 		if path := context.GlobalString("log"); path != "" {
-			f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND|os.O_SYNC, 0666)
+			f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND|os.O_SYNC, 0640)
 			if err != nil {
 				return err
 			}
