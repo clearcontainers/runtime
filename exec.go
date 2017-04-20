@@ -197,10 +197,12 @@ func execute(params execParams) error {
 	}
 
 	cmd := vc.Cmd{
-		Args:    params.ociProcess.Args,
-		Envs:    envVars,
-		WorkDir: params.ociProcess.Cwd,
-		User:    params.ociProcess.User.Username,
+		Args:        params.ociProcess.Args,
+		Envs:        envVars,
+		WorkDir:     params.ociProcess.Cwd,
+		User:        params.ociProcess.User.Username,
+		Interactive: params.ociProcess.Terminal,
+		Console:     params.console,
 	}
 
 	if _, err := loadConfiguration(""); err != nil {
