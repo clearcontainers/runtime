@@ -244,9 +244,6 @@ func TestQemuAppendFSDevices(t *testing.T) {
 
 func TestQemuAppendConsoles(t *testing.T) {
 	podID := "testPodID"
-	cID1 := "100"
-	cID2 := "200"
-	contConsolePath := "testContConsolePath"
 
 	expectedOut := []ciaoQemu.Device{
 		ciaoQemu.SerialDevice{
@@ -260,38 +257,11 @@ func TestQemuAppendConsoles(t *testing.T) {
 			ID:       "charconsole0",
 			Path:     filepath.Join(runStoragePath, podID, defaultConsole),
 		},
-		ciaoQemu.CharDevice{
-			Driver:   ciaoQemu.Console,
-			Backend:  ciaoQemu.Serial,
-			DeviceID: "console1",
-			ID:       "charconsole1",
-			Path:     contConsolePath,
-		},
-		ciaoQemu.CharDevice{
-			Driver:   ciaoQemu.Console,
-			Backend:  ciaoQemu.Socket,
-			DeviceID: "console2",
-			ID:       "charconsole2",
-			Path:     fmt.Sprintf("%s/%s/%s/%s", runStoragePath, podID, cID2, defaultConsole),
-		},
-	}
-
-	containers := []ContainerConfig{
-		{
-			ID:          cID1,
-			Interactive: true,
-			Console:     contConsolePath,
-		},
-		{
-			ID:          cID2,
-			Interactive: false,
-			Console:     "",
-		},
 	}
 
 	podConfig := PodConfig{
 		ID:         podID,
-		Containers: containers,
+		Containers: []ContainerConfig{},
 	}
 
 	testQemuAppend(t, podConfig, expectedOut, consoleDev)

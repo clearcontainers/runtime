@@ -30,23 +30,14 @@ func TestNoopAgentInit(t *testing.T) {
 	}
 }
 
-func TestNoopAgentStartAgent(t *testing.T) {
-	n := &noopAgent{}
-	pod := &Pod{}
-
-	err := n.start(pod)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
 func TestNoopAgentExec(t *testing.T) {
 	n := &noopAgent{}
 	pod := &Pod{}
 	container := Container{}
+	process := Process{}
 	cmd := Cmd{}
 
-	if _, err := n.exec(pod, container, cmd); err != nil {
+	if err := n.exec(pod, container, process, cmd); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -66,16 +57,6 @@ func TestNoopAgentStopPod(t *testing.T) {
 	pod := Pod{}
 
 	err := n.stopPod(pod)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestNoopAgentStopAgent(t *testing.T) {
-	n := &noopAgent{}
-	pod := Pod{}
-
-	err := n.stop(pod)
 	if err != nil {
 		t.Fatal(err)
 	}

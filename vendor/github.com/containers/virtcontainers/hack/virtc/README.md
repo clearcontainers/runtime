@@ -197,12 +197,17 @@ Container 1 started
 
 #### Run a new process on an existing container
 ```
-# ./virtc container enter --id=1 --pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8 --cmd="/bin/ps"
+# ./virtc container enter --id=1 --pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8 --cmd="/bin/ps" --console="/dev/pts/30"
 ```
 This will generate output similar to the following:
 ```
 Container 1 entered
 ```
+__Note:__ The option `--console` can be any existing console.
+Don't try to provide `$(tty)` as it is your current console, and you would not be
+able to get your console back as the shim would be listening to this indefinitely.
+Instead, you would prefer to open a new shell and get the `$(tty)` from this shell.
+That way, you make sure you have a dedicated input/output terminal.
 
 #### Stop an existing container
 ```

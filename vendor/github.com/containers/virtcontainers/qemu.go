@@ -259,31 +259,6 @@ func (q *qemu) appendConsoles(devices []ciaoQemu.Device, podConfig PodConfig) []
 
 	devices = append(devices, console)
 
-	for i, c := range podConfig.Containers {
-		// Need to add an offset of 1 because of the console created for the pod.
-		idx := i + 1
-
-		if c.Interactive == false || c.Console == "" {
-			console = ciaoQemu.CharDevice{
-				Driver:   ciaoQemu.Console,
-				Backend:  ciaoQemu.Socket,
-				DeviceID: fmt.Sprintf("console%d", idx),
-				ID:       fmt.Sprintf("charconsole%d", idx),
-				Path:     fmt.Sprintf("%s/%s/%s/%s", runStoragePath, podConfig.ID, c.ID, defaultConsole),
-			}
-		} else {
-			console = ciaoQemu.CharDevice{
-				Driver:   ciaoQemu.Console,
-				Backend:  ciaoQemu.Serial,
-				DeviceID: fmt.Sprintf("console%d", idx),
-				ID:       fmt.Sprintf("charconsole%d", idx),
-				Path:     c.Console,
-			}
-		}
-
-		devices = append(devices, console)
-	}
-
 	return devices
 }
 

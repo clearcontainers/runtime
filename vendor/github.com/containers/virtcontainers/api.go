@@ -82,6 +82,11 @@ func CreatePod(podConfig PodConfig) (*Pod, error) {
 		return nil, err
 	}
 
+	// Start shims
+	if err := p.startShims(); err != nil {
+		return nil, err
+	}
+
 	err = p.endSession()
 	if err != nil {
 		return nil, err
@@ -94,7 +99,7 @@ func CreatePod(podConfig PodConfig) (*Pod, error) {
 // DeletePod will stop an already running container and then delete it.
 func DeletePod(podID string) (*Pod, error) {
 	if podID == "" {
-		return nil, ErrNeedPodID
+		return nil, errNeedPodID
 	}
 
 	lockFile, err := lockPod(podID)
@@ -147,7 +152,7 @@ func DeletePod(podID string) (*Pod, error) {
 // It returns the pod ID.
 func StartPod(podID string) (*Pod, error) {
 	if podID == "" {
-		return nil, ErrNeedPodID
+		return nil, errNeedPodID
 	}
 
 	lockFile, err := lockPod(podID)
@@ -194,7 +199,7 @@ func StartPod(podID string) (*Pod, error) {
 // StopPod will talk to the given agent to stop an existing pod and destroy all containers within that pod.
 func StopPod(podID string) (*Pod, error) {
 	if podID == "" {
-		return nil, ErrNeedPod
+		return nil, errNeedPod
 	}
 
 	lockFile, err := lockPod(podID)
@@ -292,6 +297,11 @@ func RunPod(podConfig PodConfig) (*Pod, error) {
 		return nil, err
 	}
 
+	// Start shims
+	if err := p.startShims(); err != nil {
+		return nil, err
+	}
+
 	// Start the pod
 	err = p.start()
 	if err != nil {
@@ -346,7 +356,7 @@ func ListPod() ([]PodStatus, error) {
 // StatusPod is the virtcontainers pod status entry point.
 func StatusPod(podID string) (PodStatus, error) {
 	if podID == "" {
-		return PodStatus{}, ErrNeedPodID
+		return PodStatus{}, errNeedPodID
 	}
 
 	pod, err := fetchPod(podID)
@@ -381,7 +391,7 @@ func StatusPod(podID string) (PodStatus, error) {
 // CreateContainer creates a container on a given pod.
 func CreateContainer(podID string, containerConfig ContainerConfig) (*Pod, *Container, error) {
 	if podID == "" {
-		return nil, nil, ErrNeedPodID
+		return nil, nil, errNeedPodID
 	}
 
 	lockFile, err := lockPod(podID)
@@ -427,11 +437,11 @@ func CreateContainer(podID string, containerConfig ContainerConfig) (*Pod, *Cont
 // it needs to be stopped first.
 func DeleteContainer(podID, containerID string) (*Container, error) {
 	if podID == "" {
-		return nil, ErrNeedPodID
+		return nil, errNeedPodID
 	}
 
 	if containerID == "" {
-		return nil, ErrNeedContainerID
+		return nil, errNeedContainerID
 	}
 
 	lockFile, err := lockPod(podID)
@@ -481,11 +491,11 @@ func DeleteContainer(podID, containerID string) (*Container, error) {
 // StartContainer starts an already created container.
 func StartContainer(podID, containerID string) (*Container, error) {
 	if podID == "" {
-		return nil, ErrNeedPodID
+		return nil, errNeedPodID
 	}
 
 	if containerID == "" {
-		return nil, ErrNeedContainerID
+		return nil, errNeedContainerID
 	}
 
 	lockFile, err := lockPod(podID)
@@ -524,11 +534,11 @@ func StartContainer(podID, containerID string) (*Container, error) {
 // StopContainer stops an already running container.
 func StopContainer(podID, containerID string) (*Container, error) {
 	if podID == "" {
-		return nil, ErrNeedPodID
+		return nil, errNeedPodID
 	}
 
 	if containerID == "" {
-		return nil, ErrNeedContainerID
+		return nil, errNeedContainerID
 	}
 
 	lockFile, err := lockPod(podID)
@@ -567,11 +577,11 @@ func StopContainer(podID, containerID string) (*Container, error) {
 // EnterContainer enters an already running container and runs a given command.
 func EnterContainer(podID, containerID string, cmd Cmd) (*Pod, *Container, *Process, error) {
 	if podID == "" {
-		return nil, nil, nil, ErrNeedPodID
+		return nil, nil, nil, errNeedPodID
 	}
 
 	if containerID == "" {
-		return nil, nil, nil, ErrNeedContainerID
+		return nil, nil, nil, errNeedContainerID
 	}
 
 	lockFile, err := lockPod(podID)
@@ -609,11 +619,11 @@ func EnterContainer(podID, containerID string, cmd Cmd) (*Pod, *Container, *Proc
 // StatusContainer returns a detailed container status.
 func StatusContainer(podID, containerID string) (ContainerStatus, error) {
 	if podID == "" {
-		return ContainerStatus{}, ErrNeedPodID
+		return ContainerStatus{}, errNeedPodID
 	}
 
 	if containerID == "" {
-		return ContainerStatus{}, ErrNeedContainerID
+		return ContainerStatus{}, errNeedContainerID
 	}
 
 	var contStatus ContainerStatus
@@ -641,11 +651,11 @@ func StatusContainer(podID, containerID string) (ContainerStatus, error) {
 // to a container running inside a pod.
 func KillContainer(podID, containerID string, signal syscall.Signal) error {
 	if podID == "" {
-		return ErrNeedPodID
+		return errNeedPodID
 	}
 
 	if containerID == "" {
-		return ErrNeedContainerID
+		return errNeedContainerID
 	}
 
 	lockFile, err := lockPod(podID)

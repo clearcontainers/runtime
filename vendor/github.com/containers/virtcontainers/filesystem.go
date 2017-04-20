@@ -150,7 +150,7 @@ func (fs *filesystem) createAllResources(pod Pod) (err error) {
 
 func (fs *filesystem) storeFile(file string, data interface{}) error {
 	if file == "" {
-		return ErrNeedFile
+		return errNeedFile
 	}
 
 	f, err := os.Create(file)
@@ -170,7 +170,7 @@ func (fs *filesystem) storeFile(file string, data interface{}) error {
 
 func (fs *filesystem) fetchFile(file string, data interface{}) error {
 	if file == "" {
-		return ErrNeedFile
+		return errNeedFile
 	}
 
 	fileData, err := ioutil.ReadFile(file)
@@ -204,11 +204,11 @@ func resourceNeedsContainerID(podSpecific bool, resource podResource) bool {
 
 func resourceDir(podSpecific bool, podID, containerID string, resource podResource) (string, error) {
 	if podID == "" {
-		return "", ErrNeedPodID
+		return "", errNeedPodID
 	}
 
 	if resourceNeedsContainerID(podSpecific, resource) == true && containerID == "" {
-		return "", ErrNeedContainerID
+		return "", errNeedContainerID
 	}
 
 	var path string
@@ -235,7 +235,7 @@ func resourceDir(podSpecific bool, podID, containerID string, resource podResour
 // blank to resourceDIR()
 func (fs *filesystem) resourceURI(podSpecific bool, podID, containerID string, resource podResource) (string, string, error) {
 	if podID == "" {
-		return "", "", ErrNeedPodID
+		return "", "", errNeedPodID
 	}
 
 	var filename string
@@ -269,11 +269,11 @@ func (fs *filesystem) resourceURI(podSpecific bool, podID, containerID string, r
 
 func (fs *filesystem) containerURI(podID, containerID string, resource podResource) (string, string, error) {
 	if podID == "" {
-		return "", "", ErrNeedPodID
+		return "", "", errNeedPodID
 	}
 
 	if containerID == "" {
-		return "", "", ErrNeedContainerID
+		return "", "", errNeedContainerID
 	}
 
 	return fs.resourceURI(false, podID, containerID, resource)
@@ -287,11 +287,11 @@ func (fs *filesystem) podURI(podID string, resource podResource) (string, string
 // getting a podResource.
 func (fs *filesystem) commonResourceChecks(podSpecific bool, podID, containerID string, resource podResource) error {
 	if podID == "" {
-		return ErrNeedPodID
+		return errNeedPodID
 	}
 
 	if resourceNeedsContainerID(podSpecific, resource) == true && containerID == "" {
-		return ErrNeedContainerID
+		return errNeedContainerID
 	}
 
 	return nil
@@ -490,11 +490,11 @@ func (fs *filesystem) deletePodResources(podID string, resources []podResource) 
 
 func (fs *filesystem) storeContainerResource(podID, containerID string, resource podResource, data interface{}) error {
 	if podID == "" {
-		return ErrNeedPodID
+		return errNeedPodID
 	}
 
 	if containerID == "" {
-		return ErrNeedContainerID
+		return errNeedContainerID
 	}
 
 	return fs.storeResource(false, podID, containerID, resource, data)
@@ -502,11 +502,11 @@ func (fs *filesystem) storeContainerResource(podID, containerID string, resource
 
 func (fs *filesystem) fetchContainerConfig(podID, containerID string) (ContainerConfig, error) {
 	if podID == "" {
-		return ContainerConfig{}, ErrNeedPodID
+		return ContainerConfig{}, errNeedPodID
 	}
 
 	if containerID == "" {
-		return ContainerConfig{}, ErrNeedContainerID
+		return ContainerConfig{}, errNeedContainerID
 	}
 
 	data, err := fs.fetchResource(false, podID, containerID, configFileType)
@@ -524,11 +524,11 @@ func (fs *filesystem) fetchContainerConfig(podID, containerID string) (Container
 
 func (fs *filesystem) fetchContainerState(podID, containerID string) (State, error) {
 	if podID == "" {
-		return State{}, ErrNeedPodID
+		return State{}, errNeedPodID
 	}
 
 	if containerID == "" {
-		return State{}, ErrNeedContainerID
+		return State{}, errNeedContainerID
 	}
 
 	data, err := fs.fetchResource(false, podID, containerID, stateFileType)
@@ -546,11 +546,11 @@ func (fs *filesystem) fetchContainerState(podID, containerID string) (State, err
 
 func (fs *filesystem) fetchContainerProcess(podID, containerID string) (Process, error) {
 	if podID == "" {
-		return Process{}, ErrNeedPodID
+		return Process{}, errNeedPodID
 	}
 
 	if containerID == "" {
-		return Process{}, ErrNeedContainerID
+		return Process{}, errNeedContainerID
 	}
 
 	data, err := fs.fetchResource(false, podID, containerID, processFileType)
