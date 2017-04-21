@@ -119,6 +119,14 @@ func create(containerID, bundlePath, console, pidFilePath string) error {
 }
 
 func getConfigs(bundlePath, containerID, console string) (vc.PodConfig, specs.Spec, error) {
+	if bundlePath == "" {
+		return vc.PodConfig{}, specs.Spec{}, errNeedBundlePath
+	}
+
+	if containerID == "" {
+		return vc.PodConfig{}, specs.Spec{}, errNeedContainerID
+	}
+
 	runtimeConfig, err := loadConfiguration("")
 	if err != nil {
 		return vc.PodConfig{}, specs.Spec{}, err
