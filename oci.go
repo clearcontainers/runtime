@@ -60,6 +60,11 @@ func validCreateParams(containerID, bundlePath string) error {
 		return errNeedContainerID
 	}
 
+	// bundle path MUST be provided.
+	if bundlePath == "" {
+		return errNeedBundlePath
+	}
+
 	// container ID MUST be unique.
 	exist, err := containerExists(containerID)
 	if err != nil {
@@ -67,11 +72,6 @@ func validCreateParams(containerID, bundlePath string) error {
 	}
 	if exist == true {
 		return fmt.Errorf("ID already in use, unique ID should be provided")
-	}
-
-	// bundle path MUST be provided.
-	if bundlePath == "" {
-		return errNeedBundlePath
 	}
 
 	// bundle path MUST be valid.
