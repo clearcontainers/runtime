@@ -24,4 +24,5 @@ var (
 	errNeedContainerID   = errors.New("Container ID cannot be empty")
 	errNeedLinuxResource = errors.New("Linux resource cannot be empty")
 	errNeedPidFilePath   = errors.New("PID file path cannot be empty")
+	errNeedSignal        = errors.New("Signal cannot be empty")
 )
