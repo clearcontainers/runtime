@@ -72,6 +72,10 @@ func create(containerID, bundlePath, console, pidFilePath string) error {
 		return err
 	}
 
+	if pidFilePath == "" {
+		return errNeedPidFilePath
+	}
+
 	podConfig, ociSpec, err := getConfigs(bundlePath, containerID, console)
 	if err != nil {
 		return err
@@ -115,6 +119,14 @@ func create(containerID, bundlePath, console, pidFilePath string) error {
 }
 
 func getConfigs(bundlePath, containerID, console string) (vc.PodConfig, specs.Spec, error) {
+	if bundlePath == "" {
+		return vc.PodConfig{}, specs.Spec{}, errNeedBundlePath
+	}
+
+	if containerID == "" {
+		return vc.PodConfig{}, specs.Spec{}, errNeedContainerID
+	}
+
 	runtimeConfig, err := loadConfiguration("")
 	if err != nil {
 		return vc.PodConfig{}, specs.Spec{}, err
@@ -168,7 +180,7 @@ func createCgroupsFiles(cgroupsPathList []string, pid int) error {
 
 func createPIDFile(pidFilePath string, pid int) error {
 	if pidFilePath == "" {
-		return fmt.Errorf("Missing PID file path")
+		return errNeedPidFilePath
 	}
 
 	if err := os.RemoveAll(pidFilePath); err != nil {

@@ -102,6 +102,10 @@ func kill(containerID, signal string, all bool) error {
 		return err
 	}
 
+	if signal == "" {
+		return errNeedSignal
+	}
+
 	podStatus, err := vc.StatusPod(containerID)
 	if err != nil {
 		return err

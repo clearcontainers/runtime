@@ -15,7 +15,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -34,13 +33,13 @@ const (
 	cgroupsMountType = "cgroup"
 )
 
-var (
-	errNeedLinuxResource = errors.New("Linux resource cannot be empty")
-)
-
 var cgroupsMemDirPath = "/sys/fs/cgroup"
 
 func containerExists(containerID string) (bool, error) {
+	if containerID == "" {
+		return false, errNeedContainerID
+	}
+
 	podStatusList, err := vc.ListPod()
 	if err != nil {
 		return false, err
@@ -58,7 +57,12 @@ func containerExists(containerID string) (bool, error) {
 func validCreateParams(containerID, bundlePath string) error {
 	// container ID MUST be provided.
 	if containerID == "" {
-		return fmt.Errorf("Missing container ID")
+		return errNeedContainerID
+	}
+
+	// bundle path MUST be provided.
+	if bundlePath == "" {
+		return errNeedBundlePath
 	}
 
 	// container ID MUST be unique.
@@ -68,11 +72,6 @@ func validCreateParams(containerID, bundlePath string) error {
 	}
 	if exist == true {
 		return fmt.Errorf("ID already in use, unique ID should be provided")
-	}
-
-	// bundle path MUST be provided.
-	if bundlePath == "" {
-		return fmt.Errorf("Missing bundle path")
 	}
 
 	// bundle path MUST be valid.
@@ -90,7 +89,7 @@ func validCreateParams(containerID, bundlePath string) error {
 func validContainer(containerID string) error {
 	// container ID MUST be provided.
 	if containerID == "" {
-		return fmt.Errorf("Missing container ID")
+		return errNeedContainerID
 	}
 
 	// container ID MUST exist.
