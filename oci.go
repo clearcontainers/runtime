@@ -15,7 +15,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -32,10 +31,6 @@ const (
 	cgroupsDirMode   = os.FileMode(0750)
 	cgroupsFileMode  = os.FileMode(0640)
 	cgroupsMountType = "cgroup"
-)
-
-var (
-	errNeedLinuxResource = errors.New("Linux resource cannot be empty")
 )
 
 var cgroupsMemDirPath = "/sys/fs/cgroup"
