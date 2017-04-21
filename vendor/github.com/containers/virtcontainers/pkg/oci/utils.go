@@ -161,19 +161,19 @@ func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodC
 	ociLog.Debugf("container rootfs: %s", rootfs)
 
 	cmd := vc.Cmd{
-		Args:    ocispec.Process.Args,
-		Envs:    cmdEnvs(ocispec, []vc.EnvVar{}),
-		WorkDir: ocispec.Process.Cwd,
-		User:    strconv.FormatUint(uint64(ocispec.Process.User.UID), 10),
-		Group:   strconv.FormatUint(uint64(ocispec.Process.User.GID), 10),
+		Args:        ocispec.Process.Args,
+		Envs:        cmdEnvs(ocispec, []vc.EnvVar{}),
+		WorkDir:     ocispec.Process.Cwd,
+		User:        strconv.FormatUint(uint64(ocispec.Process.User.UID), 10),
+		Group:       strconv.FormatUint(uint64(ocispec.Process.User.GID), 10),
+		Interactive: ocispec.Process.Terminal,
+		Console:     console,
 	}
 
 	containerConfig := vc.ContainerConfig{
-		ID:          cid,
-		RootFs:      rootfs,
-		Interactive: ocispec.Process.Terminal,
-		Console:     console,
-		Cmd:         cmd,
+		ID:     cid,
+		RootFs: rootfs,
+		Cmd:    cmd,
 	}
 
 	networkConfig, err := networkConfig(ocispec)

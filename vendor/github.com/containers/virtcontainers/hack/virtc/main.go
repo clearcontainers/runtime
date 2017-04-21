@@ -17,6 +17,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -35,6 +36,11 @@ var virtcLog = logrus.New()
 
 var listFormat = "%s\t%s\t%s\t%s\n"
 var statusFormat = "%s\t%s\n"
+
+var (
+	errNeedContainerID = errors.New("Container ID cannot be empty")
+	errNeedPodID       = errors.New("Pod ID cannot be empty")
+)
 
 var podConfigFlags = []cli.Flag{
 	cli.GenericFlag{
@@ -333,7 +339,7 @@ func checkRequiredPodArgs(context *cli.Context) error {
 
 	id := context.String("id")
 	if id == "" {
-		return vc.ErrNeedPodID
+		return errNeedPodID
 	}
 
 	return nil
@@ -352,7 +358,7 @@ func checkRequiredContainerArgs(context *cli.Context) error {
 
 	podID := context.String("pod-id")
 	if podID == "" {
-		return vc.ErrNeedPodID
+		return errNeedPodID
 	}
 
 	rootfs := context.String("rootfs")
@@ -362,7 +368,7 @@ func checkRequiredContainerArgs(context *cli.Context) error {
 
 	id := context.String("id")
 	if id == "" {
-		return vc.ErrNeedContainerID
+		return errNeedContainerID
 	}
 
 	return nil
@@ -578,6 +584,11 @@ var statusPodCommand = cli.Command{
 func createContainer(context *cli.Context) error {
 	console := context.String("console")
 
+	interactive := false
+	if console != "" {
+		interactive = true
+	}
+
 	envs := []vc.EnvVar{
 		{
 			Var:   "PATH",
@@ -586,14 +597,11 @@ func createContainer(context *cli.Context) error {
 	}
 
 	cmd := vc.Cmd{
-		Args:    strings.Split(context.String("cmd"), " "),
-		Envs:    envs,
-		WorkDir: "/",
-	}
-
-	interactive := false
-	if console != "" {
-		interactive = true
+		Args:        strings.Split(context.String("cmd"), " "),
+		Envs:        envs,
+		WorkDir:     "/",
+		Interactive: interactive,
+		Console:     console,
 	}
 
 	id := context.String("id")
@@ -603,11 +611,9 @@ func createContainer(context *cli.Context) error {
 	}
 
 	containerConfig := vc.ContainerConfig{
-		ID:          id,
-		RootFs:      context.String("rootfs"),
-		Interactive: interactive,
-		Console:     console,
-		Cmd:         cmd,
+		ID:     id,
+		RootFs: context.String("rootfs"),
+		Cmd:    cmd,
 	}
 
 	_, c, err := vc.CreateContainer(context.String("pod-id"), containerConfig)
@@ -654,6 +660,13 @@ func stopContainer(context *cli.Context) error {
 }
 
 func enterContainer(context *cli.Context) error {
+	console := context.String("console")
+
+	interactive := false
+	if console != "" {
+		interactive = true
+	}
+
 	envs := []vc.EnvVar{
 		{
 			Var:   "PATH",
@@ -662,9 +675,11 @@ func enterContainer(context *cli.Context) error {
 	}
 
 	cmd := vc.Cmd{
-		Args:    strings.Split(context.String("cmd"), " "),
-		Envs:    envs,
-		WorkDir: "/",
+		Args:        strings.Split(context.String("cmd"), " "),
+		Envs:        envs,
+		WorkDir:     "/",
+		Interactive: interactive,
+		Console:     console,
 	}
 
 	_, c, _, err := vc.EnterContainer(context.String("pod-id"), context.String("id"), cmd)
@@ -805,6 +820,11 @@ var enterContainerCommand = cli.Command{
 			Name:  "cmd",
 			Value: "echo",
 			Usage: "the command executed inside the container",
+		},
+		cli.StringFlag{
+			Name:  "console",
+			Value: "",
+			Usage: "the process console",
 		},
 	},
 	Action: func(context *cli.Context) error {

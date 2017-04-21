@@ -72,17 +72,17 @@ func TestMinimalPodConfig(t *testing.T) {
 				Value: "xterm",
 			},
 		},
-		WorkDir: "/",
-		User:    "0",
-		Group:   "0",
+		WorkDir:     "/",
+		User:        "0",
+		Group:       "0",
+		Interactive: true,
+		Console:     consolePath,
 	}
 
 	expectedContainerConfig := vc.ContainerConfig{
-		ID:          containerID,
-		RootFs:      path.Join(tempBundlePath, "rootfs"),
-		Interactive: true,
-		Console:     consolePath,
-		Cmd:         expectedCmd,
+		ID:     containerID,
+		RootFs: path.Join(tempBundlePath, "rootfs"),
+		Cmd:    expectedCmd,
 	}
 
 	expectedNetworkConfig := vc.NetworkConfig{
