@@ -71,7 +71,7 @@ func validCreateParams(containerID, bundlePath string) error {
 
 	// bundle path MUST be provided.
 	if bundlePath == "" {
-		return fmt.Errorf("Missing bundle path")
+		return errNeedBundlePath
 	}
 
 	// bundle path MUST be valid.

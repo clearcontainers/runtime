@@ -20,6 +20,7 @@ import (
 
 // common error objects used for argument checking
 var (
+	errNeedBundlePath    = errors.New("Bundle path cannot be empty")
 	errNeedContainerID   = errors.New("Container ID cannot be empty")
 	errNeedLinuxResource = errors.New("Linux resource cannot be empty")
 	errNeedPidFilePath   = errors.New("PID file path cannot be empty")
