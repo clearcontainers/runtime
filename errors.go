@@ -21,4 +21,5 @@ import (
 // common error objects used for argument checking
 var (
 	errNeedLinuxResource = errors.New("Linux resource cannot be empty")
+	errNeedPidFilePath   = errors.New("PID file path cannot be empty")
 )
