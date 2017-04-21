@@ -49,7 +49,7 @@ EXAMPLE:
    If the container is configured to run the linux ps command the following
    will output a list of processes running in the container:
 
-       # runc exec <container-id> ps`,
+       # ` + name + ` <container-id> ps`,
 	Flags: []cli.Flag{
 		cli.StringFlag{
 			Name:  "console",
