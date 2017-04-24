@@ -73,6 +73,7 @@ type tomlConfig struct {
 	Proxy      map[string]proxy
 	Shim       map[string]shim
 	Agent      map[string]agent
+	Runtime    runtime
 }
 
 type hypervisor struct {
@@ -83,6 +84,10 @@ type hypervisor struct {
 
 type proxy struct {
 	URL string `toml:"url"`
+}
+
+type runtime struct {
+	GlobalLogPath string `toml:"global_log_path"`
 }
 
 type shim struct {
@@ -258,6 +263,13 @@ func loadConfiguration(configPath string) (oci.RuntimeConfig, error) {
 
 	var tomlConf tomlConfig
 	_, err = toml.Decode(string(configData), &tomlConf)
+	if err != nil {
+		return config, err
+	}
+
+	// The configuration file may have enabled global logging,
+	// so handle that before any log calls.
+	err = handleGlobalLog(tomlConf.Runtime.GlobalLogPath)
 	if err != nil {
 		return config, err
 	}

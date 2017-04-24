@@ -11,3 +11,7 @@ path = "/usr/libexec/cc-shim"
 
 [agent.hyperstart]
 pause_root_path = "/var/lib/clearcontainers/runtime/bundles/pause_bundle"
+
+## Uncomment to enable the global logging to the default path.
+#[runtime]
+#global_log_path = "/var/lib/clearcontainers/runtime/runtime.log"

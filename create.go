@@ -16,6 +16,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -59,20 +60,28 @@ var createCommand = cli.Command{
 		},
 	},
 	Action: func(context *cli.Context) error {
+		runtimeConfig, ok := context.App.Metadata["runtimeConfig"].(oci.RuntimeConfig)
+		if !ok {
+			return errors.New("invalid runtime config")
+		}
+
 		return create(context.Args().First(),
 			context.String("bundle"),
 			context.String("console"),
-			context.String("pid-file"))
+			context.String("pid-file"),
+			runtimeConfig,
+		)
 	},
 }
 
-func create(containerID, bundlePath, console, pidFilePath string) error {
+func create(containerID, bundlePath, console, pidFilePath string,
+	runtimeConfig oci.RuntimeConfig) error {
 	// Checks the MUST and MUST NOT from OCI runtime specification
 	if err := validCreateParams(containerID, bundlePath); err != nil {
 		return err
 	}
 
-	podConfig, ociSpec, err := getConfigs(bundlePath, containerID, console)
+	podConfig, ociSpec, err := getConfigs(bundlePath, containerID, console, runtimeConfig)
 	if err != nil {
 		return err
 	}
@@ -114,12 +123,7 @@ func create(containerID, bundlePath, console, pidFilePath string) error {
 	return nil
 }
 
-func getConfigs(bundlePath, containerID, console string) (vc.PodConfig, specs.Spec, error) {
-	runtimeConfig, err := loadConfiguration("")
-	if err != nil {
-		return vc.PodConfig{}, specs.Spec{}, err
-	}
-
+func getConfigs(bundlePath, containerID, console string, runtimeConfig oci.RuntimeConfig) (vc.PodConfig, specs.Spec, error) {
 	podConfig, ociSpec, err := oci.PodConfig(runtimeConfig, bundlePath, containerID, console)
 	if err != nil {
 		return vc.PodConfig{}, specs.Spec{}, err

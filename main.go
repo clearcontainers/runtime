@@ -117,7 +117,17 @@ func main() {
 		// Set virtcontainers logger.
 		vc.SetLog(ccLog)
 
+		runtimeConfig, err := loadConfiguration("")
+		if err != nil {
+			return err
+		}
+
 		ccLog.Infof("%v (version %v, commit %v) called as: %v", name, version, commit, context.Args())
+
+		// make the data accessible to the sub-commands.
+		context.App.Metadata = map[string]interface{}{
+			"runtimeConfig": runtimeConfig,
+		}
 
 		return nil
 	}
