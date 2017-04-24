@@ -1,3 +1,17 @@
+0.7.0:
+	Added Clear Containers 3.0 shim support
+	Added Clear Containers 3.0 proxy protocol support
+	Added self contained hyperstart package
+	Added full build scripts
+	Added hypervisor and pod debug options
+	Added command line and function arguments validity checks
+	Added logrus support, replacing glog
+	Added OCI runtime vendoring
+	Added structured and separated error definitions
+	Fixed networking support and unit testing
+	Fixed code layering by keeping generic code out of interface implementations
+	Fixed benchmarks
+
 0.6.0:
 	Added pullapprove support
 	Added Slack integration

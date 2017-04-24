@@ -611,8 +611,8 @@ func (p *Pod) startVM() error {
 	return nil
 }
 
-// startShims starts registers all containers to the proxy and starts
-// one shim per container.
+// startShims registers all containers to the proxy and starts one
+// shim per container.
 func (p *Pod) startShims() error {
 	proxyInfos, url, err := p.proxy.register(*p)
 	if err != nil {

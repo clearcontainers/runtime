@@ -118,6 +118,7 @@ var kernelDefaultParams = []Param{
 	{"systemd.mask", "systemd-networkd.service"},
 	{"systemd.mask", "systemd-networkd.socket"},
 	{"cryptomgr.notests", ""},
+	{"net.ifnames", "0"},
 }
 
 // kernelDefaultParamsNonDebug is a list of the default kernel

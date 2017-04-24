@@ -113,7 +113,8 @@ func (s *sshd) exec(pod *Pod, c Container, process Process, cmd Cmd) error {
 
 	session, err := s.client.NewSession()
 	if err != nil {
-		return fmt.Errorf("Failed to create session")
+		return fmt.Errorf("Failed to create session (Pod ID %s, Container ID %s)",
+			pod.id, c.id)
 	}
 	defer session.Close()
 

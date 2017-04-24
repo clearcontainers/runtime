@@ -125,7 +125,7 @@ func (c *Container) startShim() error {
 	}
 
 	if c.pod.state.URL != url {
-		return fmt.Errorf("Pod URL %s and URL from proxy %s MUST be similar", c.pod.state.URL, url)
+		return fmt.Errorf("Pod URL %s and URL from proxy %s MUST be identical", c.pod.state.URL, url)
 	}
 
 	shimParams := ShimParams{
@@ -456,7 +456,7 @@ func (c *Container) enter(cmd Cmd) (*Process, error) {
 	defer c.pod.proxy.disconnect()
 
 	if c.pod.state.URL != url {
-		return nil, fmt.Errorf("Pod URL %s and URL from proxy %s MUST be similar", c.pod.state.URL, url)
+		return nil, fmt.Errorf("Pod URL %s and URL from proxy %s MUST be identical", c.pod.state.URL, url)
 	}
 
 	shimParams := ShimParams{
