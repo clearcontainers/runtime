@@ -304,7 +304,7 @@ func TestRestartFailure(t *testing.T) {
 	}
 }
 
-func doDelete(fail bool, payload string) error {
+func doDelete(fail bool) error {
 	agentCh := agent.AddCmdChan(ssntp.DELETE)
 
 	var controllerErrorCh chan testutil.Result
@@ -322,7 +322,7 @@ func doDelete(fail bool, payload string) error {
 		}()
 	}
 
-	go controller.Ssntp.SendCommand(ssntp.DELETE, []byte(payload))
+	go controller.Ssntp.SendCommand(ssntp.DELETE, []byte(testutil.DeleteYaml))
 
 	_, err := agent.GetCmdChanResult(agentCh, ssntp.DELETE)
 	if fail == false && err != nil { // agent unexpected fail
@@ -359,27 +359,10 @@ func propagateInstanceDeleted() error {
 	return nil
 }
 
-func propagateInstanceStopped() error {
-	agentCh := agent.AddEventChan(ssntp.InstanceStopped)
-	controllerCh := controller.AddEventChan(ssntp.InstanceStopped)
-
-	go agent.SendStoppedEvent(testutil.InstanceUUID)
-
-	_, err := agent.GetEventChanResult(agentCh, ssntp.InstanceStopped)
-	if err != nil {
-		return err
-	}
-	_, err = controller.GetEventChanResult(controllerCh, ssntp.InstanceStopped)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func TestDelete(t *testing.T) {
 	fail := false
 
-	err := doDelete(fail, testutil.DeleteYaml)
+	err := doDelete(fail)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -390,24 +373,10 @@ func TestDelete(t *testing.T) {
 	}
 }
 
-func TestDeleteMigration(t *testing.T) {
-	fail := false
-
-	err := doDelete(fail, testutil.MigrateYaml)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = propagateInstanceStopped()
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
 func TestDeleteFailure(t *testing.T) {
 	fail := true
 
-	err := doDelete(fail, testutil.DeleteYaml)
+	err := doDelete(fail)
 	if err != nil {
 		t.Fatal(err)
 	}

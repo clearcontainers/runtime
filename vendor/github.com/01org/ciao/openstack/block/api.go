@@ -375,7 +375,7 @@ type APIHandler struct {
 func (h APIHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	resp, err := h.Handler(h.Context, w, r)
 	if err != nil {
-		http.Error(w, err.Error(), resp.status)
+		http.Error(w, http.StatusText(resp.status), resp.status)
 	}
 
 	b, err := json.Marshal(resp.response)

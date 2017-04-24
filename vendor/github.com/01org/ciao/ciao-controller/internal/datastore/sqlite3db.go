@@ -109,6 +109,24 @@ func (d subnetData) Init() error {
 	return d.ds.exec(d.db, cmd)
 }
 
+// Handling of Limit specific Data
+type limitsData struct {
+	namedData
+}
+
+func (d limitsData) Init() error {
+	cmd := `CREATE TABLE IF NOT EXISTS limits
+		(
+		resource_id integer,
+		tenant_id varchar(32),
+		max_value integer,
+		foreign key(resource_id) references resources(id),
+		foreign key(tenant_id) references tenants(id)
+		);`
+
+	return d.ds.exec(d.db, cmd)
+}
+
 // Handling of Instance specific data
 type instanceData struct {
 	namedData
@@ -121,8 +139,6 @@ func (d instanceData) Init() error {
 		tenant_id string,
 		workload_id string,
 		mac_address string,
-		vnic_uuid string,
-		subnet string,
 		ip string,
 		create_time DATETIME,
 		foreign key(tenant_id) references tenants(id),
@@ -254,6 +270,26 @@ func (d tenantData) Init() error {
 	return d.ds.exec(d.db, cmd)
 }
 
+// usage data
+type usageData struct {
+	namedData
+}
+
+func (d usageData) Init() error {
+	cmd := `CREATE TABLE IF NOT EXISTS usage
+		(
+		instance_id string,
+		resource_id int,
+		value int,
+		foreign key(instance_id) references instances(id),
+		foreign key(resource_id) references resources(id)
+		);
+		CREATE UNIQUE INDEX IF NOT EXISTS myindex
+		ON usage(instance_id, resource_id);`
+
+	return d.ds.exec(d.db, cmd)
+}
+
 // workload resources
 type workloadResourceData struct {
 	namedData
@@ -263,14 +299,15 @@ func (d workloadResourceData) Init() error {
 	cmd := `CREATE TABLE IF NOT EXISTS workload_resources
 		(
 		workload_id varchar(32),
-		resource_type string,
+		resource_id int,
 		default_value int,
 		estimated_value int,
 		mandatory int,
-		foreign key(workload_id) references workload_template(id)
+		foreign key(workload_id) references workload_template(id),
+		foreign key(resource_id) references resources(id)
 		);
 		CREATE UNIQUE INDEX IF NOT EXISTS wlr_index
-		ON workload_resources(workload_id, resource_type);`
+		ON workload_resources(workload_id, resource_id);`
 
 	return d.ds.exec(d.db, cmd)
 }
@@ -545,9 +582,11 @@ func (ds *sqliteDB) init(config Config) error {
 	ds.tables = []persistentData{
 		resourceData{namedData{ds: ds, name: "resources", db: ds.db}},
 		tenantData{namedData{ds: ds, name: "tenants", db: ds.db}},
+		limitsData{namedData{ds: ds, name: "limits", db: ds.db}},
 		instanceData{namedData{ds: ds, name: "instances", db: ds.db}},
 		workloadTemplateData{namedData{ds: ds, name: "workload_template", db: ds.db}},
 		workloadResourceData{namedData{ds: ds, name: "workload_resources", db: ds.db}},
+		usageData{namedData{ds: ds, name: "usage", db: ds.db}},
 		nodeStatisticsData{namedData{ds: ds, name: "node_statistics", db: ds.tdb}},
 		logData{namedData{ds: ds, name: "log", db: ds.tdb}},
 		subnetData{namedData{ds: ds, name: "tenant_network", db: ds.db}},
@@ -722,8 +761,10 @@ func (ds *sqliteDB) getConfig(ID string) (string, error) {
 }
 
 func (ds *sqliteDB) getWorkloadDefaults(ID string) ([]payloads.RequestedResource, error) {
-	query := `SELECT resource_type, default_value, mandatory FROM workload_resources
-	     WHERE workload_id = ? ORDER BY resource_type `
+	query := `SELECT resources.name, default_value, mandatory FROM workload_resources
+		  JOIN resources
+		  ON workload_resources.resource_id=resources.id
+		  WHERE workload_id = ?`
 
 	db := ds.getTableDB("workload_resources")
 
@@ -756,17 +797,35 @@ func (ds *sqliteDB) getWorkloadDefaults(ID string) ([]payloads.RequestedResource
 }
 
 // lock must be held by caller
-func (ds *sqliteDB) createWorkloadDefault(tx *sql.Tx, workloadID string, resource payloads.RequestedResource) error {
+func (ds *sqliteDB) getResources(tx *sql.Tx) (map[string]int, error) {
+	m := make(map[string]int)
 
-	_, err := tx.Exec("INSERT INTO workload_resources (workload_id, resource_type, default_value, estimated_value, mandatory) VALUES (?, ?, ?, ?, ?)", workloadID, string(resource.Type), resource.Value, resource.Value, resource.Mandatory)
+	query := `SELECT id, name from resources`
 
-	return err
+	rows, err := tx.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var id int
+		var name string
+		err := rows.Scan(&id, &name)
+		if err != nil {
+			return nil, err
+		}
+
+		m[name] = id
+	}
+
+	return m, nil
 }
 
 // lock must be held by caller
-func (ds *sqliteDB) deleteWorkloadDefault(tx *sql.Tx, workloadID string) error {
+func (ds *sqliteDB) createWorkloadDefault(tx *sql.Tx, workloadID string, resourceID int, resource payloads.RequestedResource) error {
 
-	_, err := tx.Exec("DELETE FROM workload_resources WHERE workload_id = ?", workloadID)
+	_, err := tx.Exec("INSERT INTO workload_resources (workload_id, resource_id, default_value, estimated_value, mandatory) VALUES (?, ?, ?, ?, ?)", workloadID, resourceID, resource.Value, resource.Value, resource.Mandatory)
 
 	return err
 }
@@ -774,14 +833,6 @@ func (ds *sqliteDB) deleteWorkloadDefault(tx *sql.Tx, workloadID string) error {
 // lock must be held by caller
 func (ds *sqliteDB) createWorkloadStorage(tx *sql.Tx, workloadID string, storage *types.StorageResource) error {
 	_, err := tx.Exec("INSERT INTO workload_storage (workload_id, volume_id, bootable, ephemeral, size, source_type, source_id, tag) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", workloadID, storage.ID, storage.Bootable, storage.Ephemeral, storage.Size, string(storage.SourceType), storage.SourceID, storage.Tag)
-
-	return err
-}
-
-// lock must be held by caller
-func (ds *sqliteDB) deleteWorkloadStorage(tx *sql.Tx, workloadID string) error {
-
-	_, err := tx.Exec("DELETE FROM workload_storage WHERE workload_id = ?", workloadID)
 
 	return err
 }
@@ -812,6 +863,86 @@ func (ds *sqliteDB) getWorkloadStorage(ID string) ([]types.StorageResource, erro
 		res = append(res, r)
 	}
 	return res, nil
+}
+
+func (ds *sqliteDB) addLimit(tenantID string, resourceID int, limit int) error {
+	ds.dbLock.Lock()
+	err := ds.create("limits", resourceID, tenantID, limit)
+	ds.dbLock.Unlock()
+
+	return err
+}
+
+func (ds *sqliteDB) getTenantResources(ID string) ([]*types.Resource, error) {
+	query := `WITH instances_usage AS
+		 (
+			 SELECT resource_id, value
+			 FROM usage
+			 LEFT JOIN instances
+			 ON usage.instance_id = instances.id
+			 WHERE instances.tenant_id = ?
+		 )
+		 SELECT resources.name, resources.id, limits.max_value,
+		 CASE resources.id
+		 WHEN resources.id = 1 then
+		 (
+			 SELECT COUNT(instances.id)
+			 FROM instances
+			 WHERE instances.tenant_id = ?
+		 )
+		 ELSE SUM(instances_usage.value)
+		 END
+		 FROM resources
+		 LEFT JOIN instances_usage
+		 ON instances_usage.resource_id = resources.id
+		 LEFT JOIN limits
+		 ON resources.id=limits.resource_id
+		 AND limits.tenant_id = ?
+		 GROUP BY resources.id`
+
+	datastore := ds.db
+
+	rows, err := datastore.Query(query, ID, ID, ID)
+	if err != nil {
+		glog.Warning("Failed to get tenant usage")
+		return nil, err
+	}
+	defer rows.Close()
+
+	var resources []*types.Resource
+
+	for rows.Next() {
+		var id int
+		var name string
+		var sqlMaxVal sql.NullInt64
+		var sqlCurVal sql.NullInt64
+		var maxVal = -1
+		var curVal = 0
+
+		err = rows.Scan(&name, &id, &sqlMaxVal, &sqlCurVal)
+		if err != nil {
+			return nil, err
+		}
+
+		if sqlMaxVal.Valid {
+			maxVal = int(sqlMaxVal.Int64)
+		}
+
+		if sqlCurVal.Valid {
+			curVal = int(sqlCurVal.Int64)
+		}
+
+		r := types.Resource{
+			Rname: name,
+			Rtype: id,
+			Limit: maxVal,
+			Usage: curVal,
+		}
+
+		resources = append(resources, &r)
+	}
+
+	return resources, nil
 }
 
 func (ds *sqliteDB) addTenant(ID string, MAC string) error {
@@ -852,6 +983,11 @@ func (ds *sqliteDB) getTenant(ID string) (*tenant, error) {
 	// for these items below, its ok to get err returned
 	// because a tenant could simply not have used any
 	// resources or networks yet.
+	t.Resources, err = ds.getTenantResources(ID)
+	if err != nil {
+		glog.V(2).Info(err)
+	}
+
 	err = ds.getTenantNetwork(t)
 	if err != nil {
 		glog.V(2).Info(err)
@@ -950,12 +1086,18 @@ func (ds *sqliteDB) updateWorkload(w types.Workload) error {
 		return err
 	}
 
+	resources, err := ds.getResources(tx)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
 	// if this is a new workload, put it in, otherwise just update.
 	_, ok := m[w.ID]
 	if !ok {
 		// add in workload resources
 		for _, d := range w.Defaults {
-			err := ds.createWorkloadDefault(tx, w.ID, d)
+			err := ds.createWorkloadDefault(tx, w.ID, resources[string(d.Type)], d)
 			if err != nil {
 				tx.Rollback()
 				return err
@@ -991,47 +1133,6 @@ func (ds *sqliteDB) updateWorkload(w types.Workload) error {
 		// update not supported yet.
 		tx.Rollback()
 		return errors.New("Workload Update not supported yet")
-	}
-
-	tx.Commit()
-	return nil
-}
-
-func (ds *sqliteDB) deleteWorkload(ID string) error {
-	db := ds.getTableDB("workload_template")
-
-	ds.dbLock.Lock()
-	defer ds.dbLock.Unlock()
-
-	tx, err := db.Begin()
-	if err != nil {
-		return err
-	}
-
-	err = ds.deleteWorkloadDefault(tx, ID)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	err = ds.deleteWorkloadStorage(tx, ID)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	_, err = tx.Exec("DELETE FROM workload_template WHERE id = ?", ID)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	filename := fmt.Sprintf("%s_config.yaml", ID)
-	path := filepath.Join(ds.workloadsPath, filename)
-	err = os.Remove(path)
-	if err != nil {
-		tx.Rollback()
-		return err
 	}
 
 	tx.Commit()
@@ -1112,6 +1213,11 @@ func (ds *sqliteDB) getTenants() ([]*tenant, error) {
 
 		if cnciIP.Valid {
 			t.CNCIIP = cnciIP.String
+		}
+
+		t.Resources, err = ds.getTenantResources(t.ID)
+		if err != nil {
+			return nil, err
 		}
 
 		err = ds.getTenantNetwork(t)
@@ -1281,8 +1387,6 @@ func (ds *sqliteDB) getInstances() ([]*types.Instance, error) {
 		latest.ssh_port as ssh_port,
 		IFNULL(latest.node_id, "Not Assigned") as node_id,
 		mac_address,
-		vnic_uuid,
-		subnet,
 		ip
 	FROM instances
 	LEFT JOIN latest
@@ -1302,7 +1406,7 @@ func (ds *sqliteDB) getInstances() ([]*types.Instance, error) {
 
 		var sshPort sql.NullInt64
 
-		err = rows.Scan(&i.ID, &i.TenantID, &i.State, &i.WorkloadID, &i.SSHIP, &sshPort, &i.NodeID, &i.MACAddress, &i.VnicUUID, &i.Subnet, &i.IPAddress)
+		err = rows.Scan(&i.ID, &i.TenantID, &i.State, &i.WorkloadID, &i.SSHIP, &sshPort, &i.NodeID, &i.MACAddress, &i.IPAddress)
 		if err != nil {
 			tx.Rollback()
 			ds.tdbLock.RUnlock()
@@ -1312,6 +1416,22 @@ func (ds *sqliteDB) getInstances() ([]*types.Instance, error) {
 		if sshPort.Valid {
 			i.SSHPort = int(sshPort.Int64)
 		}
+
+		defaults, err := ds.getWorkloadDefaults(i.WorkloadID)
+		if err != nil {
+			tx.Rollback()
+			ds.tdbLock.RUnlock()
+			return nil, err
+		}
+
+		// convert RequestedResources into a map[string]int
+		// TBD: shouldn't we just change getWorkloadDefaults
+		// to return a map?
+		usage := make(map[string]int)
+		for c := range defaults {
+			usage[string(defaults[c].Type)] = defaults[c].Value
+		}
+		i.Usage = usage
 
 		instances = append(instances, &i)
 	}
@@ -1360,8 +1480,6 @@ func (ds *sqliteDB) getTenantInstances(tenantID string) (map[string]*types.Insta
 		workload_id,
 		latest.node_id,
 		mac_address,
-		vnic_uuid,
-		subnet,
 		ip
 	FROM instances
 	LEFT JOIN latest
@@ -1385,7 +1503,7 @@ func (ds *sqliteDB) getTenantInstances(tenantID string) (map[string]*types.Insta
 
 		i := &types.Instance{}
 
-		err = rows.Scan(&i.ID, &i.TenantID, &i.State, &sshIP, &sshPort, &i.WorkloadID, &nodeID, &i.MACAddress, &i.VnicUUID, &i.Subnet, &i.IPAddress)
+		err = rows.Scan(&i.ID, &i.TenantID, &i.State, &sshIP, &sshPort, &i.WorkloadID, &nodeID, &i.MACAddress, &i.IPAddress)
 		if err != nil {
 			tx.Rollback()
 			ds.tdbLock.RUnlock()
@@ -1403,6 +1521,20 @@ func (ds *sqliteDB) getTenantInstances(tenantID string) (map[string]*types.Insta
 		if sshPort.Valid {
 			i.SSHPort = int(sshPort.Int64)
 		}
+
+		defaults, err := ds.getWorkloadDefaults(i.WorkloadID)
+		if err != nil {
+			return nil, err
+		}
+
+		// convert RequestedResources into a map[string]int
+		// TBD: shouldn't we just change getWorkloadDefaults
+		// to return a map?
+		usage := make(map[string]int)
+		for c := range defaults {
+			usage[string(defaults[c].Type)] = defaults[c].Value
+		}
+		i.Usage = usage
 
 		instances[i.ID] = i
 	}
@@ -1423,10 +1555,15 @@ func (ds *sqliteDB) getTenantInstances(tenantID string) (map[string]*types.Insta
 func (ds *sqliteDB) addInstance(instance *types.Instance) error {
 	ds.dbLock.Lock()
 
-	err := ds.create("instances", instance.ID, instance.TenantID, instance.WorkloadID, instance.MACAddress, instance.VnicUUID, instance.Subnet, instance.IPAddress, instance.CreateTime.Format(time.RFC3339Nano))
+	err := ds.create("instances", instance.ID, instance.TenantID, instance.WorkloadID, instance.MACAddress, instance.IPAddress, instance.CreateTime.Format(time.RFC3339Nano))
 
 	ds.dbLock.Unlock()
-	return err
+
+	if err != nil {
+		return err
+	}
+
+	return ds.addUsage(instance.ID, instance.Usage)
 }
 
 func (ds *sqliteDB) deleteInstance(instanceID string) error {
@@ -1447,11 +1584,59 @@ func (ds *sqliteDB) deleteInstance(instanceID string) error {
 		return err
 	}
 
+	_, err = tx.Exec("DELETE FROM usage WHERE instance_id = ?", instanceID)
+	if err != nil {
+		tx.Rollback()
+		ds.dbLock.Unlock()
+		return err
+	}
+
 	tx.Commit()
 
 	ds.dbLock.Unlock()
 
 	return err
+}
+
+func (ds *sqliteDB) addUsage(instanceID string, usage map[string]int) error {
+	datastore := ds.getTableDB("usage")
+
+	ds.dbLock.Lock()
+
+	tx, err := datastore.Begin()
+	if err != nil {
+		ds.dbLock.Unlock()
+		return err
+	}
+
+	cmd := `INSERT INTO usage (instance_id, resource_id, value)
+		SELECT ?, resources.id, ?
+		FROM resources
+		WHERE name = ?`
+
+	stmt, err := tx.Prepare(cmd)
+	if err != nil {
+		tx.Rollback()
+		ds.tdbLock.Unlock()
+		return err
+	}
+
+	defer stmt.Close()
+
+	for key, val := range usage {
+		_, err := stmt.Exec(instanceID, val, key)
+
+		if err != nil {
+			glog.V(2).Info(err)
+			// but keep going
+		}
+	}
+
+	tx.Commit()
+
+	ds.dbLock.Unlock()
+
+	return nil
 }
 
 func (ds *sqliteDB) addNodeStat(stat payloads.Stat) error {

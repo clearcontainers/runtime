@@ -47,7 +47,7 @@ type NetConf struct {
 	MTU    int  `json:"mtu"`
 }
 
-func setupContainerVeth(netns, ifName string, mtu int, pr *current.Result) (*current.Interface, *current.Interface, error) {
+func setupContainerVeth(netns ns.NetNS, ifName string, mtu int, pr *current.Result) (*current.Interface, *current.Interface, error) {
 	// The IPAM result will be something like IP=192.168.3.5/24, GW=192.168.3.1.
 	// What we want is really a point-to-point link but veth does not support IFF_POINTOPONT.
 	// Next best thing would be to let it ARP but set interface to 192.168.3.5/32 and
@@ -62,15 +62,16 @@ func setupContainerVeth(netns, ifName string, mtu int, pr *current.Result) (*cur
 	hostInterface := &current.Interface{}
 	containerInterface := &current.Interface{}
 
-	err := ns.WithNetNSPath(netns, func(hostNS ns.NetNS) error {
-		hostVeth, contVeth, err := ip.SetupVeth(ifName, mtu, hostNS)
+	err := netns.Do(func(hostNS ns.NetNS) error {
+		hostVeth, contVeth0, err := ip.SetupVeth(ifName, mtu, hostNS)
 		if err != nil {
 			return err
 		}
-		hostInterface.Name = hostVeth.Attrs().Name
-		hostInterface.Mac = hostVeth.Attrs().HardwareAddr.String()
-		containerInterface.Name = contVeth.Attrs().Name
-		containerInterface.Mac = contVeth.Attrs().HardwareAddr.String()
+		hostInterface.Name = hostVeth.Name
+		hostInterface.Mac = hostVeth.HardwareAddr.String()
+		containerInterface.Name = contVeth0.Name
+		containerInterface.Mac = contVeth0.HardwareAddr.String()
+		containerInterface.Sandbox = netns.Path()
 
 		var firstV4Addr net.IP
 		for _, ipc := range pr.IPs {
@@ -86,7 +87,7 @@ func setupContainerVeth(netns, ifName string, mtu int, pr *current.Result) (*cur
 
 		if firstV4Addr != nil {
 			err = hostNS.Do(func(_ ns.NetNS) error {
-				hostVethName := hostVeth.Attrs().Name
+				hostVethName := hostVeth.Name
 				if err := ip.SetHWAddrByIP(hostVethName, firstV4Addr, nil /* TODO IPv6 */); err != nil {
 					return fmt.Errorf("failed to set hardware addr by IP: %v", err)
 				}
@@ -102,12 +103,12 @@ func setupContainerVeth(netns, ifName string, mtu int, pr *current.Result) (*cur
 			return err
 		}
 
-		if err := ip.SetHWAddrByIP(contVeth.Attrs().Name, firstV4Addr, nil /* TODO IPv6 */); err != nil {
+		if err := ip.SetHWAddrByIP(contVeth0.Name, firstV4Addr, nil /* TODO IPv6 */); err != nil {
 			return fmt.Errorf("failed to set hardware addr by IP: %v", err)
 		}
 
 		// Re-fetch container veth to update attributes
-		contVeth, err = netlink.LinkByName(ifName)
+		contVeth, err := netlink.LinkByName(ifName)
 		if err != nil {
 			return fmt.Errorf("failed to look up %q: %v", ifName, err)
 		}
@@ -222,7 +223,13 @@ func cmdAdd(args *skel.CmdArgs) error {
 		return errors.New("IPAM plugin returned missing IP config")
 	}
 
-	hostInterface, containerInterface, err := setupContainerVeth(args.Netns, args.IfName, conf.MTU, result)
+	netns, err := ns.GetNS(args.Netns)
+	if err != nil {
+		return fmt.Errorf("failed to open netns %q: %v", args.Netns, err)
+	}
+	defer netns.Close()
+
+	hostInterface, containerInterface, err := setupContainerVeth(netns, args.IfName, conf.MTU, result)
 	if err != nil {
 		return err
 	}
@@ -261,25 +268,30 @@ func cmdDel(args *skel.CmdArgs) error {
 		return nil
 	}
 
+	// There is a netns so try to clean up. Delete can be called multiple times
+	// so don't return an error if the device is already removed.
+	// If the device isn't there then don't try to clean up IP masq either.
 	var ipn *net.IPNet
 	err := ns.WithNetNSPath(args.Netns, func(_ ns.NetNS) error {
 		var err error
 		ipn, err = ip.DelLinkByNameAddr(args.IfName, netlink.FAMILY_V4)
+		if err != nil && err == ip.ErrLinkNotFound {
+			return nil
+		}
 		return err
 	})
+
 	if err != nil {
 		return err
 	}
 
-	if conf.IPMasq {
+	if ipn != nil && conf.IPMasq {
 		chain := utils.FormatChainName(conf.Name, args.ContainerID)
 		comment := utils.FormatComment(conf.Name, args.ContainerID)
-		if err = ip.TeardownIPMasq(ipn, chain, comment); err != nil {
-			return err
-		}
+		err = ip.TeardownIPMasq(ipn, chain, comment)
 	}
 
-	return nil
+	return err
 }
 
 func main() {

@@ -91,9 +91,8 @@ func (client *ssntpClientWrapper) StopInstance(instanceID string, nodeID string)
 	return client.realClient.StopInstance(instanceID, nodeID)
 }
 
-func (client *ssntpClientWrapper) RestartInstance(i *types.Instance, w *types.Workload,
-	t *types.Tenant) error {
-	return client.realClient.RestartInstance(i, w, t)
+func (client *ssntpClientWrapper) RestartInstance(instanceID string, nodeID string) error {
+	return client.realClient.RestartInstance(instanceID, nodeID)
 }
 
 func (client *ssntpClientWrapper) EvacuateNode(nodeID string) error {

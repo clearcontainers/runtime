@@ -82,6 +82,9 @@ func spinUpComputeNode(sched *ssntpSchedulerServer, ident int, RAM int) {
 func spinUpComputeNodeLarge(sched *ssntpSchedulerServer, ident int) {
 	spinUpComputeNode(sched, ident, 141312)
 }
+func spinUpComputeNodeSmall(sched *ssntpSchedulerServer, ident int) {
+	spinUpComputeNode(sched, ident, 16384)
+}
 func spinUpComputeNodeVerySmall(sched *ssntpSchedulerServer, ident int) {
 	spinUpComputeNode(sched, ident, 200)
 }
@@ -111,6 +114,9 @@ func spinUpNetworkNode(sched *ssntpSchedulerServer, ident int, RAM int, networks
 
 func spinUpNetworkNodeLarge(sched *ssntpSchedulerServer, ident int, networks []payloads.NetworkStat) {
 	spinUpNetworkNode(sched, ident, 141312, networks)
+}
+func spinUpNetworkNodeSmall(sched *ssntpSchedulerServer, ident int, networks []payloads.NetworkStat) {
+	spinUpNetworkNode(sched, ident, 16384, networks)
 }
 func spinUpNetworkNodeVerySmall(sched *ssntpSchedulerServer, ident int, networks []payloads.NetworkStat) {
 	spinUpNetworkNode(sched, ident, 200, networks)
@@ -180,28 +186,28 @@ func TestPickComputeNode(t *testing.T) {
 	}
 
 	// no compute nodes
-	node := PickComputeNode(sched, "", &resources, false)
+	node := PickComputeNode(sched, "", &resources)
 	if node != nil {
 		t.Error("found compute fit in empty node list")
 	}
 
 	// 1st compute node, with little memory
 	spinUpComputeNodeVerySmall(sched, 1)
-	node = PickComputeNode(sched, "", &resources, false)
+	node = PickComputeNode(sched, "", &resources)
 	if node != nil {
 		t.Error("found compute fit when none should exist")
 	}
 
 	// 2nd compute node, with little memory
 	spinUpComputeNodeVerySmall(sched, 2)
-	node = PickComputeNode(sched, "", &resources, false)
+	node = PickComputeNode(sched, "", &resources)
 	if node != nil {
 		t.Error("found compute fit when none should exist")
 	}
 
 	// 3rd compute node, with a lot of memory
 	spinUpComputeNodeLarge(sched, 3)
-	node = PickComputeNode(sched, "", &resources, false)
+	node = PickComputeNode(sched, "", &resources)
 	if node == nil {
 		t.Error("found no compute fit when one should exist")
 	}
@@ -210,14 +216,14 @@ func TestPickComputeNode(t *testing.T) {
 	for i := 4; i < 100; i++ {
 		spinUpComputeNode(sched, i, 256*i)
 	}
-	node = PickComputeNode(sched, "", &resources, false)
+	node = PickComputeNode(sched, "", &resources)
 	if node == nil {
 		t.Error("failed to fit in hundred compute node list")
 	}
 
 	// compute MRU set somewhere arbitrary
 	sched.cnMRUIndex = 42
-	node = PickComputeNode(sched, "", &resources, false)
+	node = PickComputeNode(sched, "", &resources)
 	if node == nil {
 		t.Error("failed to find compute fit after MRU")
 	}
@@ -244,7 +250,7 @@ func benchmarkPickComputeNode(b *testing.B, nodecount int) {
 	// setup complete
 
 	for i := 0; i < b.N; i++ {
-		PickComputeNode(sched, "", &resources, false)
+		PickComputeNode(sched, "", &resources)
 	}
 }
 
@@ -298,28 +304,28 @@ func TestPickNetworkNode(t *testing.T) {
 	}
 
 	// no network nodes
-	node := PickNetworkNode(sched, "", &resources, false)
+	node := PickNetworkNode(sched, "", &resources)
 	if node != nil {
 		t.Error("found network fit in empty node list")
 	}
 
 	// 1st network node, with little memory
 	spinUpNetworkNodeVerySmall(sched, 1, testutil.MultipleComputeNetworks)
-	node = PickNetworkNode(sched, "", &resources, false)
+	node = PickNetworkNode(sched, "", &resources)
 	if node != nil {
 		t.Error("found network fit when none should exist")
 	}
 
 	// 2nd network node, with even less resources
 	spinUpNetworkNodeVerySmall(sched, 2, testutil.PartialComputeNetworks)
-	node = PickNetworkNode(sched, "", &resources, false)
+	node = PickNetworkNode(sched, "", &resources)
 	if node != nil {
 		t.Error("found network fit when none should exist")
 	}
 
 	// 3rd network node, with a lot of memory, well connected
 	spinUpNetworkNodeLarge(sched, 3, testutil.MultipleComputeNetworks)
-	node = PickNetworkNode(sched, "", &resources, false)
+	node = PickNetworkNode(sched, "", &resources)
 	if node == nil {
 		t.Error("found no network fit when one should exist")
 	}
@@ -333,7 +339,7 @@ func TestPickNetworkNode(t *testing.T) {
 			spinUpNetworkNode(sched, i, 256*i, testutil.PartialComputeNetworks)
 		}
 	}
-	node = PickNetworkNode(sched, "", &resources, false)
+	node = PickNetworkNode(sched, "", &resources)
 	if node == nil {
 		t.Error("failed to fit in hundred network node list")
 	}
@@ -342,11 +348,11 @@ func TestPickNetworkNode(t *testing.T) {
 	// requested network connectivity after network MRU is set somewhere
 	// arbitrary
 	sched.nnMRUIndex = 42
-	node = PickNetworkNode(sched, "", &resources, false)
+	node = PickNetworkNode(sched, "", &resources)
 	if node == nil {
 		t.Error("failed to find network fit after MRU")
 	}
-	node = PickNetworkNode(sched, "", &resources, false)
+	node = PickNetworkNode(sched, "", &resources)
 	if node == nil {
 		t.Error("failed to find network fit when many should exist")
 	}
@@ -373,7 +379,7 @@ func benchmarkPickNetworkNode(b *testing.B, nodecount int) {
 	// setup complete
 
 	for i := 0; i < b.N; i++ {
-		PickNetworkNode(sched, "", &resources, false)
+		PickNetworkNode(sched, "", &resources)
 	}
 }
 

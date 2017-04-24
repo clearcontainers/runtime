@@ -23,7 +23,6 @@ import (
 	"testing"
 
 	"github.com/01org/ciao/ciao-controller/types"
-	"github.com/01org/ciao/payloads"
 )
 
 type test struct {
@@ -151,24 +150,6 @@ var tests = []test{
 		`{"workload":{"id":"ba58f471-0735-4773-9550-188e2d012941","description":"testWorkload","fw_type":"legacy","vm_type":"qemu","image_id":"73a86d7e-93c0-480e-9c41-ab42f69b7799","image_name":"","config":"this will totally work!","defaults":[],"storage":null},"link":{"rel":"self","href":"/workloads/ba58f471-0735-4773-9550-188e2d012941"}}`,
 	},
 	{
-		"DELETE",
-		"/workloads/validID",
-		deleteWorkload,
-		"",
-		"application/x.ciao.v1.workloads",
-		http.StatusNoContent,
-		"null",
-	},
-	{
-		"GET",
-		"/workloads/ba58f471-0735-4773-9550-188e2d012941",
-		showWorkload,
-		"",
-		"application/x.ciao.v1.workloads",
-		http.StatusOK,
-		`{"id":"ba58f471-0735-4773-9550-188e2d012941","description":"testWorkload","fw_type":"legacy","vm_type":"qemu","image_id":"73a86d7e-93c0-480e-9c41-ab42f69b7799","image_name":"","config":"this will totally work!","defaults":null,"storage":null}`,
-	},
-	{
 		"GET",
 		"/tenants/test-tenant-id/quotas/",
 		listQuotas,
@@ -287,22 +268,6 @@ func (ts testCiaoService) CreateWorkload(req types.Workload) (types.Workload, er
 	return req, nil
 }
 
-func (ts testCiaoService) DeleteWorkload(tenant string, workload string) error {
-	return nil
-}
-
-func (ts testCiaoService) ShowWorkload(tenant string, ID string) (types.Workload, error) {
-	return types.Workload{
-		ID:          "ba58f471-0735-4773-9550-188e2d012941",
-		TenantID:    tenant,
-		Description: "testWorkload",
-		FWType:      payloads.Legacy,
-		VMType:      payloads.QEMU,
-		ImageID:     "73a86d7e-93c0-480e-9c41-ab42f69b7799",
-		Config:      "this will totally work!",
-	}, nil
-}
-
 func (ts testCiaoService) ListQuotas(tenantID string) []types.QuotaDetails {
 	return []types.QuotaDetails{
 		{Name: "test-quota-1", Value: 10, Usage: 3},
@@ -329,7 +294,7 @@ func TestResponse(t *testing.T) {
 		req.Header.Set("Content-Type", tt.media)
 
 		rr := httptest.NewRecorder()
-		handler := Handler{context, tt.handler, false}
+		handler := Handler{context, tt.handler}
 
 		handler.ServeHTTP(rr, req)
 

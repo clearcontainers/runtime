@@ -40,6 +40,9 @@ users:
 const vmWorkloadImageName = "Fedora Cloud Base 24-1.2"
 
 func testCreateWorkload(t *testing.T, public bool) {
+	// until we support delete workload, we will explicitly skip this test.
+	t.Skip()
+
 	// we'll use empty string for now
 	tenant := ""
 
@@ -111,23 +114,6 @@ func testCreateWorkload(t *testing.T, public bool) {
 
 	if w.Name != opt.Description || w.CPUs != opt.Defaults.VCPUs || w.Mem != opt.Defaults.MemMB {
 		t.Fatalf("Workload not defined correctly")
-	}
-
-	// delete the workload.
-	if public {
-		err = bat.DeletePublicWorkload(ctx, w.ID)
-	} else {
-		err = bat.DeleteWorkload(ctx, tenant, w.ID)
-	}
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// now try to retrieve the workload from controller.
-	_, err = bat.GetWorkloadByID(ctx, "", ID)
-	if err == nil {
-		t.Fatalf("Workload not deleted correctly")
 	}
 }
 

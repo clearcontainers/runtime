@@ -17,98 +17,26 @@
   connection: local
   tasks:
     - name: Remove local files
-      file: path={{ item }} state=absent
+      local_action: file path={{ item }} state=absent
       with_items:
-        - ../openrc
-        - ../admin-ciaorc
-        - ../demo-ciaorc
-        - ../bat-ciaorc
-        - ../clouds.yaml
-        - ../certificates
-        - ../images/.cnci_ready
-        - ../fetch
+        - ./openrc
+        - ./admin-ciaorc
+        - ./demo-ciaorc
+        - ./clouds.yaml
+        - ./certificates
+        - ./images/.cnci_ready
+        - ./fetch
         - /tmp/go
-
-- hosts: computes:networks
-  become: yes
-  tasks:
-    - name: Stop services
-      systemd: name={{ item }} enabled=no state=stopped
-      with_items:
-        - ciao-network.service
-        - ciao-compute.service
-        - ciao-launcher.service
-        - docker.service
-        - docker-cor.service
-      ignore_errors: yes
-
-    - name: Run ciao-launcher -hard-reset
-      command: /usr/local/bin/ciao-launcher -hard-reset
-      ignore_errors: yes
-
-    - name: Remove CIAO Service files
-      file: name={{ item }} state=absent
-      with_items:
-        - /etc/systemd/system/ciao-network.service
-        - /etc/systemd/system/ciao-compute.service
-        - /etc/systemd/system/ciao-launcher.service
 
 - hosts: controllers
   become: yes
   tasks:
-    - block:
-        - name: List rbds
-          command: rbd ls
-          register: rbds
-          changed_when: false
-
-        - name: List snapshots
-          command: rbd snap ls {{ item }}
-          with_items: "{{ rbds.stdout_lines }}"
-          register: rbds_snaps
-          changed_when: false
-
-        - name: List childrens
-          command: rbd children {{ item.cmd[3] }}@ciao-image
-          with_items: "{{ rbds_snaps.results }}"
-          when: "{{ 'ciao-image' in item.stdout }}"
-          register: rbds_snaps_childs
-
-        - name: Remove childrens
-          command: "rbd rm {{ item[1] }}"
-          with_subelements:
-            - "{{ rbds_snaps_childs.results }}"
-            - stdout_lines
-
-        - name: Unprotect snapshots
-          command: rbd snap unprotect {{ item.cmd[3] }}@ciao-image
-          with_items: "{{ rbds_snaps.results }}"
-          when: "{{ 'ciao-image' in item.stdout }}"
-          register: unprotect
-          changed_when: "unprotect.rc == 0"
-
-        - name: Remove snapshots
-          command: rbd snap purge {{ item.cmd[3] }}
-          with_items: "{{ rbds_snaps.results }}"
-          when: "{{ 'ciao-image' in item.stdout }}"
-
-        - name: List remaining rbds
-          command: rbd ls
-          register: rbds
-          changed_when: false
-
-        - name: Remove rbds
-          command: rbd rm {{ item }}
-          with_items: "{{ rbds.stdout_lines }}"
-      ignore_errors: yes
-
     - name: Stop docker containers
       docker_container: name={{ item }} state=absent
       ignore_errors: yes
       with_items:
         - ciao-webui
         - ciao-keystone
-        - ceph-demo
 
     - name: Stop and disable services
       systemd: name={{ item }} state=stopped enabled=no
@@ -117,8 +45,6 @@
         - docker-ciao-webui.service
         - ciao-controller.service
         - ciao-scheduler.service
-        - docker.service
-        - docker-cor.service
       ignore_errors: yes
 
     - name: Remove Files
@@ -135,6 +61,23 @@
 - hosts: controllers:computes:networks
   become: yes
   tasks:
+    - name: Stop services
+      systemd: name={{ item }} enabled=no state=stopped
+      with_items:
+        - ciao-network.service
+        - ciao-compute.service
+        - ciao-launcher.service
+        - docker.service
+        - docker-cor.service
+      ignore_errors: yes
+
+    - name: Remove CIAO Service files
+      file: name={{ item }} state=absent
+      with_items:
+        - /etc/systemd/system/ciao-network.service
+        - /etc/systemd/system/ciao-compute.service
+        - /etc/systemd/system/ciao-launcher.service
+
     - name: Remove CIAO files
       file: path={{ item }} state=absent
       with_items:
@@ -142,10 +85,6 @@
         - /etc/pki/ciao
         - /etc/pki/keystone
         - /var/lib/ciao
-        - /tmp/lock/ciao
-        - /tmp/ciao-controller-stats.db
-        - /tmp/ciao-controller-stats.db-shm
-        - /tmp/ciao-controller-stats.db-wal
         # ClearLinux cers
         - /etc/ssl/certs/keystone_cert.pem
         # Ubuntu certs
@@ -183,8 +122,6 @@
             - qemu-system-x86
             - psmisc
             - docker-engine
-            - docker-ce
-            - docker
             - ciao-common
 
         - name: Uninstall dependencies (Fedora)
@@ -198,8 +135,6 @@
         - qemu-system-x86
         - psmisc
         - docker.io
-        - docker-engine
-        - docker-ce
         - ciao-common
       when: ansible_os_family == "Debian"
 

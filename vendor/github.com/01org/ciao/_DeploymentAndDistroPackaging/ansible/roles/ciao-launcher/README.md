@@ -16,10 +16,14 @@ The available variables for this roles are the variables from [ciao-common](../c
 file *ciao.yml*
 ```
 - hosts: computes
+  vars:
+    ciao_role: compute
   roles:
     - clearlinux.ciao-launcher
 
 - hosts: networks
+  vars:
+    ciao_role: network
   roles:
     - clearlinux.ciao-launcher
 ```

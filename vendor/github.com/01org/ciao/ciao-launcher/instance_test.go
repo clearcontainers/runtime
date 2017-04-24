@@ -36,19 +36,19 @@ import (
 var testInstancesDir string
 
 var standardCfg = vmConfig{
-	Cpus:        2,
-	Mem:         370,
-	Disk:        8000,
-	Instance:    "testInstance",
-	DockerImage: "testImage",
-	Legacy:      true,
-	VnicMAC:     "02:00:e6:f5:af:f9",
-	VnicIP:      "192.168.8.2",
-	ConcIP:      "192.168.42.21",
-	SubnetIP:    "192.168.8.0/21",
-	TenantUUID:  "67d86208-000-4465-9018-fe14087d415f",
-	ConcUUID:    "67d86208-b46c-4465-0000-fe14087d415f",
-	VnicUUID:    "67d86208-b46c-0000-9018-fe14087d415f",
+	Cpus:       2,
+	Mem:        370,
+	Disk:       8000,
+	Instance:   "testInstance",
+	Image:      "testImage",
+	Legacy:     true,
+	VnicMAC:    "02:00:e6:f5:af:f9",
+	VnicIP:     "192.168.8.2",
+	ConcIP:     "192.168.42.21",
+	SubnetIP:   "192.168.8.0/21",
+	TenantUUID: "67d86208-000-4465-9018-fe14087d415f",
+	ConcUUID:   "67d86208-b46c-4465-0000-fe14087d415f",
+	VnicUUID:   "67d86208-b46c-0000-9018-fe14087d415f",
 }
 
 // instanceTestState implements virtualizer and serverConn
@@ -56,31 +56,29 @@ type instanceTestState struct {
 	t               *testing.T
 	instance        string
 	statsArray      [3]int
+	sf              payloads.ErrorStopFailure
 	stf             payloads.ErrorStartFailure
 	df              payloads.ErrorDeleteFailure
+	rf              payloads.ErrorRestartFailure
 	avf             payloads.ErrorAttachVolumeFailure
 	dvf             payloads.ErrorDetachVolumeFailure
-	deMigration     bool
-	de              payloads.EventInstanceDeleted
-	se              payloads.EventInstanceStopped
 	connect         bool
 	monitorCh       chan interface{}
 	errorCh         chan struct{}
-	eventCh         chan struct{}
 	monitorClosedCh chan struct{}
 	failStartVM     bool
 	ac              *agentClient
-	cfg             *vmConfig
 }
 
 func (v *instanceTestState) init(cfg *vmConfig, instanceDir string) {
-	v.cfg = cfg
+
 }
 
-func (v *instanceTestState) ensureBackingImage() error {
-	if v.cfg.DockerImage == "" {
-		return fmt.Errorf("No image supplied")
-	}
+func (v *instanceTestState) checkBackingImage() error {
+	return nil
+}
+
+func (v *instanceTestState) downloadBackingImage() error {
 	return nil
 }
 
@@ -128,6 +126,11 @@ func (v *instanceTestState) lostVM() {
 
 func (v *instanceTestState) SendError(error ssntp.Error, payload []byte) (int, error) {
 	switch error {
+	case ssntp.StopFailure:
+		err := yaml.Unmarshal(payload, &v.sf)
+		if err != nil {
+			v.t.Fatalf("Failed to unmarshall stop error %v", err)
+		}
 	case ssntp.StartFailure:
 		err := yaml.Unmarshal(payload, &v.stf)
 		if err != nil {
@@ -137,6 +140,11 @@ func (v *instanceTestState) SendError(error ssntp.Error, payload []byte) (int, e
 		err := yaml.Unmarshal(payload, &v.df)
 		if err != nil {
 			v.t.Fatalf("Failed to unmarshall delete error %v", err)
+		}
+	case ssntp.RestartFailure:
+		err := yaml.Unmarshal(payload, &v.rf)
+		if err != nil {
+			v.t.Fatalf("Failed to unmarshall restart error %v", err)
 		}
 	case ssntp.AttachVolumeFailure:
 		err := yaml.Unmarshal(payload, &v.avf)
@@ -158,25 +166,6 @@ func (v *instanceTestState) SendError(error ssntp.Error, payload []byte) (int, e
 }
 
 func (v *instanceTestState) SendEvent(event ssntp.Event, payload []byte) (int, error) {
-	switch event {
-	case ssntp.InstanceDeleted:
-		v.deMigration = false
-		err := yaml.Unmarshal(payload, &v.de)
-		if err != nil {
-			v.t.Fatalf("Failed to unmarshall instanceDeleted event %v", err)
-		}
-	case ssntp.InstanceStopped:
-		v.deMigration = true
-		err := yaml.Unmarshal(payload, &v.se)
-		if err != nil {
-			v.t.Fatalf("Failed to unmarshall instanceStopped event %v", err)
-		}
-	}
-
-	if v.eventCh != nil {
-		close(v.eventCh)
-	}
-
 	return 0, nil
 }
 
@@ -210,6 +199,18 @@ func (v *instanceTestState) isConnected() bool {
 
 func (v *instanceTestState) setStatus(status bool) {
 
+}
+
+func (v *instanceTestState) cleanUpInstance() {
+	_ = os.RemoveAll(path.Join(testInstancesDir, v.instance))
+}
+
+func (v *instanceTestState) verifyStatsUpdate(t *testing.T, cmd interface{}) {
+	stats := cmd.(*ovsStatsUpdateCmd)
+	if stats.diskUsageMB != v.statsArray[0] || stats.memoryUsageMB != v.statsArray[1] ||
+		stats.CPUUsage != v.statsArray[2] || stats.instance != v.instance {
+		t.Fatal("Incorrect statistics received")
+	}
 }
 
 func (v *instanceTestState) getStatsUpdate(t *testing.T, ovsCh <-chan interface{}) *ovsStatsUpdateCmd {
@@ -273,28 +274,14 @@ func (v *instanceTestState) expectStatsUpdate(t *testing.T, ovsCh <-chan interfa
 
 func (v *instanceTestState) deleteInstance(t *testing.T, ovsCh chan interface{},
 	cmdCh chan<- interface{}) bool {
-	return v.deleteInstanceEx(t, ovsCh, cmdCh, &insDeleteCmd{})
-}
 
-func (v *instanceTestState) checkDeleteEvent(t *testing.T, cmd *insDeleteCmd) {
-	if cmd.stop != v.deMigration {
-		t.Errorf("Incorrect delete event recevied")
+	v.errorCh = make(chan struct{})
+	select {
+	case cmdCh <- &insDeleteCmd{}:
+	case <-time.After(time.Second):
+		t.Error("Timed out sending Stop command")
+		return false
 	}
-	var instance string
-	if cmd.stop {
-		instance = v.se.InstanceStopped.InstanceUUID
-	} else {
-		instance = v.de.InstanceDeleted.InstanceUUID
-	}
-	if instance != v.instance {
-		t.Errorf("Event recevied for wrong instance.  Expected %s got %s",
-			v.instance, instance)
-	}
-}
-
-func (v *instanceTestState) handleInstanceShutdown(t *testing.T, ovsCh chan interface{},
-	cmd *insDeleteCmd) bool {
-	statusReceived := false
 
 	for {
 		select {
@@ -305,20 +292,11 @@ func (v *instanceTestState) handleInstanceShutdown(t *testing.T, ovsCh chan inte
 		case ovsCmd := <-ovsCh:
 			switch ovsCmd.(type) {
 			case *ovsStatusCmd:
-				statusReceived = true
-				if v.eventCh == nil {
-					return true
-				}
+				return true
 			case *ovsStatsUpdateCmd:
 			default:
 				t.Error("Unexpected commands received on ovsCh")
 				return false
-			}
-		case <-v.eventCh:
-			v.eventCh = nil
-			v.checkDeleteEvent(t, cmd)
-			if statusReceived {
-				return true
 			}
 		case monCmd := <-v.monitorCh:
 			if _, stopCmd := monCmd.(virtualizerStopCmd); !stopCmd {
@@ -326,29 +304,11 @@ func (v *instanceTestState) handleInstanceShutdown(t *testing.T, ovsCh chan inte
 				return false
 			}
 			close(v.monitorClosedCh)
-			v.monitorCh = nil
 		case <-time.After(time.Second):
 			t.Error("Timed out waiting for ovsStatsUpdateCmd")
 			return false
 		}
 	}
-}
-
-func (v *instanceTestState) deleteInstanceEx(t *testing.T, ovsCh chan interface{},
-	cmdCh chan<- interface{}, cmd *insDeleteCmd) bool {
-
-	v.errorCh = make(chan struct{})
-	if !cmd.skipDeleteEvent {
-		v.eventCh = make(chan struct{})
-	}
-	select {
-	case cmdCh <- cmd:
-	case <-time.After(time.Second):
-		t.Error("Timed out sending Stop command")
-		return false
-	}
-
-	return v.handleInstanceShutdown(t, ovsCh, cmd)
 }
 
 func (v *instanceTestState) ClusterConfiguration() (payloads.Configure, error) {
@@ -433,6 +393,45 @@ DONE:
 	return v.expectStatsUpdate(t, ovsCh)
 }
 
+func (v *instanceTestState) restartInstance(t *testing.T, ovsCh chan interface{},
+	cmdCh chan<- interface{}, errorOk bool) bool {
+
+	v.errorCh = make(chan struct{})
+	select {
+	case cmdCh <- &insRestartCmd{}:
+	case <-time.After(time.Second):
+		t.Error("Timed out sending Restart command")
+		return false
+	}
+
+	for {
+		select {
+		case <-v.errorCh:
+			v.errorCh = nil
+			if !errorOk {
+				t.Error("Restart command Failed")
+			}
+			return false
+		case ovsCmd := <-ovsCh:
+			switch stChange := ovsCmd.(type) {
+			case *ovsStateChange:
+				if stChange.state != ovsRunning {
+					t.Errorf("ovsRunning expected.  Found state %d", stChange.state)
+					return false
+				}
+				return true
+			case *ovsStatsUpdateCmd:
+			default:
+				t.Error("Unexpected commands received on ovsCh")
+				return false
+			}
+		case <-time.After(time.Second):
+			t.Error("Timed out waiting for ovsStatsUpdateCmd")
+			return false
+		}
+	}
+}
+
 func shutdownInstanceLoop(doneCh chan struct{}, ovsCh chan interface{}, wg *sync.WaitGroup,
 	t *testing.T) {
 	close(doneCh)
@@ -511,6 +510,61 @@ func TestDeleteInstanceLoop(t *testing.T) {
 	if !ok {
 		shutdownInstanceLoop(doneCh, ovsCh, &wg, t)
 		t.FailNow()
+	}
+
+	if !state.deleteInstance(t, ovsCh, cmdCh) {
+		shutdownInstanceLoop(doneCh, ovsCh, &wg, t)
+		t.FailNow()
+	}
+	wg.Wait()
+}
+
+// Check we cannot stop an instance that is not running.
+//
+// We start the instance loop and then try to stop the instance straight away.
+// When this fails we delete the instance.
+//
+//  We should receive a SSNTP stopErr and the instance loop should close.
+func TestStopNotRunning(t *testing.T) {
+	var wg sync.WaitGroup
+	doneCh := make(chan struct{})
+	ovsCh := make(chan interface{})
+	state := &instanceTestState{
+		t:          t,
+		instance:   "testInstance",
+		statsArray: [3]int{10, 128, 10},
+		errorCh:    make(chan struct{}),
+	}
+	cfg := &vmConfig{}
+	cmdWrapCh := make(chan *cmdWrapper)
+	ac := &agentClient{conn: state, cmdCh: cmdWrapCh}
+	cmdCh := startInstanceWithVM(state.instance, cfg, &wg, doneCh, ac, ovsCh, state,
+		&storage.NoopDriver{}, testInstancesDir)
+
+	ok := state.expectStatsUpdate(t, ovsCh)
+	if !ok {
+		shutdownInstanceLoop(doneCh, ovsCh, &wg, t)
+		t.FailNow()
+	}
+
+	select {
+	case cmdCh <- &insStopCmd{}:
+	case <-time.After(time.Second):
+		shutdownInstanceLoop(doneCh, ovsCh, &wg, t)
+		t.Fatal("Timed out sending Stop command")
+	}
+
+	select {
+	case <-state.errorCh:
+		state.errorCh = nil
+	case <-time.After(time.Second):
+		shutdownInstanceLoop(doneCh, ovsCh, &wg, t)
+		t.Fatal("Timed out waiting for error channel")
+	}
+
+	if state.sf.InstanceUUID != state.instance ||
+		state.sf.Reason != payloads.StopAlreadyStopped {
+		t.Error("Invalid Stop error returned")
 	}
 
 	if !state.deleteInstance(t, ovsCh, cmdCh) {
@@ -608,6 +662,86 @@ func TestLoopShutdownWithRunningInstance(t *testing.T) {
 	_ = os.RemoveAll(path.Join(testInstancesDir, cfg.Instance))
 }
 
+// Check we can restart an instance
+//
+// We start the instance loop and then try to restart an instance.  Our test virtualizer
+// closes the connected channel to indicate that the instance is running.  We then
+// check to see whether we receive the state change notification at which point we
+// close the doneCh.
+//
+// The instance should start correctly.  We should receive an error when attempting
+// to restart the instance.  The instanceLoop should quit cleanly.
+func TestRestart(t *testing.T) {
+	var wg sync.WaitGroup
+	cfg := standardCfg
+	doneCh := make(chan struct{})
+	ovsCh := make(chan interface{})
+	state := &instanceTestState{
+		t:          t,
+		instance:   "testInstance",
+		statsArray: [3]int{10, 128, 10},
+		connect:    true,
+	}
+	cmdWrapCh := make(chan *cmdWrapper)
+	ac := &agentClient{conn: state, cmdCh: cmdWrapCh}
+	cmdCh := startInstanceWithVM(state.instance, &cfg, &wg, doneCh, ac, ovsCh, state,
+		&storage.NoopDriver{}, testInstancesDir)
+	ok := state.expectStatsUpdate(t, ovsCh)
+	if !ok {
+		shutdownInstanceLoop(doneCh, ovsCh, &wg, t)
+		t.FailNow()
+	}
+
+	if !state.restartInstance(t, ovsCh, cmdCh, false) {
+		shutdownInstanceLoop(doneCh, ovsCh, &wg, t)
+		t.FailNow()
+	}
+
+	shutdownInstanceLoop(doneCh, ovsCh, &wg, t)
+}
+
+// Check we can handle a restart error
+//
+// We start the instanceLoop and then try to restart an instance.  This attempt
+// will fail as we've configured startVm to return an error.  We then shutdown
+// the instance loop.
+//
+// The instanceLoop should start correctly, the restartCommand should fail with
+// the correct error and the instanceLoop should close down cleanly.
+func TestRestartFail(t *testing.T) {
+	var wg sync.WaitGroup
+	cfg := standardCfg
+	doneCh := make(chan struct{})
+	ovsCh := make(chan interface{})
+	state := &instanceTestState{
+		t:           t,
+		instance:    "testInstance",
+		statsArray:  [3]int{10, 128, 10},
+		connect:     true,
+		failStartVM: true,
+	}
+	cmdWrapCh := make(chan *cmdWrapper)
+	ac := &agentClient{conn: state, cmdCh: cmdWrapCh}
+	cmdCh := startInstanceWithVM(state.instance, &cfg, &wg, doneCh, ac, ovsCh, state,
+		&storage.NoopDriver{}, testInstancesDir)
+	ok := state.expectStatsUpdate(t, ovsCh)
+	if !ok {
+		shutdownInstanceLoop(doneCh, ovsCh, &wg, t)
+		t.FailNow()
+	}
+
+	if state.restartInstance(t, ovsCh, cmdCh, true) {
+		t.Error("Restart was expected to Fail")
+	}
+
+	if state.rf.Reason != payloads.RestartLaunchFailure {
+		t.Errorf("Invalid restart error found %s, expected %s",
+			state.rf.Reason, payloads.RestartLaunchFailure)
+	}
+
+	shutdownInstanceLoop(doneCh, ovsCh, &wg, t)
+}
+
 // Check we get an error when starting an instance with an invalid image
 //
 // We start the instance loop and then try to start an instance with an invalid
@@ -621,10 +755,10 @@ func TestLoopShutdownWithRunningInstance(t *testing.T) {
 func TestStartBadImage(t *testing.T) {
 	var wg sync.WaitGroup
 	cfg := standardCfg
-	cfg.DockerImage = ""
+	cfg.Image = ""
 
 	state, ovsCh, cmdCh, doneCh := startVMWithCFG(t, &wg, &cfg, true, true)
-	if state.stf.Reason != payloads.ImageFailure {
+	if state.stf.Reason != payloads.InvalidData {
 		t.Errorf("Incorrect error returned. Reported %s, expected %s",
 			string(state.stf.Reason), string(payloads.ImageFailure))
 	}
@@ -655,10 +789,10 @@ func TestStartBadImage(t *testing.T) {
 func sendCommandDuringSuicide(t *testing.T, testCmd interface{}) *instanceTestState {
 	var wg sync.WaitGroup
 	cfg := standardCfg
-	cfg.DockerImage = ""
+	cfg.Image = ""
 
 	state, ovsCh, cmdCh, doneCh := startVMWithCFG(t, &wg, &cfg, true, true)
-	if state.stf.Reason != payloads.ImageFailure {
+	if state.stf.Reason != payloads.InvalidData {
 		t.Errorf("Incorrect error returned. Reported %s, expected %s",
 			string(state.stf.Reason), string(payloads.ImageFailure))
 	}
@@ -725,18 +859,53 @@ func TestDeleteNoInstance(t *testing.T) {
 	}
 }
 
+// Test restarting an instance that failed to start and is suiciding.
+//
+// We start the instance loop and then try to start an instance. This should cause
+// a suicide command to get sent to the acCmd channel.  We then send a restart
+// command to the instance.  This command should fail.  We then send the suicide
+// command received from the acCmd channel, which should succeed.
+//
+// The instanceLoop should start, the start command and the restart command
+// should fail.  The delete (suicide) should succeed and the loop should
+// exit.
+func TestRestartNoInstance(t *testing.T) {
+	state := sendCommandDuringSuicide(t, &insRestartCmd{})
+	if state.rf.Reason != payloads.RestartNoInstance {
+		t.Errorf("Incorrect error returned. Reported %s, expected %s",
+			string(state.rf.Reason), string(payloads.RestartNoInstance))
+	}
+}
+
+// Test stopping an instance that failed to start and is suiciding.
+//
+// We start the instance loop and then try to start an instance. This should cause
+// a suicide command to get sent to the acCmd channel.  We then send a stop
+// command to the instance.  This command should fail.  We then send the suicide
+// command received from the acCmd channel, which should succeed.
+//
+// The instanceLoop should start, the start command and the stop command
+// should fail.  The delete (suicide) should succeed and the loop should
+// exit.
+func TestStopNoInstance(t *testing.T) {
+	state := sendCommandDuringSuicide(t, &insStopCmd{})
+	if state.sf.Reason != payloads.StopNoInstance {
+		t.Errorf("Incorrect error returned. Reported %s, expected %s",
+			string(state.sf.Reason), string(payloads.StopNoInstance))
+	}
+}
+
 // Check the instanceLoop copes when an instance is dropped.
 //
 // We start the instance loop and then try to start an instance.  Our test virtualizer
 // closes the connected channel to indicate that the instance is running.  We then close
 // the monitorCloseCh channel informing the instanceLoop that the instance has dropped.
-// This will cause a deleteCmd to appear on the state.ac.CmdCh.  We wait for the command
-// and then forward it to the instance.
+// We then delete the instance.
 //
 // The instanceLoop and then instance should start correctly.  We should receive
-// a deleteCmd when we simulate the instances untimely demise.  After the command
-// has been forwarded the instance should then be deleted correctly and the
-// instanceLoop should exit cleanly.
+// a state change notification when we simulate the instances untimely demise.
+// The instance should then be deleted correctly and the instanceLoop should exit
+// cleanly.
 func TestLostInstance(t *testing.T) {
 	var wg sync.WaitGroup
 	cfg := standardCfg
@@ -744,26 +913,15 @@ func TestLostInstance(t *testing.T) {
 
 	close(state.monitorClosedCh)
 
+	if !waitForStateChange(t, ovsStopped, ovsCh) {
+		cleanupShutdownFail(t, cfg.Instance, doneCh, ovsCh, &wg)
+	}
+
 	// This gets closed by the instanceLoop and so will become available
 	// in the deleteInstance select loop if we don't set it to nil.
 	state.monitorCh = nil
 
-	timeout := time.After(time.Second * 5)
-	var cmd *cmdWrapper
-DONE:
-	for {
-		select {
-		case <-ovsCh:
-		case cmd = <-state.ac.cmdCh:
-			break DONE
-		case <-timeout:
-			t.Error("Timedout waiting for delete cmd")
-			shutdownInstanceLoop(doneCh, ovsCh, &wg, t)
-			t.FailNow()
-		}
-	}
-
-	if !state.deleteInstanceEx(t, ovsCh, cmdCh, cmd.cmd.(*insDeleteCmd)) {
+	if !state.deleteInstance(t, ovsCh, cmdCh) {
 		cleanupShutdownFail(t, cfg.Instance, doneCh, ovsCh, &wg)
 	}
 
@@ -794,27 +952,6 @@ func TestStartRunningInstance(t *testing.T) {
 	}
 
 	if !state.deleteInstance(t, ovsCh, cmdCh) {
-		cleanupShutdownFail(t, cfg.Instance, doneCh, ovsCh, &wg)
-	}
-
-	wg.Wait()
-}
-
-// Check we the correct InstanceStopped event when migrating an instance.
-//
-// We start the instance loop and then try to start an instance.  Our test virtualizer
-// closes the connected channel to indicate that the instance is running.  We then
-// delete the instance setting the stop flag in the insDelCmd.
-//
-// The instanceLoop and then instance should start correctly.  The instance should
-// then be deleted correctly and the InstanceStopped ssntp event should be received.
-// The instanceLoop should exit cleanly.
-func TestMigrateInstance(t *testing.T) {
-	var wg sync.WaitGroup
-	cfg := standardCfg
-	state, ovsCh, cmdCh, doneCh := startVMWithCFG(t, &wg, &cfg, true, false)
-
-	if !state.deleteInstanceEx(t, ovsCh, cmdCh, &insDeleteCmd{stop: true}) {
 		cleanupShutdownFail(t, cfg.Instance, doneCh, ovsCh, &wg)
 	}
 

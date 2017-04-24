@@ -13,28 +13,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-  - name: Remove older docker packages
-    dnf: name={{ item }} state=absent
-    with_items:
-      - docker
-      - docker-engine
+  - name: Remove unofficial Docker packages
+    dnf: name=docker state=absent
 
   - name: Install docker repository (Fedora)
     yum_repository:
       name: docker
-      description: Docker CE Stable
-      baseurl: https://download.docker.com/linux/fedora/$releasever/$basearch/stable
+      description: Docker Repository
+      baseurl: https://yum.dockerproject.org/repo/main/fedora/$releasever/
       state: present
       enabled: yes
-      gpgkey: https://download.docker.com/linux/fedora/gpg
+      gpgkey: https://yum.dockerproject.org/gpg
       gpgcheck: yes
-
-  - name: Add docker repository key
-    rpm_key:
-      key: https://download.docker.com/linux/fedora/gpg
 
   - name: Install docker (Fedora)
     dnf: name={{ item }} state=present
     with_items:
-      - docker-ce
+      - docker-engine
       - python-docker-py

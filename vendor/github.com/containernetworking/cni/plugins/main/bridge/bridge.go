@@ -168,10 +168,10 @@ func setupVeth(netns ns.NetNS, br *netlink.Bridge, ifName string, mtu int, hairp
 		if err != nil {
 			return err
 		}
-		contIface.Name = containerVeth.Attrs().Name
-		contIface.Mac = containerVeth.Attrs().HardwareAddr.String()
+		contIface.Name = containerVeth.Name
+		contIface.Mac = containerVeth.HardwareAddr.String()
 		contIface.Sandbox = netns.Path()
-		hostIface.Name = hostVeth.Attrs().Name
+		hostIface.Name = hostVeth.Name
 		return nil
 	})
 	if err != nil {
@@ -386,25 +386,30 @@ func cmdDel(args *skel.CmdArgs) error {
 		return nil
 	}
 
+	// There is a netns so try to clean up. Delete can be called multiple times
+	// so don't return an error if the device is already removed.
+	// If the device isn't there then don't try to clean up IP masq either.
 	var ipn *net.IPNet
 	err = ns.WithNetNSPath(args.Netns, func(_ ns.NetNS) error {
 		var err error
 		ipn, err = ip.DelLinkByNameAddr(args.IfName, netlink.FAMILY_V4)
+		if err != nil && err == ip.ErrLinkNotFound {
+			return nil
+		}
 		return err
 	})
+
 	if err != nil {
 		return err
 	}
 
-	if n.IPMasq {
+	if ipn != nil && n.IPMasq {
 		chain := utils.FormatChainName(n.Name, args.ContainerID)
 		comment := utils.FormatComment(n.Name, args.ContainerID)
-		if err = ip.TeardownIPMasq(ipn, chain, comment); err != nil {
-			return err
-		}
+		err = ip.TeardownIPMasq(ipn, chain, comment)
 	}
 
-	return nil
+	return err
 }
 
 func main() {

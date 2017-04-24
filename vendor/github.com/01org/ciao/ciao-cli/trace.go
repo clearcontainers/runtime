@@ -23,7 +23,6 @@ import (
 	"os"
 
 	"github.com/01org/ciao/ciao-controller/types"
-	"github.com/01org/ciao/templateutils"
 )
 
 var traceCommand = &command{
@@ -45,7 +44,7 @@ List all trace label
 `)
 	cmd.Flag.PrintDefaults()
 	fmt.Fprintf(os.Stderr, "\n%s",
-		templateutils.GenerateUsageDecorated("f", types.CiaoTracesSummary{}.Summaries, nil))
+		generateUsageDecorated("f", types.CiaoTracesSummary{}.Summaries))
 	os.Exit(2)
 }
 
@@ -72,8 +71,8 @@ func (cmd *traceListCommand) run(args []string) error {
 	}
 
 	if cmd.template != "" {
-		return templateutils.OutputToTemplate(os.Stdout, "trace-list", cmd.template,
-			&traces.Summaries, nil)
+		return outputToTemplate("trace-list", cmd.template,
+			&traces.Summaries)
 	}
 
 	fmt.Printf("%d trace label(s) available\n", len(traces.Summaries))
@@ -100,7 +99,7 @@ The show flags are:
 `)
 	cmd.Flag.PrintDefaults()
 	fmt.Fprintf(os.Stderr, "\n%s",
-		templateutils.GenerateUsageDecorated("f", types.CiaoTraceData{}.Summary, nil))
+		generateUsageDecorated("f", types.CiaoTraceData{}.Summary))
 	os.Exit(2)
 }
 
@@ -132,8 +131,8 @@ func (cmd *traceShowCommand) run(args []string) error {
 	}
 
 	if cmd.template != "" {
-		return templateutils.OutputToTemplate(os.Stdout, "trace-show", cmd.template,
-			&traceData.Summary, nil)
+		return outputToTemplate("trace-show", cmd.template,
+			&traceData.Summary)
 	}
 
 	fmt.Printf("Trace data for [%s]:\n", cmd.label)

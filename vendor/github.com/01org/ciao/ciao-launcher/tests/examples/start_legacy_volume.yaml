@@ -7,6 +7,7 @@ start:
        value: 370
   instance_uuid: d7d86208-b46c-4465-9018-fe14087d415f
   tenant_uuid: 67d86208-000-4465-9018-fe14087d415f
+  image_uuid: b286cd45-7d0c-4525-a140-4db6c95e41fa
   fw_type: legacy
   networking:
     vnic_mac: 02:00:e6:f5:af:f9
@@ -16,9 +17,7 @@ start:
     subnet: 192.168.8.0/21
     private_ip: 192.168.8.2
   storage:
-    - id: 73a86d7e-93c0-480e-9c41-ab42f69b7799
-      boot: true
-    - id: 67d86208-000-4465-9018-fe14087d415f
+    id: 67d86208-000-4465-9018-fe14087d415f
 ...
 ---
 #cloud-config

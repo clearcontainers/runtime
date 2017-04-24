@@ -29,11 +29,6 @@
       chdir: certificates/ciao
       creates: CAcert-{{ ciao_controller_fqdn }}.pem
 
-  - name: Clean dual_agent_keys if there are no dual_nodes
-    set_fact:
-      dual_agent_keys: [ ]
-    when: not dual_nodes
-
   - name: Create agent keys
     become: no
     connection: local
@@ -44,7 +39,15 @@
     args:
       chdir: certificates/ciao
       creates: "{{ item.creates }}"
-    with_items: "{{ agent_keys + dual_agent_keys }}"
+    with_items:
+      - role: agent
+        creates: cert-CNAgent-localhost.pem
+      - role: netagent
+        creates: cert-NetworkingAgent-localhost.pem
+      - role: cnciagent
+        creates: cert-CNCIAgent-localhost.pem
+      - role: controller
+        creates: cert-Controller-localhost.pem
 
   - name: Copy certificates
     copy: src=certificates/{{ item }} dest=/etc/pki/{{ item }}

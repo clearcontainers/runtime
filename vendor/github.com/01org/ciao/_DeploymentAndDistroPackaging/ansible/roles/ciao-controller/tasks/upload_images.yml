@@ -27,7 +27,7 @@
       CIAO_CA_CERT_FILE: certificates/keystone/keystone_cert.pem
 
   - name: Upload {{ image.name }}
-    shell: "{{ gopath }}/bin/ciao-cli image add --file images/{{ image.file }} --name {{ image.name }} --id {{ image.id }} --visibility {{ image.visibility }}"
+    shell: "{{ gopath }}/bin/ciao-cli image add --file images/{{ image.file }} --name {{ image.name }} --id {{ image.id }}"
     environment:
       CIAO_CONTROLLER: "{{ keystone_fqdn }}"
       CIAO_IDENTITY: "https://{{ keystone_fqdn }}:35357"

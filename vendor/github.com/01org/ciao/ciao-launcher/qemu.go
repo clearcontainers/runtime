@@ -37,9 +37,10 @@ import (
 )
 
 const (
-	qemuEfiFw = "/usr/share/qemu/OVMF.fd"
-	seedImage = "seed.iso"
-	vcTries   = 10
+	qemuEfiFw  = "/usr/share/qemu/OVMF.fd"
+	seedImage  = "seed.iso"
+	imagesPath = "/var/lib/ciao/images"
+	vcTries    = 10
 )
 
 type qmpGlogLogger struct{}
@@ -123,6 +124,39 @@ func extractImageInfo(r io.Reader) int {
 	return imageSizeMiB
 }
 
+func (q *qemuV) imageInfo(imagePath string) (int, error) {
+	params := make([]string, 0, 8)
+	params = append(params, "info")
+	params = append(params, imagePath)
+
+	cmd := exec.Command("qemu-img", params...)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		glog.Errorf("Unable to read output from qemu-img: %v", err)
+		return -1, err
+	}
+
+	err = cmd.Start()
+	if err != nil {
+		_ = stdout.Close()
+		glog.Errorf("Unable start qemu-img: %v", err)
+		return -1, err
+	}
+
+	imageSizeMB := extractImageInfo(stdout)
+
+	err = cmd.Wait()
+	if err != nil {
+		glog.Warningf("qemu-img returned an error: %v", err)
+		if imageSizeMB != -1 {
+			glog.Warning("But we already parsed the image size, so we don't care")
+			err = nil
+		}
+	}
+
+	return imageSizeMB, err
+}
+
 func createCloudInitISO(instanceDir, isoPath string, cfg *vmConfig, userData, metaData []byte) error {
 	if len(metaData) == 0 {
 		defaultMeta := fmt.Sprintf("{\n  \"uuid\": %q,\n  \"hostname\": %[1]q\n}\n", cfg.Instance)
@@ -140,12 +174,50 @@ func createCloudInitISO(instanceDir, isoPath string, cfg *vmConfig, userData, me
 	return nil
 }
 
-func (q *qemuV) ensureBackingImage() error {
-	if !q.cfg.haveBootableVolume() {
-		return fmt.Errorf("No bootable volumes specified in START payload")
+func (q *qemuV) createRootfs() error {
+	if q.cfg.Image == "" {
+		return nil
+	}
+	vmImage := path.Join(q.instanceDir, "image.qcow2")
+	backingImage := path.Join(imagesPath, q.cfg.Image)
+	glog.Infof("Creating qcow image from %s backing %s", vmImage, backingImage)
+
+	params := make([]string, 0, 32)
+	params = append(params, "create", "-f", "qcow2", "-o", "backing_file="+backingImage,
+		vmImage)
+	if q.cfg.Disk > 0 {
+		diskSize := fmt.Sprintf("%dM", q.cfg.Disk)
+		params = append(params, diskSize)
+	}
+
+	cmd := exec.Command("qemu-img", params...)
+	return cmd.Run()
+}
+
+func (q *qemuV) checkBackingImage() error {
+	backingImage := path.Join(imagesPath, q.cfg.Image)
+	_, err := os.Stat(backingImage)
+	if err != nil {
+		return fmt.Errorf("Backing Image does not exist: %v", err)
+	}
+
+	if q.cfg.Disk != 0 {
+		minSizeMB, err := getMinImageSize(q, backingImage)
+		if err != nil {
+			return fmt.Errorf("Unable to determine image size: %v", err)
+		}
+
+		if minSizeMB != -1 && minSizeMB > q.cfg.Disk {
+			glog.Warningf("Requested disk size (%dM) is smaller than minimum image size (%dM).  Defaulting to min size", q.cfg.Disk, minSizeMB)
+			q.cfg.Disk = minSizeMB
+		}
 	}
 
 	return nil
+}
+
+func (q *qemuV) downloadBackingImage() error {
+	return fmt.Errorf("not supported yet")
 }
 
 func (q *qemuV) createImage(bridge string, userData, metaData []byte) error {
@@ -155,7 +227,7 @@ func (q *qemuV) createImage(bridge string, userData, metaData []byte) error {
 		return err
 	}
 
-	return nil
+	return q.createRootfs()
 }
 
 func (q *qemuV) deleteImage() error {
@@ -327,6 +399,12 @@ func generateQEMULaunchParams(cfg *vmConfig, isoPath, instanceDir string,
 	addr := 3
 	if launchWithUI.String() == "spice" {
 		addr = 4
+	}
+	if cfg.Image != "" {
+		vmImage := path.Join(instanceDir, "image.qcow2")
+		fileParam := fmt.Sprintf("file=%s,if=virtio,aio=threads,format=qcow2", vmImage)
+		params = append(params, "-drive", fileParam)
+		addr++
 	}
 
 	// I know this is nasty but we have to specify a bus and address otherwise qemu
@@ -537,15 +615,9 @@ DONE:
 		}
 		switch cmd := cmd.(type) {
 		case virtualizerStopCmd:
-			ctx, cancelFN := context.WithTimeout(context.Background(), time.Second*10)
-			err = q.ExecuteSystemPowerdown(ctx)
-			cancelFN()
+			err = q.ExecuteQuit(context.Background())
 			if err != nil {
-				glog.Warningf("Failed to power down cleanly: %v", err)
-				err = q.ExecuteQuit(context.Background())
-				if err != nil {
-					glog.Warningf("Failed to execute quit instance: %v", err)
-				}
+				glog.Warningf("Failed to execute stop command: %v", err)
 			}
 		case virtualizerAttachCmd:
 			qmpAttach(cmd, q)
@@ -571,8 +643,20 @@ func (q *qemuV) monitorVM(closedCh chan struct{}, connectedCh chan struct{},
 	return qmpChannel
 }
 
+func (q *qemuV) computeInstanceDiskspace(instanceDir string) int {
+	if q.cfg.Image == "" {
+		return 0
+	}
+	vmImage := path.Join(instanceDir, "image.qcow2")
+	fi, err := os.Stat(vmImage)
+	if err != nil {
+		return -1
+	}
+	return int(fi.Size() / (1024 * 1024))
+}
+
 func (q *qemuV) stats() (disk, memory, cpu int) {
-	disk = 0
+	disk = q.computeInstanceDiskspace(q.instanceDir)
 	memory = -1
 	cpu = -1
 

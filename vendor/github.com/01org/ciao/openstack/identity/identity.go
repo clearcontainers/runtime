@@ -15,10 +15,8 @@
 package identity
 
 import (
-	"context"
 	"net/http"
 
-	"github.com/01org/ciao/service"
 	"github.com/golang/glog"
 	"github.com/gorilla/mux"
 	"github.com/mitchellh/mapstructure"
@@ -206,34 +204,33 @@ func validateProjectRole(tokenResult getResult, project string, role string) boo
 // checkToken verifies that given the token, the request is performed as
 // a valid admin and that such token is consistent with the services
 // attempted to be used in the received request
-func (h Handler) checkToken(ctx context.Context, r *http.Request, tenant string, tokenGetResult getResult) (context.Context, bool) {
+func (h Handler) checkToken(r *http.Request, tenant string, tokenGetResult getResult) bool {
 
 	/* TODO Caching or PKI */
 	for _, a := range h.ValidAdmins {
 		if validateProjectRole(tokenGetResult, a.Project, a.Role) == true {
-			ctx = service.SetPrivilege(ctx, true)
-			return ctx, true
+			return true
 		}
 	}
 
 	for _, s := range h.ValidServices {
 		if validateService(tokenGetResult, tenant, s.ServiceType, s.ServiceName) == true {
-			return ctx, true
+			return true
 		} else if validateService(tokenGetResult, tenant, s.ServiceType, "") == true {
-			return ctx, true
+			return true
 		}
 
 	}
 
 	glog.V(2).Infof("Invalid token for [%s]", tenant)
-	return ctx, false
+	return false
 }
 
-func (h Handler) validateToken(ctx context.Context, r *http.Request) (context.Context, bool) {
+func (h Handler) validateToken(r *http.Request) bool {
 
 	token := r.Header["X-Auth-Token"]
 	if len(token) == 0 {
-		return ctx, false
+		return false
 	}
 
 	vars := mux.Vars(r)
@@ -247,25 +244,23 @@ func (h Handler) validateToken(ctx context.Context, r *http.Request) (context.Co
 	p, err := tokenResult.extractProject()
 	if err != nil {
 		glog.V(2).Infof("Unable to retrieve tenant from token [%s]", token)
-		return ctx, false
+		return false
 	}
 	tenantFromToken := p.ID
 
 	if tenantFromVars == "" {
 		glog.V(2).Infof("Token validation for [%s]", tenantFromToken)
-		ctx = service.SetTenantID(ctx, tenantFromToken)
-		return h.checkToken(ctx, r, tenantFromToken, tokenResult)
+		return h.checkToken(r, tenantFromToken, tokenResult)
 	}
 	// verify that tenant from token is consistent with the tenant
 	// obtained from the URI endpoint request
 	if tenantFromVars != tenantFromToken {
 		glog.Errorf("expected tenant %v, got %v\n", tenantFromToken, tenantFromVars)
-		return ctx, false
+		return false
 	}
 
-	ctx = service.SetTenantID(ctx, tenantFromVars)
 	glog.V(2).Infof("Token validation for [%s]", tenantFromVars)
-	return h.checkToken(ctx, r, tenantFromVars, tokenResult)
+	return h.checkToken(r, tenantFromVars, tokenResult)
 }
 
 // ValidService defines service name and type of the api service
@@ -294,11 +289,10 @@ type Handler struct {
 // It will check to make sure that the api caller is validated with
 // keystone before allowing the next handler in the chain to be called.
 func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctx, valid := h.validateToken(r.Context(), r)
-	if valid == false {
+	if h.validateToken(r) == false {
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		return
 	}
 
-	h.Next.ServeHTTP(w, r.WithContext(ctx))
+	h.Next.ServeHTTP(w, r)
 }

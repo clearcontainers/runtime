@@ -23,9 +23,8 @@ import (
 )
 
 type startError struct {
-	err     error
-	code    payloads.StartFailureReason
-	restart bool
+	err  error
+	code payloads.StartFailureReason
 }
 
 func (se *startError) send(conn serverConn, instance string) {

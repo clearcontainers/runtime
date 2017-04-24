@@ -35,6 +35,7 @@ type virtualizerDetachCmd struct {
 var errImageNotFound = errors.New("Image Not Found")
 
 //BUG(markus): These methods need to be cancellable
+//BUG(markus): How do we deal with locally cached images getting stale?
 
 // The virtualizer interface is designed to isolate launcher, and in particular,
 // functions that run in the instance go routine, from the underlying virtualisation
@@ -49,11 +50,18 @@ type virtualizer interface {
 	// to store any data it likes in this directory.
 	init(cfg *vmConfig, instanceDir string)
 
-	// Ensure that an image is available to this instance.  This may involve downloading
-	// the image.
-	ensureBackingImage() error
+	// Checks to see if the backing image is present on the node and whether it
+	// is capable of serving as a backing image for the new instance.  A return
+	// value of nil means everything is okay, errImageNotFound indicates that the
+	// image is not present on the node, and any other error means that the
+	// image is present but cannot serve as the backing image for the current
+	// request.
+	checkBackingImage() error
 
-	// Creates the rootfs, and or any supporting images, for a new instance
+	// Download backing image
+	downloadBackingImage() error
+
+	// Creates the rootfs, and any supporting images, for a new instance
 	// bridge: name of the bridge if any.  Needed for docker containers
 	// userData: cloudinit userdata payload
 	// metaData: cloudinit metaData payload
@@ -64,7 +72,7 @@ type virtualizer interface {
 	// deleted by the instance go routine.
 	deleteImage() error
 
-	// Boots a VM.  This method is called by START
+	// Boots a VM.  This method is called by both START and RESTART.
 	startVM(vnicName, ipAddress, cephID string) error
 
 	//BUG(markus): Need to use context rather than the monitor channel to

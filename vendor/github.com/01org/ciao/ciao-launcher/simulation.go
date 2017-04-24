@@ -25,6 +25,7 @@ import (
 )
 
 type simulation struct {
+	uuid        string
 	instanceDir string
 
 	closedCh    chan struct{}
@@ -45,7 +46,11 @@ func (s *simulation) init(cfg *vmConfig, instanceDir string) {
 	s.instanceDir = instanceDir
 }
 
-func (s *simulation) ensureBackingImage() error {
+func (s *simulation) checkBackingImage() error {
+	return nil
+}
+
+func (s *simulation) downloadBackingImage() error {
 	return nil
 }
 

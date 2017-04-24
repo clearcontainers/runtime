@@ -16,10 +16,6 @@
 
 package payloads
 
-import (
-	"github.com/golang/glog"
-)
-
 // StartFailureReason denotes the underlying error that prevented
 // an SSNTP START command from launching a new instance on a CN
 // or a NN.  Most, but not all, of these errors are returned by
@@ -48,7 +44,7 @@ const (
 	InvalidPayload = "invalid_payload"
 
 	// InvalidData indicates that the start section of the payload is
-	// corrupt or missing information
+	// corrupt or missing information such as image-id
 	InvalidData = "invalid_data"
 
 	// AlreadyRunning is returned when an attempt is made to start an
@@ -61,10 +57,9 @@ const (
 	// exists but is not currently running.
 	InstanceExists = "instance_exists"
 
-	// ImageFailure indicates that ciao-launcher is unable to locate
-	// the rootfs for the instance, e.g., a VM instance is started
-	// with no bootable volumes or a containers image cannot be
-	// downloaded.
+	// ImageFailure indicates that ciao-launcher is unable to prepare
+	// the rootfs for the instance, e.g., the image_uuid refers to an
+	// non-existent backing image
 	ImageFailure = "image_failure"
 
 	// LaunchFailure indicates that the instance has been successfully
@@ -88,10 +83,6 @@ type ErrorStartFailure struct {
 	// Reason provides the reason for the start failure, e.g.,
 	// LaunchFailure.
 	Reason StartFailureReason `yaml:"reason"`
-
-	// Restart is true if the failed start command was attempting to
-	// restart an existing instance.
-	Restart bool
 }
 
 func (r StartFailureReason) String() string {
@@ -121,28 +112,4 @@ func (r StartFailureReason) String() string {
 	}
 
 	return ""
-}
-
-// IsFatal indicates that the failure should be treated as a fatal failure
-// indicating the instance did not start.
-func (r StartFailureReason) IsFatal() bool {
-	switch r {
-	case FullCloud,
-		FullComputeNode,
-		NoComputeNodes,
-		NoNetworkNodes,
-		InvalidPayload,
-		InvalidData,
-		ImageFailure,
-		LaunchFailure,
-		NetworkFailure:
-		return true
-
-	case AlreadyRunning,
-		InstanceExists:
-		return false
-	}
-
-	glog.Errorf("Unexpected StartFailureReason: %s", r)
-	return false
 }

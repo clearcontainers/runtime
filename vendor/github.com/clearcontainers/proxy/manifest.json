@@ -1,7 +1,7 @@
 {
     "dependencies": {
         "github.com/containers/virtcontainers": {
-            "revision": "15ea5343f221e9976f00abee0feb672ca873739e"
+            "revision": "93aa8226e6fa7e9bb2d553b571209f4f94e96348"
         },
         "github.com/golang/glog": {
             "branch": "master"

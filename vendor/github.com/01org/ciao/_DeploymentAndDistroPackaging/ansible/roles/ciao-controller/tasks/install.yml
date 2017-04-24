@@ -24,7 +24,7 @@
     when: "'Clear linux' in ansible_os_family"
 
   - name: Install CIAO binaries
-    copy: src={{ gopath }}/bin/{{ item }} dest=/usr/local/bin/{{ item }} mode=0755
+    copy: src={{ gopath }}/bin/{{ item }} dest=/usr/local/bin/{{ item }} mode=755
     with_items:
       - ciao-cli
       - ciao-controller

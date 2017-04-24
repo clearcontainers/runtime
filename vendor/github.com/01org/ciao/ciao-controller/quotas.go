@@ -50,6 +50,7 @@ func populateQuotasFromDatastore(qs *quotas.Quotas, ds *datastore.Datastore) err
 		qs.Update(t.ID, qds)
 
 		// Populate volume usage
+		// TODO: populate instance usage
 		// TODO: populate image usage
 		// TODO: populate external IP usage
 		bds, err := ds.GetBlockDevices(t.ID)
@@ -61,25 +62,11 @@ func populateQuotasFromDatastore(qs *quotas.Quotas, ds *datastore.Datastore) err
 			size += bd.Size
 			count++
 		}
+
 		// With initial population we disregard the result of consumption
 		<-qs.Consume(t.ID,
 			payloads.RequestedResource{Type: payloads.Volume, Value: count},
 			payloads.RequestedResource{Type: payloads.SharedDiskGiB, Value: size})
-
-		instances, err := ds.GetAllInstancesFromTenant(t.ID)
-		if err != nil {
-			return errors.Wrapf(err, "error getting tenant instances")
-		}
-
-		for _, instance := range instances {
-			wl, err := ds.GetWorkload(t.ID, instance.WorkloadID)
-			if err != nil {
-				return errors.Wrapf(err, "error getting workload")
-			}
-			resources := []payloads.RequestedResource{{Type: payloads.Instance, Value: 1}}
-			resources = append(resources, wl.Defaults...)
-			<-qs.Consume(t.ID, resources...)
-		}
 	}
 
 	return nil

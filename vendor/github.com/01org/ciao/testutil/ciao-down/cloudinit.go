@@ -94,12 +94,12 @@ runcmd:
  - echo "PATH=\"$PATH:/usr/local/go/bin:{{$.GoPath}}/bin:/usr/local/nodejs/bin\""  >> /etc/environment
 
  - curl -X PUT -d "Downloading Go" 10.0.2.2:{{.HTTPServerPort}}
- - {{download . "https://storage.googleapis.com/golang/go1.8.linux-amd64.tar.gz" "/tmp/go1.8.linux-amd64.tar.gz"}}
+ - {{template "ENV" .}}wget https://storage.googleapis.com/golang/go1.7.4.linux-amd64.tar.gz -O /tmp/go1.7.4.linux-amd64.tar.gz
  - {{template "CHECK" .}}
  - curl -X PUT -d "Unpacking Go" 10.0.2.2:{{.HTTPServerPort}}
- - tar -C /usr/local -xzf /tmp/go1.8.linux-amd64.tar.gz
+ - tar -C /usr/local -xzf /tmp/go1.7.4.linux-amd64.tar.gz
  - {{template "CHECK" .}}
- - rm /tmp/go1.8.linux-amd64.tar.gz
+ - rm /tmp/go1.7.4.linux-amd64.tar.gz
 
  - groupadd docker
  - sudo gpasswd -a {{.User}} docker
@@ -193,11 +193,11 @@ runcmd:
  - mkdir -p /home/{{.User}}/local
 
  - curl -X PUT -d "Downloading Fedora-Cloud-Base-24-1.2.x86_64.qcow2" 10.0.2.2:{{.HTTPServerPort}}
- - {{download . "https://download.fedoraproject.org/pub/fedora/linux/releases/24/CloudImages/x86_64/images/Fedora-Cloud-Base-24-1.2.x86_64.qcow2" (printf "/home/%%s/local/Fedora-Cloud-Base-24-1.2.x86_64.qcow2" .User)}}
+ - {{template "ENV" .}}wget https://download.fedoraproject.org/pub/fedora/linux/releases/24/CloudImages/x86_64/images/Fedora-Cloud-Base-24-1.2.x86_64.qcow2 -O /home/{{.User}}/local/Fedora-Cloud-Base-24-1.2.x86_64.qcow2
  - {{template "CHECK" .}}
 
  - curl -X PUT -d "Downloading CNCI image" 10.0.2.2:{{.HTTPServerPort}}
- - {{download . "https://download.clearlinux.org/demos/ciao/clear-8260-ciao-networking.img.xz" (printf "/home/%%s/local/clear-8260-ciao-networking.img.xz" .User)}}
+ - {{template "ENV" .}}wget https://download.clearlinux.org/demos/ciao/clear-8260-ciao-networking.img.xz -O /home/{{.User}}/local/clear-8260-ciao-networking.img.xz
  - {{template "CHECK" .}}
 
  - curl -X PUT -d "Downloading latest clear cloud image" 10.0.2.2:{{.HTTPServerPort}}
@@ -273,14 +273,7 @@ write_files:
      printf "\n"
      printf "\n"
      printf "Your go code is at {{.GoPath}}\n"
-     printf "You can also edit your code on your host system \n"
-     printf "To build cc-oci-runtime from sources \n"
-     printf "go get -d github.com/01org/cc-oci-runtime/... \n"
-     printf "cd $GOPATH/src/github.com/01org/cc-oci-runtime \n"
-     printf "./autogen.sh --with-cc-kernel=/usr/share/clear-containers/vmlinux.container --with-cc-image=/usr/share/clear-containers/clear-containers.img \n"
-     printf "make \n"
-     printf "make check \n"
-     printf "make install \n"
+     printf "You can also edit your code on your host system"
      printf "\n"
      printf "\n"
    path: /etc/update-motd.d/10-ciao-help-text
@@ -323,7 +316,7 @@ runcmd:
  - echo "PATH=\"$PATH:/usr/local/go/bin:{{$.GoPath}}/bin:/usr/local/nodejs/bin\""  >> /etc/environment
 
  - curl -X PUT -d "Downloading Go" 10.0.2.2:{{.HTTPServerPort}}
- - {{download . "https://storage.googleapis.com/golang/go1.7.4.linux-amd64.tar.gz" "/tmp/go1.7.4.linux-amd64.tar.gz"}}
+ - {{template "ENV" .}}wget https://storage.googleapis.com/golang/go1.7.4.linux-amd64.tar.gz -O /tmp/go1.7.4.linux-amd64.tar.gz
  - {{template "CHECK" .}}
  - curl -X PUT -d "Unpacking Go" 10.0.2.2:{{.HTTPServerPort}}
  - tar -C /usr/local -xzf /tmp/go1.7.4.linux-amd64.tar.gz
@@ -333,15 +326,12 @@ runcmd:
  - groupadd docker
  - sudo gpasswd -a {{.User}} docker
  - curl -X PUT -d "Installing apt-transport-https and ca-certificates" 10.0.2.2:{{.HTTPServerPort}}
- - {{template "ENV" .}}sudo apt-get -y install  apt-transport-https ca-certificates
+ - {{template "ENV" .}}apt-get install apt-transport-https ca-certificates
  - {{template "CHECK" .}}
 
  - curl -X PUT -d "Add docker GPG key" 10.0.2.2:{{.HTTPServerPort}}
- - {{template "ENV" .}}curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+ - {{template "ENV" .}}apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
  - {{template "CHECK" .}}
-
- - curl -X PUT -d "Adding docker repo" 10.0.2.2:{{.HTTPServerPort}}
- - {{template "ENV" .}} sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
 
  - curl -X PUT -d "Add Clear Containers OBS Repository " 10.0.2.2:{{.HTTPServerPort}}
  - sudo sh -c "echo 'deb http://download.opensuse.org/repositories/home:/clearlinux:/preview:/clear-containers-2.1/xUbuntu_16.04/ /' >> /etc/apt/sources.list.d/cc-oci-runtime.list"
@@ -349,15 +339,15 @@ runcmd:
  - {{template "CHECK" .}}
 
  - curl -X PUT -d "Retrieving updated list of packages" 10.0.2.2:{{.HTTPServerPort}}
- - {{template "ENV" .}}sudo apt-get update
+ - {{template "ENV" .}}apt-get update
  - {{template "CHECK" .}}
 
  - curl -X PUT -d "Installing Clear Containers Runtime" 10.0.2.2:{{.HTTPServerPort}}
- - {{template "ENV" .}}sudo apt-get install cc-oci-runtime -y
+ - {{template "ENV" .}}apt-get install cc-oci-runtime -y
  - {{template "CHECK" .}}
 
  - curl -X PUT -d "Installing Docker" 10.0.2.2:{{.HTTPServerPort}}
- - {{template "ENV" .}}sudo apt-get install -y --allow-downgrades --allow-unauthenticated docker-engine=1.12.1-0~xenial
+ - {{template "ENV" .}}apt-get install docker-engine -y
  - {{template "CHECK" .}}
 
 
@@ -384,11 +374,7 @@ runcmd:
  - {{template "ENV" .}}apt-get install xorriso -y
  - {{template "CHECK" .}}
 
- - curl -X PUT -d "Installing Clear Containers development tools" 10.0.2.2:{{.HTTPServerPort}}
- - {{template "ENV" .}}apt-get install build-essential python zlib1g-dev libcap-ng-dev libglib2.0-dev libpixman-1-dev libattr1-dev libcap-dev autoconf libtool libjson-glib-dev uuid-dev check bats libdevmapper-dev file apt-utils wget valgrind lcov libmnl-dev cppcheck libtap-formatter-html-perl -y
- - {{template "CHECK" .}}
-
- - curl -X PUT -d "Auto removing unused development components" 10.0.2.2:{{.HTTPServerPort}}
+ - curl -X PUT -d "Auto removing unused components" 10.0.2.2:{{.HTTPServerPort}}
  - {{template "ENV" .}}apt-get auto-remove -y
  - {{template "CHECK" .}}
 

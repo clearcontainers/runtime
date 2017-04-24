@@ -57,27 +57,12 @@ type insStartCmd struct {
 	cfg      *vmConfig
 	rcvStamp time.Time
 }
+type insRestartCmd struct{}
 type insDeleteCmd struct {
-	// Indicates that the delete command originated in launcher rather
-	// than controller.  Launcher may generate a delete command if a
-	// START command fails or an instance stops executing.
 	suicide bool
-
-	// Set to true if we don't want to send an InstanceDeleted or
-	// InstanceStopped event.  This is the case when we delete an
-	// instance that has failed to start.  We're sending StartFailure
-	// so InstanceDeleted is not needed.
-	skipDeleteEvent bool
-
-	// The running state of the instance as provided by the overseer.
-	// Used to determine whether we need to delete networking artifacts.
 	running ovsRunningState
-
-	// Indicates whether we are deleting or stopping an instance.  The
-	// two operations are almost identical for launcher.  The only difference
-	// is in the events that get sent back to controller.
-	stop bool
 }
+type insStopCmd struct{}
 type insMonitorCmd struct{}
 
 type insAttachVolumeCmd struct {
@@ -109,18 +94,10 @@ There's always the possibility new commands will be received for the
 instance while it is waiting to be killed.  We'll just fail those.
 */
 
-func killMe(instance string, skipDeleteEvent, stop bool, doneCh chan struct{},
-	ac *agentClient, wg *sync.WaitGroup) {
+func killMe(instance string, doneCh chan struct{}, ac *agentClient, wg *sync.WaitGroup) {
 	wg.Add(1)
 	go func() {
-		cmd := &cmdWrapper{
-			instance,
-			&insDeleteCmd{
-				suicide:         true,
-				skipDeleteEvent: skipDeleteEvent,
-				stop:            stop,
-			},
-		}
+		cmd := &cmdWrapper{instance, &insDeleteCmd{suicide: true}}
 		select {
 		case ac.cmdCh <- cmd:
 		case <-doneCh:
@@ -132,7 +109,7 @@ func killMe(instance string, skipDeleteEvent, stop bool, doneCh chan struct{},
 func (id *instanceData) startCommand(cmd *insStartCmd) {
 	glog.Info("Found start command")
 	if id.monitorCh != nil {
-		startErr := &startError{nil, payloads.AlreadyRunning, cmd.cfg.Restart}
+		startErr := &startError{nil, payloads.AlreadyRunning}
 		glog.Errorf("Unable to start instance[%s]", string(startErr.code))
 		startErr.send(id.ac.conn, id.instance)
 		return
@@ -142,9 +119,11 @@ func (id *instanceData) startCommand(cmd *insStartCmd) {
 		glog.Errorf("Unable to start instance[%s]: %v", string(startErr.code), startErr.err)
 		startErr.send(id.ac.conn, id.instance)
 
-		if startErr.code != payloads.InstanceExists {
+		if startErr.code == payloads.LaunchFailure {
+			id.ovsCh <- &ovsStateChange{id.instance, ovsStopped}
+		} else if startErr.code != payloads.InstanceExists {
 			glog.Warningf("Unable to create VM instance: %s.  Killing it", id.instance)
-			killMe(id.instance, true, false, id.doneCh, id.ac, &id.instanceWg)
+			killMe(id.instance, id.doneCh, id.ac, &id.instanceWg)
 			id.shuttingDown = true
 		}
 		return
@@ -160,10 +139,59 @@ func (id *instanceData) startCommand(cmd *insStartCmd) {
 	}
 }
 
+func (id *instanceData) restartCommand(cmd *insRestartCmd) {
+	glog.Info("Found restart command")
+
+	if id.shuttingDown {
+		restartErr := &restartError{nil, payloads.RestartNoInstance}
+		glog.Errorf("Unable to restart instance[%s]", string(restartErr.code))
+		restartErr.send(id.ac.conn, id.instance)
+		return
+	}
+
+	if id.monitorCh != nil {
+		restartErr := &restartError{nil, payloads.RestartAlreadyRunning}
+		glog.Errorf("Unable to restart instance[%s]", string(restartErr.code))
+		restartErr.send(id.ac.conn, id.instance)
+		return
+	}
+
+	restartErr := processRestart(id.instanceDir, id.vm, id.ac.conn, id.cfg)
+
+	if restartErr != nil {
+		glog.Errorf("Unable to restart instance[%s]: %v", string(restartErr.code),
+			restartErr.err)
+		restartErr.send(id.ac.conn, id.instance)
+		return
+	}
+
+	id.connectedCh = make(chan struct{})
+	id.monitorCloseCh = make(chan struct{})
+	id.monitorCh = id.vm.monitorVM(id.monitorCloseCh, id.connectedCh, &id.instanceWg, false)
+}
+
 func (id *instanceData) monitorCommand(cmd *insMonitorCmd) {
 	id.connectedCh = make(chan struct{})
 	id.monitorCloseCh = make(chan struct{})
 	id.monitorCh = id.vm.monitorVM(id.monitorCloseCh, id.connectedCh, &id.instanceWg, true)
+}
+
+func (id *instanceData) stopCommand(cmd *insStopCmd) {
+	if id.shuttingDown {
+		stopErr := &stopError{nil, payloads.StopNoInstance}
+		glog.Errorf("Unable to stop instance[%s]", string(stopErr.code))
+		stopErr.send(id.ac.conn, id.instance)
+		return
+	}
+
+	if id.monitorCh == nil {
+		stopErr := &stopError{nil, payloads.StopAlreadyStopped}
+		glog.Errorf("Unable to stop instance[%s]", string(stopErr.code))
+		stopErr.send(id.ac.conn, id.instance)
+		return
+	}
+	glog.Infof("Powerdown %s", id.instance)
+	id.monitorCh <- virtualizerStopCmd{}
 }
 
 func (id *instanceData) sendInstanceDeletedEvent() {
@@ -173,27 +201,11 @@ func (id *instanceData) sendInstanceDeletedEvent() {
 
 	payload, err := yaml.Marshal(&event)
 	if err != nil {
-		glog.Errorf("Unable to Marshall InstanceDeleted event %v", err)
+		glog.Errorf("Unable to Marshall STATS %v", err)
 		return
 	}
+
 	_, err = id.ac.conn.SendEvent(ssntp.InstanceDeleted, payload)
-	if err != nil {
-		glog.Errorf("Failed to send event command %v", err)
-		return
-	}
-}
-
-func (id *instanceData) sendInstanceStoppedEvent() {
-	var event payloads.EventInstanceStopped
-
-	event.InstanceStopped.InstanceUUID = id.instance
-
-	payload, err := yaml.Marshal(&event)
-	if err != nil {
-		glog.Errorf("Unable to Marshall InstanceStopped %v", err)
-		return
-	}
-	_, err = id.ac.conn.SendEvent(ssntp.InstanceStopped, payload)
 	if err != nil {
 		glog.Errorf("Failed to send event command %v", err)
 		return
@@ -211,7 +223,11 @@ func (id *instanceData) deleteCommand(cmd *insDeleteCmd) bool {
 	if id.monitorCh != nil {
 		glog.Infof("Powerdown %s before deleting", id.instance)
 		id.monitorCh <- virtualizerStopCmd{}
-		<-id.monitorCloseCh
+		select {
+		case <-id.monitorCloseCh:
+		case <-time.After(time.Second * 10):
+			glog.Warningf("Timeout (10s) waiting for virtualizer to terminate")
+		}
 		id.vm.lostVM()
 	}
 
@@ -219,12 +235,8 @@ func (id *instanceData) deleteCommand(cmd *insDeleteCmd) bool {
 
 	id.unmapVolumes()
 
-	if !cmd.skipDeleteEvent {
-		if cmd.stop {
-			id.sendInstanceStoppedEvent()
-		} else {
-			id.sendInstanceDeletedEvent()
-		}
+	if !cmd.suicide {
+		id.sendInstanceDeletedEvent()
 		id.ovsCh <- &ovsStatusCmd{}
 	}
 	return true
@@ -303,8 +315,12 @@ func (id *instanceData) instanceCommand(cmd interface{}) bool {
 	case *insStartCmd:
 		id.rcvStamp = cmd.rcvStamp
 		id.startCommand(cmd)
+	case *insRestartCmd:
+		id.restartCommand(cmd)
 	case *insMonitorCmd:
 		id.monitorCommand(cmd)
+	case *insStopCmd:
+		id.stopCommand(cmd)
 	case *insAttachVolumeCmd:
 		id.attachVolumeCommand(cmd)
 	case *insDetachVolumeCmd:
@@ -377,8 +393,7 @@ DONE:
 			id.statsTimer = nil
 			id.ovsCh <- &ovsStateChange{id.instance, ovsStopped}
 			id.st = nil
-			killMe(id.instance, false, true, id.doneCh, id.ac, &id.instanceWg)
-			id.shuttingDown = true
+			id.unmapVolumes()
 		case <-id.connectedCh:
 			id.logStartTrace()
 			id.connectedCh = nil

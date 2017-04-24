@@ -23,7 +23,6 @@ import (
 	"text/template"
 
 	"github.com/01org/ciao/ciao-controller/types"
-	"github.com/01org/ciao/templateutils"
 )
 
 var nodeCommand = &command{
@@ -60,9 +59,9 @@ The template passed to the -f option operates on one of the following types:
 --compute
 
 %s`,
-		templateutils.GenerateUsageUndecorated([]types.CiaoCNCI{}),
-		templateutils.GenerateUsageUndecorated([]types.CiaoComputeNode{}))
-	fmt.Fprintln(os.Stderr, templateutils.TemplateFunctionHelp(nil))
+		generateUsageUndecorated([]types.CiaoCNCI{}),
+		generateUsageUndecorated([]types.CiaoComputeNode{}))
+	fmt.Fprintln(os.Stderr, templateFunctionHelp)
 	os.Exit(2)
 }
 
@@ -76,14 +75,7 @@ func (cmd *nodeListCommand) parseArgs(args []string) []string {
 }
 
 func (cmd *nodeListCommand) run(args []string) error {
-	var t *template.Template
-	if cmd.template != "" {
-		var err error
-		t, err = templateutils.CreateTemplate("node-list", cmd.template, nil)
-		if err != nil {
-			fatalf(err.Error())
-		}
-	}
+	t := createTemplate("node-list", cmd.template)
 
 	if cmd.compute {
 		return listComputeNodes(t)
@@ -179,7 +171,7 @@ Show cluster status
 `)
 	cmd.Flag.PrintDefaults()
 	fmt.Fprintf(os.Stderr, "\n%s",
-		templateutils.GenerateUsageDecorated("f", types.CiaoClusterStatus{}.Status, nil))
+		generateUsageDecorated("f", types.CiaoClusterStatus{}.Status))
 	os.Exit(2)
 }
 
@@ -205,8 +197,8 @@ func (cmd *nodeStatusCommand) run(args []string) error {
 	}
 
 	if cmd.template != "" {
-		return templateutils.OutputToTemplate(os.Stdout, "node-status", cmd.template,
-			&status.Status, nil)
+		return outputToTemplate("node-status", cmd.template,
+			&status.Status)
 	}
 
 	fmt.Printf("Total Nodes %d\n", status.Status.TotalNodes)
@@ -238,8 +230,8 @@ The template passed to the -f option operates on one of the following types:
 
 --cnci
 
-%s`, templateutils.GenerateUsageUndecorated(types.CiaoCNCI{}))
-	fmt.Fprintln(os.Stderr, templateutils.TemplateFunctionHelp(nil))
+%s`, generateUsageUndecorated(types.CiaoCNCI{}))
+	fmt.Fprintln(os.Stderr, templateFunctionHelp)
 	os.Exit(2)
 }
 
@@ -281,8 +273,8 @@ func showCNCINode(cmd *nodeShowCommand) error {
 	}
 
 	if cmd.template != "" {
-		return templateutils.OutputToTemplate(os.Stdout, "node-show", cmd.template,
-			&cnci, nil)
+		return outputToTemplate("node-show", cmd.template,
+			&cnci)
 	}
 
 	fmt.Printf("\tCNCI UUID: %s\n", cnci.ID)

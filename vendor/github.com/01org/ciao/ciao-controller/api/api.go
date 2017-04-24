@@ -21,7 +21,6 @@ import (
 	"net/http"
 
 	"github.com/01org/ciao/ciao-controller/types"
-	"github.com/01org/ciao/service"
 	"github.com/01org/ciao/ssntp/uuid"
 	"github.com/golang/glog"
 	"github.com/gorilla/mux"
@@ -71,8 +70,7 @@ func errorResponse(err error) Response {
 	case types.ErrPoolNotFound,
 		types.ErrTenantNotFound,
 		types.ErrAddressNotFound,
-		types.ErrInstanceNotFound,
-		types.ErrWorkloadNotFound:
+		types.ErrInstanceNotFound:
 		return Response{http.StatusNotFound, nil}
 
 	case types.ErrQuota,
@@ -84,8 +82,7 @@ func errorResponse(err error) Response {
 		types.ErrInvalidPoolAddress,
 		types.ErrBadRequest,
 		types.ErrPoolEmpty,
-		types.ErrDuplicatePoolName,
-		types.ErrWorkloadInUse:
+		types.ErrDuplicatePoolName:
 		return Response{http.StatusForbidden, nil}
 
 	default:
@@ -98,20 +95,10 @@ func errorResponse(err error) Response {
 // and pass some package level context into the handler.
 type Handler struct {
 	*Context
-	Handler    func(*Context, http.ResponseWriter, *http.Request) (Response, error)
-	Privileged bool
+	Handler func(*Context, http.ResponseWriter, *http.Request) (Response, error)
 }
 
 func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// check whether we should send permission denied for this route.
-	if h.Privileged {
-		privileged := service.GetPrivilege(r.Context())
-		if !privileged {
-			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-			return
-		}
-	}
-
 	// set the content type to whatever was requested.
 	contentType := r.Header.Get("Content-Type")
 
@@ -509,42 +496,6 @@ func addWorkload(c *Context, w http.ResponseWriter, r *http.Request) (Response, 
 	return Response{http.StatusCreated, resp}, nil
 }
 
-func deleteWorkload(c *Context, w http.ResponseWriter, r *http.Request) (Response, error) {
-	vars := mux.Vars(r)
-	ID := vars["workload_id"]
-
-	// if we have no tenant variable, then we are admin
-	tenantID, ok := vars["tenant"]
-	if !ok {
-		tenantID = "public"
-	}
-
-	err := c.DeleteWorkload(tenantID, ID)
-	if err != nil {
-		return errorResponse(err), err
-	}
-
-	return Response{http.StatusNoContent, nil}, nil
-}
-
-func showWorkload(c *Context, w http.ResponseWriter, r *http.Request) (Response, error) {
-	vars := mux.Vars(r)
-	ID := vars["workload_id"]
-
-	// if we have no tenant variable, then we are admin
-	tenant, ok := vars["tenant"]
-	if !ok {
-		tenant = "public"
-	}
-
-	wl, err := c.ShowWorkload(tenant, ID)
-	if err != nil {
-		return errorResponse(err), err
-	}
-
-	return Response{http.StatusOK, wl}, nil
-}
-
 func listQuotas(c *Context, w http.ResponseWriter, r *http.Request) (Response, error) {
 	vars := mux.Vars(r)
 	tenantID, ok := vars["tenant"]
@@ -597,8 +548,6 @@ type Service interface {
 	MapAddress(poolName *string, instanceID string) error
 	UnMapAddress(ID string) error
 	CreateWorkload(req types.Workload) (types.Workload, error)
-	DeleteWorkload(tenantID string, workloadID string) error
-	ShowWorkload(tenantID string, workloadID string) (types.Workload, error)
 	ListQuotas(tenantID string) []types.QuotaDetails
 	UpdateQuotas(tenantID string, qds []types.QuotaDetails) error
 }
@@ -627,112 +576,96 @@ func Routes(config Config) *mux.Router {
 	r := mux.NewRouter()
 
 	// external IP pools
-	route := r.Handle("/", Handler{context, listResources, true})
+	route := r.Handle("/", Handler{context, listResources})
 	route.Methods("GET")
 
-	route = r.Handle("/{tenant:"+uuid.UUIDRegex+"}", Handler{context, listResources, false})
+	route = r.Handle("/{tenant:"+uuid.UUIDRegex+"}", Handler{context, listResources})
 	route.Methods("GET")
 
 	matchContent := fmt.Sprintf("application/(%s|json)", PoolsV1)
 
-	route = r.Handle("/pools", Handler{context, listPools, true})
+	route = r.Handle("/pools", Handler{context, listPools})
 	route.Methods("GET")
 	route.HeadersRegexp("Content-Type", matchContent)
 
-	route = r.Handle("/{tenant:"+uuid.UUIDRegex+"}/pools", Handler{context, listPools, false})
+	route = r.Handle("/{tenant:"+uuid.UUIDRegex+"}", Handler{context, listPools})
 	route.Methods("GET")
 	route.HeadersRegexp("Content-Type", matchContent)
 
-	route = r.Handle("/pools", Handler{context, addPool, true})
+	route = r.Handle("/pools", Handler{context, addPool})
 	route.Methods("POST")
 	route.HeadersRegexp("Content-Type", matchContent)
 
-	route = r.Handle("/pools/{pool:"+uuid.UUIDRegex+"}", Handler{context, showPool, true})
+	route = r.Handle("/pools/{pool:"+uuid.UUIDRegex+"}", Handler{context, showPool})
 	route.Methods("GET")
 	route.HeadersRegexp("Content-Type", matchContent)
 
-	route = r.Handle("/pools/{pool:"+uuid.UUIDRegex+"}", Handler{context, deletePool, true})
+	route = r.Handle("/pools/{pool:"+uuid.UUIDRegex+"}", Handler{context, deletePool})
 	route.Methods("DELETE")
 	route.HeadersRegexp("Content-Type", matchContent)
 
-	route = r.Handle("/pools/{pool:"+uuid.UUIDRegex+"}", Handler{context, addToPool, true})
+	route = r.Handle("/pools/{pool:"+uuid.UUIDRegex+"}", Handler{context, addToPool})
 	route.Methods("POST")
 	route.HeadersRegexp("Content-Type", matchContent)
 
-	route = r.Handle("/pools/{pool:"+uuid.UUIDRegex+"}/subnets/{subnet:"+uuid.UUIDRegex+"}", Handler{context, deleteSubnet, true})
+	route = r.Handle("/pools/{pool:"+uuid.UUIDRegex+"}/subnets/{subnet:"+uuid.UUIDRegex+"}", Handler{context, deleteSubnet})
 	route.Methods("DELETE")
 	route.HeadersRegexp("Content-Type", matchContent)
 
-	route = r.Handle("/pools/{pool:"+uuid.UUIDRegex+"}/external-ips/{ip_id:"+uuid.UUIDRegex+"}", Handler{context, deleteExternalIP, true})
+	route = r.Handle("/pools/{pool:"+uuid.UUIDRegex+"}/external-ips/{ip_id:"+uuid.UUIDRegex+"}", Handler{context, deleteExternalIP})
 	route.Methods("DELETE")
 	route.HeadersRegexp("Content-Type", matchContent)
 
 	// mapped external IPs
 	matchContent = fmt.Sprintf("application/(%s|json)", ExternalIPsV1)
 
-	route = r.Handle("/external-ips", Handler{context, listMappedIPs, true})
+	route = r.Handle("/external-ips", Handler{context, listMappedIPs})
 	route.Methods("GET")
 	route.HeadersRegexp("Content-Type", matchContent)
 
-	route = r.Handle("/{tenant:"+uuid.UUIDRegex+"}/external-ips", Handler{context, listMappedIPs, false})
+	route = r.Handle("/{tenant:"+uuid.UUIDRegex+"}/external-ips", Handler{context, listMappedIPs})
 	route.Methods("GET")
 	route.HeadersRegexp("Content-Type", matchContent)
 
-	route = r.Handle("/external-ips", Handler{context, mapExternalIP, true})
+	route = r.Handle("/external-ips", Handler{context, mapExternalIP})
 	route.Methods("POST")
 	route.HeadersRegexp("Content-Type", matchContent)
 
-	route = r.Handle("/{tenant:"+uuid.UUIDRegex+"}/external-ips", Handler{context, mapExternalIP, false})
+	route = r.Handle("/{tenant:"+uuid.UUIDRegex+"}/external-ips", Handler{context, mapExternalIP})
 	route.Methods("POST")
 	route.HeadersRegexp("Content-Type", matchContent)
 
-	route = r.Handle("/external-ips/{mapping_id:"+uuid.UUIDRegex+"}", Handler{context, unmapExternalIP, true})
+	route = r.Handle("/external-ips/{mapping_id:"+uuid.UUIDRegex+"}", Handler{context, unmapExternalIP})
 	route.Methods("DELETE")
 	route.HeadersRegexp("Content-Type", matchContent)
 
-	route = r.Handle("/{tenant:"+uuid.UUIDRegex+"}/external-ips/{mapping_id:"+uuid.UUIDRegex+"}", Handler{context, unmapExternalIP, false})
+	route = r.Handle("/{tenant:"+uuid.UUIDRegex+"}/external-ips/{mapping_id:"+uuid.UUIDRegex+"}", Handler{context, unmapExternalIP})
 	route.Methods("DELETE")
 	route.HeadersRegexp("Content-Type", matchContent)
 
 	// workloads
 	matchContent = fmt.Sprintf("application/(%s|json)", WorkloadsV1)
 
-	route = r.Handle("/workloads", Handler{context, addWorkload, true})
+	route = r.Handle("/workloads", Handler{context, addWorkload})
 	route.Methods("POST")
 	route.HeadersRegexp("Content-Type", matchContent)
 
-	route = r.Handle("/workloads/{workload_id:"+uuid.UUIDRegex+"}", Handler{context, deleteWorkload, true})
-	route.Methods("DELETE")
-	route.HeadersRegexp("Content-Type", matchContent)
-
-	route = r.Handle("/workloads/{workload_id:"+uuid.UUIDRegex+"}", Handler{context, showWorkload, true})
-	route.Methods("GET")
-	route.HeadersRegexp("Content-Type", matchContent)
-
-	route = r.Handle("/{tenant:"+uuid.UUIDRegex+"}/workloads", Handler{context, addWorkload, false})
+	route = r.Handle("/{tenant:[a-f0-9]{8}-?[a-f0-9]{4}-?4[a-f0-9]{3}-?[8|9|aA|bB][a-f0-9]{3}-?[a-f0-9]{12}}/workloads", Handler{context, addWorkload})
 	route.Methods("POST")
-	route.HeadersRegexp("Content-Type", matchContent)
-
-	route = r.Handle("/{tenant:"+uuid.UUIDRegex+"}/workloads/{workload_id:"+uuid.UUIDRegex+"}", Handler{context, deleteWorkload, false})
-	route.Methods("DELETE")
-	route.HeadersRegexp("Content-Type", matchContent)
-
-	route = r.Handle("/{tenant:"+uuid.UUIDRegex+"}/workloads/{workload_id:"+uuid.UUIDRegex+"}", Handler{context, showWorkload, false})
-	route.Methods("GET")
 	route.HeadersRegexp("Content-Type", matchContent)
 
 	// tenant quotas
 	matchContent = fmt.Sprintf("application/(%s|json)", TenantsV1)
 
-	route = r.Handle("/{tenant:"+uuid.UUIDRegex+"}/tenants/quotas", Handler{context, listQuotas, false})
+	route = r.Handle("/{tenant:"+uuid.UUIDRegex+"}/tenants/quotas", Handler{context, listQuotas})
 	route.Methods("GET")
 	route.HeadersRegexp("Content-Type", matchContent)
 
-	route = r.Handle("/tenants/{for_tenant:"+uuid.UUIDRegex+"}/quotas", Handler{context, listQuotas, true})
+	route = r.Handle("/tenants/{for_tenant:"+uuid.UUIDRegex+"}/quotas", Handler{context, listQuotas})
 	route.Methods("GET")
 	route.HeadersRegexp("Content-Type", matchContent)
 
-	route = r.Handle("/tenants/{for_tenant:"+uuid.UUIDRegex+"}/quotas", Handler{context, updateQuotas, true})
+	route = r.Handle("/tenants/{for_tenant:"+uuid.UUIDRegex+"}/quotas", Handler{context, updateQuotas})
 	route.Methods("PUT")
 	route.HeadersRegexp("Content-Type", matchContent)
 

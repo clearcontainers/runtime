@@ -24,6 +24,8 @@
 package bat
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -94,23 +96,6 @@ type ClusterStatus struct {
 	TotalNodesMaintenance int `json:"total_nodes_maintenance"`
 }
 
-// ComputeNodeStatus contains information about the status of a compute node
-type ComputeNodeStatus struct {
-	ID                    string    `json:"id"`
-	Timestamp             time.Time `json:"updated"`
-	Status                string    `json:"status"`
-	MemTotal              int       `json:"ram_total"`
-	MemAvailable          int       `json:"ram_available"`
-	DiskTotal             int       `json:"disk_total"`
-	DiskAvailable         int       `json:"disk_available"`
-	Load                  int       `json:"load"`
-	OnlineCPUs            int       `json:"online_cpus"`
-	TotalInstances        int       `json:"total_instances"`
-	TotalRunningInstances int       `json:"total_running_instances"`
-	TotalPendingInstances int       `json:"total_pending_instances"`
-	TotalPausedInstances  int       `json:"total_paused_instances"`
-}
-
 func checkEnv(vars []string) error {
 	for _, k := range vars {
 		if os.Getenv(k) == "" {
@@ -169,10 +154,8 @@ func RunCIAOCLIJS(ctx context.Context, tenant string, args []string, jsdata inte
 // RunCIAOCLIAsAdmin execs the ciao-cli command as the admin user with a set of
 // provided arguments.  The ciao-cli process will be killed if the context is
 // Done.  An error will be returned if the following environment are not set;
-// CIAO_IDENTITY, CIAO_CONTROLLER, CIAO_ADMIN_USERNAME, CIAO_ADMIN_PASSWORD.  In
-// environments with multiple admin tenants CIAO_ADMIN_TENANT_NAME will be used
-// to select the tenant.  On success the data written to ciao-cli on stdout will
-// be returned.
+// CIAO_IDENTITY,  CIAO_CONTROLLER, CIAO_ADMIN_USERNAME, CIAO_ADMIN_PASSWORD.
+// On success the data written to ciao-cli on stdout will be returned.
 func RunCIAOCLIAsAdmin(ctx context.Context, tenant string, args []string) ([]byte, error) {
 	vars := []string{"CIAO_IDENTITY", "CIAO_CONTROLLER", "CIAO_ADMIN_USERNAME", "CIAO_ADMIN_PASSWORD"}
 	if err := checkEnv(vars); err != nil {
@@ -187,8 +170,7 @@ func RunCIAOCLIAsAdmin(ctx context.Context, tenant string, args []string) ([]byt
 	envCopy := make([]string, 0, len(env))
 	for _, v := range env {
 		if !strings.HasPrefix(v, "CIAO_USERNAME=") &&
-			!strings.HasPrefix(v, "CIAO_PASSWORD=") &&
-			!strings.HasPrefix(v, "CIAO_TENANT_NAME=") {
+			!strings.HasPrefix(v, "CIAO_PASSWORD=") {
 			envCopy = append(envCopy, v)
 		}
 	}
@@ -196,10 +178,6 @@ func RunCIAOCLIAsAdmin(ctx context.Context, tenant string, args []string) ([]byt
 		os.Getenv("CIAO_ADMIN_USERNAME")))
 	envCopy = append(envCopy, fmt.Sprintf("CIAO_PASSWORD=%s",
 		os.Getenv("CIAO_ADMIN_PASSWORD")))
-	if adminTenantName, ok := os.LookupEnv("CIAO_ADMIN_TENANT_NAME"); ok {
-		envCopy = append(envCopy, fmt.Sprintf("CIAO_TENANT_NAME=%s",
-			adminTenantName))
-	}
 
 	cmd := exec.CommandContext(ctx, "ciao-cli", args...)
 	cmd.Env = envCopy
@@ -377,42 +355,6 @@ func StopInstanceAndWait(ctx context.Context, tenant string, instance string) er
 	}
 }
 
-// RestartInstance restarts a ciao instance by invoking the ciao-cli instance restart
-// command.  An error will be returned if the following environment variables are not set;
-// CIAO_IDENTITY, CIAO_CONTROLLER, CIAO_USERNAME, CIAO_PASSWORD.
-func RestartInstance(ctx context.Context, tenant string, instance string) error {
-	args := []string{"instance", "restart", "-instance", instance}
-	_, err := RunCIAOCLI(ctx, tenant, args)
-	return err
-}
-
-// RestartInstanceAndWait restarts a ciao instance by invoking the ciao-cli instance
-// restart command.   It then waits until the instance's status changes to active.
-// An error will be returned if the following environment variables are not set;
-// CIAO_IDENTITY, CIAO_CONTROLLER, CIAO_USERNAME, CIAO_PASSWORD.
-func RestartInstanceAndWait(ctx context.Context, tenant string, instance string) error {
-	if err := RestartInstance(ctx, tenant, instance); err != nil {
-		return err
-	}
-	for {
-		status, err := RetrieveInstanceStatus(ctx, tenant, instance)
-		if err != nil {
-			return err
-		}
-
-		if status == "active" {
-			return nil
-		}
-
-		select {
-		case <-time.After(time.Second):
-			continue
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
-}
-
 // DeleteInstance deletes a specific instance from the cluster.  It deletes
 // the instance using ciao-cli instance delete.  An error will be returned
 // if the following environment variables are not set; CIAO_IDENTITY,
@@ -556,30 +498,40 @@ func WaitForInstancesLaunch(ctx context.Context, tenant string, instances []stri
 	}
 }
 
+func parseInstances(data []byte, num int) ([]string, error) {
+	instances := make([]string, num)
+	scanner := bufio.NewScanner(bytes.NewBuffer(data))
+	for i := 0; i < num; i++ {
+		if !scanner.Scan() {
+			return nil, fmt.Errorf(
+				"Missing instance UUID.  Found %d, expected %d", i, num)
+		}
+
+		line := scanner.Bytes()
+		colonIndex := bytes.LastIndexByte(line, ':')
+		if colonIndex == -1 || colonIndex+2 >= len(line) {
+			return nil, fmt.Errorf("Unable to determine UUID of new instance")
+		}
+		instances[i] = string(bytes.TrimSpace(line[colonIndex+2:]))
+	}
+
+	return instances, nil
+}
+
 // LaunchInstances launches num instances of the specified workload.  On success
-// the function returns a slice of UUIDs of the successfully launched instances.
-// If some instances failed to start then the error can be found in the event
-// log.  The instances are launched using ciao-cli instance add. If no instances
-// successfully launch then an error will be returned.  An error will be
-// returned if the following environment variables are not set; CIAO_IDENTITY,
-// CIAO_CONTROLLER, CIAO_USERNAME, CIAO_PASSWORD.
+// the function returns a slice of UUIDs of the new instances.  The instances
+// are launched using ciao-cli instance add.  An error will be returned if the
+// following environment variables are not set; CIAO_IDENTITY,  CIAO_CONTROLLER,
+// CIAO_USERNAME, CIAO_PASSWORD.
 func LaunchInstances(ctx context.Context, tenant string, workload string, num int) ([]string, error) {
-	template := `
-[
-{{- range $i, $val := .}}
-  {{- if $i }},{{end}}"{{$val.ID | js }}"
-{{- end }}
-]
-`
 	args := []string{"instance", "add", "--workload", workload,
-		"--instances", fmt.Sprintf("%d", num), "-f", template}
-	var instances []string
-	err := RunCIAOCLIJS(ctx, tenant, args, &instances)
+		"--instances", fmt.Sprintf("%d", num)}
+	data, err := RunCIAOCLI(ctx, tenant, args)
 	if err != nil {
 		return nil, err
 	}
 
-	return instances, nil
+	return parseInstances(data, num)
 }
 
 // StartRandomInstances starts a specified number of instances using
@@ -630,27 +582,6 @@ func GetCNCIs(ctx context.Context) (map[string]*CNCI, error) {
 	}
 
 	return CNCIs, nil
-}
-
-// GetComputeNodes returns a map containing status information about
-// each node in the cluster.  The key of the map is the Node ID.  The
-// information is retrieved using ciao-cli list -compute command.  An
-// error will be returned if the following environment are not set;
-// CIAO_IDENTITY,  CIAO_CONTROLLER, CIAO_ADMIN_USERNAME, CIAO_ADMIN_PASSWORD.
-func GetComputeNodes(ctx context.Context) (map[string]*ComputeNodeStatus, error) {
-	var computeList []*ComputeNodeStatus
-	args := []string{"node", "list", "-compute", "-f", "{{tojson .}}"}
-	err := RunCIAOCLIAsAdminJS(ctx, "", args, &computeList)
-	if err != nil {
-		return nil, err
-	}
-
-	computeMap := make(map[string]*ComputeNodeStatus)
-	for _, n := range computeList {
-		computeMap[n.ID] = n
-	}
-
-	return computeMap, nil
 }
 
 // GetClusterStatus returns the status of the ciao cluster.  The information

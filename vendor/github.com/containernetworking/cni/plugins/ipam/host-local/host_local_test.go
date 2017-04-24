@@ -45,7 +45,7 @@ var _ = Describe("host-local Operations", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		conf := fmt.Sprintf(`{
-    "cniVersion": "0.3.0",
+    "cniVersion": "0.3.1",
     "name": "mynet",
     "type": "ipvlan",
     "master": "foo0",
@@ -101,7 +101,7 @@ var _ = Describe("host-local Operations", func() {
 		Expect(err).To(HaveOccurred())
 	})
 
-	It("allocates and releases an address with ADD/DEL and 0.1.0 config", func() {
+	It("doesn't error when passed an unknown ID on DEL", func() {
 		const ifname string = "eth0"
 		const nspath string = "/some/where"
 
@@ -110,7 +110,7 @@ var _ = Describe("host-local Operations", func() {
 		defer os.RemoveAll(tmpDir)
 
 		conf := fmt.Sprintf(`{
-    "cniVersion": "0.1.0",
+    "cniVersion": "0.3.0",
     "name": "mynet",
     "type": "ipvlan",
     "master": "foo0",
@@ -120,6 +120,44 @@ var _ = Describe("host-local Operations", func() {
         "dataDir": "%s"
     }
 }`, tmpDir)
+
+		args := &skel.CmdArgs{
+			ContainerID: "dummy",
+			Netns:       nspath,
+			IfName:      ifname,
+			StdinData:   []byte(conf),
+		}
+
+		// Release the IP
+		err = testutils.CmdDelWithResult(nspath, ifname, func() error {
+			return cmdDel(args)
+		})
+		Expect(err).NotTo(HaveOccurred())
+	})
+
+	It("allocates and releases an address with ADD/DEL and 0.1.0 config", func() {
+		const ifname string = "eth0"
+		const nspath string = "/some/where"
+
+		tmpDir, err := ioutil.TempDir("", "host_local_artifacts")
+		Expect(err).NotTo(HaveOccurred())
+		defer os.RemoveAll(tmpDir)
+
+		err = ioutil.WriteFile(filepath.Join(tmpDir, "resolv.conf"), []byte("nameserver 192.0.2.3"), 0644)
+		Expect(err).NotTo(HaveOccurred())
+
+		conf := fmt.Sprintf(`{
+    "cniVersion": "0.1.0",
+    "name": "mynet",
+    "type": "ipvlan",
+    "master": "foo0",
+    "ipam": {
+        "type": "host-local",
+        "subnet": "10.1.2.0/24",
+        "dataDir": "%s",
+	"resolvConf": "%s/resolv.conf"
+    }
+}`, tmpDir, tmpDir)
 
 		args := &skel.CmdArgs{
 			ContainerID: "dummy",
@@ -175,7 +213,7 @@ var _ = Describe("host-local Operations", func() {
 		defer os.RemoveAll(tmpDir)
 
 		conf := fmt.Sprintf(`{
-    "cniVersion": "0.2.0",
+    "cniVersion": "0.3.1",
     "name": "mynet",
     "type": "ipvlan",
     "master": "foo0",
@@ -215,5 +253,40 @@ var _ = Describe("host-local Operations", func() {
 
 		_, err = os.Stat(ipFilePath)
 		Expect(err).To(HaveOccurred())
+	})
+
+	It("does not output an error message upon initial subnet creation", func() {
+		const ifname string = "eth0"
+		const nspath string = "/some/where"
+
+		tmpDir, err := ioutil.TempDir("", "host_local_artifacts")
+		Expect(err).NotTo(HaveOccurred())
+		defer os.RemoveAll(tmpDir)
+
+		conf := fmt.Sprintf(`{
+    "cniVersion": "0.2.0",
+    "name": "mynet",
+    "type": "ipvlan",
+    "master": "foo0",
+    "ipam": {
+        "type": "host-local",
+        "subnet": "10.1.2.0/24",
+        "dataDir": "%s"
+    }
+}`, tmpDir)
+
+		args := &skel.CmdArgs{
+			ContainerID: "testing",
+			Netns:       nspath,
+			IfName:      ifname,
+			StdinData:   []byte(conf),
+		}
+
+		// Allocate the IP
+		_, out, err := testutils.CmdAddWithResult(nspath, ifname, []byte(conf), func() error {
+			return cmdAdd(args)
+		})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(strings.Index(string(out), "Error retriving last reserved ip")).To(Equal(-1))
 	})
 })

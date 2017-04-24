@@ -381,25 +381,19 @@ func (c *controller) CreateServer(tenant string, server compute.CreateServerRequ
 		TraceLabel: label,
 		Volumes:    volumes,
 	}
-	var e error
 	instances, err := c.startWorkload(w)
 	if err != nil {
-		e = err
+		return server, err
 	}
 
 	var servers compute.Servers
 
 	for _, instance := range instances {
 		server, err := instanceToServer(c, instance)
-		if err != nil && e == nil {
-			e = err
+		if err != nil {
+			return server, err
 		}
 		servers.Servers = append(servers.Servers, server)
-	}
-
-	// If no instances launcher or if none converted bail early
-	if e != nil && len(servers.Servers) == 0 {
-		return server, e
 	}
 
 	servers.TotalServers = len(instances)
@@ -422,9 +416,6 @@ func (c *controller) CreateServer(tenant string, server compute.CreateServerRequ
 		},
 	}
 
-	if e != nil {
-		c.ds.LogError(tenant, fmt.Sprintf("Error launching instance(s): %v", e))
-	}
 	return builtServers, nil
 }
 

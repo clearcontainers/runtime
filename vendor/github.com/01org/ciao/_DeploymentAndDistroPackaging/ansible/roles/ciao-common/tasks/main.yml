@@ -40,3 +40,6 @@
       - /etc/systemd/system
       - /usr/local
       - /usr/local/bin
+
+  - include: ceph.yml
+    when: not skip_ceph

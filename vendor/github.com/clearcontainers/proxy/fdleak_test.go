@@ -184,6 +184,10 @@ func (d *FdLeakDetector) Snapshot() (snap *FdSnapshot, err error) {
 // Compare writes to w the differences between the a and b snaphots.
 // true will be returned if the two snapshots are equal, false otherwise.
 func (d *FdLeakDetector) Compare(w io.Writer, a, b *FdSnapshot) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+
 	equal := true
 
 	i := 0
@@ -299,6 +303,10 @@ func TestFdDetectorCompare(t *testing.T) {
 		old, new *FdSnapshot
 		equal    bool
 	}{
+		// handle nil arguments
+		{old: nil, new: nil, equal: true},
+		{old: &FdSnapshot{}, new: nil, equal: false},
+		{old: nil, new: &FdSnapshot{}, equal: false},
 		// Same fds
 		{
 			old: &FdSnapshot{

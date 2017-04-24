@@ -113,8 +113,15 @@ func (c *client) infof(lvl glog.Level, fmt string, a ...interface{}) {
 }
 
 func (proxy *proxy) allocateTokens(vm *vm, numIOStreams int) (*api.IOResponse, error) {
+	url := url.URL{
+		Scheme: "unix",
+		Path:   proxy.socketPath,
+	}
+
 	if numIOStreams <= 0 {
-		return nil, nil
+		return &api.IOResponse{
+			URL: url.String(),
+		}, nil
 	}
 
 	tokens := make([]string, 0, numIOStreams)
@@ -131,11 +138,6 @@ func (proxy *proxy) allocateTokens(vm *vm, numIOStreams int) (*api.IOResponse, e
 			vm:    vm,
 		}
 		proxy.Unlock()
-	}
-
-	url := url.URL{
-		Scheme: "unix",
-		Path:   proxy.socketPath,
 	}
 
 	return &api.IOResponse{
@@ -386,7 +388,7 @@ func disconnectShim(data []byte, userData interface{}, response *handlerResponse
 	client.session = nil
 	client.token = ""
 
-	client.infof(1, "DisonnectShim()")
+	client.infof(1, "DisconnectShim()")
 }
 
 // "signal"
@@ -586,7 +588,7 @@ func proxyMain() {
 
 	// Wait for all the goroutines started by registerVMHandler to finish.
 	//
-	// Not stricly necessary as:
+	// Not strictly necessary as:
 	//   • currently proxy.serve() cannot return,
 	//   • even if it was, the process is about to exit anyway...
 	//

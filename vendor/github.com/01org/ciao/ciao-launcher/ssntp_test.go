@@ -27,6 +27,7 @@ import (
 )
 
 type ssntpTestState struct {
+	t       *testing.T
 	status  bool
 	error   ssntp.Error
 	payload []byte
@@ -201,6 +202,84 @@ func TestAgentClientStart(t *testing.T) {
 	wg.Wait()
 
 	checkErrorPayload(t, &ac, state, ssntp.START, ssntp.StartFailure)
+}
+
+// Verify that the agentClient correctly processes ssntp.RESTART
+//
+// Send the ssntp.RESTART command to the agent client with a valid payload,
+// then send another ssntp.RESTART command with an invalid payload.
+//
+// The command with the valid payload should be processed correctly and a
+// insRestartCmd should be received on the agent's cmdCh.  The second
+// command with the invalid payload should result in a call to state.SendError.
+func TestAgentClientRestart(t *testing.T) {
+	state := &ssntpTestState{}
+	cmdCh := make(chan *cmdWrapper)
+	ac := agentClient{conn: state, cmdCh: cmdCh}
+
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		select {
+		case cmd := <-cmdCh:
+			if _, ok := cmd.cmd.(*insRestartCmd); !ok {
+				t.Errorf("Unexpected command received.  Expected restartCmd")
+			}
+			if cmd.instance != testutil.InstanceUUID {
+				t.Errorf("Unexpected instanced.  Expected %s found %s",
+					testutil.InstanceUUID, cmd.instance)
+			}
+		case <-time.After(time.Second):
+			t.Errorf("Timedout waiting for cmdCh")
+		}
+		wg.Done()
+	}()
+
+	frame := &ssntp.Frame{Payload: []byte(testutil.RestartYaml)}
+	ac.CommandNotify(ssntp.RESTART, frame)
+	wg.Wait()
+
+	checkErrorPayload(t, &ac, state, ssntp.RESTART, ssntp.RestartFailure)
+}
+
+// Verify that the agentClient correctly processes ssntp.STOP
+//
+// Send the ssntp.STOP command to the agent client with a valid payload,
+// then send another ssntp.STOP command with an invalid payload.
+//
+// The command with the valid payload should be processed correctly and a
+// insStopCmd should be received on the agent's cmdCh.  The second
+// command with the invalid payload should result in a call to state.SendError.
+func TestAgentClientStop(t *testing.T) {
+	state := &ssntpTestState{}
+	cmdCh := make(chan *cmdWrapper)
+	ac := agentClient{conn: state, cmdCh: cmdCh}
+
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		select {
+		case cmd := <-cmdCh:
+			if _, ok := cmd.cmd.(*insStopCmd); !ok {
+				t.Errorf("Unexpected command received.  Expected stopCmd")
+			}
+			if cmd.instance != testutil.InstanceUUID {
+				t.Errorf("Unexpected instanced.  Expected %s found %s",
+					testutil.InstanceUUID, cmd.instance)
+			}
+		case <-time.After(time.Second):
+			t.Errorf("Timedout waiting for cmdCh")
+		}
+		wg.Done()
+	}()
+
+	frame := &ssntp.Frame{Payload: []byte(testutil.StopYaml)}
+	ac.CommandNotify(ssntp.STOP, frame)
+	wg.Wait()
+
+	checkErrorPayload(t, &ac, state, ssntp.STOP, ssntp.StopFailure)
 }
 
 // Verify that the agentClient correctly processes ssntp.DELETE

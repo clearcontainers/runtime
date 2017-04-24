@@ -1,3 +1,5 @@
+// +build linux
+
 package netlink
 
 import (
@@ -123,6 +125,16 @@ func testLinkAddDel(t *testing.T, link Link) {
 		_, ok := result.(*Vti)
 		if !ok {
 			t.Fatal("Result of create is not a vti")
+		}
+	}
+
+	if bond, ok := link.(*Bond); ok {
+		other, ok := result.(*Bond)
+		if !ok {
+			t.Fatal("Result of create is not a bond")
+		}
+		if bond.Mode != other.Mode {
+			t.Fatalf("Got unexpected mode: %d, expected: %d", other.Mode, bond.Mode)
 		}
 	}
 
@@ -333,7 +345,9 @@ func TestLinkAddDelBond(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
 
-	testLinkAddDel(t, NewLinkBond(LinkAttrs{Name: "foo"}))
+	bond := NewLinkBond(LinkAttrs{Name: "foo"})
+	bond.Mode = StringToBondModeMap["802.3ad"]
+	testLinkAddDel(t, bond)
 }
 
 func TestLinkAddVethWithDefaultTxQLen(t *testing.T) {
@@ -810,6 +824,49 @@ func TestLinkSet(t *testing.T) {
 	}
 }
 
+func TestLinkSetARP(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	iface := &Veth{LinkAttrs: LinkAttrs{Name: "foo", TxQLen: testTxQLen, MTU: 1500}, PeerName: "banana"}
+	if err := LinkAdd(iface); err != nil {
+		t.Fatal(err)
+	}
+
+	link, err := LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = LinkSetARPOff(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	link, err = LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if link.Attrs().RawFlags&syscall.IFF_NOARP != uint32(syscall.IFF_NOARP) {
+		t.Fatalf("NOARP was not set!")
+	}
+
+	err = LinkSetARPOn(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	link, err = LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if link.Attrs().RawFlags&syscall.IFF_NOARP != 0 {
+		t.Fatalf("NOARP is still set!")
+	}
+}
+
 func expectLinkUpdate(ch <-chan LinkUpdate, ifaceName string, up bool) bool {
 	for {
 		timeout := time.After(time.Minute)
@@ -862,6 +919,8 @@ func TestLinkSubscribe(t *testing.T) {
 }
 
 func TestLinkSubscribeAt(t *testing.T) {
+	skipUnlessRoot(t)
+
 	// Create an handle on a custom netns
 	newNs, err := netns.New()
 	if err != nil {

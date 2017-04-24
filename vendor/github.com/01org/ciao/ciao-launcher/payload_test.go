@@ -302,6 +302,23 @@ func TestGenerateNetEventPayload(t *testing.T) {
 	}
 }
 
+// Check that parseRestartPayload works correctly.
+//
+// Parse a valid restart payload.
+//
+// The payload should parse without any error and the instance UUID in the
+// resulting payloads data structure should be as expected.
+func TestParseRestartPayload(t *testing.T) {
+	instance, err := parseRestartPayload([]byte(testutil.RestartYaml))
+	if err != nil {
+		t.Fatalf("Failed to parse restart payload : %v", err.err)
+	}
+	if instance != testutil.InstanceUUID {
+		t.Errorf("Wrong instance UUID.  Expected %s found %s", instance,
+			testutil.InstanceUUID)
+	}
+}
+
 // Check that parseDeletePayload works correctly.
 //
 // Parse a valid delete payload.
@@ -309,7 +326,7 @@ func TestGenerateNetEventPayload(t *testing.T) {
 // The payload should parse without any error and the instance UUID in the
 // resulting payloads data structure should be as expected.
 func TestParseDeletePayload(t *testing.T) {
-	instance, stop, err := parseDeletePayload([]byte(testutil.DeleteYaml))
+	instance, err := parseDeletePayload([]byte(testutil.DeleteYaml))
 	if err != nil {
 		t.Fatalf("Failed to parse delete payload : %v", err.err)
 	}
@@ -317,7 +334,21 @@ func TestParseDeletePayload(t *testing.T) {
 		t.Errorf("Wrong instance UUID.  Expected %s found %s", instance,
 			testutil.InstanceUUID)
 	}
-	if stop {
-		t.Errorf("Expected stop to be false")
+}
+
+// Check that parseStopPayload works correctly.
+//
+// Parse a valid stop payload.
+//
+// The payload should parse without any error and the instance UUID in the
+// resulting payloads data structure should be as expected.
+func TestParseStopPayload(t *testing.T) {
+	instance, err := parseStopPayload([]byte(testutil.StopYaml))
+	if err != nil {
+		t.Fatalf("Failed to parse stop payload : %v", err.err)
+	}
+	if instance != testutil.InstanceUUID {
+		t.Errorf("Wrong instance UUID.  Expected %s found %s", instance,
+			testutil.InstanceUUID)
 	}
 }

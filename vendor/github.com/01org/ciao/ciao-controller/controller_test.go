@@ -30,6 +30,7 @@ import (
 	"github.com/01org/ciao/ciao-controller/internal/datastore"
 	"github.com/01org/ciao/ciao-controller/internal/quotas"
 	"github.com/01org/ciao/ciao-controller/types"
+	image "github.com/01org/ciao/ciao-image/client"
 	"github.com/01org/ciao/ciao-storage"
 	"github.com/01org/ciao/openstack/block"
 	"github.com/01org/ciao/payloads"
@@ -256,10 +257,10 @@ func TestTenantWithinBounds(t *testing.T) {
 	}
 
 	/* put tenant limit of 1 instance */
-	quotas := []types.QuotaDetails{
-		{Name: "tenant-instances-quota", Value: 1},
+	err = ctl.ds.AddLimit(tenant.ID, 1, 1)
+	if err != nil {
+		t.Fatal(err)
 	}
-	ctl.qs.Update(tenant.ID, quotas)
 
 	wls, err := ctl.ds.GetWorkloads(tenant.ID)
 	if err != nil || len(wls) == 0 {
@@ -275,10 +276,6 @@ func TestTenantWithinBounds(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	quotas = []types.QuotaDetails{
-		{Name: "tenant-instances-quota", Value: -1},
-	}
-	ctl.qs.Update(tenant.ID, quotas)
 }
 
 func TestTenantOutOfBounds(t *testing.T) {
@@ -291,10 +288,10 @@ func TestTenantOutOfBounds(t *testing.T) {
 	}
 
 	/* put tenant limit of 1 instance */
-	quotas := []types.QuotaDetails{
-		{Name: "tenant-instances-quota", Value: 1},
+	err = ctl.ds.AddLimit(tenant.ID, 1, 1)
+	if err != nil {
+		t.Fatal(err)
 	}
-	ctl.qs.Update(tenant.ID, quotas)
 
 	wls, err := ctl.ds.GetWorkloads(tenant.ID)
 	if err != nil || len(wls) == 0 {
@@ -311,10 +308,6 @@ func TestTenantOutOfBounds(t *testing.T) {
 	if err == nil {
 		t.Errorf("Not tracking limits correctly")
 	}
-	quotas = []types.QuotaDetails{
-		{Name: "tenant-instances-quota", Value: -1},
-	}
-	ctl.qs.Update(tenant.ID, quotas)
 }
 
 // TestNewTenantHardwareAddr
@@ -409,14 +402,14 @@ func TestStopInstance(t *testing.T) {
 
 	sendStatsCmd(client, t)
 
-	serverCh := server.AddCmdChan(ssntp.DELETE)
+	serverCh := server.AddCmdChan(ssntp.STOP)
 
 	err := ctl.stopInstance(instances[0].ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	result, err := server.GetCmdChanResult(serverCh, ssntp.DELETE)
+	result, err := server.GetCmdChanResult(serverCh, ssntp.STOP)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -433,19 +426,19 @@ func TestRestartInstance(t *testing.T) {
 
 	sendStatsCmd(client, t)
 
-	serverCh := server.AddCmdChan(ssntp.DELETE)
-	clientCh := client.AddCmdChan(ssntp.DELETE)
+	serverCh := server.AddCmdChan(ssntp.STOP)
+	clientCh := client.AddCmdChan(ssntp.STOP)
 
 	err := ctl.stopInstance(instances[0].ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	result, err := server.GetCmdChanResult(serverCh, ssntp.DELETE)
+	result, err := server.GetCmdChanResult(serverCh, ssntp.STOP)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = client.GetCmdChanResult(clientCh, ssntp.DELETE)
+	_, err = client.GetCmdChanResult(clientCh, ssntp.STOP)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -453,19 +446,18 @@ func TestRestartInstance(t *testing.T) {
 		t.Fatal("Did not get correct Instance ID")
 	}
 
-	err = sendStopEvent(client, instances[0].ID)
-	if err != nil {
-		t.Fatal(err)
-	}
+	// now attempt to restart
 
-	serverCh = server.AddCmdChan(ssntp.START)
+	sendStatsCmd(client, t)
+
+	serverCh = server.AddCmdChan(ssntp.RESTART)
 
 	err = ctl.restartInstance(instances[0].ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	result, err = server.GetCmdChanResult(serverCh, ssntp.START)
+	result, err = server.GetCmdChanResult(serverCh, ssntp.RESTART)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -848,30 +840,45 @@ func TestStopFailure(t *testing.T) {
 	client, instances := testStartWorkload(t, 1, false, reason)
 	defer client.Shutdown()
 
-	client.DeleteFail = true
-	client.DeleteFailReason = payloads.DeleteNoInstance
+	client.StopFail = true
+	client.StopFailReason = payloads.StopNoInstance
 
 	sendStatsCmd(client, t)
 
-	serverCh := server.AddCmdChan(ssntp.DELETE)
-	controllerCh := wrappedClient.addErrorChan(ssntp.DeleteFailure)
+	serverCh := server.AddCmdChan(ssntp.STOP)
+	controllerCh := wrappedClient.addErrorChan(ssntp.StopFailure)
 
 	err := ctl.stopInstance(instances[0].ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	result, err := server.GetCmdChanResult(serverCh, ssntp.DELETE)
+	result, err := server.GetCmdChanResult(serverCh, ssntp.STOP)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = wrappedClient.getErrorChan(controllerCh, ssntp.DeleteFailure)
+	err = wrappedClient.getErrorChan(controllerCh, ssntp.StopFailure)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if result.InstanceUUID != instances[0].ID {
 		t.Fatal("Did not get correct Instance ID")
 	}
+
+	// the response to a stop failure is to log the failure
+	entries, err := ctl.ds.GetEventLog()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectedMsg := fmt.Sprintf("Stop Failure %s: %s", instances[0].ID, client.StopFailReason.String())
+
+	for i := range entries {
+		if entries[i].Message == expectedMsg {
+			return
+		}
+	}
+	t.Error("Did not find failure message in Log")
 }
 
 func TestRestartFailure(t *testing.T) {
@@ -882,29 +889,24 @@ func TestRestartFailure(t *testing.T) {
 	client, instances := testStartWorkload(t, 1, false, reason)
 	defer client.Shutdown()
 
-	client.StartFail = true
-	client.StartFailReason = payloads.LaunchFailure
+	client.RestartFail = true
+	client.RestartFailReason = payloads.RestartLaunchFailure
 
 	sendStatsCmd(client, t)
 
-	serverCh := server.AddCmdChan(ssntp.DELETE)
-	clientCh := client.AddCmdChan(ssntp.DELETE)
+	serverCh := server.AddCmdChan(ssntp.STOP)
+	clientCh := client.AddCmdChan(ssntp.STOP)
 
 	err := ctl.stopInstance(instances[0].ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = sendStopEvent(client, instances[0].ID)
+	_, err = client.GetCmdChanResult(clientCh, ssntp.STOP)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	_, err = client.GetCmdChanResult(clientCh, ssntp.DELETE)
-	if err != nil {
-		t.Fatal(err)
-	}
-	result, err := server.GetCmdChanResult(serverCh, ssntp.DELETE)
+	result, err := server.GetCmdChanResult(serverCh, ssntp.STOP)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -914,19 +916,19 @@ func TestRestartFailure(t *testing.T) {
 
 	sendStatsCmd(client, t)
 
-	serverCh = server.AddCmdChan(ssntp.START)
-	controllerCh := wrappedClient.addErrorChan(ssntp.StartFailure)
+	serverCh = server.AddCmdChan(ssntp.RESTART)
+	controllerCh := wrappedClient.addErrorChan(ssntp.RestartFailure)
 
 	err = ctl.restartInstance(instances[0].ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	result, err = server.GetCmdChanResult(serverCh, ssntp.START)
+	result, err = server.GetCmdChanResult(serverCh, ssntp.RESTART)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = wrappedClient.getErrorChan(controllerCh, ssntp.StartFailure)
+	err = wrappedClient.getErrorChan(controllerCh, ssntp.RestartFailure)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -940,7 +942,7 @@ func TestRestartFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expectedMsg := fmt.Sprintf("Start Failure %s: %s", instances[0].ID, client.StartFailReason.String())
+	expectedMsg := fmt.Sprintf("Restart Failure %s: %s", instances[0].ID, client.RestartFailReason.String())
 
 	for i := range entries {
 		if entries[i].Message == expectedMsg {
@@ -1233,7 +1235,7 @@ func TestGetStorageForImage(t *testing.T) {
 
 	// add fake image to images store
 	//
-	tmpfile, err := ioutil.TempFile("", "testImage")
+	tmpfile, err := ioutil.TempFile(ctl.image.MountPoint, "testImage")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1290,7 +1292,7 @@ func TestStorageConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tmpfile, err := ioutil.TempFile("", "test-image")
+	tmpfile, err := ioutil.TempFile(ctl.image.MountPoint, "test-image")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1357,34 +1359,6 @@ func TestCreateVolume(t *testing.T) {
 	}
 
 	if bd.State != types.Available || bd.TenantID != tenant.ID {
-		t.Fatalf("incorrect volume information stored\n")
-	}
-}
-
-func TestCreateImageVolume(t *testing.T) {
-	tenant, err := addTestTenant()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	imageRef := "test-image-id"
-	req := block.RequestedVolume{
-		ImageRef: &imageRef,
-	}
-
-	vol, err := ctl.CreateVolume(tenant.ID, req)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// confirm that we can retrieve the volume from
-	// the datastore.
-	bd, err := ctl.ds.GetBlockDevice(vol.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if bd.State != types.Available || bd.TenantID != tenant.ID || bd.Bootable == false {
 		t.Fatalf("incorrect volume information stored\n")
 	}
 }
@@ -1921,6 +1895,8 @@ func TestMain(m *testing.M) {
 		os.RemoveAll(dir)
 		os.Exit(1)
 	}
+
+	ctl.image = image.Client{MountPoint: dir}
 
 	dsConfig := datastore.Config{
 		PersistentURI:     "file:memdb1?mode=memory&cache=shared",

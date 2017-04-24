@@ -202,11 +202,3 @@ func (c *controller) CreateWorkload(req types.Workload) (types.Workload, error) 
 	err = c.ds.AddWorkload(req)
 	return req, err
 }
-
-func (c *controller) DeleteWorkload(tenantID string, workloadID string) error {
-	return c.ds.DeleteWorkload(tenantID, workloadID)
-}
-
-func (c *controller) ShowWorkload(tenantID string, workloadID string) (types.Workload, error) {
-	return c.ds.GetWorkload(tenantID, workloadID)
-}

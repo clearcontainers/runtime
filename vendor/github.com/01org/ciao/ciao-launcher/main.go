@@ -170,7 +170,7 @@ func processCommand(conn serverConn, cmd *cmdWrapper, ovsCh chan<- interface{}) 
 		if !addResult.canAdd {
 			glog.Errorf("Instance will make node full: Disk %d Mem %d CPUs %d",
 				insCmd.cfg.Disk, insCmd.cfg.Mem, insCmd.cfg.Cpus)
-			se := startError{nil, payloads.FullComputeNode, insCmd.cfg.Restart}
+			se := startError{nil, payloads.FullComputeNode}
 			se.send(conn, cmd.instance)
 			return
 		}
@@ -186,6 +186,22 @@ func processCommand(conn serverConn, cmd *cmdWrapper, ovsCh chan<- interface{}) 
 		}
 		delCmd = insCmd
 		delCmd.running = insState.running
+	case *insStopCmd:
+		target = insCmdChannel(cmd.instance, ovsCh)
+		if target == nil {
+			glog.Errorf("Instance %s does not exist", cmd.instance)
+			se := stopError{nil, payloads.StopNoInstance}
+			se.send(conn, cmd.instance)
+			return
+		}
+	case *insRestartCmd:
+		target = insCmdChannel(cmd.instance, ovsCh)
+		if target == nil {
+			glog.Errorf("Instance %s does not exist", cmd.instance)
+			re := restartError{nil, payloads.RestartNoInstance}
+			re.send(conn, cmd.instance)
+			return
+		}
 	default:
 		target = insCmdChannel(cmd.instance, ovsCh)
 	}

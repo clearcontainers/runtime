@@ -103,12 +103,7 @@ function restoreIPTables {
 }
 
 function clearAllEvents() {
-	#Clear out all prior events. Currently this is an admin only operation.
-	ciao_user=$CIAO_USERNAME
-	ciao_passwd=$CIAO_PASSWORD
-	export CIAO_USERNAME=$CIAO_ADMIN_USERNAME
-	export CIAO_PASSWORD=$CIAO_ADMIN_PASSWORD
-
+	#Clear out all prior events
 	"$ciao_gobin"/ciao-cli event delete
 
 	#Wait for the event count to drop to 0
@@ -126,9 +121,6 @@ function clearAllEvents() {
 		let retry=retry+1
 		sleep 1
 	done
-
-	export CIAO_USERNAME=$ciao_user
-	export CIAO_PASSWORD=$ciao_passwd
 
 	exitOnError $ciao_events "ciao events not deleted properly"
 }

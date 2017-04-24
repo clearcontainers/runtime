@@ -24,10 +24,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/01org/ciao/service"
 	"github.com/01org/ciao/ssntp/uuid"
 	"github.com/gorilla/mux"
-	"github.com/rackspace/gophercloud"
 )
 
 // APIPort is the standard OpenStack Image port
@@ -111,17 +109,6 @@ const (
 
 	// Private indicates that the image is only available to a tenant.
 	Private Visibility = "private"
-
-	// Internal indicates that an image is only for Ciao internal usage.
-	Internal Visibility = "internal"
-)
-
-// InternalImage defines the types of CIAO internal images (e.g. cnci)
-type InternalImage string
-
-const (
-	// CNCI is the type of image for CIAO per-tenant networking managenent
-	CNCI InternalImage = "cnci"
 )
 
 // ContainerFormat defines the acceptable container format strings.
@@ -166,12 +153,6 @@ var (
 
 	// ErrDecodeImage is returned when there was an error on image decoding
 	ErrDecodeImage = errors.New("Error on Image decode")
-
-	// ErrForbiddenAccess is returned for only-privileged image operations
-	ErrForbiddenAccess = errors.New("Forbidden Access")
-
-	// ErrQuota is returned when the tenant exceeds its quota
-	ErrQuota = errors.New("Tenant over quota")
 )
 
 // CreateImageRequest contains information for a create image request.
@@ -243,11 +224,11 @@ type APIConfig struct {
 // Service is the interface that the api requires in order to get
 // information needed to implement the image endpoints.
 type Service interface {
-	CreateImage(string, CreateImageRequest) (DefaultResponse, error)
-	UploadImage(string, string, io.Reader) (NoContentImageResponse, error)
-	ListImages(string) ([]DefaultResponse, error)
-	GetImage(string, string) (DefaultResponse, error)
-	DeleteImage(string, string) (NoContentImageResponse, error)
+	CreateImage(CreateImageRequest) (DefaultResponse, error)
+	UploadImage(string, io.Reader) (NoContentImageResponse, error)
+	ListImages() ([]DefaultResponse, error)
+	GetImage(string) (DefaultResponse, error)
+	DeleteImage(string) (NoContentImageResponse, error)
 }
 
 // Context contains data and interfaces that the image api will need.
@@ -255,7 +236,6 @@ type Service interface {
 type Context struct {
 	port int
 	Service
-	*gophercloud.ServiceClient
 }
 
 // APIResponse is returned from the API handlers.
@@ -277,7 +257,7 @@ type APIHandler struct {
 func (h APIHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	resp, err := h.Handler(h.Context, w, r)
 	if err != nil {
-		http.Error(w, err.Error(), resp.status)
+		http.Error(w, http.StatusText(resp.status), resp.status)
 	}
 
 	b, err := json.Marshal(resp.response)
@@ -304,15 +284,9 @@ func errorResponse(err error) APIResponse {
 		return APIResponse{http.StatusBadRequest, nil}
 	case ErrAlreadyExists:
 		return APIResponse{http.StatusConflict, nil}
-	case ErrForbiddenAccess, ErrQuota:
-		return APIResponse{http.StatusForbidden, nil}
 	default:
 		return APIResponse{http.StatusInternalServerError, nil}
 	}
-}
-
-func validPrivilege(visibility Visibility, privileged bool) bool {
-	return visibility == Private || (visibility == Public || visibility == Internal) && privileged
 }
 
 // endpoints
@@ -351,12 +325,12 @@ func listAPIVersions(context *Context, w http.ResponseWriter, r *http.Request) (
 
 // createImage creates information about an image, but doesn't contain
 // any actual image.
+//
+// TBD: this endpoint has no tenant var - how do you know who owns the
+// image if the tenant id isn't passed in? Default visibility is supposed
+// to be private.
 func createImage(context *Context, w http.ResponseWriter, r *http.Request) (APIResponse, error) {
 	defer r.Body.Close()
-	tenantID, err := service.GetTenantID(r.Context())
-	if err != nil {
-		return APIResponse{http.StatusBadRequest, nil}, err
-	}
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -370,18 +344,7 @@ func createImage(context *Context, w http.ResponseWriter, r *http.Request) (APIR
 		return APIResponse{http.StatusInternalServerError, nil}, err
 	}
 
-	privileged := service.GetPrivilege(r.Context())
-
-	if !validPrivilege(req.Visibility, privileged) {
-		return APIResponse{http.StatusForbidden, nil}, nil
-	}
-
-	if req.Visibility == Public || req.Visibility == Internal {
-		tenantID = string(req.Visibility)
-	}
-
-	resp, err := context.CreateImage(tenantID, req)
-
+	resp, err := context.CreateImage(req)
 	if err != nil {
 		return errorResponse(err), err
 	}
@@ -393,26 +356,9 @@ func createImage(context *Context, w http.ResponseWriter, r *http.Request) (APIR
 //
 // TBD: support query & sort parameters
 func listImages(context *Context, w http.ResponseWriter, r *http.Request) (APIResponse, error) {
-	images := []DefaultResponse{}
-
-	tenantID, err := service.GetTenantID(r.Context())
+	images, err := context.ListImages()
 	if err != nil {
-		return APIResponse{http.StatusBadRequest, nil}, err
-	}
-
-	imageTables := []string{tenantID, string(Public)}
-
-	privileged := service.GetPrivilege(r.Context())
-	if privileged {
-		imageTables = append(imageTables, string(Internal))
-	}
-
-	for _, table := range imageTables {
-		tableImages, err := context.ListImages(table)
-		if err != nil {
-			return errorResponse(err), err
-		}
-		images = append(images, tableImages...)
+		return errorResponse(err), err
 	}
 
 	resp := ListImagesResponse{
@@ -429,71 +375,19 @@ func listImages(context *Context, w http.ResponseWriter, r *http.Request) (APIRe
 func getImage(context *Context, w http.ResponseWriter, r *http.Request) (APIResponse, error) {
 	vars := mux.Vars(r)
 	imageID := vars["image_id"]
-	resp := DefaultResponse{}
 
-	tenantID, err := service.GetTenantID(r.Context())
-	if err != nil {
-		return APIResponse{http.StatusBadRequest, nil}, err
-	}
-
-	imageTables := []string{tenantID, string(Public)}
-
-	privileged := service.GetPrivilege(r.Context())
-	if privileged {
-		imageTables = append(imageTables, string(Internal))
-	}
-
-	for _, table := range imageTables {
-		resp, err = context.GetImage(table, imageID)
-		if err != nil && err != ErrNoImage {
-			return errorResponse(err), err
-		}
-		if resp.ID != "" {
-			break
-		}
-	}
+	resp, err := context.GetImage(imageID)
 	if err != nil {
 		return errorResponse(err), err
 	}
-
 	return APIResponse{http.StatusOK, resp}, nil
 }
 
 func uploadImage(context *Context, w http.ResponseWriter, r *http.Request) (APIResponse, error) {
 	vars := mux.Vars(r)
 	imageID := vars["image_id"]
-	tenantID, err := service.GetTenantID(r.Context())
-	if err != nil {
-		return APIResponse{http.StatusBadRequest, nil}, err
-	}
 
-	imageTables := []string{tenantID, string(Public)}
-
-	privileged := service.GetPrivilege(r.Context())
-	if privileged {
-		imageTables = append(imageTables, string(Internal))
-	}
-
-	for _, table := range imageTables {
-		img, err := context.GetImage(table, imageID)
-		if err != nil && err != ErrNoImage {
-			return errorResponse(err), err
-		}
-		if img.ID != "" {
-			if !validPrivilege(img.Visibility, privileged) {
-				return APIResponse{http.StatusForbidden, nil}, nil
-			}
-			if img.Visibility == Public || img.Visibility == Internal {
-				tenantID = string(img.Visibility)
-			}
-			break
-		}
-	}
-	if err != nil {
-		return errorResponse(err), err
-	}
-
-	_, err = context.UploadImage(tenantID, imageID, r.Body)
+	_, err := context.UploadImage(imageID, r.Body)
 	if err != nil {
 		return errorResponse(err), err
 	}
@@ -503,34 +397,8 @@ func uploadImage(context *Context, w http.ResponseWriter, r *http.Request) (APIR
 func deleteImage(context *Context, w http.ResponseWriter, r *http.Request) (APIResponse, error) {
 	vars := mux.Vars(r)
 	imageID := vars["image_id"]
-	tenantID, err := service.GetTenantID(r.Context())
-	if err != nil {
-		return APIResponse{http.StatusBadRequest, nil}, err
-	}
 
-	imageTables := []string{tenantID, string(Public), string(Internal)}
-	privileged := service.GetPrivilege(r.Context())
-
-	for _, table := range imageTables {
-		img, err := context.GetImage(table, imageID)
-		if err != ErrNoImage {
-			if img.ID != "" {
-				if !validPrivilege(img.Visibility, privileged) {
-					return APIResponse{http.StatusForbidden, nil}, nil
-				}
-				if img.Visibility == Public || img.Visibility == Internal {
-					tenantID = string(img.Visibility)
-				}
-				break
-			}
-		}
-	}
-
-	if err != nil {
-		return errorResponse(err), err
-	}
-
-	_, err = context.DeleteImage(tenantID, imageID)
+	_, err := context.DeleteImage(imageID)
 	if err != nil {
 		return errorResponse(err), err
 	}
@@ -538,9 +406,9 @@ func deleteImage(context *Context, w http.ResponseWriter, r *http.Request) (APIR
 }
 
 // Routes provides gorilla mux routes for the supported endpoints.
-func Routes(config APIConfig, serviceClient *gophercloud.ServiceClient) *mux.Router {
+func Routes(config APIConfig) *mux.Router {
 	// make new Context
-	context := &Context{config.Port, config.ImageService, serviceClient}
+	context := &Context{config.Port, config.ImageService}
 
 	r := mux.NewRouter()
 

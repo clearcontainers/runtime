@@ -34,7 +34,7 @@ type vmConfig struct {
 	Mem         int
 	Disk        int
 	Instance    string
-	DockerImage string
+	Image       string
 	Legacy      bool
 	Container   bool
 	NetworkNode bool
@@ -47,7 +47,6 @@ type vmConfig struct {
 	VnicUUID    string
 	SSHPort     int
 	Volumes     []volumeConfig
-	Restart     bool
 }
 
 func loadVMConfig(instanceDir string) (*vmConfig, error) {

@@ -27,26 +27,23 @@ type MetaDs struct {
 
 // Write is the metadata write implementation.
 func (m *MetaDs) Write(i Image) error {
-	tenant := i.TenantID
-
-	err := m.DbAdd(tenant, i.ID, &i)
+	err := m.DbAdd("images", i.ID, &i)
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
 // Delete is the metadata delete implementation.
-func (m *MetaDs) Delete(tenant, id string) error {
-	return m.DbDelete(tenant, id)
+func (m *MetaDs) Delete(id string) error {
+	return m.DbDelete("images", id)
 }
 
 // Get is the metadata get implementation.
-func (m *MetaDs) Get(tenant, ID string) (Image, error) {
+func (m *MetaDs) Get(ID string) (Image, error) {
 
 	imageTable := &ImageMap{}
-	img, err := m.DbGet(tenant, ID, imageTable)
+	img, err := m.DbGet("images", ID, imageTable)
 	if err != nil {
 		return Image{}, err
 	}
@@ -56,12 +53,13 @@ func (m *MetaDs) Get(tenant, ID string) (Image, error) {
 }
 
 // GetAll is the metadata get all images implementation.
-func (m *MetaDs) GetAll(tenant string) (images []Image, err error) {
+func (m *MetaDs) GetAll() (images []Image, err error) {
 	var elements []interface{}
 	imageTable := &ImageMap{}
-	elements, err = m.DbProvider.DbGetAll(tenant, imageTable)
+	elements, err = m.DbProvider.DbGetAll("images", imageTable)
 
 	images = make([]Image, len(elements))
+
 	for i, img := range elements {
 		image := img.(*Image)
 		images[i] = *image

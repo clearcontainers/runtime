@@ -13,11 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-  - name: Remove older docker packages
-    apt: name={{ item }} state=absent
-    with_items:
-      - docker.io
-      - docker-engine
+  - name: Remove unofficial Docker packages
+    apt: name=docker.io state=absent
 
   - name: Install CA certificates (Ubuntu)
     apt: name={{ item }} state=present
@@ -30,17 +27,18 @@
 
   - name: Install docker repository GPG Key (Ubuntu)
     apt_key:
-      url: https://download.docker.com/linux/ubuntu/gpg
+      keyserver: hkp://p80.pool.sks-keyservers.net:80
+      id: 58118E89F3A912897C070ADBF76221572C52609D
       state: present
 
   - name: Install docker repository (Ubuntu)
     apt_repository:
-      repo: "deb https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+      repo: "deb https://apt.dockerproject.org/repo ubuntu-{{ ansible_distribution_release }} main"
       state: present
       filename: docker
 
   - name: Install docker (Ubuntu)
     apt: name={{ item }} state=present
     with_items:
-      - docker-ce
+      - docker-engine
       - python-docker

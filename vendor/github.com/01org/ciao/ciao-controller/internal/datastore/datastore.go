@@ -88,9 +88,9 @@ type persistentStore interface {
 
 	// interfaces related to workloads
 	updateWorkload(wl types.Workload) error
-	deleteWorkload(ID string) error
 
 	// interfaces related to tenants
+	addLimit(tenantID string, resourceID int, limit int) (err error)
 	addTenant(id string, MAC string) (err error)
 	getTenant(id string) (t *tenant, err error)
 	getTenants() ([]*tenant, error)
@@ -272,15 +272,6 @@ func (ds *Datastore) Init(config Config) error {
 			ds.nodes[i.NodeID] = n
 		}
 		ds.nodes[i.NodeID].instances[key] = i
-
-		// ds.tenants.instances should point to the same
-		// instances that we have in ds.instances, otherwise they
-		// will not get updated when we get new stats.
-
-		tenant := ds.tenants[i.TenantID]
-		if tenant != nil {
-			tenant.instances[i.ID] = i
-		}
 	}
 
 	ds.tenantUsage = make(map[string][]types.CiaoUsage)
@@ -307,11 +298,6 @@ func (ds *Datastore) Init(config Config) error {
 		}
 
 		ds.instanceVolumes[link] = key
-
-		instance := ds.instances[value.InstanceID]
-		if instance != nil {
-			instance.Attachments = append(instance.Attachments, value)
-		}
 	}
 
 	ds.attachLock = &sync.RWMutex{}
@@ -334,6 +320,33 @@ func (ds *Datastore) AddTenantChan(c chan bool, tenantID string) {
 	ds.cnciAddedLock.Lock()
 	ds.cnciAddedChans[tenantID] = c
 	ds.cnciAddedLock.Unlock()
+}
+
+// AddLimit allows the caller to store a limt for a specific resource for a tenant.
+func (ds *Datastore) AddLimit(tenantID string, resourceID int, limit int) error {
+	err := ds.db.addLimit(tenantID, resourceID, limit)
+	if err != nil {
+		return errors.Wrap(err, "error adding limit to database")
+	}
+
+	// update cache
+	ds.tenantsLock.Lock()
+
+	tenant := ds.tenants[tenantID]
+	if tenant != nil {
+		resources := tenant.Resources
+
+		for i := range resources {
+			if resources[i].Rtype == resourceID {
+				resources[i].Limit = limit
+				break
+			}
+		}
+	}
+
+	ds.tenantsLock.Unlock()
+
+	return nil
 }
 
 func newHardwareAddr() (net.HardwareAddr, error) {
@@ -428,47 +441,6 @@ func (ds *Datastore) AddWorkload(w types.Workload) error {
 	ds.tenants[w.TenantID].workloads = append(tenant.workloads, w)
 
 	return nil
-}
-
-// DeleteWorkload will delete an unused workload from the datastore.
-// workload ID out of the datastore.
-func (ds *Datastore) DeleteWorkload(tenantID string, workloadID string) error {
-	// make sure that this workload is not in use.
-	// always get from cache
-	ds.instancesLock.RLock()
-	defer ds.instancesLock.RUnlock()
-
-	if len(ds.instances) > 0 {
-		for _, val := range ds.instances {
-			if val.WorkloadID == workloadID {
-				// we can't go on.
-				return types.ErrWorkloadInUse
-			}
-		}
-	}
-
-	// workload is not being used, find it so we can delete it.
-	ds.tenantsLock.Lock()
-	defer ds.tenantsLock.Unlock()
-
-	t, ok := ds.tenants[tenantID]
-	if ok {
-		for i, wl := range t.workloads {
-			if wl.ID == workloadID {
-				// delete from persistent datastore.
-				err := ds.db.deleteWorkload(workloadID)
-				if err != nil {
-					return errors.Wrapf(err, "error deleting workload %v from database", wl.ID)
-				}
-
-				// delete from cache.
-				ds.tenants[tenantID].workloads = append(ds.tenants[tenantID].workloads[:i], ds.tenants[tenantID].workloads[i+1:]...)
-				return nil
-			}
-		}
-	}
-
-	return types.ErrWorkloadNotFound
 }
 
 // GetWorkload returns details about a specific workload referenced by id
@@ -877,10 +849,29 @@ func (ds *Datastore) AddInstance(instance *types.Instance) error {
 	ds.instancesLock.Unlock()
 
 	ds.tenantsLock.Lock()
+
 	tenant := ds.tenants[instance.TenantID]
 	if tenant != nil {
+		for name, val := range instance.Usage {
+			for i := range tenant.Resources {
+				if tenant.Resources[i].Rname == name {
+					tenant.Resources[i].Usage += val
+					break
+				}
+			}
+		}
+
+		// increment instances count
+		for i := range tenant.Resources {
+			if tenant.Resources[i].Rtype == 1 {
+				tenant.Resources[i].Usage++
+				break
+			}
+		}
+
 		tenant.instances[instance.ID] = instance
 	}
+
 	ds.tenantsLock.Unlock()
 
 	// update database asynchronously
@@ -921,12 +912,7 @@ func (ds *Datastore) StopFailure(instanceID string, reason payloads.StopFailureR
 // for this tenant. If the instance was a normal tenant instance, the
 // IP address will be released and the instance will be deleted from the
 // datastore.
-//
-// Only instances whose status is pending are removed when a StartFailure event
-// is received.  StartFailure errors may also be generated when restarting an
-// exited instance and we want to make sure that a failure to restart such
-// an instance does not result in it being deleted.
-func (ds *Datastore) StartFailure(instanceID string, reason payloads.StartFailureReason, migration bool) error {
+func (ds *Datastore) StartFailure(instanceID string, reason payloads.StartFailureReason) error {
 	var tenantID string
 	var cnci bool
 
@@ -971,8 +957,21 @@ func (ds *Datastore) StartFailure(instanceID string, reason payloads.StartFailur
 		return errors.Wrapf(err, "error getting instance (%v)", instanceID)
 	}
 
-	if reason.IsFatal() && !migration {
+	switch reason {
+	case payloads.FullCloud,
+		payloads.FullComputeNode,
+		payloads.NoComputeNodes,
+		payloads.NoNetworkNodes,
+		payloads.InvalidPayload,
+		payloads.InvalidData,
+		payloads.ImageFailure,
+		payloads.NetworkFailure:
+
 		ds.deleteInstance(instanceID)
+
+	case payloads.LaunchFailure,
+		payloads.AlreadyRunning,
+		payloads.InstanceExists:
 	}
 
 	msg := fmt.Sprintf("Start Failure %s: %s", instanceID, reason.String())
@@ -1054,8 +1053,23 @@ func (ds *Datastore) deleteInstance(instanceID string) (string, error) {
 
 	ds.tenantsLock.Lock()
 	tenant := ds.tenants[i.TenantID]
+	delete(tenant.instances, instanceID)
 	if tenant != nil {
-		delete(tenant.instances, instanceID)
+		for name, val := range i.Usage {
+			for i := range tenant.Resources {
+				if tenant.Resources[i].Rname == name {
+					tenant.Resources[i].Usage -= val
+					break
+				}
+			}
+		}
+		// decrement instances count
+		for i := range tenant.Resources {
+			if tenant.Resources[i].Rtype == 1 {
+				tenant.Resources[i].Usage--
+				break
+			}
+		}
 	}
 	ds.tenantsLock.Unlock()
 
@@ -1094,71 +1108,6 @@ func (ds *Datastore) DeleteInstance(instanceID string) error {
 	msg := fmt.Sprintf("Deleted Instance %s", instanceID)
 	ds.db.logEvent(tenantID, string(userInfo), msg)
 
-	return nil
-}
-
-func (ds *Datastore) updateInstanceStatus(status, instanceID string) error {
-	instanceStat := types.CiaoServerStats{
-		ID:        instanceID,
-		Timestamp: time.Now(),
-		Status:    status,
-	}
-	ds.instanceLastStatLock.Lock()
-	ds.instanceLastStat[instanceID] = instanceStat
-	ds.instanceLastStatLock.Unlock()
-
-	stats := []payloads.InstanceStat{
-		{
-			InstanceUUID: instanceID,
-			State:        status,
-		},
-	}
-
-	return errors.Wrapf(ds.db.addInstanceStats(stats, ""), "error adding instance stats to database")
-}
-
-func (ds *Datastore) restartInstance(instanceID string) error {
-	ds.instancesLock.Lock()
-	i := ds.instances[instanceID]
-	i.State = payloads.Pending
-	ds.instancesLock.Unlock()
-
-	return ds.updateInstanceStatus(payloads.Pending, instanceID)
-}
-
-// RestartInstance resets a restarting instance's state to pending.
-func (ds *Datastore) RestartInstance(instanceID string) error {
-	err := ds.restartInstance(instanceID)
-	if err != nil {
-		return errors.Wrapf(err, "error restarting instance")
-	}
-	return nil
-}
-
-func (ds *Datastore) stopInstance(instanceID string) error {
-	ds.instancesLock.Lock()
-	i := ds.instances[instanceID]
-	oldNodeID := i.NodeID
-	i.NodeID = ""
-	i.State = payloads.Exited
-	ds.instancesLock.Unlock()
-
-	// we may not have received any node stats for this instance
-	if oldNodeID != "" {
-		ds.nodesLock.Lock()
-		delete(ds.nodes[oldNodeID].instances, instanceID)
-		ds.nodesLock.Unlock()
-	}
-
-	return ds.updateInstanceStatus(payloads.Exited, instanceID)
-}
-
-// StopInstance removes the link between an instance and its node
-func (ds *Datastore) StopInstance(instanceID string) error {
-	err := ds.stopInstance(instanceID)
-	if err != nil {
-		return errors.Wrapf(err, "error stopping instance")
-	}
 	return nil
 }
 
@@ -1495,11 +1444,6 @@ func (ds *Datastore) ClearLog() error {
 // LogEvent will add a message to the persistent event log.
 func (ds *Datastore) LogEvent(tenant string, msg string) {
 	ds.db.logEvent(tenant, string(userInfo), msg)
-}
-
-// LogError will add a message to the persistent event log as an error
-func (ds *Datastore) LogError(tenant string, msg string) {
-	ds.db.logEvent(tenant, string(userError), msg)
 }
 
 // AddBlockDevice will store information about new BlockData into

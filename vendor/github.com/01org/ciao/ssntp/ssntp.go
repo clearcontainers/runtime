@@ -60,7 +60,7 @@ type Role uint32
 type Error uint8
 
 // Event is the SSNTP Event operand.
-// It can be TenantAdded, TenantRemoval, InstanceDeleted, InstanceStopped,
+// It can be TenantAdded, TenantRemoval, InstanceDeleted,
 // ConcentratorInstanceAdded, PublicIPAssigned, PublicIPUnassigned, TraceReport,
 // NodeConnected or NodeDisconnected
 type Event uint8
@@ -455,18 +455,6 @@ const (
 	//	|       |       | (0x3) |  (0x7)  |                 |                        |
 	//	+----------------------------------------------------------------------------+
 	NodeDisconnected
-
-	// InstanceStopped is sent by workload agents to notify the scheduler and the Controller that
-	// the local state of a previously running instance has been deleted from the node on
-	// which it ran.
-	//
-	//					 SSNTP InstanceStopped Event frame
-	//
-	//	+---------------------------------------------------------------------------+
-	//	| Major | Minor | Type  | Operand |  Payload Length | YAML formatted        |
-	//	|       |       | (0x3) |  (0x2)  |                 | instance information  |
-	//	+---------------------------------------------------------------------------+
-	InstanceStopped
 )
 
 // SSNTP clients and servers can have one or several roles and are expected to declare their
@@ -647,8 +635,6 @@ func (status Event) String() string {
 		return "Tenant Removed"
 	case InstanceDeleted:
 		return "Instance Deleted"
-	case InstanceStopped:
-		return "Instance Stopped"
 	case ConcentratorInstanceAdded:
 		return "Network Concentrator Instance Added"
 	case PublicIPAssigned:

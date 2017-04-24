@@ -4,7 +4,7 @@ ciao-launcher is an SSNTP client that manages VM and container instances.  It ru
 compute and network nodes executing commands it receives from SSNTP servers,
 primarily [scheduler](https://github.com/01org/ciao/blob/master/ciao-scheduler/README.md).  Its current feature set includes:
 
-1. Launching and deleting of docker containers and qemu VMs on compute and network nodes
+1. Launching, stopping, restarting and deleting of docker containers and qemu VMs on compute and network nodes
 2. Basic monitoring of VMs and containers
 3. Collection and transmission of compute node and instance (container or VM) statistics
 4. Reconnection to existing VMs and containers on start up
@@ -47,7 +47,6 @@ ciao-launcher has dependencies on five external packages:
 3. ovmf, EFI firmware required for some images
 4. fuser, part of most distro's psmisc package
 5. docker, to manage docker containers
-6. ceph-common
 
 All of these packages need to be installed on your compute node before launcher
 can be run.
@@ -56,10 +55,15 @@ An optimized OVMF is available from ClearLinux.  Download the OVMF.fd
 [file](https://download.clearlinux.org/image/OVMF.fd) and save it to
 /usr/share/qemu/OVMF.fd on each node that will run launcher.
 
-To create a new VM instance you need have a running ceph cluster.  The rootfs image
-of the volume you wish to boot needs to be hosted in the cluster.  For testing
-purposes the (ceph-demo)[https://hub.docker.com/r/ceph/demo/] docker container can be
-used.
+To create a new instance, launcher needs a template iso image to use as a backing file.
+Currently, launcher requires all such backing files to be stored in
+/var/lib/ciao/images.  The names of these image files must exactly match the
+image_uuid field passed in the payload of the START command.  Here's an example setup
+
+```
+ /var/lib/ciao/images/
+ └── b286cd45-7d0c-4525-a140-4db6c95e41fa
+```
 
 The images should have cloudinit installed and configured to use the ConfigDrive data source.
 Currently, this is the only data source supported by launcher.
@@ -130,14 +134,14 @@ default.  To enable them use the debug and profile tags,  respectively.
 START is used to create and launch a new VM instance.  Some example payloads
 are discussed below:
 
-The [first payload](https://github.com/01org/ciao/blob/master/ciao-launcher/tests/examples/start_legacy.yaml) creates a new CN VM instance using a ceph volume with the id
-b286cd45-7d0c-4525-a140-4db6c95e41fa.  The disk image has a maximum size
-of 80GBs and the VM will be run with two CPUS and 370MBs of memory.  The first
-part of the payload corresponds to the cloudinit user-data file.  This data
-will be extracted from the payload stored in an ISO image and passed to the
-VM instance.  Assuming cloudinit is correctly configured on the backing image,
-the file /etc/bootdone will be created and the hostname of the image will be
-set to the instance uuid.
+The [first payload](https://github.com/01org/ciao/blob/master/ciao-launcher/tests/examples/start_legacy.yaml) creates a new CN VM instance using the backing file stored in
+/var/lib/ciao/images/b286cd45-7d0c-4525-a140-4db6c95e41fa.  The disk
+image has a maximum size of 80GBs and the VM will be run with two CPUS and
+370MBs of memory.  The first part of the payload corresponds to the
+cloudinit user-data file.  This data will be extracted from the payload
+stored in an ISO image and passed to the VM instance.  Assuming cloudinit is
+correctly configured on the backing image, the file /etc/bootdone will be
+created and the hostname of the image will be set to the instance uuid.
 
 The [second payload](https://github.com/01org/ciao/blob/master/ciao-launcher/tests/examples/start_efi.yaml) creates a CN VM instance using a different image that
 needs to be booted with EFI.
@@ -166,6 +170,13 @@ image_uuid refers to an non-existent backing image
 - full_cn: The node has insufficient resources to start the requested instance
 
 - launch\_failure: If the instance has been successfully created but could not be launched.
+Actually, this is sort of an odd situation as the START command partially succeeded.
+ciao-launcher returns an error code, but the instance has been created and could be booted a
+later stage via RESTART.
+
+ciao-launcher only supports persistent instances at the moment.  Any VM instances created
+by the START command are persistent, i.e., the persistence YAML field is currently
+ignored.
 
 
 ## DELETE
@@ -176,11 +187,32 @@ is running when the DELETE command is received it will be powered down.
 
 See [here](https://github.com/01org/ciao/blob/master/ciao-launcher/tests/examples/delete_legacy.yaml) for an example of the DELETE command.
 
+## STOP
+
+STOP can be used to power down an existing VM instance.  The state associated
+with the VM remains intact on the compute node and the instance can be restarted
+at a later date via the RESTART command
+
+See [here](https://github.com/01org/ciao/blob/master/ciao-launcher/tests/examples/stop_legacy.yaml) for an example of the STOP command.
+
+## RESTART
+
+RESTART can be used to power up an existing VM instance that has either been
+powered down by the user explicitly or shut down via the STOP command.  The instance
+will be restarted with the settings contained in the payload of the START command
+that originally created it.  It is not possible to override these settings, e.g.,
+change the number of CPUs used, via the RESTART command, even though the payload itself allows these values to be specified.
+
+See [here](https://github.com/01org/ciao/blob/master/ciao-launcher/tests/examples/restart_legacy.yaml) for an example of the RESTART command.
+
 # Recovery
 
 When launcher starts up it checks to see if any VM instances exist and if they
 do it tries to connect to them.  This means that you can easily kill launcher,
-restart it and continue to use it to manage previously created VMs.
+restart it and continue to use it to manage previously created VMs.  One thing
+that it does not yet do is to restart VM instances that have been powered down.
+We might want to do this if the machine reboots, but I need to think about how
+best this should be done.
 
 
 # Reporting
@@ -243,7 +275,7 @@ ciao-launcher-server.
 
 Open a new terminal and start ciao-launcher, e.g.,
 
-./ciao-launcher --logtostderr -cert tests/ciao-launcher-server/cert-client-localhost.pem  --cacert tests/ciao-launcher-server/CAcert-server-localhost.pem
+./ciao-launcher --logtostderr
 
 Open a new terminal and try some ciaolc commands
 
@@ -279,15 +311,11 @@ a file containing a valid start payload.  There are some examples
 $ ciaolc startf start_legacy.yaml
 ```
 
-Please note that when starting VM instances you need to have a pre-created rbd
-image containing the rootfs of the VM.  Instructions for creating the image are
-provided in the storage section below.
-
-Instances can be deleted using the delete command.  Delete requires an instance-uuid,
-e.g.,
+Instances can be stopped, restarted and deleted using the stop, restart and
+delete commands.  Each of these commands require an instance-uuid, e.g.,
 
 ```
-$ ciaolc delete d7d86208-b46c-4465-9018-fe14087d415f
+$ ciaolc stop d7d86208-b46c-4465-9018-fe14087d415f
 ```
 
 The most recent stats returned by the launcher can be retrieved using the
@@ -394,8 +422,9 @@ See [here](https://blog.docker.com/tag/nsenter/) for more information.
 
 Ciao-launcher allows you to attach ceph volumes to both containers and VMs.
 Volumes can be attached to an instance on creation and attached and detached at
-runtime (VMs only).  Ciao-launcher make some assumptions about storage.  These
-assumptions are documented in the sections that follow.
+runtime (VMs only).  VMs can also be booted directly from ceph volumes.
+Ciao-launcher make some assumptions about storage.  These assumptions are
+documented in the sections that follow.
 
 ## Attaching a volume to a VM at creation time
 
@@ -409,7 +438,7 @@ start:
   instance_uuid: d7d86208-b46c-4465-9018-fe14087d415f
   ...
   storage:
-    - id: 67d86208-000-4465-9018-fe14087d415f
+    id: 67d86208-000-4465-9018-fe14087d415f  
 
 ```
 
@@ -428,12 +457,17 @@ You first need to populate an image with a rootfs. An example of how to do this
 with Ubuntu Server 16.04 is given below.
 
 ```
-sudo qemu-img convert -O rbd ~/Downloads/ubuntu-16.04.1-server-amd64.iso rbd:rbd/73a86d7e-93c0-480e-9c41-ab42f69b7799
+sudo rbd create --keyring /etc/ceph/ceph.client.ciao.keyring  --id ciao --image-feature layering --size 10000 6664267-ed01-4738-b15f-b47de06b62e8
+sudo qemu-system-x86_64 -cdrom ~/Downloads/ubuntu-16.04.1-server-amd64.iso -drive format=rbd,file=rbd:rbd/6664267-ed01-4738-b15f-b47de06b62e8,id=ciao,cache=writeback --enable-kvm --cpu host -m 2048 -smp cpus=2 -boot order=d
 ```
 
 The ubuntu-16.04.1-server-amd64.iso is assumed to be present in your ~/Downloads folder.
+The second command will start a VM that will invite you to install Ubuntu server
+into your newly created RBD image.  Follow the installation instructions.  Once the
+installation is complete you will be able to use the volume to boot an instance
+launched by launcher.
 
-In this case your workload would look something like this:
+In the case your workload would look something like this:
 
 ```
 ...
@@ -443,12 +477,23 @@ start:
   instance_uuid: d7d86208-b46c-4465-9018-fe14087d415f
   ...
   storage:
-    - id: 67d86208-000-4465-9018-fe14087d415f
-      boot: true
+    id: 67d86208-000-4465-9018-fe14087d415f
+    boot: true
+
 ```
 
 For a full example see
 [here](https://github.com/01org/ciao/blob/master/ciao-launcher/tests/examples/start_legacy_volume_boot.yaml).
+
+There are two important things to note in this workload example.
+
+1. There is no image_uuid.  This field must be omitted.  If it's present
+   ciao-launcher will look in the /var/lib/ciao/images folder for a backing
+   image matching the specified UUID and will then create a local rootfs
+   based off this image.  Any RBD images in the storage section will just be
+   mounted as normal.
+2. There's a new field under storage, called boot.  This must be present and
+   set to true before ciao-launcher will boot the instance from this volume.
 
 # Attaching and Detaching RBD images
 

@@ -15,10 +15,8 @@
 
 controller_deps:
   - cloud-control
-  - sysadmin-remote
   # - storage-cluster
   # - kvm-host
 
 launcher_deps:
   - cloud-control
-  - sysadmin-remote

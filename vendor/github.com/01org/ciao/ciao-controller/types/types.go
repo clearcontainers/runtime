@@ -112,12 +112,11 @@ type Instance struct {
 	WorkloadID  string              `json:"workload_id"`
 	NodeID      string              `json:"node_id"`
 	MACAddress  string              `json:"mac_address"`
-	VnicUUID    string              `json:"vnic_uuid"`
-	Subnet      string              `json:"subnet"`
 	IPAddress   string              `json:"ip_address"`
 	SSHIP       string              `json:"ssh_ip"`
 	SSHPort     int                 `json:"ssh_port"`
 	CNCI        bool                `json:"-"`
+	Usage       map[string]int      `json:"-"`
 	Attachments []StorageAttachment `json:"-"`
 	CreateTime  time.Time           `json:"-"`
 }
@@ -138,11 +137,28 @@ func (s SortedComputeNodesByID) Less(i, j int) bool { return s[i].ID < s[j].ID }
 
 // Tenant contains information about a tenant or project.
 type Tenant struct {
-	ID      string
-	Name    string
-	CNCIID  string
-	CNCIMAC string
-	CNCIIP  string
+	ID        string
+	Name      string
+	CNCIID    string
+	CNCIMAC   string
+	CNCIIP    string
+	Resources []*Resource
+}
+
+// Resource contains quota or limit information on a resource type.
+type Resource struct {
+	Rname string
+	Rtype int
+	Limit int
+	Usage int
+}
+
+// OverLimit calculates whether a request will put a tenant over it's limit.
+func (r *Resource) OverLimit(request int) bool {
+	if r.Limit > 0 && r.Usage+request > r.Limit {
+		return true
+	}
+	return false
 }
 
 // LogEntry stores information about events.
@@ -557,9 +573,6 @@ var (
 
 	// ErrWorkloadNotFound is returned when a workload ID cannot be found
 	ErrWorkloadNotFound = errors.New("Workload not found")
-
-	// ErrWorkloadInUse is returned by DeleteWorkload when an instance of a workload is still active.
-	ErrWorkloadInUse = errors.New("Workload definition still in use")
 )
 
 // Link provides a url and relationship for a resource.

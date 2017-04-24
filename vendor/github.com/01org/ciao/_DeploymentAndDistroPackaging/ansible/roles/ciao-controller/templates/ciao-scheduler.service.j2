@@ -6,7 +6,7 @@ After=network.target
 Type=simple
 ExecStart=/usr/local/bin/ciao-scheduler --cacert=/etc/pki/ciao/CAcert-{{ ciao_controller_fqdn }}.pem \
                                   --cert=/etc/pki/ciao/cert-Scheduler-{{ ciao_controller_fqdn }}.pem \
-                                  --v 3
+                                  --logtostderr -v 2
 User=ciao
 Restart=always
 

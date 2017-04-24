@@ -34,6 +34,7 @@ import (
 	"github.com/01org/ciao/ciao-controller/api"
 	"github.com/01org/ciao/ciao-controller/internal/datastore"
 	"github.com/01org/ciao/ciao-controller/internal/quotas"
+	image "github.com/01org/ciao/ciao-image/client"
 	storage "github.com/01org/ciao/ciao-storage"
 	"github.com/01org/ciao/clogger/gloginterface"
 	"github.com/01org/ciao/database"
@@ -55,9 +56,11 @@ type tenantConfirmMemo struct {
 
 type controller struct {
 	storage.BlockDriver
+
 	client              controllerClient
 	ds                  *datastore.Datastore
 	id                  *identity
+	image               image.Client
 	apiURL              string
 	tenantReadiness     map[string]*tenantConfirmMemo
 	tenantReadinessLock sync.Mutex
@@ -123,6 +126,7 @@ func main() {
 	ctl.tenantReadiness = make(map[string]*tenantConfirmMemo)
 	ctl.ds = new(datastore.Datastore)
 	ctl.qs = new(quotas.Quotas)
+	ctl.image = image.Client{MountPoint: *imagesPath}
 
 	dsConfig := datastore.Config{
 		PersistentURI:     "file:" + *persistentDatastoreLocation,

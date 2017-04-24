@@ -574,19 +574,10 @@ func ListServersDetails(c *Context, w http.ResponseWriter, r *http.Request) (API
 	vars := mux.Vars(r)
 	tenant := vars["tenant"]
 
-	values := r.URL.Query()
-
-	var flavor string
-
-	// if this function is called via an admin context, we might
-	// have {flavor} on the URL. If it's called from a user context,
-	// we might have flavor as a query value.
-	flavor, ok := vars["flavor"]
-	if !ok {
-		if values["flavor"] != nil {
-			flavor = values["flavor"][0]
-		}
-	}
+	// flavor will never have a valid value. This is left over from
+	// when this function could be used by a different endpoint.
+	// the function needs to be rewritten with no pager.
+	flavor := vars["flavor"]
 
 	DumpRequest(r)
 

@@ -44,6 +44,7 @@ func init() {
 		fmt.Fprintln(os.Stderr, "\tstartf")
 		fmt.Fprintln(os.Stderr, "\tdelete")
 		fmt.Fprintln(os.Stderr, "\tstop")
+		fmt.Fprintln(os.Stderr, "\trestart")
 		fmt.Fprintln(os.Stderr, "\tdrain")
 		fmt.Fprintln(os.Stderr, "\tstats")
 		fmt.Fprintln(os.Stderr, "\tistats")
@@ -409,7 +410,31 @@ func startf(host string) error {
 	return err
 }
 
-func postDeleteCommand(host string, stop bool) error {
+func stop(host string) error {
+	var stop payloads.Stop
+
+	client, instance, err := getSimplePostArgs("stop")
+	if err != nil {
+		return err
+	}
+
+	stop.Stop.InstanceUUID = instance
+	return postYaml(host, "stop", client, &stop)
+}
+
+func restart(host string) error {
+	var restart payloads.Restart
+
+	client, instance, err := getSimplePostArgs("restart")
+	if err != nil {
+		return err
+	}
+
+	restart.Restart.InstanceUUID = instance
+	return postYaml(host, "restart", client, &restart)
+}
+
+func del(host string) error {
 	var del payloads.Delete
 
 	client, instance, err := getSimplePostArgs("delete")
@@ -418,16 +443,7 @@ func postDeleteCommand(host string, stop bool) error {
 	}
 
 	del.Delete.InstanceUUID = instance
-	del.Delete.Stop = stop
 	return postYaml(host, "delete", client, &del)
-}
-
-func del(host string) error {
-	return postDeleteCommand(host, false)
-}
-
-func stop(host string) error {
-	return postDeleteCommand(host, true)
 }
 
 func attach(host string) error {
@@ -468,8 +484,9 @@ func main() {
 		"istats":    istats,
 		"stats":     stats,
 		"status":    status,
-		"delete":    del,
 		"stop":      stop,
+		"restart":   restart,
+		"delete":    del,
 		"drain":     drain,
 		"startf":    startf,
 		"attach":    attach,

@@ -15,8 +15,8 @@
 
   - hosts: computes
     become: yes
+    vars:
+      ciao_role: compute
     roles:
-      - ciao-common
       - docker
-      - ceph
       - ciao-launcher

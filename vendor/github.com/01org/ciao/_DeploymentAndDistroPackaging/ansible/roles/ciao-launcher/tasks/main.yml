@@ -13,6 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+  - include_vars: "{{ ciao_role }}.yml"
   - include: install.yml
-  - include: certificates.yml
   - include: startservices.yml

@@ -57,7 +57,7 @@
 // sends a newly created internal command down a channel to the server go routine
 // and returns.  The command is then processed further in the server go routine.
 //
-// Most commands are operations on instances, e.g., create a new instance, delete
+// Most commands are operations on instances, e.g., create a new instance, restart
 // an instance, and are ultimately processed by a go routine dedicated to the
 // particular instance to which they pertain.  These instance go routines are
 // managed by another go routine called the overseer which will be discussed in
@@ -129,7 +129,7 @@
 //
 // The nice thing about this design is that almost all instance related work can be
 // performed in parallel.  Stats can be computed for one instance at the same time
-// as a separate instance is being powered down.  ciao-launcher can process any number
+// as a separate instance is being powered down.  ciao-Launcher can process any number
 // of commands to start new instances in parallel.  There is no locking required
 // apart from a synchronised access to the overseer map made by the server go
 // routine when the command is first received and a small check related to the
@@ -149,7 +149,7 @@
 //
 // The code for the instance go routines is in instance.go.  However, the code that
 // executes most of the commands has been placed in separate files named after the
-// commands themselves, e.g., start_instance.go, delete_instance.go.  It should be noted
+// commands themselves, e.g., start.go, delete.go, restart.go.  It should be noted
 // that the code in these files runs in the context of an instance go routine.
 // Finally, some of the code used to process instance commands is in payloads.go.
 // This is for legacy reasons and in the future this file will probably go away and

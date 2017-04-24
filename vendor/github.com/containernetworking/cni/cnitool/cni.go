@@ -1,4 +1,4 @@
-// Copyright 2015 CoreOS, Inc.
+// Copyright 2015 CNI authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/containernetworking/cni/libcni"
 )
@@ -43,7 +42,7 @@ func main() {
 	if netdir == "" {
 		netdir = DefaultNetDir
 	}
-	netconf, err := libcni.LoadConf(netdir, os.Args[2])
+	netconf, err := libcni.LoadConfList(netdir, os.Args[2])
 	if err != nil {
 		exit(err)
 	}
@@ -51,7 +50,7 @@ func main() {
 	netns := os.Args[3]
 
 	cninet := &libcni.CNIConfig{
-		Path: strings.Split(os.Getenv(EnvCNIPath), ":"),
+		Path: filepath.SplitList(os.Getenv(EnvCNIPath)),
 	}
 
 	rt := &libcni.RuntimeConf{
@@ -62,10 +61,13 @@ func main() {
 
 	switch os.Args[1] {
 	case CmdAdd:
-		_, err := cninet.AddNetwork(netconf, rt)
+		result, err := cninet.AddNetworkList(netconf, rt)
+		if result != nil {
+			_ = result.Print()
+		}
 		exit(err)
 	case CmdDel:
-		exit(cninet.DelNetwork(netconf, rt))
+		exit(cninet.DelNetworkList(netconf, rt))
 	}
 }
 

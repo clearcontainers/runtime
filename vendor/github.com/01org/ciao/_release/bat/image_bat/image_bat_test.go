@@ -18,7 +18,6 @@ package imagebat
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -28,26 +27,26 @@ import (
 
 const standardTimeout = time.Second * 300
 
-// addShowDelete adds a new image containing random content to the image
+// Add a new image, check it's listed and delete it
+//
+// TestAddShowDelete adds a new image containing random content to the image
 // service.  It then retrieves the meta data for the new image and checks that
-// various fields are correct.  Finally, it deletes the image. It will also
-// receive the visibility in order images are created with the right visibility
+// various fields are correct.  Finally, it deletes the image.
 //
 // The image is successfully uploaded, it appears when ciao-cli image show is
 // executed, it can be successfully deleted and is no longer present in the
 // ciao-cli image list output after deletion.
-func addShowDelete(t *testing.T, visibility string) {
-	name := fmt.Sprintf("test-image-%v", visibility)
+func TestAddShowDelete(t *testing.T) {
+	const name = "test-image"
 	ctx, cancelFunc := context.WithTimeout(context.Background(), standardTimeout)
 	defer cancelFunc()
 
 	// TODO:  The only options currently supported by the image service are
-	// ID, Visibility and  Name. This code needs to be updated when the image service's
+	// ID and Name.  This code needs to be updated when the image service's
 	// support for meta data improves.
 
 	options := bat.ImageOptions{
-		Name:       name,
-		Visibility: visibility,
+		Name: name,
 	}
 	img, err := bat.AddRandomImage(ctx, "", 10, &options)
 	if err != nil {
@@ -55,7 +54,7 @@ func addShowDelete(t *testing.T, visibility string) {
 	}
 
 	if img.ID == "" || img.Name != name || img.Status != "active" ||
-		img.Visibility != visibility || img.Protected {
+		img.Visibility != "public" || img.Protected {
 		t.Errorf("Meta data of added image is incorrect")
 	}
 
@@ -77,21 +76,6 @@ func addShowDelete(t *testing.T, visibility string) {
 			t.Fatalf("Call to get non-existing image should fail")
 		}
 	}
-}
-
-// TestPrivateAddShowDelete adds a new private image, checks it's listed and deletes it
-func TestPrivateAddShowDelete(t *testing.T) {
-	addShowDelete(t, "private")
-}
-
-// TestPublicAddShowDelete adds a new public image, checks it's listed and deletes it
-func TestPublicAddShowDelete(t *testing.T) {
-	addShowDelete(t, "public")
-}
-
-// TestInternalAddShowDelete adds a new internal image, checks it's listed and deletes it
-func TestInternalAddShowDelete(t *testing.T) {
-	addShowDelete(t, "internal")
 }
 
 // Delete a non-existing image
@@ -148,7 +132,7 @@ func TestImageList(t *testing.T) {
 		foundNewImage = k == img.ID
 		if foundNewImage {
 			if newImg.ID == "" || newImg.Name != name || newImg.Status != "active" ||
-				newImg.Visibility != "private" || newImg.Protected {
+				newImg.Visibility != "public" || newImg.Protected {
 				t.Errorf("Meta data of added image is incorrect")
 			}
 			break

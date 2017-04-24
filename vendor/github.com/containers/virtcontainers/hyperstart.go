@@ -204,7 +204,7 @@ func (h *hyper) linkPauseBinary(podID string) error {
 
 	pausePath := filepath.Join(pauseDir, pauseBinName)
 
-	return os.Link(h.config.PauseBinPath, pausePath)
+	return os.Symlink(h.config.PauseBinPath, pausePath)
 }
 
 func (h *hyper) unlinkPauseBinary(podID string) error {

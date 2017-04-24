@@ -1,17 +1,17 @@
 {
-    "memo": "2c5c6395c29f3a93d2d11f27f8f99f52fd90dfaf14613ee8167c44e4ac9c5786",
+    "memo": "41da456a4567acdf01d2849c6f2adf8d4da2a4854fc4063e0385b8c13ac1bdc8",
     "projects": [
         {
             "name": "github.com/Sirupsen/logrus",
-            "version": "v0.8.7",
-            "revision": "418b41d23a1bf978c06faea5313ba194650ac088",
+            "branch": "master",
+            "revision": "10f801ebc38b33738c9d17d50860f484a0988ff5",
             "packages": [
                 "."
             ]
         },
         {
             "name": "github.com/containers/virtcontainers",
-            "revision": "15ea5343f221e9976f00abee0feb672ca873739e",
+            "revision": "93aa8226e6fa7e9bb2d553b571209f4f94e96348",
             "packages": [
                 "pkg/hyperstart",
                 "pkg/hyperstart/mock"
@@ -43,10 +43,18 @@
         },
         {
             "name": "github.com/stretchr/testify",
-            "version": "v1.1.4",
-            "revision": "69483b4bd14f5845b5a1e55bca19e954e827f1d0",
+            "branch": "master",
+            "revision": "4d4bfba8f1d1027c4fdbe371823030df51419987",
             "packages": [
                 "assert"
+            ]
+        },
+        {
+            "name": "golang.org/x/sys",
+            "branch": "master",
+            "revision": "ea9bcade75cb975a0b9738936568ab388b845617",
+            "packages": [
+                "unix"
             ]
         }
     ]

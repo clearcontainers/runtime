@@ -1,10 +1,6 @@
 ---
 controller_fqdn: "{{ hostvars[groups['controllers'][0]]['ansible_fqdn'] }}"
 
-# ceph: https://github.com/01org/ciao/tree/master/_DeploymentAndDistroPackaging/ansible/roles/ceph
-ceph_config: files
-ceph_config_dir: ./ceph
-
 # keystone: https://github.com/01org/ciao/tree/master/_DeploymentAndDistroPackaging/ansible/roles/keystone
 keystone_fqdn: "{{ controller_fqdn }}"
 keystone_admin_password: adminUserPassword

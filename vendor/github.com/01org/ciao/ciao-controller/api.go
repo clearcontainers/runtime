@@ -31,6 +31,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
+const ciaoAPIPort = 8889
+
 // HTTPErrorData represents the HTTP response body for
 // a compute API request error.
 type HTTPErrorData struct {
@@ -63,6 +65,47 @@ func errorResponse(err error) APIResponse {
 	default:
 		return APIResponse{http.StatusInternalServerError, nil}
 	}
+}
+
+// APIHandler is a custom handler for the compute APIs.
+// This custom handler allows us to more cleanly return an error and response,
+// and pass some package level context into the handler.
+type APIHandler struct {
+	*controller
+	Handler     func(*controller, http.ResponseWriter, *http.Request) (APIResponse, error)
+	ContentType string
+}
+
+func (h APIHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	resp, err := h.Handler(h.controller, w, r)
+	if err != nil {
+		data := HTTPErrorData{
+			Code:    resp.status,
+			Name:    http.StatusText(resp.status),
+			Message: err.Error(),
+		}
+
+		code := HTTPReturnErrorCode{
+			Error: data,
+		}
+
+		b, err := json.Marshal(code)
+		if err != nil {
+			http.Error(w, http.StatusText(resp.status), resp.status)
+		}
+
+		http.Error(w, string(b), resp.status)
+	}
+
+	b, err := json.Marshal(resp.response)
+	if err != nil {
+		http.Error(w, http.StatusText(http.StatusInternalServerError),
+			http.StatusInternalServerError)
+	}
+
+	w.Header().Set("Content-Type", h.ContentType)
+	w.WriteHeader(resp.status)
+	w.Write(b)
 }
 
 type pagerFilterType uint8
@@ -231,14 +274,12 @@ func (pager *nodeServerPager) nextPage(filterType pagerFilterType, filter string
 	return types.CiaoServersStats{}, fmt.Errorf("Item %s not found", lastSeen)
 }
 
-func findQuota(qds []types.QuotaDetails, name string) *types.QuotaDetails {
-	for i := range qds {
-		if qds[i].Name == name {
-			return &qds[i]
-		}
-	}
-	return nil
-}
+const (
+	instances int = 1
+	vcpu          = 2
+	memory        = 3
+	disk          = 4
+)
 
 func getResources(c *controller, w http.ResponseWriter, r *http.Request) (APIResponse, error) {
 	var tenantResource types.CiaoTenantResources
@@ -256,29 +297,28 @@ func getResources(c *controller, w http.ResponseWriter, r *http.Request) (APIRes
 		return errorResponse(types.ErrTenantNotFound), types.ErrTenantNotFound
 	}
 
+	resources := t.Resources
+
 	tenantResource.ID = t.ID
 
-	qds := c.qs.DumpQuotas(t.ID)
+	for _, resource := range resources {
+		switch resource.Rtype {
+		case instances:
+			tenantResource.InstanceLimit = resource.Limit
+			tenantResource.InstanceUsage = resource.Usage
 
-	qd := findQuota(qds, "tenant-instances-quota")
-	if qd != nil {
-		tenantResource.InstanceLimit = qd.Value
-		tenantResource.InstanceUsage = qd.Usage
-	}
-	qd = findQuota(qds, "tenant-vcpu-quota")
-	if qd != nil {
-		tenantResource.VCPULimit = qd.Value
-		tenantResource.VCPUUsage = qd.Usage
-	}
-	qd = findQuota(qds, "tenant-mem-quota")
-	if qd != nil {
-		tenantResource.MemLimit = qd.Value
-		tenantResource.MemUsage = qd.Usage
-	}
-	qd = findQuota(qds, "tenant-storage-quota")
-	if qd != nil {
-		tenantResource.DiskLimit = qd.Value
-		tenantResource.DiskUsage = qd.Usage
+		case vcpu:
+			tenantResource.VCPULimit = resource.Limit
+			tenantResource.VCPUUsage = resource.Usage
+
+		case memory:
+			tenantResource.MemLimit = resource.Limit
+			tenantResource.MemUsage = resource.Usage
+
+		case disk:
+			tenantResource.DiskLimit = resource.Limit
+			tenantResource.DiskUsage = resource.Usage
+		}
 	}
 
 	return APIResponse{http.StatusOK, tenantResource}, nil

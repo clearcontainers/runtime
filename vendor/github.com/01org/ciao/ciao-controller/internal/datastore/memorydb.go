@@ -20,6 +20,7 @@ import (
 
 	"github.com/01org/ciao/ciao-controller/types"
 	"github.com/01org/ciao/payloads"
+	"github.com/01org/ciao/ssntp/uuid"
 )
 
 // MemoryDB is a memory backed persistentStore implementation for unit testing
@@ -32,13 +33,62 @@ type MemoryDB struct {
 	attachments     map[string]types.StorageAttachment
 	instanceVolumes map[attachment]string
 	logEntries      []*types.LogEntry
+	cnciWorkload    *types.Workload
 
+	tableInitPath string
 	workloadsPath string
 }
 
 func (db *MemoryDB) fillWorkloads() error {
 	// add dummy public tenant.
-	return db.addTenant("public", "")
+	_ = db.addTenant("public", "")
+
+	// add a public workload for test cases
+	testConfig := `
+---
+#cloud-config
+users:
+  - name: demouser
+    gecos: CIAO Demo User
+    lock-passwd: false
+    passwd: $6$rounds=4096$w9I3hR4g/hu$AnYjaC2DfznbPSG3vxsgtgAS4mJwWBkcR74Y/KHNB5OsfAlA4gpU5j6CHWMOkkt9j.9d7OYJXJ4icXHzKXTAO.
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    ssh-authorized-keys:
+    - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDerQfD+qkb0V0XdQs8SBWqy4sQmqYFP96n/kI4Cq162w4UE8pTxy0ozAPldOvBJjljMvgaNKSAddknkhGcrNUvvJsUcZFm2qkafi32WyBdGFvIc45A+8O7vsxPXgHEsS9E3ylEALXAC3D0eX7pPtRiAbasLlY+VcACRqr3bPDSZTfpCmIkV2334uZD9iwOvTVeR+FjGDqsfju4DyzoAIqpPasE0+wk4Vbog7osP+qvn1gj5kQyusmr62+t0wx+bs2dF5QemksnFOswUrv9PGLhZgSMmDQrRYuvEfIAC7IdN/hfjTn0OokzljBiuWQ4WIIba/7xTYLVujJV65qH3heaSMxJJD7eH9QZs9RdbbdTXMFuJFsHV2OF6wZRp18tTNZZJMqiHZZSndC5WP1WrUo3Au/9a+ighSaOiVddHsPG07C/TOEnr3IrwU7c9yIHeeRFHmcQs9K0+n9XtrmrQxDQ9/mLkfje80Ko25VJ/QpAQPzCKh2KfQ4RD+/PxBUScx/lHIHOIhTSCh57ic629zWgk0coSQDi4MKSa5guDr3cuDvt4RihGviDM6V68ewsl0gh6Z9c0Hw7hU0vky4oxak5AiySiPz0FtsOnAzIL0UON+yMuKzrJgLjTKodwLQ0wlBXu43cD+P8VXwQYeqNSzfrhBnHqsrMf4lTLtc7kDDTcw== ciao@ciao
+...
+	`
+	cpus := payloads.RequestedResource{
+		Type:      payloads.VCPUs,
+		Value:     2,
+		Mandatory: false,
+	}
+
+	mem := payloads.RequestedResource{
+		Type:      payloads.MemMB,
+		Value:     512,
+		Mandatory: false,
+	}
+
+	storage := types.StorageResource{
+		ID:        "",
+		Ephemeral: true,
+		Size:      20,
+	}
+
+	wl := types.Workload{
+		ID:          uuid.Generate().String(),
+		TenantID:    "public",
+		Description: "testWorkload",
+		FWType:      string(payloads.EFI),
+		VMType:      payloads.QEMU,
+		ImageID:     uuid.Generate().String(),
+		ImageName:   "",
+		Config:      testConfig,
+		Defaults:    []payloads.RequestedResource{cpus, mem},
+		Storage:     []types.StorageResource{storage},
+	}
+
+	return db.updateWorkload(wl)
 }
 
 func (db *MemoryDB) init(config Config) error {
@@ -77,6 +127,17 @@ func (db *MemoryDB) clearLog() error {
 
 func (db *MemoryDB) getEventLog() ([]*types.LogEntry, error) {
 	return db.logEntries, nil
+}
+
+func (db *MemoryDB) getCNCIWorkloadID() (string, error) {
+	if db.cnciWorkload != nil {
+		return db.cnciWorkload.ID, nil
+	}
+	return "", fmt.Errorf("CNCI not found")
+}
+
+func (db *MemoryDB) addLimit(tenantID string, resourceID int, limit int) error {
+	return nil
 }
 
 func (db *MemoryDB) addTenant(id string, MAC string) error {
@@ -231,10 +292,13 @@ func (db *MemoryDB) getMappedIPs() map[string]types.MappedIP {
 }
 
 func (db *MemoryDB) updateWorkload(wl types.Workload) error {
-	return nil
-}
+	tenant, ok := db.tenants[wl.TenantID]
+	if !ok {
+		return fmt.Errorf("Tenant %s not found", wl.TenantID)
+	}
 
-func (db *MemoryDB) deleteWorkload(ID string) error {
+	// just add for now.
+	tenant.workloads = append(tenant.workloads, wl)
 	return nil
 }
 

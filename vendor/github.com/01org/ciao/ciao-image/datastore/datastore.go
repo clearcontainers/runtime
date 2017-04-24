@@ -54,6 +54,14 @@ func (state State) Status() image.Status {
 	return image.Active
 }
 
+// Visibility returns the image visibility
+func (i Image) Visibility() image.Visibility {
+	if i.TenantID == "" {
+		return image.Public
+	}
+	return image.Private
+}
+
 // Type represents the valid image types.
 type Type string
 
@@ -77,28 +85,26 @@ type Image struct {
 	CreateTime time.Time
 	Type       Type
 	Size       uint64
-	Visibility image.Visibility
-	Tags       string
 }
 
 // DataStore is the image data storage interface.
 type DataStore interface {
 	Init(RawDataStore, MetaDataStore) error
-	CreateImage(image Image) error
-	GetAllImages(tenant string) ([]Image, error)
-	GetImage(tenant, id string) (Image, error)
+	CreateImage(Image) error
+	GetAllImages() ([]Image, error)
+	GetImage(string) (Image, error)
 	UpdateImage(Image) error
-	DeleteImage(tenant, id string) error
-	UploadImage(tenant, id string, imageFile io.Reader) error
+	DeleteImage(string) error
+	UploadImage(string, io.Reader) error
 }
 
 // MetaDataStore is the metadata storing interface that's used by
 // image cache implementation.
 type MetaDataStore interface {
-	Write(image Image) error
-	Delete(tenant, ID string) error
-	Get(tenant, ID string) (Image, error)
-	GetAll(tenant string) ([]Image, error)
+	Write(Image) error
+	Delete(ID string) error
+	Get(ID string) (Image, error)
+	GetAll() ([]Image, error)
 }
 
 // RawDataStore is the raw data storage interface that's used by the

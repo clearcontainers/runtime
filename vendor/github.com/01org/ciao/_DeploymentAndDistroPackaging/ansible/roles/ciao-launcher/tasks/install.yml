@@ -24,12 +24,18 @@
     when: "'Clear linux' in ansible_os_family"
 
   - name: Copy CIAO Binaries
-    copy: src={{ gopath }}/bin/{{ item }} dest=/usr/local/bin/{{ item }} mode=0755
+    copy: src={{ gopath }}/bin/{{ item }} dest=/usr/local/bin/{{ item }} mode=755
     with_items:
       - ciao-cli
       - ciao-launcher
     notify: restart launcher
 
+  - name: Copy ciao certificates
+    copy: src=certificates/ciao/{{ item }} dest=/etc/pki/ciao/{{ item }}
+    with_items:
+      - CAcert-{{ ciao_controller_fqdn }}.pem
+      - "{{ agent_key }}"
+    notify: restart launcher
+
   - name: Copy OVMF firmware
     copy: src=images/OVMF.fd dest=/usr/share/qemu/OVMF.fd
-    when: "'Clear linux' not in ansible_os_family"

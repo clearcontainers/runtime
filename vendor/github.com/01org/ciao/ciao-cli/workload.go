@@ -30,7 +30,6 @@ import (
 	"github.com/01org/ciao/ciao-controller/types"
 	"github.com/01org/ciao/openstack/compute"
 	"github.com/01org/ciao/payloads"
-	"github.com/01org/ciao/templateutils"
 
 	"gopkg.in/yaml.v2"
 )
@@ -39,8 +38,6 @@ var workloadCommand = &command{
 	SubCommands: map[string]subCommand{
 		"list":   new(workloadListCommand),
 		"create": new(workloadCreateCommand),
-		"delete": new(workloadDeleteCommand),
-		"show":   new(workloadShowCommand),
 	},
 }
 
@@ -57,7 +54,7 @@ List all workloads
 `)
 	cmd.Flag.PrintDefaults()
 	fmt.Fprintf(os.Stderr, "\n%s",
-		templateutils.GenerateUsageDecorated("f", compute.FlavorsDetails{}.Flavors, nil))
+		generateUsageDecorated("f", compute.FlavorsDetails{}.Flavors))
 	os.Exit(2)
 }
 
@@ -91,8 +88,8 @@ func (cmd *workloadListCommand) run(args []string) error {
 	}
 
 	if cmd.template != "" {
-		return templateutils.OutputToTemplate(os.Stdout, "workload-list", cmd.template,
-			&flavors.Flavors, nil)
+		return outputToTemplate("workload-list", cmd.template,
+			&flavors.Flavors)
 	}
 
 	for i, flavor := range flavors.Flavors {
@@ -137,7 +134,7 @@ type source struct {
 }
 
 type disk struct {
-	ID        *string `yaml:"volume_id,omitempty"`
+	ID        *string `yaml:"volume_id"`
 	Size      int     `yaml:"size"`
 	Bootable  bool    `yaml:"bootable"`
 	Source    *source `yaml:"source"`
@@ -154,12 +151,12 @@ type defaultResources struct {
 type workloadOptions struct {
 	Description     string           `yaml:"description"`
 	VMType          string           `yaml:"vm_type"`
-	FWType          string           `yaml:"fw_type,omitempty"`
-	ImageName       string           `yaml:"image_name,omitempty"`
-	ImageID         string           `yaml:"image_id,omitempty"`
+	FWType          string           `yaml:"fw_type"`
+	ImageName       string           `yaml:"image_name"`
+	ImageID         string           `yaml:"image_id"`
 	Defaults        defaultResources `yaml:"defaults"`
-	CloudConfigFile string           `yaml:"cloud_init,omitempty"`
-	Disks           []disk           `yaml:"disks,omitempty"`
+	CloudConfigFile string           `yaml:"cloud_init"`
+	Disks           []disk           `yaml:"disks"`
 }
 
 func optToReqStorage(opt workloadOptions) ([]types.StorageResource, error) {
@@ -258,51 +255,6 @@ func optToReq(opt workloadOptions, req *types.Workload) error {
 	return nil
 }
 
-func outputWorkload(w types.Workload) {
-	var opt workloadOptions
-
-	opt.Description = w.Description
-	opt.VMType = string(w.VMType)
-	opt.FWType = w.FWType
-	opt.ImageName = w.ImageName
-	opt.ImageID = w.ImageID
-	for _, d := range w.Defaults {
-		if d.Type == payloads.VCPUs {
-			opt.Defaults.VCPUs = d.Value
-		} else if d.Type == payloads.MemMB {
-			opt.Defaults.MemMB = d.Value
-		}
-	}
-
-	for _, s := range w.Storage {
-		d := disk{
-			Size:      s.Size,
-			Bootable:  s.Bootable,
-			Ephemeral: s.Ephemeral,
-		}
-		if s.ID != "" {
-			d.ID = &s.ID
-		}
-
-		src := source{
-			Type: s.SourceType,
-			ID:   s.SourceID,
-		}
-
-		d.Source = &src
-
-		opt.Disks = append(opt.Disks, d)
-	}
-
-	b, err := yaml.Marshal(opt)
-	if err != nil {
-		fatalf(err.Error())
-	}
-
-	fmt.Println(string(b))
-	fmt.Println(w.Config)
-}
-
 func (cmd *workloadCreateCommand) run(args []string) error {
 	var opt workloadOptions
 	var req types.Workload
@@ -358,127 +310,5 @@ func (cmd *workloadCreateCommand) run(args []string) error {
 
 	fmt.Printf("Created new workload: %s\n", workload.Workload.ID)
 
-	return nil
-}
-
-type workloadDeleteCommand struct {
-	Flag     flag.FlagSet
-	workload string
-}
-
-func (cmd *workloadDeleteCommand) usage(...string) {
-	fmt.Fprintf(os.Stderr, `usage: ciao-cli [options] workload delete [flags]
-
-Deletes a given workload
-
-The delete flags are:
-
-`)
-	cmd.Flag.PrintDefaults()
-	os.Exit(2)
-}
-
-func (cmd *workloadDeleteCommand) parseArgs(args []string) []string {
-	cmd.Flag.StringVar(&cmd.workload, "workload", "", "Workload UUID")
-	cmd.Flag.Usage = func() { cmd.usage() }
-	cmd.Flag.Parse(args)
-	return cmd.Flag.Args()
-}
-
-func (cmd *workloadDeleteCommand) run(args []string) error {
-	if cmd.workload == "" {
-		cmd.usage()
-	}
-
-	url, err := getCiaoWorkloadsResource()
-	if err != nil {
-		fatalf(err.Error())
-	}
-
-	ver := api.WorkloadsV1
-
-	// you should do a get first and search for the workload,
-	// then use the href - but not with the currently used
-	// OpenStack API. Until we support GET with a ciao API,
-	// just hard code the path.
-	url = fmt.Sprintf("%s/%s", url, cmd.workload)
-
-	resp, err := sendCiaoRequest("DELETE", url, nil, nil, &ver)
-	if err != nil {
-		fatalf(err.Error())
-	}
-
-	if resp.StatusCode != http.StatusNoContent {
-		fatalf("Workload deletion failed: %s", resp.Status)
-	}
-
-	return nil
-}
-
-type workloadShowCommand struct {
-	Flag     flag.FlagSet
-	template string
-	workload string
-}
-
-func (cmd *workloadShowCommand) usage(...string) {
-	fmt.Fprintf(os.Stderr, `usage: ciao-cli [options] workload show
-
-Show workload details
-
-`)
-	cmd.Flag.PrintDefaults()
-	fmt.Fprintf(os.Stderr, "\n%s",
-		templateutils.GenerateUsageDecorated("f", types.Workload{}, nil))
-	os.Exit(2)
-}
-
-func (cmd *workloadShowCommand) parseArgs(args []string) []string {
-	cmd.Flag.StringVar(&cmd.workload, "workload", "", "Workload UUID")
-	cmd.Flag.StringVar(&cmd.template, "f", "", "Template used to format output")
-	cmd.Flag.Usage = func() { cmd.usage() }
-	cmd.Flag.Parse(args)
-	return cmd.Flag.Args()
-}
-
-func (cmd *workloadShowCommand) run(args []string) error {
-	var wl types.Workload
-
-	if cmd.workload == "" {
-		cmd.usage()
-	}
-
-	url, err := getCiaoWorkloadsResource()
-	if err != nil {
-		fatalf(err.Error())
-	}
-
-	ver := api.WorkloadsV1
-
-	// you should do a get first and search for the workload,
-	// then use the href - but not with the currently used
-	// OpenStack API. Until we support GET with a ciao API,
-	// just hard code the path.
-	url = fmt.Sprintf("%s/%s", url, cmd.workload)
-
-	resp, err := sendCiaoRequest("GET", url, nil, nil, &ver)
-	if err != nil {
-		fatalf(err.Error())
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		fatalf("Workload show failed: %s", resp.Status)
-	}
-
-	err = unmarshalHTTPResponse(resp, &wl)
-	if err != nil {
-		fatalf(err.Error())
-	}
-
-	if cmd.template != "" {
-		return templateutils.OutputToTemplate(os.Stdout, "workload-show", cmd.template, &wl, nil)
-	}
-
-	outputWorkload(wl)
 	return nil
 }

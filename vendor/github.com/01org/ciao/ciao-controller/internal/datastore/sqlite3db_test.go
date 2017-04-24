@@ -926,7 +926,7 @@ func TestSQLiteDBInstanceStats(t *testing.T) {
 	}
 }
 
-func TestSQLiteDBUpdateDeleteWorkload(t *testing.T) {
+func TestSQLiteDBUpdateWorkload(t *testing.T) {
 	db, err := getPersistentStore()
 	if err != nil {
 		t.Fatal(err)
@@ -974,7 +974,7 @@ users:
 		ImageID:     uuid.Generate().String(),
 		ImageName:   "",
 		Config:      testConfig,
-		Defaults:    []payloads.RequestedResource{mem, cpus},
+		Defaults:    []payloads.RequestedResource{cpus, mem},
 		Storage:     []types.StorageResource{storage},
 	}
 
@@ -1002,21 +1002,6 @@ users:
 		fmt.Fprintf(os.Stderr, "got %v\n", wl2)
 		fmt.Fprintf(os.Stderr, "expected %v\n", wl)
 		t.Fatal("Expected workload equality")
-	}
-
-	// now try to delete the workload
-	err = db.deleteWorkload(wl.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	tenant, err = db.getTenant(tn.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(tenant.workloads) != 0 {
-		t.Fatal("Expected no workloads associated with tenant")
 	}
 
 	db.disconnect()
