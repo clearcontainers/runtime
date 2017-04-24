@@ -137,7 +137,7 @@ func generateExecParams(context *cli.Context) (execParams, error) {
 			return execParams{}, err
 		}
 
-		if err := json.Unmarshal(fileContent, ociProcess); err != nil {
+		if err := json.Unmarshal(fileContent, &ociProcess); err != nil {
 			return execParams{}, err
 		}
 
