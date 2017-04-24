@@ -18,7 +18,6 @@ matrix:
 go_import_path: github.com/01org/ciao
 
 before_install:
-  - sudo apt-get update -qq
   - sudo apt-get install dnsmasq-base
   - go get github.com/mattn/goveralls
   - go get golang.org/x/tools/cmd/cover
@@ -73,7 +72,7 @@ script:
    - sudo mkdir -p /var/lib/ciao/data/controller/workloads
    - sudo chmod 0777 -R /var/lib/ciao
    - test-cases -v -timeout 9 -coverprofile /tmp/cover.out -short github.com/01org/ciao/ciao-controller/...
-   - test-cases -v -timeout 9 -coverprofile /tmp/cover.out -append-profile -short github.com/01org/ciao/ciao-launcher github.com/01org/ciao/ciao-scheduler github.com/01org/ciao/payloads github.com/01org/ciao/configuration github.com/01org/ciao/testutil github.com/01org/ciao/ssntp/uuid github.com/01org/ciao/qemu github.com/01org/ciao/openstack/... github.com/01org/ciao/bat  github.com/01org/ciao/ciao-image/... github.com/01org/ciao/database/... github.com/01org/ciao/ciao-storage/... github.com/01org/ciao/deviceinfo github.com/01org/ciao/osprepare github.com/01org/ciao/templateutils
+   - test-cases -v -timeout 9 -coverprofile /tmp/cover.out -append-profile -short github.com/01org/ciao/ciao-launcher github.com/01org/ciao/ciao-scheduler github.com/01org/ciao/payloads github.com/01org/ciao/configuration github.com/01org/ciao/testutil github.com/01org/ciao/ssntp/uuid github.com/01org/ciao/qemu github.com/01org/ciao/openstack/... github.com/01org/ciao/bat  github.com/01org/ciao/ciao-image/... github.com/01org/ciao/database/... github.com/01org/ciao/ciao-storage/... github.com/01org/ciao/deviceinfo github.com/01org/ciao/osprepare
    - export GOROOT=`go env GOROOT` && sudo -E PATH=$PATH:$GOROOT/bin $GOPATH/bin/test-cases -v -timeout 9 -coverprofile /tmp/cover.out -append-profile github.com/01org/ciao/ssntp
    - export GOROOT=`go env GOROOT` && export SNNET_ENV=198.51.100.0/24 && sudo -E PATH=$PATH:$GOROOT/bin $GOPATH/bin/test-cases -v -timeout 9 -short -tags travis -coverprofile /tmp/cover.out -append-profile github.com/01org/ciao/networking/libsnnet
    # API Documentation is automated by swagger, every PR will verify the documentation can be generated

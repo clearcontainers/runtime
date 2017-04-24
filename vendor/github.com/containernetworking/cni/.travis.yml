@@ -3,32 +3,23 @@ sudo: required
 dist: trusty
 
 go:
-  - 1.6.x
   - 1.7.x
-  - tip
+  - 1.8.x
 
 env:
   global:
-    - TOOLS_CMD=golang.org/x/tools/cmd
-    - PATH=$GOROOT/bin:$PATH
-    - GO15VENDOREXPERIMENT=1
+  - TOOLS_CMD=golang.org/x/tools/cmd
+  - PATH=$GOROOT/bin:$PATH
+  - GO15VENDOREXPERIMENT=1
   matrix:
-   - TARGET=amd64
-   - TARGET=arm
-   - TARGET=arm64
-   - TARGET=ppc64le
+  - TARGET=amd64
+  - TARGET=arm
+  - TARGET=arm64
+  - TARGET=ppc64le
+  - TARGET=s390x
 
 matrix:
   fast_finish: true
-  allow_failures:
-    - go: tip
-  exclude:
-    - go: tip
-      env: arm
-    - go: tip
-      env: arm64
-    - go: tip
-      env: ppc64le
 
 install:
  - go get ${TOOLS_CMD}/cover
@@ -38,9 +29,9 @@ install:
 script:
  - >
     if [ "${TARGET}" == "amd64" ]; then
-      GOARCH="${TARGET}" ./test;
+      GOARCH="${TARGET}" ./test.sh;
     else
-      GOARCH="${TARGET}" ./build;
+      GOARCH="${TARGET}" ./build.sh;
     fi
 
 notifications:

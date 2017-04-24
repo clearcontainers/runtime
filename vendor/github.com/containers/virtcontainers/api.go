@@ -630,8 +630,6 @@ func StatusContainer(podID, containerID string) (ContainerStatus, error) {
 		return ContainerStatus{}, errNeedContainerID
 	}
 
-	var contStatus ContainerStatus
-
 	pod, err := fetchPod(podID)
 	if err != nil {
 		return ContainerStatus{}, err
@@ -639,16 +637,17 @@ func StatusContainer(podID, containerID string) (ContainerStatus, error) {
 
 	for _, container := range pod.containers {
 		if container.id == containerID {
-			contStatus = ContainerStatus{
+			return ContainerStatus{
 				ID:     container.id,
 				State:  container.state,
 				PID:    container.process.Pid,
 				RootFs: container.config.RootFs,
-			}
+			}, nil
 		}
 	}
 
-	return contStatus, nil
+	// No matching containers in the pod
+	return ContainerStatus{}, nil
 }
 
 // KillContainer is the virtcontainers entry point to send a signal

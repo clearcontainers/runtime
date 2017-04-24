@@ -1,5 +1,0 @@
----
-#cloud-config
-runcmd:
-  - [ /bin/bash, -c, "while true; do sleep 60; done" ]
-...

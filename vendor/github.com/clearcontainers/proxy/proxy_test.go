@@ -22,6 +22,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/clearcontainers/proxy/api"
 	goapi "github.com/clearcontainers/proxy/client"
@@ -155,7 +156,6 @@ func TestRegisterVM(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, ret)
 	// We haven't asked for I/O tokens
-	assert.Equal(t, "", ret.IO.URL)
 	assert.Equal(t, 0, len(ret.IO.Tokens))
 
 	// A new RegisterVM message with the same containerID should error out.
@@ -233,7 +233,6 @@ func TestAttachVM(t *testing.T) {
 	ret, err := rig.Client.AttachVM(testContainerID, nil)
 	assert.Nil(t, err)
 	// We haven't asked for I/O tokens
-	assert.Equal(t, "", ret.IO.URL)
 	assert.Equal(t, 0, len(ret.IO.Tokens))
 
 	err = rig.Client.UnregisterVM(testContainerID)
@@ -403,6 +402,12 @@ func TestHyperSequenceNumberRelocation(t *testing.T) {
 	tokens := ret.IO.Tokens
 	assert.Equal(t, 1, len(tokens))
 
+	// Create a new connection for the shim and register it.
+	shimConn := rig.ServeNewClient()
+	shim := newShimRig(t, shimConn, tokens[0])
+	err = shim.connect()
+	assert.Nil(t, err)
+
 	// Send newcontainer hyper command
 	newcontainer := hyperstart.Container{
 		ID: testContainerID,
@@ -424,6 +429,7 @@ func TestHyperSequenceNumberRelocation(t *testing.T) {
 	assert.NotEqual(t, 0, payload.Process.Stdio)
 	assert.NotEqual(t, 0, payload.Process.Stderr)
 
+	shim.close()
 	rig.Stop()
 }
 
@@ -590,6 +596,63 @@ func TestShimSignal(t *testing.T) {
 	assert.Equal(t, session.ioBase, decoded1.Seq)
 	assert.Equal(t, uint16(42), decoded1.Column)
 	assert.Equal(t, uint16(24), decoded1.Row)
+
+	// Cleanup
+	shim.close()
+
+	rig.Stop()
+}
+
+// smallWaitForShimTimeout overrides the default timeout for the tests
+const smallWaitForShimTimeout = 20 * time.Millisecond
+
+// TestShimConnectAfterExeccmd tests we correctly wait for the shim to connect
+// before forwarding the execcmd to hyperstart.
+func TestShimConnectAfterExeccmd(t *testing.T) {
+	rig := newTestRig(t)
+	rig.Start()
+
+	// Register new VM, asking for tokens. We use the assumption the same
+	// connection can be used for ConnectShim, which is true in the tests.:62
+	ctlSocketPath, ioSocketPath := rig.Hyperstart.GetSocketPaths()
+	ret, err := rig.Client.RegisterVM(testContainerID, ctlSocketPath, ioSocketPath,
+		&goapi.RegisterVMOptions{NumIOStreams: 1})
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(ret.IO.Tokens))
+	tokens := ret.IO.Tokens
+
+	// Send an execcmd. Since we don't have the corresponding shim yet, this
+	// should time out.
+	oldTimeout := waitForShimTimeout
+	waitForShimTimeout = smallWaitForShimTimeout
+	execcmd := hyperstart.ExecCommand{
+		Container: testContainerID,
+		Process: hyperstart.Process{
+			Args: []string{"/bin/sh"},
+		},
+	}
+	err = rig.Client.HyperWithTokens("execcmd", tokens, &execcmd)
+	assert.NotNil(t, err)
+	assert.True(t, strings.Contains(err.Error(), "timeout"))
+	waitForShimTimeout = oldTimeout
+
+	// Send an execcmd again, but this time will connect the shim just after the command.
+	shimConn := rig.ServeNewClient()
+	shim := newShimRig(t, shimConn, tokens[0])
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		time.Sleep(smallWaitForShimTimeout)
+		err := shim.connect()
+		assert.Nil(t, err)
+		wg.Done()
+	}()
+
+	err = rig.Client.HyperWithTokens("execcmd", tokens, &execcmd)
+	assert.Nil(t, err)
+
+	wg.Wait()
 
 	// Cleanup
 	shim.close()

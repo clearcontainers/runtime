@@ -29,7 +29,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
 
 	"context"
@@ -62,9 +61,6 @@ const (
 
 	// VirtioNet is the virt-io networking device driver.
 	VirtioNet = "virtio-net"
-
-	// VirtioNetPCI is the virt-io pci networking device driver.
-	VirtioNetPCI = "virtio-net-pci"
 
 	// VirtioSerial is the serial device driver.
 	VirtioSerial = "virtio-serial-pci"
@@ -345,12 +341,6 @@ type NetDevice struct {
 	// IfName is the interface name,
 	IFName string
 
-	// Bus is the bus path name of a PCI device.
-	Bus string
-
-	// Addr is the address offset of a PCI device.
-	Addr string
-
 	// DownScript is the tap interface deconfiguration script.
 	DownScript string
 
@@ -393,19 +383,6 @@ func (netdev NetDevice) QemuParams(config *Config) []string {
 	deviceParams = append(deviceParams, fmt.Sprintf("%s", netdev.Driver))
 	deviceParams = append(deviceParams, fmt.Sprintf(",netdev=%s", netdev.ID))
 	deviceParams = append(deviceParams, fmt.Sprintf(",mac=%s", netdev.MACAddress))
-
-	if netdev.Driver == VirtioNetPCI {
-		if netdev.Bus != "" {
-			deviceParams = append(deviceParams, fmt.Sprintf(",bus=%s", netdev.Bus))
-		}
-
-		if netdev.Addr != "" {
-			addr, err := strconv.Atoi(netdev.Addr)
-			if err == nil && addr >= 0 {
-				deviceParams = append(deviceParams, fmt.Sprintf(",addr=%x", addr))
-			}
-		}
-	}
 
 	netdevParams = append(netdevParams, string(netdev.Type))
 	netdevParams = append(netdevParams, fmt.Sprintf(",id=%s", netdev.ID))

@@ -43,7 +43,7 @@ type Request struct {
 // Request has been issued. The Response holds the result of the Request,
 // including its success state and optional data. It's useful to think of
 // Response as the result of an RPC call with ("success", "error") describing
-// if the call has been successul and "data" holding the optional results.
+// if the call has been successful and "data" holding the optional results.
 type Response struct {
 	Success bool                   `json:"success"`
 	Error   string                 `json:"error,omitempty"`

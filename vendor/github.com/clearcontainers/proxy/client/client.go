@@ -69,11 +69,11 @@ func (client *Client) sendCommandFull(cmd api.Command, payload interface{},
 	}
 
 	if frame.Header.Type != api.TypeResponse {
-		return nil, fmt.Errorf("unexepected frame type %v", frame.Header.Type)
+		return nil, fmt.Errorf("unexpected frame type %v", frame.Header.Type)
 	}
 
 	if frame.Header.Opcode != int(cmd) {
-		return nil, fmt.Errorf("unexepected opcode %v", frame.Header.Opcode)
+		return nil, fmt.Errorf("unexpected opcode %v", frame.Header.Opcode)
 	}
 
 	return frame, nil

@@ -1,0 +1,20 @@
+
+[[dependencies]]
+  branch = "master"
+  name = "github.com/BurntSushi/toml"
+
+[[dependencies]]
+  branch = "master"
+  name = "github.com/Sirupsen/logrus"
+
+[[dependencies]]
+  name = "github.com/containers/virtcontainers"
+  revision = "cd7c5862e606f6d17d324e1ee8bb546b33baad30"
+
+[[dependencies]]
+  branch = "master"
+  name = "github.com/opencontainers/runtime-spec"
+
+[[dependencies]]
+  branch = "master"
+  name = "github.com/urfave/cli"

@@ -1,3 +1,5 @@
+// +build linux
+
 package netlink
 
 import (
@@ -56,6 +58,26 @@ func testXfrmStateAddGetDel(t *testing.T, state *XfrmState) {
 
 	if _, err := XfrmStateGet(state); err == nil {
 		t.Fatalf("Unexpected success")
+	}
+}
+
+func TestXfrmStateAllocSpi(t *testing.T) {
+	setUpNetlinkTest(t)()
+
+	state := getBaseState()
+	state.Spi = 0
+	state.Auth = nil
+	state.Crypt = nil
+	rstate, err := XfrmStateAllocSpi(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rstate.Spi == 0 {
+		t.Fatalf("SPI is not allocated")
+	}
+	rstate.Spi = 0
+	if !compareStates(state, rstate) {
+		t.Fatalf("State not properly allocated")
 	}
 }
 

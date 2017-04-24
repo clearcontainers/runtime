@@ -5,6 +5,8 @@ PartOf=cc-proxy.service
 
 [Socket]
 ListenStream=@localstatedir@/run/cc-oci-runtime/proxy.sock
+DirectoryMode=0770
+SocketMode=0660
 
 [Install]
 WantedBy=sockets.target

@@ -1,7 +1,7 @@
 # Container Networking Interface Proposal
 
 ## Version
-This is CNI **spec** version **0.3.0**.
+This is CNI **spec** version **0.3.1**.
 
 Note that this is **independent from the version of the CNI library and plugins** in this repository (e.g. the versions of [releases](https://github.com/containernetworking/cni/releases)).
 
@@ -22,7 +22,7 @@ https://docs.google.com/a/coreos.com/document/d/1CTAL4gwqRofjxyp4tTkbgHtAwb2YCcP
 [appc-github]: https://github.com/appc/spec
 [docker]: https://docker.com 
 
-This document aims to specify the interface between "runtimes" and "plugins". Whilst there are certain well known fields, runtimes may wish to pass additional information to plugins to. These extentions are not part of this specification but are documented as [conventions](CONVENTIONS.md).
+This document aims to specify the interface between "runtimes" and "plugins". Whilst there are certain well known fields, runtimes may wish to pass additional information to plugins. These extentions are not part of this specification but are documented as [conventions](CONVENTIONS.md).
 
 ## General considerations
 
@@ -76,8 +76,8 @@ The operations that the CNI plugin needs to support are:
 
       ```
       {
-        "cniVersion": "0.3.0", // the version of the CNI spec in use for this output
-        "supportedVersions": [ "0.1.0", "0.2.0", "0.3.0" ] // the list of CNI spec versions that this plugin supports
+        "cniVersion": "0.3.1", // the version of the CNI spec in use for this output
+        "supportedVersions": [ "0.1.0", "0.2.0", "0.3.0", "0.3.1" ] // the list of CNI spec versions that this plugin supports
       }
       ```
 
@@ -88,7 +88,7 @@ It will then look for this executable in a list of predefined directories. Once 
 - `CNI_NETNS`: Path to network namespace file
 - `CNI_IFNAME`: Interface name to set up; plugin must honor this interface name or return an error
 - `CNI_ARGS`: Extra arguments passed in by the user at invocation time. Alphanumeric key-value pairs separated by semicolons; for example, "FOO=BAR;ABC=123"
-- `CNI_PATH`: Colon-separated list of paths to search for CNI plugin executables
+- `CNI_PATH`: List of paths to search for CNI plugin executables. Paths are separated by an OS-specific list separator; for example ':' on Linux and ';' on Windows
 
 Network configuration in JSON format is streamed to the plugin through stdin. This means it is not tied to a particular file on disk and can contain information which changes between invocations.
 
@@ -97,11 +97,11 @@ Network configuration in JSON format is streamed to the plugin through stdin. Th
 
 Note that IPAM plugins return an abbreviated `Result` structure as described in [IP Allocation](#ip-allocation).
 
-Success is indicated by a return code of zero and the following JSON printed to stdout in the case of the ADD command. The `ip` and `dns` items should be the same output as was returned by the IPAM plugin (see [IP Allocation](#ip-allocation) for details) except that the plugin should fill in the `interface` indexes appropriately, which are missing from IPAM plugin output since IPAM plugins should be unaware of interfaces.
+Success is indicated by a return code of zero and the following JSON printed to stdout in the case of the ADD command. The `ips` and `dns` items should be the same output as was returned by the IPAM plugin (see [IP Allocation](#ip-allocation) for details) except that the plugin should fill in the `interface` indexes appropriately, which are missing from IPAM plugin output since IPAM plugins should be unaware of interfaces.
 
 ```
 {
-  "cniVersion": "0.3.0",
+  "cniVersion": "0.3.1",
   "interfaces": [                                            (this key omitted by IPAM plugins)
       {
           "name": "<name>",
@@ -109,7 +109,7 @@ Success is indicated by a return code of zero and the following JSON printed to 
           "sandbox": "<netns path or hypervisor identifier>" (required for container/hypervisor interfaces, empty/omitted for host interfaces)
       }
   ],
-  "ip": [
+  "ips": [
       {
           "version": "<4-or-6>",
           "address": "<ip-and-prefix-in-CIDR>",
@@ -143,8 +143,8 @@ If the `CNI_IFNAME` variable exists the plugin must use that name for the sandbo
    Hypervisor/VM-based plugins should return an ID unique to the virtualized sandbox the interface was created in.
    This item must be provided for interfaces created or moved into a sandbox like a network namespace or a hypervisor/VM.
 
-The `ip` field is a list of IP configuration information.
-See the [IP well-known structure](#ip) section for more information.
+The `ips` field is a list of IP configuration information.
+See the [IP well-known structure](#ips) section for more information.
 
 The `dns` field contains a dictionary consisting of common DNS information.
 See the [DNS well-known structure](#dns) section for more information.
@@ -155,7 +155,7 @@ Examples include generating an `/etc/resolv.conf` file to be injected into the c
 Errors are indicated by a non-zero return code and the following JSON being printed to stdout:
 ```
 {
-  "cniVersion": "0.2.0",
+  "cniVersion": "0.3.1",
   "code": <numeric-error-code>,
   "msg": <short-error-message>,
   "details": <long-error-message> (optional)
@@ -178,9 +178,6 @@ The network configuration is described in JSON form. The configuration can be st
 - `ipMasq` (boolean): Optional (if supported by the plugin). Set up an IP masquerade on the host for this network. This is necessary if the host will act as a gateway to subnets that are not able to route to the IP assigned to the container.
 - `ipam`: Dictionary with IPAM specific values:
   - `type` (string): Refers to the filename of the IPAM plugin executable.
-  - `routes` (list): List of subnets (in CIDR notation) that the CNI plugin should ensure are reachable by routing them through the network. Each entry is a dictionary containing:
-    - `dst` (string): subnet in CIDR notation
-    - `gw` (string): IP address of the gateway to use. If not specified, the default gateway for the subnet is assumed (as determined by the IPAM plugin).
 - `dns`: Dictionary with DNS specific values:
   - `nameservers` (list of strings): list of a priority-ordered list of DNS nameservers that this network is aware of. Each entry in the list is a string containing either an IPv4 or an IPv6 address.
   - `domain` (string): the local domain used for short hostname lookups.
@@ -188,11 +185,12 @@ The network configuration is described in JSON form. The configuration can be st
   - `options` (list of strings): list of options that can be passed to the resolver
 
 Plugins may define additional fields that they accept and may generate an error if called with unknown fields. The exception to this is the `args` field may be used to pass arbitrary data which may be ignored by plugins.
+
 ### Example configurations
 
 ```json
 {
-  "cniVersion": "0.3.0",
+  "cniVersion": "0.3.1",
   "name": "dbnet",
   "type": "bridge",
   // type (plugin) specific
@@ -211,7 +209,7 @@ Plugins may define additional fields that they accept and may generate an error 
 
 ```json
 {
-  "cniVersion": "0.3.0",
+  "cniVersion": "0.3.1",
   "name": "pci",
   "type": "ovs",
   // type (plugin) specific
@@ -232,7 +230,7 @@ Plugins may define additional fields that they accept and may generate an error 
 
 ```json
 {
-  "cniVersion": "0.3.0",
+  "cniVersion": "0.3.1",
   "name": "wan",
   "type": "macvlan",
   // ipam specific
@@ -256,8 +254,8 @@ The list is described in JSON form, and can be stored on disk or generated from 
 - `name` (string): Network name. This should be unique across all containers on the host (or other administrative domain).
 - `plugins` (list): A list of standard CNI network configuration dictionaries (see above).
 
-When executing a plugin list, the runtime MUST replace the `name` and `cniVersion` fields in each individual network configuration in the list with the `name` and `cniVersion` field of the list itself.
-This ensures that the name and CNI version is the same for all plugin executions in the list, preventing versioning conflicts between plugins.
+When executing a plugin list, the runtime MUST replace the `name` and `cniVersion` fields in each individual network configuration in the list with the `name` and `cniVersion` field of the list itself. This ensures that the name and CNI version is the same for all plugin executions in the list, preventing versioning conflicts between plugins.
+The runtime may also pass capability-based keys as a map in the top-level `runtimeConfig` key of the plugin's config JSON if a plugin advertises it supports a specific capability via the `capabilities` key of its network configuration.  The key passed in `runtimeConfig` MUST match the name of the specific capability from the `capabilities` key of the plugins network configuration. See CONVENTIONS.md for more information on capabilities and how they are sent to plugins via the `runtimeConfig` key.
 
 For the ADD action, the runtime MUST also add a `prevResult` field to the configuration JSON of any plugin after the first one, which MUST be the Result of the previous plugin (if any) in JSON format ([see below](#network-configuration-list-runtime-examples)).
 For the ADD action, plugins SHOULD echo the contents of the `prevResult` field to their stdout to allow subsequent plugins (and the runtime) to receive the result, unless they wish to modify or suppress a previous result.
@@ -281,7 +279,7 @@ Plugins should generally complete a DEL action without error even if some resour
 
 ```json
 {
-  "cniVersion": "0.2.0",
+  "cniVersion": "0.3.1",
   "name": "dbnet",
   "plugins": [
     {
@@ -323,7 +321,7 @@ Note that the runtime adds the `cniVersion` and `name` fields from configuration
 
 ```json
 {
-  "cniVersion": "0.2.0",
+  "cniVersion": "0.3.1",
   "name": "dbnet",
   "type": "bridge",
   "bridge": "cni0",
@@ -348,7 +346,7 @@ Note that the runtime adds the `cniVersion` and `name` fields from configuration
 
 ```json
 {
-  "cniVersion": "0.2.0",
+  "cniVersion": "0.3.1",
   "name": "dbnet",
   "type": "tuning",
   "sysctl": {
@@ -374,7 +372,7 @@ Also note that plugins are executed in reverse order from the ADD action.
 
 ```json
 {
-  "cniVersion": "0.2.0",
+  "cniVersion": "0.3.1",
   "name": "dbnet",
   "type": "tuning",
   "sysctl": {
@@ -387,7 +385,7 @@ Also note that plugins are executed in reverse order from the ADD action.
 
 ```json
 {
-  "cniVersion": "0.2.0",
+  "cniVersion": "0.3.1",
   "name": "dbnet",
   "type": "bridge",
   "bridge": "cni0",
@@ -422,7 +420,7 @@ Success is indicated by a zero return code and the following JSON being printed 
 
 ```
 {
-  "cniVersion": "0.3.0",
+  "cniVersion": "0.3.1",
   "ips": [
       {
           "version": "<4-or-6>",
@@ -452,7 +450,7 @@ Note that unlike regular CNI plugins, IPAM plugins return an abbreviated `Result
 `cniVersion` specifies a [Semantic Version 2.0](http://semver.org) of CNI specification used by the plugin.
 
 The `ips` field is a list of IP configuration information.
-See the [IP well-known structure](#ip) section for more information.
+See the [IP well-known structure](#ips) section for more information.
 
 The `dns` field contains a dictionary consisting of common DNS information.
 See the [DNS well-known structure](#dns) section for more information.
@@ -469,7 +467,7 @@ IPAM plugin examples:
 
 ### Well-known Structures
 
-#### IP
+#### IPs
 
 ```
   "ips": [
@@ -483,8 +481,8 @@ IPAM plugin examples:
   ]
 ```
 
-The `ip` field is a list of IP configuration information determined by the plugin. Each item is a dictionary describing of IP configuration for a network interface.
-IP configuration for multiple network interfaces and multiple IP configurations for a single interface may be returned as separate items in the `ip` list.
+The `ips` field is a list of IP configuration information determined by the plugin. Each item is a dictionary describing of IP configuration for a network interface.
+IP configuration for multiple network interfaces and multiple IP configurations for a single interface may be returned as separate items in the `ips` list.
 All properties known to the plugin should be provided, even if not strictly required.
 - `version` (string): either "4" or "6" and corresponds to the IP version of the addresses in the entry.
    All IP addresses and gateways provided must be valid for the given `version`.
