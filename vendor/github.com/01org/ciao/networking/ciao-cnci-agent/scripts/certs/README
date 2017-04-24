@@ -1,7 +1,0 @@
-Please place the Agent and CA certificate in this directory
-
-The certs should currently be named as follows
-- CAcert-server-localhost.pem
-- cert-client-localhost.pem
-
-This can be customized by customizing the systemd unit file
