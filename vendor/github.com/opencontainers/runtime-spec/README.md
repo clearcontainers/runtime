@@ -1,6 +1,6 @@
 # Open Container Initiative Runtime Specification
 
-The [Open Container Initiative][oci] develops specifications for standards on Operating System process and application containers.
+The [Open Container Initiative](http://www.opencontainers.org/) develops specifications for standards on Operating System process and application containers.
 
 The specification can be found [here](spec.md).
 
@@ -8,7 +8,7 @@ The specification can be found [here](spec.md).
 
 Additional documentation about how this group operates:
 
-- [Code of Conduct][code-of-conduct]
+- [Code of Conduct](https://github.com/opencontainers/tob/blob/d2f9d68c1332870e40693fe077d311e0742bc73d/code-of-conduct.md)
 - [Style and Conventions](style.md)
 - [Roadmap](ROADMAP.md)
 - [Implementations](implementations.md)
@@ -60,20 +60,14 @@ When in doubt, start on the [mailing-list](#mailing-list).
 
 ### Weekly Call
 
-The contributors and maintainers of all OCI projects have a weekly meeting on Wednesdays at:
-
-* 8:00 AM (USA Pacific), during [odd weeks][iso-week].
-* 5:00 PM (USA Pacific), during [even weeks][iso-week].
-
-There is an [iCalendar][rfc5545] format for the meetings [here](meeting.ics).
-
-Everyone is welcome to participate via [UberConference web][uberconference] or audio-only: +1 415 968 0849 (no PIN needed).
+The contributors and maintainers of all OCI projects have a weekly meeting Wednesdays at 2:00 PM (USA Pacific).
+Everyone is welcome to participate via [UberConference web][UberConference] or audio-only: 415-968-0849 (no PIN needed.)
 An initial agenda will be posted to the [mailing list](#mailing-list) earlier in the week, and everyone is welcome to propose additional topics or suggest other agenda alterations there.
-Minutes are posted to the [mailing list](#mailing-list) and minutes from past calls are archived [here][minutes], with minutes from especially old meetings (September 2015 and earlier) archived [here][runtime-wiki].
+Minutes are posted to the [mailing list](#mailing-list) and minutes from past calls are archived to the [wiki](https://github.com/opencontainers/runtime-spec/wiki) for those who are unable to join the call.
 
 ### Mailing List
 
-You can subscribe and join the mailing list on [Google Groups][dev-list].
+You can subscribe and join the mailing list on [Google Groups](https://groups.google.com/a/opencontainers.org/forum/#!forum/dev).
 
 ### IRC
 
@@ -84,7 +78,7 @@ OCI discussion happens on #opencontainers on Freenode ([logs][irc-logs]).
 #### Sign your work
 
 The sign-off is a simple line at the end of the explanation for the patch, which certifies that you wrote it or otherwise have the right to pass it on as an open-source patch.
-The rules are pretty simple: if you can certify the below (from http://developercertificate.org):
+The rules are pretty simple: if you can certify the below (from [developercertificate.org](http://developercertificate.org/)):
 
 ```
 Developer Certificate of Origin
@@ -136,7 +130,7 @@ You can add the sign off when creating the git commit via `git commit -s`.
 #### Commit Style
 
 Simple house-keeping for clean git history.
-Read more on [How to Write a Git Commit Message][how-to-git-commit] or the Discussion section of [git-commit(1)][git-commit.1].
+Read more on [How to Write a Git Commit Message](http://chris.beams.io/posts/git-commit/) or the Discussion section of [`git-commit(1)`](http://git-scm.com/docs/git-commit).
 
 1. Separate the subject from body with a blank line
 2. Limit the subject line to 50 characters
@@ -148,17 +142,6 @@ Read more on [How to Write a Git Commit Message][how-to-git-commit] or the Discu
   * If there was important/useful/essential conversation or information, copy or include a reference
 8. When possible, one keyword to scope the change in the subject (i.e. "README: ...", "runtime: ...")
 
-
-[charter]: https://www.opencontainers.org/about/governance
-[code-of-conduct]: https://github.com/opencontainers/tob/blob/master/code-of-conduct.md
-[dev-list]: https://groups.google.com/a/opencontainers.org/forum/#!forum/dev
-[how-to-git-commit]: http://chris.beams.io/posts/git-commit
+[UberConference]: https://www.uberconference.com/opencontainers
 [irc-logs]: http://ircbot.wl.linuxfoundation.org/eavesdrop/%23opencontainers/
-[iso-week]: https://en.wikipedia.org/wiki/ISO_week_date#Calculating_the_week_number_of_a_given_date
-[minutes]: http://ircbot.wl.linuxfoundation.org/meetings/opencontainers/
-[oci]: https://www.opencontainers.org
-[rfc5545]: https://tools.ietf.org/html/rfc5545
-[runtime-wiki]: https://github.com/opencontainers/runtime-spec/wiki
-[uberconference]: https://www.uberconference.com/opencontainers
-
-[git-commit.1]: http://git-scm.com/docs/git-commit
+[charter]: https://www.opencontainers.org/about/governance
