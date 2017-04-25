@@ -12,8 +12,8 @@
   revision = "cd7c5862e606f6d17d324e1ee8bb546b33baad30"
 
 [[dependencies]]
-  branch = "master"
   name = "github.com/opencontainers/runtime-spec"
+  revision = "a5c4e91dae9533c46a98f122b5085c0b3fe27ee4"
 
 [[dependencies]]
   branch = "master"

@@ -1,4 +1,4 @@
-memo = "7c274e56f0a10e66e6a9db3efd1ceca9059475e426449eac6c31f5097c95fbad"
+memo = "b158226f8356e79e4cfaf967844fb49efc7c24811b90d3f1a8577d8f5a48efd0"
 
 [[projects]]
   name = "github.com/01org/ciao"
@@ -42,10 +42,9 @@ memo = "7c274e56f0a10e66e6a9db3efd1ceca9059475e426449eac6c31f5097c95fbad"
   revision = "cc8532a8e9a55ea36402aa21efdf403a60d34096"
 
 [[projects]]
-  branch = "master"
   name = "github.com/opencontainers/runtime-spec"
   packages = ["specs-go"]
-  revision = "4754b55de94f6559f32589858d4027ee7bf61a5a"
+  revision = "a5c4e91dae9533c46a98f122b5085c0b3fe27ee4"
 
 [[projects]]
   branch = "master"
