@@ -1,3 +1,6 @@
+DESTDIR :=
+BINDIR := /usr/local/bin
+
 SOURCES := $(shell find . 2>&1 | grep -E '.*\.(c|h|go)$$')
 VERSION := ${shell cat ./VERSION}
 COMMIT_NO := $(shell git rev-parse HEAD 2> /dev/null || true)
@@ -17,6 +20,9 @@ check-go-test:
 
 check-go-static:
 	.ci/go-static-checks.sh $(GO_STATIC_CHECKS_ARGS)
+
+install:
+	$(QUIET_INST)install -D $(TARGET) $(DESTDIR)$(BINDIR)/$(TARGET) || exit 1;
 
 clean:
 	rm -f $(TARGET)
