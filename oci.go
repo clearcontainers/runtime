@@ -32,6 +32,10 @@ const (
 	cgroupsDirMode   = os.FileMode(0750)
 	cgroupsFileMode  = os.FileMode(0640)
 	cgroupsMountType = "cgroup"
+
+	// Filesystem type corresponding to CGROUP_SUPER_MAGIC as listed
+	// here: http://man7.org/linux/man-pages/man2/statfs.2.html
+	cgroupFsType = 0x27e0eb
 )
 
 var (
@@ -158,7 +162,9 @@ func processCgroupsPath(ociSpec specs.Spec) ([]string, error) {
 			return []string{}, err
 		}
 
-		cgroupsPathList = append(cgroupsPathList, memCgroupsPath)
+		if memCgroupsPath != "" {
+			cgroupsPathList = append(cgroupsPathList, memCgroupsPath)
+		}
 	}
 
 	if ociSpec.Linux.Resources.CPU != nil {
@@ -167,7 +173,9 @@ func processCgroupsPath(ociSpec specs.Spec) ([]string, error) {
 			return []string{}, err
 		}
 
-		cgroupsPathList = append(cgroupsPathList, cpuCgroupsPath)
+		if cpuCgroupsPath != "" {
+			cgroupsPathList = append(cgroupsPathList, cpuCgroupsPath)
+		}
 	}
 
 	if ociSpec.Linux.Resources.Pids != nil {
@@ -176,7 +184,9 @@ func processCgroupsPath(ociSpec specs.Spec) ([]string, error) {
 			return []string{}, err
 		}
 
-		cgroupsPathList = append(cgroupsPathList, pidsCgroupsPath)
+		if pidsCgroupsPath != "" {
+			cgroupsPathList = append(cgroupsPathList, pidsCgroupsPath)
+		}
 	}
 
 	if ociSpec.Linux.Resources.BlockIO != nil {
@@ -185,7 +195,9 @@ func processCgroupsPath(ociSpec specs.Spec) ([]string, error) {
 			return []string{}, err
 		}
 
-		cgroupsPathList = append(cgroupsPathList, blkIOCgroupsPath)
+		if blkIOCgroupsPath != "" {
+			cgroupsPathList = append(cgroupsPathList, blkIOCgroupsPath)
+		}
 	}
 
 	return cgroupsPathList, nil
@@ -220,5 +232,31 @@ func processCgroupsPathForResource(ociSpec specs.Spec, resource string) (string,
 		return "", fmt.Errorf("cgroupsPath is absolute, cgroup mount destination cannot be empty")
 	}
 
-	return filepath.Join(cgroupMount.Destination, resource, ociSpec.Linux.CgroupsPath), nil
+	cgroupPath := filepath.Join(cgroupMount.Destination, resource)
+
+	// It is not an error to have this cgroup not mounted. It is usually
+	// due to an old kernel version with missing support for specific
+	// cgroups.
+	if !isCgroupMounted(cgroupPath) {
+		ccLog.Infof("cgroup path %s not mounted", cgroupPath)
+		return "", nil
+	}
+
+	ccLog.Infof("cgroup path %s mounted", cgroupPath)
+
+	return filepath.Join(cgroupPath, ociSpec.Linux.CgroupsPath), nil
+}
+
+func isCgroupMounted(cgroupPath string) bool {
+	var statFs syscall.Statfs_t
+
+	if err := syscall.Statfs(cgroupPath, &statFs); err != nil {
+		return false
+	}
+
+	if statFs.Type != int64(cgroupFsType) {
+		return false
+	}
+
+	return true
 }

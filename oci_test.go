@@ -15,9 +15,11 @@
 package main
 
 import (
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
+	"syscall"
 	"testing"
 
 	vc "github.com/containers/virtcontainers"
@@ -159,8 +161,24 @@ func TestProcessCgroupsPathAbsoluteNoCgroupMountDestinationFailure(t *testing.T)
 }
 
 func TestProcessCgroupsPathAbsoluteSuccessful(t *testing.T) {
-	absoluteCgroupsPath := "/absolute/cgroups/path"
-	cgroupMountDest := "/cgroup/mount/destination"
+	memoryResource := "memory"
+	absoluteCgroupsPath := "/cgroup/mount/destination"
+
+	cgroupMountDest, err := ioutil.TempDir("", "cgroup-memory-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(cgroupMountDest)
+
+	resourceMountPath := filepath.Join(cgroupMountDest, memoryResource)
+	if err := os.MkdirAll(resourceMountPath, cgroupsDirMode); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := syscall.Mount("go-test", resourceMountPath, "cgroup", 0, memoryResource); err != nil {
+		t.Fatal(err)
+	}
+	defer syscall.Unmount(resourceMountPath, 0)
 
 	ociSpec := specs.Spec{
 		Linux: &specs.Linux{
@@ -177,5 +195,5 @@ func TestProcessCgroupsPathAbsoluteSuccessful(t *testing.T) {
 		},
 	}
 
-	testProcessCgroupsPath(t, ociSpec, []string{filepath.Join(cgroupMountDest, "memory", absoluteCgroupsPath)})
+	testProcessCgroupsPath(t, ociSpec, []string{filepath.Join(resourceMountPath, absoluteCgroupsPath)})
 }
