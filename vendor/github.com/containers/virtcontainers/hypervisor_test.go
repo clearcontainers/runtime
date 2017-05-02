@@ -149,7 +149,7 @@ func TestHypervisorConfigNoHypervisorPath(t *testing.T) {
 		HypervisorPath: "",
 	}
 
-	testHypervisorConfigValid(t, hypervisorConfig, false)
+	testHypervisorConfigValid(t, hypervisorConfig, true)
 }
 
 func TestHypervisorConfigIsValid(t *testing.T) {

@@ -17,6 +17,9 @@
 package virtcontainers
 
 import (
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -66,4 +69,39 @@ func TestHyperstartValidateOneSocketFailing(t *testing.T) {
 func TestHyperstartValidateNSocketSuccessful(t *testing.T) {
 	testHyperstartValidateNSocket(t, 0, true)
 	testHyperstartValidateNSocket(t, 2, true)
+}
+
+func TestCopyPauseBinarySuccessful(t *testing.T) {
+	tmpDirPath, err := ioutil.TempDir("", "test_shared_dir")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDirPath)
+
+	defaultSharedDir = tmpDirPath
+
+	srcFile, err := ioutil.TempFile("", "test_src_copy")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(srcFile.Name())
+	defer srcFile.Close()
+
+	h := &hyper{
+		config: HyperConfig{
+			PauseBinPath: srcFile.Name(),
+		},
+	}
+
+	dstPath := filepath.Join(defaultSharedDir, testPodID,
+		pauseContainerName, rootfsDir, pauseBinName)
+
+	if err := h.copyPauseBinary(testPodID); err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(srcFile.Name())
+
+	if _, err := os.Stat(dstPath); err != nil {
+		t.Fatal(err)
+	}
 }

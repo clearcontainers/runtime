@@ -1,0 +1,42 @@
+memo = "2129c8907978e092ff29d6ac7fe5da4949c6da13f36e6d795b370339c75ac3d4"
+
+[[projects]]
+  name = "github.com/Sirupsen/logrus"
+  packages = ["."]
+  revision = "ba1b36c82c5e05c4f912a88eab0dcd91a171688f"
+  version = "v0.11.5"
+
+[[projects]]
+  name = "github.com/containers/virtcontainers"
+  packages = ["pkg/hyperstart","pkg/hyperstart/mock"]
+  revision = "93aa8226e6fa7e9bb2d553b571209f4f94e96348"
+
+[[projects]]
+  name = "github.com/davecgh/go-spew"
+  packages = ["spew"]
+  revision = "346938d642f2ec3594ed81d874461961cd0faa76"
+  version = "v1.1.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/golang/glog"
+  packages = ["."]
+  revision = "23def4e6c14b4da8ac2ed8007337bc5eb5007998"
+
+[[projects]]
+  name = "github.com/pmezard/go-difflib"
+  packages = ["difflib"]
+  revision = "792786c7400a136282c1664665ae0a8db921c6c2"
+  version = "v1.0.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/stretchr/testify"
+  packages = ["assert"]
+  revision = "4d4bfba8f1d1027c4fdbe371823030df51419987"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/sys"
+  packages = ["unix"]
+  revision = "ea9bcade75cb975a0b9738936568ab388b845617"

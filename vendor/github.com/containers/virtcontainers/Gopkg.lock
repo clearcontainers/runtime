@@ -1,16 +1,10 @@
-memo = "c735f017f6fda10f45e1e802d483f7d8c534492239e1c8f0cd90ee798eb473df"
+memo = "c198a36088d02f37969285b50b8e1c2f5e8b35ec380dbf1f0eed16f39d6202c0"
 
 [[projects]]
   branch = "master"
   name = "github.com/01org/ciao"
   packages = ["qemu","ssntp/uuid"]
   revision = "a16660bbedd1aa3479b38a7b05b5812f7ece8114"
-
-[[projects]]
-  name = "github.com/BurntSushi/toml"
-  packages = ["."]
-  revision = "b26d9c308763d68093482582cea63d69be07a0f0"
-  version = "v0.3.0"
 
 [[projects]]
   branch = "master"
@@ -30,9 +24,10 @@ memo = "c735f017f6fda10f45e1e802d483f7d8c534492239e1c8f0cd90ee798eb473df"
   revision = "231f6c4c5346c8cc56190bd46d4fa8a103b21d4b"
 
 [[projects]]
-  name = "github.com/containers/virtcontainers"
-  packages = [".","pkg/cni","pkg/hyperstart","pkg/oci"]
-  revision = "267bb85ffc5206a5a6cf934828a1a54ac9e99038"
+  name = "github.com/davecgh/go-spew"
+  packages = ["spew"]
+  revision = "346938d642f2ec3594ed81d874461961cd0faa76"
+  version = "v1.1.0"
 
 [[projects]]
   branch = "master"
@@ -41,21 +36,38 @@ memo = "c735f017f6fda10f45e1e802d483f7d8c534492239e1c8f0cd90ee798eb473df"
   revision = "cc8532a8e9a55ea36402aa21efdf403a60d34096"
 
 [[projects]]
+  name = "github.com/opencontainers/runc"
+  packages = ["libcontainer/configs"]
+  revision = "dcbcdf2470421e911211604c61ea3e8ca740d346"
+
+[[projects]]
   name = "github.com/opencontainers/runtime-spec"
   packages = ["specs-go"]
   revision = "a5c4e91dae9533c46a98f122b5085c0b3fe27ee4"
 
 [[projects]]
+  name = "github.com/pmezard/go-difflib"
+  packages = ["difflib"]
+  revision = "792786c7400a136282c1664665ae0a8db921c6c2"
+  version = "v1.0.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/stretchr/testify"
+  packages = ["assert"]
+  revision = "4d4bfba8f1d1027c4fdbe371823030df51419987"
+
+[[projects]]
   branch = "master"
   name = "github.com/urfave/cli"
   packages = ["."]
-  revision = "8ba6f23b6e36d03666a14bd9421f5e3efcb59aca"
+  revision = "ab403a54a148f2d857920810291539e1f817ee7b"
 
 [[projects]]
   branch = "master"
   name = "github.com/vishvananda/netlink"
   packages = [".","nl"]
-  revision = "b71e0bb214aebd980216cb2516e8bd7bca9e9672"
+  revision = "1e045880fbc2f6703d3c771db56cfb0351208637"
 
 [[projects]]
   branch = "master"
@@ -67,10 +79,10 @@ memo = "c735f017f6fda10f45e1e802d483f7d8c534492239e1c8f0cd90ee798eb473df"
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["curve25519","ed25519","ed25519/internal/edwards25519","ssh"]
-  revision = "3543873453996aaab2fc6b3928a35fc5ca2b5afb"
+  revision = "8e03fc1ab6a36bdb9e7dee75a213c30f0249d0c1"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
-  revision = "ea9bcade75cb975a0b9738936568ab388b845617"
+  revision = "9ccfe848b9db8435a24c424abbc07a921adf1df5"
