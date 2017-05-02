@@ -1,3 +1,5 @@
+PREFIX := $(DESTDIR)/usr
+BINDIR := $(PREFIX)/bin
 SOURCES := $(shell find . 2>&1 | grep -E '.*\.(c|h|go)$$')
 VERSION := ${shell cat ./VERSION}
 COMMIT_NO := $(shell git rev-parse HEAD 2> /dev/null || true)
@@ -17,6 +19,9 @@ check-go-test:
 
 check-go-static:
 	.ci/go-static-checks.sh $(GO_STATIC_CHECKS_ARGS)
+
+install:
+	install -D $(TARGET) $(BINDIR)/$(TARGET)
 
 clean:
 	rm -f $(TARGET)
