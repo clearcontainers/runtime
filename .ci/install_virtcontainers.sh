@@ -25,7 +25,7 @@ pause_bin_name="pause"
 echo -e "Build ${pause_bin_name} binary"
 make ${pause_bin_name}
 
-pause_bin_path="/var/lib/clearcontainers/runtime/bundles/pause_bundle/bin"
+pause_bin_path="/var/lib/clear-containers/runtime/bundles/pause_bundle/bin"
 echo -e "Create ${pause_bin_path}"
 sudo mkdir -p ${pause_bin_path}
 

@@ -4,14 +4,14 @@ kernel = "/usr/share/clear-containers/vmlinux.container"
 image = "/usr/share/clear-containers/clear-containers.img"
 
 [proxy.cc]
-url = "unix:///var/run/clearcontainers/proxy.sock"
+url = "unix:///var/run/clear-containers/proxy.sock"
 
 [shim.cc]
 path = "/usr/libexec/cc-shim"
 
 [agent.hyperstart]
-pause_root_path = "/var/lib/clearcontainers/runtime/bundles/pause_bundle"
+pause_root_path = "/var/lib/clear-containers/runtime/bundles/pause_bundle"
 
 ## Uncomment to enable the global logging to the default path.
 #[runtime]
-#global_log_path = "/var/lib/clearcontainers/runtime/runtime.log"
+#global_log_path = "/var/lib/clear-containers/runtime/runtime.log"

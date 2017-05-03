@@ -80,7 +80,7 @@ func main() {
 		},
 		cli.StringFlag{
 			Name:  "root",
-			Value: "/run/clearcontainers",
+			Value: "/run/clear-containers",
 			Usage: "root directory for storage of container state (this should be located in tmpfs)",
 		},
 	}
