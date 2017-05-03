@@ -17,6 +17,7 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 	"syscall"
 
 	vc "github.com/containers/virtcontainers"
@@ -129,9 +130,44 @@ func kill(containerID, signal string, all bool) error {
 		return fmt.Errorf("Process not running inside container %s", containerID)
 	}
 
-	if err := vc.KillContainer(containerID, podStatus.ContainersStatus[0].ID, signals[signal]); err != nil {
+	signum, err := processSignal(signal)
+	if err != nil {
+		return err
+	}
+
+	if err := vc.KillContainer(containerID, podStatus.ContainersStatus[0].ID, signum); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func processSignal(signal string) (syscall.Signal, error) {
+	signum, signalOk := signals[signal]
+	if signalOk {
+		return signum, nil
+	}
+
+	// Support for short name signals (INT)
+	signum, signalOk = signals["SIG"+signal]
+	if signalOk {
+		return signum, nil
+	}
+
+	// Support for numeric signals
+	s, err := strconv.Atoi(signal)
+	if err != nil {
+		return 0, fmt.Errorf("Failed to convert signal %s to int", signal)
+	}
+
+	signum = syscall.Signal(s)
+	// Check whether signal is valid or not
+	for _, sig := range signals {
+		if sig == signum {
+			// signal is a valid signal
+			return signum, nil
+		}
+	}
+
+	return 0, fmt.Errorf("Signal %s is not supported", signal)
 }
