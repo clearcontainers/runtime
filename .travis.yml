@@ -15,7 +15,7 @@ script:
 - sudo env "PATH=$PATH" make check
 
 after_success:
-- go get github.com/mattn/goveralls
+- sudo env "PATH=$PATH" go get github.com/mattn/goveralls
 - "$GOPATH/bin/goveralls -service=travis-ci -coverprofile=profile.cov"
 
 notifications:
