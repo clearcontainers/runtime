@@ -118,6 +118,10 @@ type HypervisorConfig struct {
 	// HypervisorParams are additional hypervisor parameters.
 	HypervisorParams []Param
 
+	// HypervisorMachineType specifies the type of machine being
+	// emulated.
+	HypervisorMachineType string
+
 	// Debug changes the default hypervisor and kernel parameters to
 	// enable debug output where available.
 	Debug bool
@@ -130,10 +134,6 @@ func (conf *HypervisorConfig) valid() (bool, error) {
 
 	if conf.ImagePath == "" {
 		return false, fmt.Errorf("Missing image path")
-	}
-
-	if conf.HypervisorPath == "" {
-		return false, fmt.Errorf("Missing hypervisor path")
 	}
 
 	return true, nil

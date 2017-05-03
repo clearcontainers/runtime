@@ -32,8 +32,8 @@ var (
 	// ErrNoLinux is an error for missing Linux sections in the OCI configuration file.
 	ErrNoLinux = errors.New("missing Linux section")
 
-	// ociConfigPathKey is the annotation key to fetch the OCI config.json file path.
-	ociConfigPathKey = "oci/config_path"
+	// ociConfigPathKey is the annotation key to fetch the OCI configuration file path.
+	ociConfigPathKey = "com.github.containers.virtcontainers.pkg.oci.config_path"
 )
 
 // RuntimeConfig aggregates all runtime specific settings

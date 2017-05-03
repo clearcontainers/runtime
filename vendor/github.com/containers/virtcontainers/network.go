@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"runtime"
 
 	"github.com/01org/ciao/ssntp/uuid"
 	"github.com/containernetworking/cni/pkg/ns"
@@ -302,24 +303,13 @@ func setNetNS(netNSPath string) error {
 	return n.Set()
 }
 
-// doNetNS makes some subsequent calls to a go routine and LockOSThread
-// in order to protect the current process from other thread switching
-// to different netns. Unless we have to make sure the thread ID has to
-// stay the same, this function should be used by default.
+// doNetNS is free from any call to a go routine, and it calls
+// into runtime.LockOSThread(), meaning it won't be executed in a
+// different thread than the one expected by the caller.
 func doNetNS(netNSPath string, cb func(ns.NetNS) error) error {
-	n, err := ns.GetNS(netNSPath)
-	if err != nil {
-		return err
-	}
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 
-	return n.Do(cb)
-}
-
-// safeDoNetNS is free from any call to a go routine, meaning it will
-// not be executed in a different thread than the one expected by the
-// caller. This is used in case of CNM network, because we need to
-// make sure the process switched to the given netns has PID == TID.
-func safeDoNetNS(netNSPath string, cb func(ns.NetNS) error) error {
 	currentNS, err := ns.GetCurrentNS()
 	if err != nil {
 		return err

@@ -282,7 +282,7 @@ type PodConfig struct {
 	// to the Pod a posteriori.
 	Containers []ContainerConfig
 
-	// Annotations keys must be unique strings an must be name-spaced
+	// Annotations keys must be unique strings and must be name-spaced
 	// with e.g. reverse domain notation (org.clearlinux.key).
 	Annotations map[string]string
 }

@@ -1,0 +1,12 @@
+
+[[dependencies]]
+  name = "github.com/containers/virtcontainers"
+  revision = "93aa8226e6fa7e9bb2d553b571209f4f94e96348"
+
+[[dependencies]]
+  branch = "master"
+  name = "github.com/golang/glog"
+
+[[dependencies]]
+  branch = "master"
+  name = "github.com/stretchr/testify"

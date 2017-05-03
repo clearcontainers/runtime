@@ -195,7 +195,7 @@ func (h *hyper) buildNetworkInterfacesAndRoutes(pod Pod) ([]hyperstart.NetworkIf
 	return ifaces, routes, nil
 }
 
-func (h *hyper) linkPauseBinary(podID string) error {
+func (h *hyper) copyPauseBinary(podID string) error {
 	pauseDir := filepath.Join(defaultSharedDir, podID, pauseContainerName, rootfsDir)
 
 	if err := os.MkdirAll(pauseDir, dirMode); err != nil {
@@ -204,10 +204,10 @@ func (h *hyper) linkPauseBinary(podID string) error {
 
 	pausePath := filepath.Join(pauseDir, pauseBinName)
 
-	return os.Symlink(h.config.PauseBinPath, pausePath)
+	return fileCopy(h.config.PauseBinPath, pausePath)
 }
 
-func (h *hyper) unlinkPauseBinary(podID string) error {
+func (h *hyper) removePauseBinary(podID string) error {
 	pauseDir := filepath.Join(defaultSharedDir, podID, pauseContainerName)
 
 	return os.RemoveAll(pauseDir)
@@ -392,7 +392,7 @@ func (h *hyper) startPauseContainer(podID string) error {
 		Process: process,
 	}
 
-	if err := h.linkPauseBinary(podID); err != nil {
+	if err := h.copyPauseBinary(podID); err != nil {
 		return err
 	}
 
@@ -454,7 +454,7 @@ func (h *hyper) stopPauseContainer(podID string) error {
 		return err
 	}
 
-	if err := h.unlinkPauseBinary(podID); err != nil {
+	if err := h.removePauseBinary(podID); err != nil {
 		return err
 	}
 

@@ -9,7 +9,7 @@
 
 [[dependencies]]
   name = "github.com/containers/virtcontainers"
-  revision = "cd7c5862e606f6d17d324e1ee8bb546b33baad30"
+  revision = "267bb85ffc5206a5a6cf934828a1a54ac9e99038"
 
 [[dependencies]]
   name = "github.com/opencontainers/runtime-spec"

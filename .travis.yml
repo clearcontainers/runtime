@@ -12,7 +12,7 @@ env:
 
 script:
 - make
-- make check
+- sudo env "PATH=$PATH" make check
 
 after_success:
 - go get github.com/mattn/goveralls

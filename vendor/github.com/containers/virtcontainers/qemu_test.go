@@ -459,3 +459,45 @@ func TestQemuGetPodConsole(t *testing.T) {
 		t.Fatalf("Got %s\nExpecting %s", result, expected)
 	}
 }
+
+func TestQemuMachineTypes(t *testing.T) {
+	type testData struct {
+		machineType string
+		expectValid bool
+	}
+
+	data := []testData{
+		{"pc-lite", true},
+		{"q35", true},
+
+		{"PC-LITE", false},
+		{"Q35", false},
+		{"", false},
+		{" ", false},
+		{".", false},
+		{"0", false},
+		{"1", false},
+		{"-1", false},
+		{"bon", false},
+	}
+
+	q := &qemu{}
+
+	for _, d := range data {
+		m, err := q.getMachine(d.machineType)
+
+		if d.expectValid == true {
+			if err != nil {
+				t.Fatalf("machine type %v unexpectedly invalid: %v", d.machineType, err)
+			}
+
+			if m.Type != d.machineType {
+				t.Fatalf("expected machine type %v, got %v", d.machineType, m.Type)
+			}
+		} else {
+			if err == nil {
+				t.Fatalf("machine type %v unexpectedly valid", d.machineType)
+			}
+		}
+	}
+}
