@@ -7,7 +7,7 @@ image = "/usr/share/clear-containers/clear-containers.img"
 url = "unix:///var/run/clear-containers/proxy.sock"
 
 [shim.cc]
-path = "/usr/libexec/cc-shim"
+path = "/usr/libexec/clear-containers/cc-shim"
 
 [agent.hyperstart]
 pause_root_path = "/var/lib/clear-containers/runtime/bundles/pause_bundle"
