@@ -1,6 +1,6 @@
 # Contributing to virtcontainers
 
-virtcontainers is an open source project licensed under the [Apache License, Version 2.0] (https://www.apache.org/licenses/LICENSE-2.0).
+virtcontainers is an open source project licensed under the [Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0).
 
 ## Coding Style (Go)
 
@@ -11,7 +11,7 @@ contains a few common errors to be mindful of.
 
 ## Certificate of Origin
 
-In order to get a clear contribution chain of trust we use the [signed-off-by language] (https://01.org/community/signed-process)
+In order to get a clear contribution chain of trust we use the [signed-off-by language](https://01.org/community/signed-process)
 used by the Linux kernel project.
 
 ## Patch format
@@ -48,15 +48,15 @@ It is recommended that each of your patches fixes one thing. Smaller patches are
 
 ## Pull requests
 
-We accept [github pull requests] (https://github.com/containers/virtcontainers/pulls).
+We accept [github pull requests](https://github.com/containers/virtcontainers/pulls).
 
-Github has a basic introduction to the process [here] (https://help.github.com/articles/using-pull-requests/).
+Github has a basic introduction to the process [here](https://help.github.com/articles/using-pull-requests/).
 
 When submitting your Pull Request (PR), treat the Pull Request message the same you would a patch message, including pre-fixing the title with a subsystem name. Github by default seems to copy the message from your first patch, which many times is appropriate, but please ensure your message is accurate and complete for the whole Pull Request, as it ends up in the git log as the merge message.
 
 Your pull request may get some feedback and comments, and require some rework. The recommended procedure for reworking is to rework your branch to a new clean state and 'force push' it to your github. GitHub understands this action, and does sensible things in the online comment history. Do not pile patches on patches to rework your branch. Any relevant information from the github comments section should be re-worked into your patch set, as the ultimate place where your patches are documented is in the git log, and not in the github comments section.
 
-For more information on github 'force push' workflows see [here] (http://blog.adamspiers.org/2015/03/24/why-and-how-to-correctly-amend-github-pull-requests/).
+For more information on github 'force push' workflows see [here](http://blog.adamspiers.org/2015/03/24/why-and-how-to-correctly-amend-github-pull-requests/).
 
 It is perfectly fine for your Pull Request to contain more than one patch - use as many patches as you need to implement the Request (see the previously mentioned 'small patch' thoughts). Each Pull Request should only cover one topic - if you mix up different items in your patches or pull requests then you will most likely be asked to rework them.
 
