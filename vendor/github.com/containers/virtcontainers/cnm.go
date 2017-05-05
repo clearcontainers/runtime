@@ -21,7 +21,6 @@ import (
 	"net"
 
 	"github.com/01org/ciao/ssntp/uuid"
-	"github.com/containernetworking/cni/pkg/ns"
 	cniTypes "github.com/containernetworking/cni/pkg/types"
 	types "github.com/containernetworking/cni/pkg/types/current"
 	"github.com/vishvananda/netlink"
@@ -159,31 +158,12 @@ func (n *cnm) createEndpointsFromScan(networkNSPath string) ([]Endpoint, error) 
 
 // init initializes the network, setting a new network namespace for the CNM network.
 func (n *cnm) init(config *NetworkConfig) error {
-	if config == nil {
-		return fmt.Errorf("config cannot be empty")
-	}
-
-	if config.NetNSPath == "" {
-		path, err := createNetNS()
-		if err != nil {
-			return err
-		}
-
-		config.NetNSPath = path
-	}
-
-	return nil
+	return initNetworkCommon(config)
 }
 
 // run runs a callback in the specified network namespace.
 func (n *cnm) run(networkNSPath string, cb func() error) error {
-	if networkNSPath == "" {
-		return fmt.Errorf("networkNSPath cannot be empty")
-	}
-
-	return doNetNS(networkNSPath, func(_ ns.NetNS) error {
-		return cb()
-	})
+	return runNetworkCommon(networkNSPath, cb)
 }
 
 // add adds all needed interfaces inside the network namespace for the CNM network.
@@ -198,22 +178,7 @@ func (n *cnm) add(pod Pod, config NetworkConfig) (NetworkNamespace, error) {
 		Endpoints: endpoints,
 	}
 
-	err = doNetNS(networkNS.NetNsPath, func(_ ns.NetNS) error {
-		for _, endpoint := range networkNS.Endpoints {
-			err := bridgeNetworkPair(endpoint.NetPair)
-			if err != nil {
-				return err
-			}
-		}
-
-		return nil
-	})
-	if err != nil {
-		return NetworkNamespace{}, err
-	}
-
-	err = addNetDevHypervisor(pod, networkNS.Endpoints)
-	if err != nil {
+	if err := addNetworkCommon(pod, &networkNS); err != nil {
 		return NetworkNamespace{}, err
 	}
 
@@ -223,24 +188,9 @@ func (n *cnm) add(pod Pod, config NetworkConfig) (NetworkNamespace, error) {
 // remove unbridges and deletes TAP interfaces. It also removes virtual network
 // interfaces and deletes the network namespace for the CNM network.
 func (n *cnm) remove(pod Pod, networkNS NetworkNamespace) error {
-	err := doNetNS(networkNS.NetNsPath, func(_ ns.NetNS) error {
-		for _, endpoint := range networkNS.Endpoints {
-			err := unBridgeNetworkPair(endpoint.NetPair)
-			if err != nil {
-				return err
-			}
-		}
-
-		return nil
-	})
-	if err != nil {
+	if err := removeNetworkCommon(networkNS); err != nil {
 		return err
 	}
 
-	err = deleteNetNS(networkNS.NetNsPath, true)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return deleteNetNS(networkNS.NetNsPath, true)
 }

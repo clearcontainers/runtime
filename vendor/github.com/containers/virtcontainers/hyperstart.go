@@ -166,7 +166,7 @@ func (h *hyper) buildNetworkInterfacesAndRoutes(pod Pod) ([]hyperstart.NetworkIf
 			NewDevice:   endpoint.NetPair.VirtIface.Name,
 			IPAddresses: ipAddrs,
 			MTU:         fmt.Sprintf("%d", netIface.MTU),
-			MACAddr:     endpoint.NetPair.VirtIface.HardAddr,
+			MACAddr:     endpoint.NetPair.TAPIface.HardAddr,
 		}
 
 		ifaces = append(ifaces, iface)

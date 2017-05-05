@@ -1,4 +1,4 @@
-memo = "c735f017f6fda10f45e1e802d483f7d8c534492239e1c8f0cd90ee798eb473df"
+memo = "4cf05f5ca98642a05a01baee213c4a325346337091560f5c1e4a1911ecb0bc7a"
 
 [[projects]]
   branch = "master"
@@ -16,7 +16,7 @@ memo = "c735f017f6fda10f45e1e802d483f7d8c534492239e1c8f0cd90ee798eb473df"
   branch = "master"
   name = "github.com/Sirupsen/logrus"
   packages = ["."]
-  revision = "10f801ebc38b33738c9d17d50860f484a0988ff5"
+  revision = "5b60b3d3ee017ed00bcd0225fcca7acab767844b"
 
 [[projects]]
   name = "github.com/clearcontainers/proxy"
@@ -27,12 +27,12 @@ memo = "c735f017f6fda10f45e1e802d483f7d8c534492239e1c8f0cd90ee798eb473df"
   branch = "master"
   name = "github.com/containernetworking/cni"
   packages = ["libcni","pkg/invoke","pkg/ns","pkg/types","pkg/types/020","pkg/types/current","pkg/version"]
-  revision = "231f6c4c5346c8cc56190bd46d4fa8a103b21d4b"
+  revision = "b686cad062ec37a0af526fe535a21d731d2640b3"
 
 [[projects]]
   name = "github.com/containers/virtcontainers"
   packages = [".","pkg/cni","pkg/hyperstart","pkg/oci"]
-  revision = "267bb85ffc5206a5a6cf934828a1a54ac9e99038"
+  revision = "df324ac7f0f95fd0e3f80a05b5f31abdc6b2e4a5"
 
 [[projects]]
   branch = "master"
@@ -49,13 +49,13 @@ memo = "c735f017f6fda10f45e1e802d483f7d8c534492239e1c8f0cd90ee798eb473df"
   branch = "master"
   name = "github.com/urfave/cli"
   packages = ["."]
-  revision = "8ba6f23b6e36d03666a14bd9421f5e3efcb59aca"
+  revision = "ab403a54a148f2d857920810291539e1f817ee7b"
 
 [[projects]]
   branch = "master"
   name = "github.com/vishvananda/netlink"
   packages = [".","nl"]
-  revision = "b71e0bb214aebd980216cb2516e8bd7bca9e9672"
+  revision = "1e045880fbc2f6703d3c771db56cfb0351208637"
 
 [[projects]]
   branch = "master"
@@ -67,10 +67,10 @@ memo = "c735f017f6fda10f45e1e802d483f7d8c534492239e1c8f0cd90ee798eb473df"
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["curve25519","ed25519","ed25519/internal/edwards25519","ssh"]
-  revision = "3543873453996aaab2fc6b3928a35fc5ca2b5afb"
+  revision = "5a033cc77e57eca05bdb50522851d29e03569cbe"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
-  revision = "ea9bcade75cb975a0b9738936568ab388b845617"
+  revision = "9ccfe848b9db8435a24c424abbc07a921adf1df5"

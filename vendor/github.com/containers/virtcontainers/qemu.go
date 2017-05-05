@@ -233,7 +233,7 @@ func (q *qemu) appendNetworks(devices []ciaoQemu.Device, endpoints []Endpoint) [
 				Driver:     ciaoQemu.VirtioNetPCI,
 				ID:         fmt.Sprintf("network-%d", idx),
 				IFName:     endpoint.NetPair.TAPIface.Name,
-				MACAddress: endpoint.NetPair.VirtIface.HardAddr,
+				MACAddress: endpoint.NetPair.TAPIface.HardAddr,
 				DownScript: "no",
 				Script:     "no",
 			},
