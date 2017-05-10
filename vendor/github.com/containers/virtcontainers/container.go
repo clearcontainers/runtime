@@ -35,6 +35,11 @@ type ContainerStatus struct {
 	State  State
 	PID    int
 	RootFs string
+
+	// Annotations allow clients to store arbitrary values,
+	// for example to add additional status values required
+	// to support particular specifications.
+	Annotations map[string]string
 }
 
 // ContainerConfig describes one container runtime configuration.
@@ -46,6 +51,11 @@ type ContainerConfig struct {
 
 	// Cmd specifies the command to run on a container
 	Cmd Cmd
+
+	// Annotations allow clients to store arbitrary values,
+	// for example to add additional status values required
+	// to support particular specifications.
+	Annotations map[string]string
 }
 
 // valid checks that the container configuration is valid.

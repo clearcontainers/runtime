@@ -8,8 +8,8 @@
   name = "github.com/Sirupsen/logrus"
 
 [[dependencies]]
+  branch = "master"
   name = "github.com/containers/virtcontainers"
-  revision = "df324ac7f0f95fd0e3f80a05b5f31abdc6b2e4a5"
 
 [[dependencies]]
   name = "github.com/opencontainers/runtime-spec"
