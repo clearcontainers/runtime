@@ -34,6 +34,9 @@ var (
 
 	// ociConfigPathKey is the annotation key to fetch the OCI configuration file path.
 	ociConfigPathKey = "com.github.containers.virtcontainers.pkg.oci.config_path"
+
+	// ociBundlePathKey is the annotation key to fetch the OCI configuration file path.
+	ociBundlePathKey = "com.github.containers.virtcontainers.pkg.oci.bundle_path"
 )
 
 // RuntimeConfig aggregates all runtime specific settings
@@ -161,19 +164,28 @@ func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodC
 	ociLog.Debugf("container rootfs: %s", rootfs)
 
 	cmd := vc.Cmd{
-		Args:        ocispec.Process.Args,
-		Envs:        cmdEnvs(ocispec, []vc.EnvVar{}),
-		WorkDir:     ocispec.Process.Cwd,
-		User:        strconv.FormatUint(uint64(ocispec.Process.User.UID), 10),
-		Group:       strconv.FormatUint(uint64(ocispec.Process.User.GID), 10),
-		Interactive: ocispec.Process.Terminal,
-		Console:     console,
+		Args:         ocispec.Process.Args,
+		Envs:         cmdEnvs(ocispec, []vc.EnvVar{}),
+		WorkDir:      ocispec.Process.Cwd,
+		User:         strconv.FormatUint(uint64(ocispec.Process.User.UID), 10),
+		PrimaryGroup: strconv.FormatUint(uint64(ocispec.Process.User.GID), 10),
+		Interactive:  ocispec.Process.Terminal,
+		Console:      console,
+	}
+
+	cmd.SupplementaryGroups = []string{}
+	for _, gid := range ocispec.Process.User.AdditionalGids {
+		cmd.SupplementaryGroups = append(cmd.SupplementaryGroups, strconv.FormatUint(uint64(gid), 10))
 	}
 
 	containerConfig := vc.ContainerConfig{
 		ID:     cid,
 		RootFs: rootfs,
 		Cmd:    cmd,
+		Annotations: map[string]string{
+			ociConfigPathKey: configPath,
+			ociBundlePathKey: bundlePath,
+		},
 	}
 
 	networkConfig, err := networkConfig(ocispec)
@@ -205,7 +217,7 @@ func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodC
 
 		Containers: []vc.ContainerConfig{containerConfig},
 
-		Annotations: map[string]string{ociConfigPathKey: configPath},
+		Annotations: map[string]string{},
 	}
 
 	return &podConfig, &ocispec, nil
@@ -220,11 +232,12 @@ func StatusToOCIState(status vc.PodStatus) (spec.State, error) {
 	}
 
 	state := spec.State{
-		Version: spec.Version,
-		ID:      status.ID,
-		Status:  stateToOCIState(status.ContainersStatus[0].State),
-		Pid:     status.ContainersStatus[0].PID,
-		Bundle:  status.ContainersStatus[0].RootFs,
+		Version:     spec.Version,
+		ID:          status.ID,
+		Status:      stateToOCIState(status.ContainersStatus[0].State),
+		Pid:         status.ContainersStatus[0].PID,
+		Bundle:      status.ContainersStatus[0].Annotations[ociBundlePathKey],
+		Annotations: status.ContainersStatus[0].Annotations,
 	}
 
 	return state, nil

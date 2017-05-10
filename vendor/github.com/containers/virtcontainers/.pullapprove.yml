@@ -25,7 +25,24 @@ group_defaults:
     ignored: true
 
 groups:
-  code-reviewers:
+  networking:
+    conditions:
+      files:
+        - pkg/cni/*
+        - cni*
+        - cnm*
+    required: 1
+    users:
+      - mcastelino
+      - sboeuf
+
+  approvers:
+    required: 1
+    users:
+      - sameo
+      - sboeuf
+
+  reviewers:
     required: 1
     teams:
       - virtcontainers-maintainers

@@ -27,7 +27,8 @@ const minimalConfig = `
 		"terminal": true,
 		"user": {
 			"uid": 0,
-			"gid": 0
+			"gid": 0,
+			"additionalGids":[10,29]
 		},
 		"args": [
 			"sh"

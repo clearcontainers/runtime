@@ -71,6 +71,14 @@ We use an 'acknowledge' system for people to note if they agree, or disagree, wi
  - +1
  - Approve
 
+### Project maintainers
+
+The virtcontainers maintainers will be the ones accepting or rejecting any pull request. They are listed in the OWNERS files, and there can be one OWNERS file per directory.
+
+The OWNERS files split maintainership into 2 categories: reviewers and approvers. All approvers also belong to the reviewers list and there must be one approval from one member of each list for a pull request to be merged.
+
+Since approvers are also reviewers, they technically can approve a pull request without getting another reviewer's approval. However, it is their due diligence to rely on reviewers and should use their approval power only in very specific cases.
+
 ## Issue tracking
 
 To report a bug that is not already documented, please [open an

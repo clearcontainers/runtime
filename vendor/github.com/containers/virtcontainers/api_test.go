@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -29,6 +30,16 @@ const (
 	testHyperstartPauseBinName = "pause"
 	containerID                = "1"
 )
+
+var podAnnotations = map[string]string{
+	"pod.foo":   "pod.bar",
+	"pod.hello": "pod.world",
+}
+
+var containerAnnotations = map[string]string{
+	"container.foo":   "container.bar",
+	"container.hello": "container.world",
+}
 
 func newBasicTestCmd() Cmd {
 	envs := []EnvVar{
@@ -50,9 +61,10 @@ func newBasicTestCmd() Cmd {
 func newTestPodConfigNoop() PodConfig {
 	// Define the container command and bundle.
 	container := ContainerConfig{
-		ID:     containerID,
-		RootFs: filepath.Join(testDir, testBundle),
-		Cmd:    newBasicTestCmd(),
+		ID:          containerID,
+		RootFs:      filepath.Join(testDir, testBundle),
+		Cmd:         newBasicTestCmd(),
+		Annotations: containerAnnotations,
 	}
 
 	// Sets the hypervisor configuration.
@@ -70,6 +82,8 @@ func newTestPodConfigNoop() PodConfig {
 		AgentType: NoopAgentType,
 
 		Containers: []ContainerConfig{container},
+
+		Annotations: podAnnotations,
 	}
 
 	return podConfig
@@ -78,9 +92,10 @@ func newTestPodConfigNoop() PodConfig {
 func newTestPodConfigHyperstartAgent() PodConfig {
 	// Define the container command and bundle.
 	container := ContainerConfig{
-		ID:     containerID,
-		RootFs: filepath.Join(testDir, testBundle),
-		Cmd:    newBasicTestCmd(),
+		ID:          containerID,
+		RootFs:      filepath.Join(testDir, testBundle),
+		Cmd:         newBasicTestCmd(),
+		Annotations: containerAnnotations,
 	}
 
 	// Sets the hypervisor configuration.
@@ -106,7 +121,8 @@ func newTestPodConfigHyperstartAgent() PodConfig {
 		AgentType:   HyperstartAgent,
 		AgentConfig: agentConfig,
 
-		Containers: []ContainerConfig{container},
+		Containers:  []ContainerConfig{container},
+		Annotations: podAnnotations,
 	}
 
 	return podConfig
@@ -115,9 +131,10 @@ func newTestPodConfigHyperstartAgent() PodConfig {
 func newTestPodConfigHyperstartAgentCNINetwork() PodConfig {
 	// Define the container command and bundle.
 	container := ContainerConfig{
-		ID:     containerID,
-		RootFs: filepath.Join(testDir, testBundle),
-		Cmd:    newBasicTestCmd(),
+		ID:          containerID,
+		RootFs:      filepath.Join(testDir, testBundle),
+		Cmd:         newBasicTestCmd(),
+		Annotations: containerAnnotations,
 	}
 
 	// Sets the hypervisor configuration.
@@ -150,7 +167,8 @@ func newTestPodConfigHyperstartAgentCNINetwork() PodConfig {
 		NetworkModel:  CNINetworkModel,
 		NetworkConfig: netConfig,
 
-		Containers: []ContainerConfig{container},
+		Containers:  []ContainerConfig{container},
+		Annotations: podAnnotations,
 	}
 
 	return podConfig
@@ -159,9 +177,10 @@ func newTestPodConfigHyperstartAgentCNINetwork() PodConfig {
 func newTestPodConfigHyperstartAgentCNMNetwork() PodConfig {
 	// Define the container command and bundle.
 	container := ContainerConfig{
-		ID:     containerID,
-		RootFs: filepath.Join(testDir, testBundle),
-		Cmd:    newBasicTestCmd(),
+		ID:          containerID,
+		RootFs:      filepath.Join(testDir, testBundle),
+		Cmd:         newBasicTestCmd(),
+		Annotations: containerAnnotations,
 	}
 
 	// Sets the hypervisor configuration.
@@ -207,7 +226,8 @@ func newTestPodConfigHyperstartAgentCNMNetwork() PodConfig {
 		NetworkModel:  CNMNetworkModel,
 		NetworkConfig: netConfig,
 
-		Containers: []ContainerConfig{container},
+		Containers:  []ContainerConfig{container},
+		Annotations: podAnnotations,
 	}
 
 	return podConfig
@@ -542,14 +562,41 @@ func TestStatusPodSuccessful(t *testing.T) {
 
 	config := newTestPodConfigNoop()
 
+	expectedStatus := PodStatus{
+		ID: testPodID,
+		State: State{
+			State: StateReady,
+			URL:   "noopProxyURL",
+		},
+		Hypervisor:  MockHypervisor,
+		Agent:       NoopAgentType,
+		Annotations: podAnnotations,
+		ContainersStatus: []ContainerStatus{
+			{
+				ID: containerID,
+				State: State{
+					State: StateReady,
+					URL:   "",
+				},
+				PID:         0,
+				RootFs:      filepath.Join(testDir, testBundle),
+				Annotations: containerAnnotations,
+			},
+		},
+	}
+
 	p, err := CreatePod(config)
 	if p == nil || err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = StatusPod(p.id)
+	status, err := StatusPod(p.id)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	if reflect.DeepEqual(status, expectedStatus) == false {
+		t.Fatalf("Got pod status %v\n expecting %v", status, expectedStatus)
 	}
 }
 
@@ -593,9 +640,10 @@ func TestStatusPodPodFailingFetchPodState(t *testing.T) {
 func newTestContainerConfigNoop(contID string) ContainerConfig {
 	// Define the container command and bundle.
 	container := ContainerConfig{
-		ID:     contID,
-		RootFs: filepath.Join(testDir, testBundle),
-		Cmd:    newBasicTestCmd(),
+		ID:          contID,
+		RootFs:      filepath.Join(testDir, testBundle),
+		Cmd:         newBasicTestCmd(),
+		Annotations: containerAnnotations,
 	}
 
 	return container
@@ -1277,9 +1325,13 @@ func TestStatusContainerSuccessful(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = StatusContainer(p.id, contID)
+	status, err := StatusContainer(p.id, contID)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	if reflect.DeepEqual(p.config.Containers[0].Annotations, status.Annotations) == false {
+		t.Fatalf("Got annotations %v\n expecting %v", status.Annotations, p.config.Containers[0].Annotations)
 	}
 }
 
