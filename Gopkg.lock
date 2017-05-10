@@ -27,7 +27,7 @@ memo = "6b6f8c92eb25679cb8eecb13295a814efaf2a83e6c7a53f7e75abe697d7ddeba"
   branch = "master"
   name = "github.com/containernetworking/cni"
   packages = ["libcni","pkg/invoke","pkg/ns","pkg/types","pkg/types/020","pkg/types/current","pkg/version"]
-  revision = "b686cad062ec37a0af526fe535a21d731d2640b3"
+  revision = "1a9288c3c09cea4e580fdb1a636f1c5e185a391f"
 
 [[projects]]
   branch = "master"
@@ -50,13 +50,13 @@ memo = "6b6f8c92eb25679cb8eecb13295a814efaf2a83e6c7a53f7e75abe697d7ddeba"
   branch = "master"
   name = "github.com/urfave/cli"
   packages = ["."]
-  revision = "ab403a54a148f2d857920810291539e1f817ee7b"
+  revision = "d70f47eeca3afd795160003bc6e28b001d60c67c"
 
 [[projects]]
   branch = "master"
   name = "github.com/vishvananda/netlink"
   packages = [".","nl"]
-  revision = "1e045880fbc2f6703d3c771db56cfb0351208637"
+  revision = "58c32ae2d72285baf322aaff05213c2fba8fb8a2"
 
 [[projects]]
   branch = "master"
@@ -68,7 +68,7 @@ memo = "6b6f8c92eb25679cb8eecb13295a814efaf2a83e6c7a53f7e75abe697d7ddeba"
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["curve25519","ed25519","ed25519/internal/edwards25519","ssh"]
-  revision = "5a033cc77e57eca05bdb50522851d29e03569cbe"
+  revision = "122d919ec1efcfb58483215da23f815853e24b81"
 
 [[projects]]
   branch = "master"
