@@ -46,7 +46,7 @@ const usage = `Clear Containers runtime
 cc-runtime is a command line program for running applications packaged
 according to the Open Container Initiative (OCI).`
 
-var defaultRootdirectory = "/run/clear-containers"
+var defaultRootDirectory = "/run/clear-containers"
 
 var ccLog = logrus.New()
 
@@ -92,6 +92,7 @@ func main() {
 		deleteCommand,
 		execCommand,
 		killCommand,
+		listCommand,
 		runCommand,
 		startCommand,
 		stateCommand,

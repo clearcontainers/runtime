@@ -1,4 +1,4 @@
-memo = "74a8fb8b08f1a7d34a0abacc99cd4bc4a17e3b39c415b06a932492b5cab979ec"
+memo = "3acb5b9124a33a8410d32701c38207f2fcc2c4eec005fd085331a65234904e28"
 
 [[projects]]
   branch = "master"
@@ -36,6 +36,12 @@ memo = "74a8fb8b08f1a7d34a0abacc99cd4bc4a17e3b39c415b06a932492b5cab979ec"
   revision = "bcd26936f5051d80384e71682620c8247a18d5bd"
 
 [[projects]]
+  name = "github.com/davecgh/go-spew"
+  packages = ["spew"]
+  revision = "346938d642f2ec3594ed81d874461961cd0faa76"
+  version = "v1.1.0"
+
+[[projects]]
   branch = "master"
   name = "github.com/mitchellh/mapstructure"
   packages = ["."]
@@ -46,6 +52,18 @@ memo = "74a8fb8b08f1a7d34a0abacc99cd4bc4a17e3b39c415b06a932492b5cab979ec"
   packages = ["specs-go"]
   revision = "035da1dca3dfbb00d752eb58b0b158d6129f3776"
   version = "v1.0.0-rc5"
+
+[[projects]]
+  name = "github.com/pmezard/go-difflib"
+  packages = ["difflib"]
+  revision = "792786c7400a136282c1664665ae0a8db921c6c2"
+  version = "v1.0.0"
+
+[[projects]]
+  name = "github.com/stretchr/testify"
+  packages = ["assert"]
+  revision = "69483b4bd14f5845b5a1e55bca19e954e827f1d0"
+  version = "v1.1.4"
 
 [[projects]]
   branch = "master"
