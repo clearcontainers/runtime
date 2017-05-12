@@ -561,6 +561,11 @@ func TestStatusPodSuccessful(t *testing.T) {
 	cleanUp()
 
 	config := newTestPodConfigNoop()
+	hypervisorConfig := HypervisorConfig{
+		KernelPath:     filepath.Join(testDir, testKernel),
+		ImagePath:      filepath.Join(testDir, testImage),
+		HypervisorPath: filepath.Join(testDir, testHypervisor),
+	}
 
 	expectedStatus := PodStatus{
 		ID: testPodID,
@@ -568,9 +573,10 @@ func TestStatusPodSuccessful(t *testing.T) {
 			State: StateReady,
 			URL:   "noopProxyURL",
 		},
-		Hypervisor:  MockHypervisor,
-		Agent:       NoopAgentType,
-		Annotations: podAnnotations,
+		Hypervisor:       MockHypervisor,
+		HypervisorConfig: hypervisorConfig,
+		Agent:            NoopAgentType,
+		Annotations:      podAnnotations,
 		ContainersStatus: []ContainerStatus{
 			{
 				ID: containerID,
@@ -594,6 +600,10 @@ func TestStatusPodSuccessful(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	// Copy the start time as we can't pretend we know what that
+	// value will be.
+	expectedStatus.ContainersStatus[0].StartTime = status.ContainersStatus[0].StartTime
 
 	if reflect.DeepEqual(status, expectedStatus) == false {
 		t.Fatalf("Got pod status %v\n expecting %v", status, expectedStatus)
@@ -1330,8 +1340,74 @@ func TestStatusContainerSuccessful(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if status.StartTime.Equal(c.process.StartTime) == false {
+		t.Fatalf("Got container start time %v, expecting %v", status.StartTime, c.process.StartTime)
+	}
+
 	if reflect.DeepEqual(p.config.Containers[0].Annotations, status.Annotations) == false {
 		t.Fatalf("Got annotations %v\n expecting %v", status.Annotations, p.config.Containers[0].Annotations)
+	}
+}
+
+func TestStatusContainer(t *testing.T) {
+	cleanUp()
+
+	// (homage to a great album! ;)
+	contID := "101"
+	config := newTestPodConfigNoop()
+
+	p, err := CreatePod(config)
+	if p == nil || err != nil {
+		t.Fatal(err)
+	}
+
+	podDir := filepath.Join(configStoragePath, p.id)
+	_, err = os.Stat(podDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	contConfig := newTestContainerConfigNoop(contID)
+
+	_, c, err := CreateContainer(p.id, contConfig)
+	if c == nil || err != nil {
+		t.Fatal(err)
+	}
+
+	contDir := filepath.Join(podDir, contID)
+	_, err = os.Stat(contDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// fresh lookup
+	p2, err := fetchPod(p.id)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectedStatus := ContainerStatus{
+		ID: contID,
+		State: State{
+			State: StateReady,
+			URL:   "",
+		},
+		PID:         0,
+		RootFs:      filepath.Join(testDir, testBundle),
+		Annotations: containerAnnotations,
+	}
+
+	status, err := statusContainer(p2, contID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Copy the start time as we can't pretend we know what that
+	// value will be.
+	expectedStatus.StartTime = status.StartTime
+
+	if reflect.DeepEqual(status, expectedStatus) == false {
+		t.Fatalf("Got container status %v, expected %v", status, expectedStatus)
 	}
 }
 
