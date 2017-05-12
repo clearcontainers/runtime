@@ -38,7 +38,7 @@ var startCommand = cli.Command{
 		}
 
 		for _, cID := range []string(args) {
-			if err := start(cID); err != nil {
+			if _, err := start(cID); err != nil {
 				return err
 			}
 		}
@@ -47,15 +47,16 @@ var startCommand = cli.Command{
 	},
 }
 
-func start(containerID string) error {
+func start(containerID string) (*vc.Pod, error) {
 	// Checks the MUST and MUST NOT from OCI runtime specification
 	if err := validContainer(containerID); err != nil {
-		return err
+		return nil, err
 	}
 
-	if _, err := vc.StartPod(containerID); err != nil {
-		return err
+	pod, err := vc.StartPod(containerID)
+	if err != nil {
+		return nil, err
 	}
 
-	return nil
+	return pod, nil
 }

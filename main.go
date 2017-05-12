@@ -90,6 +90,7 @@ func main() {
 		deleteCommand,
 		execCommand,
 		killCommand,
+		runCommand,
 		startCommand,
 		stateCommand,
 	}
