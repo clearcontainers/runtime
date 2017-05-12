@@ -27,13 +27,13 @@ memo = "6b6f8c92eb25679cb8eecb13295a814efaf2a83e6c7a53f7e75abe697d7ddeba"
   branch = "master"
   name = "github.com/containernetworking/cni"
   packages = ["libcni","pkg/invoke","pkg/ns","pkg/types","pkg/types/020","pkg/types/current","pkg/version"]
-  revision = "1a9288c3c09cea4e580fdb1a636f1c5e185a391f"
+  revision = "0ebcfe7ea32d5516c88c4bdc3db7cf0b30c98c7e"
 
 [[projects]]
   branch = "master"
   name = "github.com/containers/virtcontainers"
   packages = [".","pkg/cni","pkg/hyperstart","pkg/oci"]
-  revision = "028d87fb2c91768a53c6ece66b7baa94ca7deab0"
+  revision = "8f517bb2efa1069ffacdfb14f62662146e75a38e"
 
 [[projects]]
   branch = "master"
@@ -74,4 +74,4 @@ memo = "6b6f8c92eb25679cb8eecb13295a814efaf2a83e6c7a53f7e75abe697d7ddeba"
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
-  revision = "9ccfe848b9db8435a24c424abbc07a921adf1df5"
+  revision = "9c9d83fe39ed3fd2d9249fcf6b755891fff54b03"
