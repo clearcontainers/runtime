@@ -661,10 +661,7 @@ func (p *Pod) startShims() error {
 			return err
 		}
 
-		p.containers[idx].process = Process{
-			Token: proxyInfos[idx].Token,
-			Pid:   pid,
-		}
+		p.containers[idx].process = newProcess(proxyInfos[idx].Token, pid)
 
 		if err := p.containers[idx].storeProcess(); err != nil {
 			return err

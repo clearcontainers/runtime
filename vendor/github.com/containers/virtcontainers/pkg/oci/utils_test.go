@@ -85,8 +85,8 @@ func TestMinimalPodConfig(t *testing.T) {
 		RootFs: path.Join(tempBundlePath, "rootfs"),
 		Cmd:    expectedCmd,
 		Annotations: map[string]string{
-			ociConfigPathKey: configPath,
-			ociBundlePathKey: tempBundlePath,
+			ConfigPathKey: configPath,
+			BundlePathKey: tempBundlePath,
 		},
 	}
 
@@ -150,8 +150,8 @@ func TestStatusToOCIStateSuccessfulWithReadyState(t *testing.T) {
 	}
 
 	containerAnnotations := map[string]string{
-		ociConfigPathKey: configPath,
-		ociBundlePathKey: tempBundlePath,
+		ConfigPathKey: configPath,
+		BundlePathKey: tempBundlePath,
 	}
 
 	cStatuses := []vc.ContainerStatus{
@@ -201,8 +201,8 @@ func TestStatusToOCIStateSuccessfulWithRunningState(t *testing.T) {
 	}
 
 	containerAnnotations := map[string]string{
-		ociConfigPathKey: configPath,
-		ociBundlePathKey: tempBundlePath,
+		ConfigPathKey: configPath,
+		BundlePathKey: tempBundlePath,
 	}
 
 	cStatuses := []vc.ContainerStatus{
@@ -252,8 +252,8 @@ func TestStatusToOCIStateSuccessfulWithStoppedState(t *testing.T) {
 	}
 
 	containerAnnotations := map[string]string{
-		ociConfigPathKey: configPath,
-		ociBundlePathKey: tempBundlePath,
+		ConfigPathKey: configPath,
+		BundlePathKey: tempBundlePath,
 	}
 
 	cStatuses := []vc.ContainerStatus{
@@ -299,8 +299,8 @@ func TestStatusToOCIStateSuccessfulWithNoState(t *testing.T) {
 	testRootFs := "testRootFs"
 
 	containerAnnotations := map[string]string{
-		ociConfigPathKey: configPath,
-		ociBundlePathKey: tempBundlePath,
+		ConfigPathKey: configPath,
+		BundlePathKey: tempBundlePath,
 	}
 
 	cStatuses := []vc.ContainerStatus{

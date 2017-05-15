@@ -16,7 +16,7 @@ memo = "6b6f8c92eb25679cb8eecb13295a814efaf2a83e6c7a53f7e75abe697d7ddeba"
   branch = "master"
   name = "github.com/Sirupsen/logrus"
   packages = ["."]
-  revision = "5b60b3d3ee017ed00bcd0225fcca7acab767844b"
+  revision = "5e5dc898656f695e2a086b8e12559febbfc01562"
 
 [[projects]]
   name = "github.com/clearcontainers/proxy"
@@ -33,7 +33,7 @@ memo = "6b6f8c92eb25679cb8eecb13295a814efaf2a83e6c7a53f7e75abe697d7ddeba"
   branch = "master"
   name = "github.com/containers/virtcontainers"
   packages = [".","pkg/cni","pkg/hyperstart","pkg/oci"]
-  revision = "8f517bb2efa1069ffacdfb14f62662146e75a38e"
+  revision = "82d8279d2fd045c71def1f4a89182ff9c8d844a8"
 
 [[projects]]
   branch = "master"
@@ -68,10 +68,10 @@ memo = "6b6f8c92eb25679cb8eecb13295a814efaf2a83e6c7a53f7e75abe697d7ddeba"
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["curve25519","ed25519","ed25519/internal/edwards25519","ssh"]
-  revision = "122d919ec1efcfb58483215da23f815853e24b81"
+  revision = "ab89591268e0c8b748cbe4047b00197516011af5"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
-  revision = "9c9d83fe39ed3fd2d9249fcf6b755891fff54b03"
+  revision = "1e99a4f9d247b28c670884b9a8d6801f39a47b77"
