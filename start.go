@@ -49,9 +49,12 @@ var startCommand = cli.Command{
 
 func start(containerID string) (*vc.Pod, error) {
 	// Checks the MUST and MUST NOT from OCI runtime specification
-	if err := validContainer(containerID); err != nil {
+	fullID, err := expandContainerID(containerID)
+	if err != nil {
 		return nil, err
 	}
+
+	containerID = fullID
 
 	pod, err := vc.StartPod(containerID)
 	if err != nil {

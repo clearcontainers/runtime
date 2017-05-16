@@ -99,9 +99,12 @@ var signals = map[string]syscall.Signal{
 
 func kill(containerID, signal string, all bool) error {
 	// Checks the MUST and MUST NOT from OCI runtime specification
-	if err := validContainer(containerID); err != nil {
+	fullID, err := expandContainerID(containerID)
+	if err != nil {
 		return err
 	}
+
+	containerID = fullID
 
 	podStatus, err := vc.StatusPod(containerID)
 	if err != nil {

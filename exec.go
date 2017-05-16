@@ -160,9 +160,12 @@ func generateExecParams(context *cli.Context) (execParams, error) {
 }
 
 func execute(params execParams) error {
-	if err := validContainer(params.cID); err != nil {
+	fullID, err := expandContainerID(params.cID)
+	if err != nil {
 		return err
 	}
+
+	params.cID = fullID
 
 	podStatus, err := vc.StatusPod(params.cID)
 	if err != nil {
