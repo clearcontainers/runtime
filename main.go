@@ -96,6 +96,13 @@ func main() {
 	}
 
 	app.Before = func(context *cli.Context) error {
+		if context.NArg() == 0 ||
+			(context.NArg() == 1 && context.Args()[0] == "help") {
+			// No setup required if the user just
+			// wants to see the usage statement.
+			return nil
+		}
+
 		if context.GlobalBool("debug") {
 			ccLog.Level = logrus.DebugLevel
 		}
@@ -106,6 +113,7 @@ func main() {
 			}
 			ccLog.Out = f
 		}
+
 		switch context.GlobalString("log-format") {
 		case "text":
 			// retain logrus's default.
