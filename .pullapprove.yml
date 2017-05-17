@@ -35,3 +35,5 @@ groups:
     users:
       - devimc
       - jodh-intel
+      - mcastelino
+      - sameo
