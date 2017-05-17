@@ -26,9 +26,14 @@ import (
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
-func TestContainerExistsContainerIDEmptyFailure(t *testing.T) {
-	if _, err := containerExists(""); err == nil {
+func TestGetContainerIDByPrefixContainerIDEmptyFailure(t *testing.T) {
+	fullID, err := getContainerIDByPrefix("")
+	if err == nil {
 		t.Fatalf("This test should fail because containerID is empty")
+	}
+
+	if fullID != "" {
+		t.Fatalf("Expected blank fullID, but got %v", fullID)
 	}
 }
 
@@ -38,9 +43,15 @@ func TestValidCreateParamsContainerIDEmptyFailure(t *testing.T) {
 	}
 }
 
-func TestValidContainerContainerIDEmptyFailure(t *testing.T) {
-	if err := validContainer(""); err == nil {
+func TestExpandContainerID(t *testing.T) {
+	fullID, err := expandContainerID("")
+
+	if err == nil {
 		t.Fatalf("This test should fail because containerID is empty")
+	}
+
+	if fullID != "" {
+		t.Fatalf("Expected blank fullID, but got %v", fullID)
 	}
 }
 

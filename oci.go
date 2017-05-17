@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	vc "github.com/containers/virtcontainers"
@@ -44,24 +45,42 @@ var (
 
 var cgroupsMemDirPath = "/sys/fs/cgroup"
 
-func containerExists(containerID string) (bool, error) {
-
+// getContainerByPrefix returns the full containerID for a container
+// whose ID matches the specified prefix.
+//
+// An error is returned if >1 containers are found with the specified
+// prefix.
+func getContainerIDByPrefix(containerID string) (string, error) {
 	if containerID == "" {
-		return false, fmt.Errorf("Missing container ID")
+		return "", fmt.Errorf("Missing container ID")
 	}
 
 	podStatusList, err := vc.ListPod()
 	if err != nil {
-		return false, err
+		return "", err
 	}
+
+	var matches []string
 
 	for _, podStatus := range podStatusList {
 		if podStatus.ID == containerID {
-			return true, nil
+			return containerID, nil
+		}
+
+		if strings.HasPrefix(podStatus.ID, containerID) {
+			matches = append(matches, podStatus.ID)
 		}
 	}
 
-	return false, nil
+	l := len(matches)
+
+	if l == 1 {
+		return matches[0], nil
+	} else if l > 1 {
+		return "", fmt.Errorf("Partial container ID not unique")
+	}
+
+	return "", nil
 }
 
 func validCreateParams(containerID, bundlePath string) error {
@@ -71,11 +90,12 @@ func validCreateParams(containerID, bundlePath string) error {
 	}
 
 	// container ID MUST be unique.
-	exist, err := containerExists(containerID)
+	fullID, err := getContainerIDByPrefix(containerID)
 	if err != nil {
 		return err
 	}
-	if exist == true {
+
+	if fullID != "" {
 		return fmt.Errorf("ID already in use, unique ID should be provided")
 	}
 
@@ -96,22 +116,22 @@ func validCreateParams(containerID, bundlePath string) error {
 	return nil
 }
 
-func validContainer(containerID string) error {
+func expandContainerID(containerID string) (fullID string, err error) {
 	// container ID MUST be provided.
 	if containerID == "" {
-		return fmt.Errorf("Missing container ID")
+		return "", fmt.Errorf("Missing container ID")
 	}
 
 	// container ID MUST exist.
-	exist, err := containerExists(containerID)
+	fullID, err = getContainerIDByPrefix(containerID)
 	if err != nil {
-		return err
+		return "", err
 	}
-	if exist == false {
-		return fmt.Errorf("Container ID does not exist")
+	if fullID == "" {
+		return "", fmt.Errorf("Container ID does not exist")
 	}
 
-	return nil
+	return fullID, nil
 }
 
 func processRunning(pid int) (bool, error) {

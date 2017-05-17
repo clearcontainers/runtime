@@ -62,9 +62,12 @@ EXAMPLE:
 
 func delete(containerID string, force bool) error {
 	// Checks the MUST and MUST NOT from OCI runtime specification
-	if err := validContainer(containerID); err != nil {
+	fullID, err := expandContainerID(containerID)
+	if err != nil {
 		return err
 	}
+
+	containerID = fullID
 
 	if force == false {
 		podStatus, err := vc.StatusPod(containerID)
