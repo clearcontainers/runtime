@@ -506,11 +506,15 @@ func (c *Container) createShimProcess(token, url, console string) (*Process, err
 		return &Process{}, err
 	}
 
-	process := &Process{
+	process := newProcess(token, pid)
+
+	return &process, nil
+}
+
+func newProcess(token string, pid int) Process {
+	return Process{
 		Token:     token,
 		Pid:       pid,
 		StartTime: time.Now().UTC(),
 	}
-
-	return process, nil
 }

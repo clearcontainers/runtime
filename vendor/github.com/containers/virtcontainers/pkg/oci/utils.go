@@ -32,11 +32,11 @@ var (
 	// ErrNoLinux is an error for missing Linux sections in the OCI configuration file.
 	ErrNoLinux = errors.New("missing Linux section")
 
-	// ociConfigPathKey is the annotation key to fetch the OCI configuration file path.
-	ociConfigPathKey = "com.github.containers.virtcontainers.pkg.oci.config_path"
+	// ConfigPathKey is the annotation key to fetch the OCI configuration file path.
+	ConfigPathKey = "com.github.containers.virtcontainers.pkg.oci.config_path"
 
-	// ociBundlePathKey is the annotation key to fetch the OCI configuration file path.
-	ociBundlePathKey = "com.github.containers.virtcontainers.pkg.oci.bundle_path"
+	// BundlePathKey is the annotation key to fetch the OCI configuration file path.
+	BundlePathKey = "com.github.containers.virtcontainers.pkg.oci.bundle_path"
 )
 
 // RuntimeConfig aggregates all runtime specific settings
@@ -183,8 +183,8 @@ func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodC
 		RootFs: rootfs,
 		Cmd:    cmd,
 		Annotations: map[string]string{
-			ociConfigPathKey: configPath,
-			ociBundlePathKey: bundlePath,
+			ConfigPathKey: configPath,
+			BundlePathKey: bundlePath,
 		},
 	}
 
@@ -236,7 +236,7 @@ func StatusToOCIState(status vc.PodStatus) (spec.State, error) {
 		ID:          status.ID,
 		Status:      stateToOCIState(status.ContainersStatus[0].State),
 		Pid:         status.ContainersStatus[0].PID,
-		Bundle:      status.ContainersStatus[0].Annotations[ociBundlePathKey],
+		Bundle:      status.ContainersStatus[0].Annotations[BundlePathKey],
 		Annotations: status.ContainersStatus[0].Annotations,
 	}
 
@@ -296,7 +296,7 @@ func EnvVars(envs []string) ([]vc.EnvVar, error) {
 // PodToOCIConfig returns an OCI spec configuration from the annotation
 // stored into the pod.
 func PodToOCIConfig(pod vc.Pod) (spec.Spec, error) {
-	ociConfigPath, err := pod.Annotations(ociConfigPathKey)
+	ociConfigPath, err := pod.Annotations(ConfigPathKey)
 	if err != nil {
 		return spec.Spec{}, err
 	}
