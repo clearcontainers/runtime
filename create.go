@@ -23,7 +23,6 @@ import (
 
 	vc "github.com/containers/virtcontainers"
 	"github.com/containers/virtcontainers/pkg/oci"
-	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/urfave/cli"
 )
 
@@ -123,10 +122,10 @@ func create(containerID, bundlePath, console, pidFilePath string,
 	return nil
 }
 
-func getConfigs(bundlePath, containerID, console string, runtimeConfig oci.RuntimeConfig) (vc.PodConfig, specs.Spec, error) {
+func getConfigs(bundlePath, containerID, console string, runtimeConfig oci.RuntimeConfig) (vc.PodConfig, oci.CompatOCISpec, error) {
 	podConfig, ociSpec, err := oci.PodConfig(runtimeConfig, bundlePath, containerID, console)
 	if err != nil {
-		return vc.PodConfig{}, specs.Spec{}, err
+		return vc.PodConfig{}, oci.CompatOCISpec{}, err
 	}
 
 	return *podConfig, *ociSpec, nil

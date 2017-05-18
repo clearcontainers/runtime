@@ -1,4 +1,4 @@
-memo = "6b6f8c92eb25679cb8eecb13295a814efaf2a83e6c7a53f7e75abe697d7ddeba"
+memo = "74a8fb8b08f1a7d34a0abacc99cd4bc4a17e3b39c415b06a932492b5cab979ec"
 
 [[projects]]
   branch = "master"
@@ -33,7 +33,7 @@ memo = "6b6f8c92eb25679cb8eecb13295a814efaf2a83e6c7a53f7e75abe697d7ddeba"
   branch = "master"
   name = "github.com/containers/virtcontainers"
   packages = [".","pkg/cni","pkg/hyperstart","pkg/oci"]
-  revision = "82d8279d2fd045c71def1f4a89182ff9c8d844a8"
+  revision = "bcd26936f5051d80384e71682620c8247a18d5bd"
 
 [[projects]]
   branch = "master"
@@ -44,7 +44,8 @@ memo = "6b6f8c92eb25679cb8eecb13295a814efaf2a83e6c7a53f7e75abe697d7ddeba"
 [[projects]]
   name = "github.com/opencontainers/runtime-spec"
   packages = ["specs-go"]
-  revision = "a5c4e91dae9533c46a98f122b5085c0b3fe27ee4"
+  revision = "035da1dca3dfbb00d752eb58b0b158d6129f3776"
+  version = "v1.0.0-rc5"
 
 [[projects]]
   branch = "master"

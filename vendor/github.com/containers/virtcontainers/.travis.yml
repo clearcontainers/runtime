@@ -12,37 +12,18 @@ env:
 services:
 - docker
 
-before_install:
-- go get github.com/mattn/goveralls
-- go get golang.org/x/tools/cmd/cover
-- go get github.com/pierrre/gotestcover
-- go get github.com/fzipp/gocyclo
-- go get github.com/gordonklaus/ineffassign
-- go get github.com/golang/lint/golint
-- go get github.com/client9/misspell/cmd/misspell
-- go get github.com/01org/ciao/test-cases
-- go get github.com/opencontainers/runc/libcontainer/configs
-
 install:
-- sudo env "PATH=$PATH" bash $GOPATH/src/github.com/containers/virtcontainers/ci/ci-setup.sh
-- go_packages=$(go list ./... | grep -v vendor)
-- go_files=`go list -f '{{.Dir}}/*.go' $go_packages`
-- go get -t -v $go_packages
+- go env
+- sudo env "PATH=$PATH" bash $GOPATH/src/github.com/containers/virtcontainers/utils/virtcontainers-setup.sh
+- make
+- sudo make install
 
 script:
-- go env
-- misspell -error $go_packages
-- go vet $go_packages
-- if [[ "$TRAVIS_GO_VERSION" != "tip" ]] ; then golint $go_packages; fi
-- gocyclo -over 15 $go_files
-- go list -f '{{.Dir}}' $go_packages | xargs -L 1 ineffassign
-- gofmt -s -l $go_files | wc -l | xargs -I % bash -c "test % -eq 0"
-- make
-- export GOROOT=`go env GOROOT` && sudo -E PATH=$PATH:$GOROOT/bin:/tmp/cni/bin $GOPATH/bin/test-cases
-  -v -timeout 9 -short -coverprofile /tmp/cover.out $go_packages
+- make check
 
 after_success:
-- "$GOPATH/bin/goveralls -service=travis-ci -coverprofile=/tmp/cover.out"
+- go get github.com/mattn/goveralls
+- "$GOPATH/bin/goveralls -service=travis-ci -coverprofile=profile.cov"
 
 notifications:
   slack:

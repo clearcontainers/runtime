@@ -23,6 +23,7 @@ import (
 	"syscall"
 
 	vc "github.com/containers/virtcontainers"
+	"github.com/containers/virtcontainers/pkg/oci"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
@@ -165,7 +166,7 @@ func stopContainer(podStatus vc.PodStatus) error {
 // processCgroupsPath process the cgroups path as expected from the
 // OCI runtime specification. It returns a list of complete paths
 // that should be created and used for every specified resource.
-func processCgroupsPath(ociSpec specs.Spec) ([]string, error) {
+func processCgroupsPath(ociSpec oci.CompatOCISpec) ([]string, error) {
 	var cgroupsPathList []string
 
 	if ociSpec.Linux.CgroupsPath == "" {
@@ -223,7 +224,7 @@ func processCgroupsPath(ociSpec specs.Spec) ([]string, error) {
 	return cgroupsPathList, nil
 }
 
-func processCgroupsPathForResource(ociSpec specs.Spec, resource string) (string, error) {
+func processCgroupsPathForResource(ociSpec oci.CompatOCISpec, resource string) (string, error) {
 	if resource == "" {
 		return "", errNeedLinuxResource
 	}

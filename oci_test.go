@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	vc "github.com/containers/virtcontainers"
+	"github.com/containers/virtcontainers/pkg/oci"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
@@ -93,7 +94,7 @@ func TestStopContainerTooManyContainerStatusesFailure(t *testing.T) {
 	}
 }
 
-func testProcessCgroupsPath(t *testing.T, ociSpec specs.Spec, expected []string) {
+func testProcessCgroupsPath(t *testing.T, ociSpec oci.CompatOCISpec, expected []string) {
 	result, err := processCgroupsPath(ociSpec)
 	if err != nil {
 		t.Fatal(err)
@@ -105,10 +106,10 @@ func testProcessCgroupsPath(t *testing.T, ociSpec specs.Spec, expected []string)
 }
 
 func TestProcessCgroupsPathEmptyPathSuccessful(t *testing.T) {
-	ociSpec := specs.Spec{
-		Linux: &specs.Linux{
-			CgroupsPath: "",
-		},
+	ociSpec := oci.CompatOCISpec{}
+
+	ociSpec.Linux = &specs.Linux{
+		CgroupsPath: "",
 	}
 
 	testProcessCgroupsPath(t, ociSpec, []string{})
@@ -118,13 +119,13 @@ func TestProcessCgroupsPathRelativePathSuccessful(t *testing.T) {
 	relativeCgroupsPath := "relative/cgroups/path"
 	cgroupsMemDirPath = "/foo/runtime/base"
 
-	ociSpec := specs.Spec{
-		Linux: &specs.Linux{
-			Resources: &specs.LinuxResources{
-				Memory: &specs.LinuxMemory{},
-			},
-			CgroupsPath: relativeCgroupsPath,
+	ociSpec := oci.CompatOCISpec{}
+
+	ociSpec.Linux = &specs.Linux{
+		Resources: &specs.LinuxResources{
+			Memory: &specs.LinuxMemory{},
 		},
+		CgroupsPath: relativeCgroupsPath,
 	}
 
 	testProcessCgroupsPath(t, ociSpec, []string{filepath.Join(cgroupsMemDirPath, "memory", relativeCgroupsPath)})
@@ -133,13 +134,13 @@ func TestProcessCgroupsPathRelativePathSuccessful(t *testing.T) {
 func TestProcessCgroupsPathAbsoluteNoCgroupMountFailure(t *testing.T) {
 	absoluteCgroupsPath := "/absolute/cgroups/path"
 
-	ociSpec := specs.Spec{
-		Linux: &specs.Linux{
-			Resources: &specs.LinuxResources{
-				Memory: &specs.LinuxMemory{},
-			},
-			CgroupsPath: absoluteCgroupsPath,
+	ociSpec := oci.CompatOCISpec{}
+
+	ociSpec.Linux = &specs.Linux{
+		Resources: &specs.LinuxResources{
+			Memory: &specs.LinuxMemory{},
 		},
+		CgroupsPath: absoluteCgroupsPath,
 	}
 
 	_, err := processCgroupsPath(ociSpec)
@@ -151,17 +152,18 @@ func TestProcessCgroupsPathAbsoluteNoCgroupMountFailure(t *testing.T) {
 func TestProcessCgroupsPathAbsoluteNoCgroupMountDestinationFailure(t *testing.T) {
 	absoluteCgroupsPath := "/absolute/cgroups/path"
 
-	ociSpec := specs.Spec{
-		Linux: &specs.Linux{
-			Resources: &specs.LinuxResources{
-				Memory: &specs.LinuxMemory{},
-			},
-			CgroupsPath: absoluteCgroupsPath,
+	ociSpec := oci.CompatOCISpec{}
+
+	ociSpec.Linux = &specs.Linux{
+		Resources: &specs.LinuxResources{
+			Memory: &specs.LinuxMemory{},
 		},
-		Mounts: []specs.Mount{
-			{
-				Type: "cgroup",
-			},
+		CgroupsPath: absoluteCgroupsPath,
+	}
+
+	ociSpec.Mounts = []specs.Mount{
+		{
+			Type: "cgroup",
 		},
 	}
 
@@ -191,18 +193,19 @@ func TestProcessCgroupsPathAbsoluteSuccessful(t *testing.T) {
 	}
 	defer syscall.Unmount(resourceMountPath, 0)
 
-	ociSpec := specs.Spec{
-		Linux: &specs.Linux{
-			Resources: &specs.LinuxResources{
-				Memory: &specs.LinuxMemory{},
-			},
-			CgroupsPath: absoluteCgroupsPath,
+	ociSpec := oci.CompatOCISpec{}
+
+	ociSpec.Linux = &specs.Linux{
+		Resources: &specs.LinuxResources{
+			Memory: &specs.LinuxMemory{},
 		},
-		Mounts: []specs.Mount{
-			{
-				Type:        "cgroup",
-				Destination: cgroupMountDest,
-			},
+		CgroupsPath: absoluteCgroupsPath,
+	}
+
+	ociSpec.Mounts = []specs.Mount{
+		{
+			Type:        "cgroup",
+			Destination: cgroupMountDest,
 		},
 	}
 
