@@ -99,6 +99,11 @@ func create(containerID, bundlePath, console, pidFilePath string,
 
 	process := containers[0].Process()
 
+	// Copy container's annotations.
+	// When the pod is deleted we need to know the container's annotations
+	// in order to be able to delete the pod.
+	pod.SetAnnotations(containers[0].GetAnnotations())
+
 	// config.json provides a cgroups path that has to be used to create "tasks"
 	// and "cgroups.procs" files. Those files have to be filled with a PID, which
 	// is shim's in our case. This is mandatory to make sure there is no one
