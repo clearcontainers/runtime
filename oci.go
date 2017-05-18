@@ -148,15 +148,11 @@ func processRunning(pid int) (bool, error) {
 	return true, nil
 }
 
-func stopContainer(podStatus vc.PodStatus) error {
-	if len(podStatus.ContainersStatus) != 1 {
-		return fmt.Errorf("ContainerStatus list from PodStatus is wrong, expecting only one ContainerStatus")
-	}
-
+func stopContainer(status vc.ContainerStatus) error {
 	// Calling StopContainer allows to make sure the container is properly
 	// stopped and removed from the pod. That way, the container's state is
 	// updated to the expected "stopped" state.
-	if _, err := vc.StopContainer(podStatus.ID, podStatus.ContainersStatus[0].ID); err != nil {
+	if _, err := vc.StopContainer(status.ID, status.ID); err != nil {
 		return err
 	}
 

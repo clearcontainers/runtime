@@ -69,18 +69,13 @@ func delete(containerID string, force bool) error {
 
 	containerID = fullID
 
+	status, err := vc.StatusContainer(containerID, containerID)
+	if err != nil {
+		return err
+	}
+
 	if force == false {
-		podStatus, err := vc.StatusPod(containerID)
-		if err != nil {
-			return err
-		}
-
-		state, err := oci.StatusToOCIState(podStatus)
-		if err != nil {
-			return err
-		}
-
-		running, err := processRunning(state.Pid)
+		running, err := processRunning(status.PID)
 		if err != nil {
 			return err
 		}
@@ -90,14 +85,13 @@ func delete(containerID string, force bool) error {
 		}
 	}
 
-	pod, err := vc.StopPod(containerID)
+	// Retrieve OCI spec configuration.
+	ociSpec, err := oci.GetOCIConfig(status)
 	if err != nil {
 		return err
 	}
 
-	// Retrieve OCI spec configuration.
-	ociSpec, err := oci.PodToOCIConfig(*pod)
-	if err != nil {
+	if _, err = vc.StopPod(containerID); err != nil {
 		return err
 	}
 

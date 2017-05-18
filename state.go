@@ -52,13 +52,13 @@ func state(containerID string) error {
 
 	containerID = fullID
 
-	podStatus, err := vc.StatusPod(containerID)
+	status, err := vc.StatusContainer(containerID, containerID)
 	if err != nil {
 		return err
 	}
 
 	// Convert the status to the expected State structure
-	state, err := oci.StatusToOCIState(podStatus)
+	state, err := oci.StatusToOCIState(status)
 	if err != nil {
 		return err
 	}
@@ -69,7 +69,7 @@ func state(containerID string) error {
 		return err
 	}
 	if running == false {
-		if err := stopContainer(podStatus); err != nil {
+		if err := stopContainer(status); err != nil {
 			return err
 		}
 

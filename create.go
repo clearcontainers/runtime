@@ -123,12 +123,17 @@ func create(containerID, bundlePath, console, pidFilePath string,
 }
 
 func getConfigs(bundlePath, containerID, console string, runtimeConfig oci.RuntimeConfig) (vc.PodConfig, oci.CompatOCISpec, error) {
-	podConfig, ociSpec, err := oci.PodConfig(runtimeConfig, bundlePath, containerID, console)
+	ociSpec, err := oci.ParseConfigJSON(bundlePath)
 	if err != nil {
 		return vc.PodConfig{}, oci.CompatOCISpec{}, err
 	}
 
-	return *podConfig, *ociSpec, nil
+	podConfig, err := oci.PodConfig(ociSpec, runtimeConfig, bundlePath, containerID, console)
+	if err != nil {
+		return vc.PodConfig{}, oci.CompatOCISpec{}, err
+	}
+
+	return podConfig, ociSpec, nil
 }
 
 func createCgroupsFiles(cgroupsPathList []string, pid int) error {

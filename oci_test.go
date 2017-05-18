@@ -77,7 +77,7 @@ func TestProcessRunningSuccessful(t *testing.T) {
 }
 
 func TestStopContainerPodStatusEmptyFailure(t *testing.T) {
-	if err := stopContainer(vc.PodStatus{}); err == nil {
+	if err := stopContainer(vc.ContainerStatus{}); err == nil {
 		t.Fatalf("This test should fail because PodStatus is empty")
 	}
 }
@@ -89,7 +89,7 @@ func TestStopContainerTooManyContainerStatusesFailure(t *testing.T) {
 		podStatus.ContainersStatus = append(podStatus.ContainersStatus, vc.ContainerStatus{})
 	}
 
-	if err := stopContainer(vc.PodStatus{}); err == nil {
+	if err := stopContainer(vc.ContainerStatus{}); err == nil {
 		t.Fatalf("This test should fail because PodStatus has too many container statuses")
 	}
 }
