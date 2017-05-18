@@ -24,7 +24,7 @@ check-go-static:
 	.ci/go-static-checks.sh $(GO_STATIC_CHECKS_ARGS)
 
 install:
-	$(QUIET_INST)install -D $(TARGET) $(DESTDIR)$(BINDIR)/$(TARGET) || exit 1;
+	$(QUIET_INST)install -D $(TARGET) $(DESTDIR)$(BINDIR)/$(TARGET)
 	$(QUIET_INST)install -D config/$(CONFIG) $(DESTDIR)$(SYSCONFDIR)/clear-containers/$(CONFIG)
 
 clean:
