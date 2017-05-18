@@ -82,8 +82,12 @@ func run(context *cli.Context) error {
 
 	detach := context.Bool("detach")
 	if !detach {
-		pid := pod.GetAllContainers()[0].GetPid()
-		p, err := os.FindProcess(pid)
+		containers := pod.GetAllContainers()
+		if len(containers) == 0 {
+			return fmt.Errorf("There are no containers running in the pod: %s", pod.ID())
+		}
+
+		p, err := os.FindProcess(containers[0].GetPid())
 		if err != nil {
 			return err
 		}
@@ -91,6 +95,11 @@ func run(context *cli.Context) error {
 		ps, err := p.Wait()
 		if err != nil {
 			return fmt.Errorf("Process state %s: %s", ps.String(), err)
+		}
+
+		// delete container's resources
+		if err := delete(containers[0].ID(), true); err != nil {
+			return err
 		}
 	}
 
