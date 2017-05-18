@@ -39,6 +39,26 @@ var (
 	BundlePathKey = "com.github.containers.virtcontainers.pkg.oci.bundle_path"
 )
 
+// CompatOCIProcess is a structure inheriting from spec.Process defined
+// in runtime-spec/specs-go package. The goal is to be compatible with
+// both v1.0.0-rc4 and v1.0.0-rc5 since the latter introduced a change
+// about the type of the Capabilities field.
+// Refer to: https://github.com/opencontainers/runtime-spec/commit/37391fb
+type CompatOCIProcess struct {
+	spec.Process
+	Capabilities interface{} `json:"capabilities,omitempty" platform:"linux"`
+}
+
+// CompatOCISpec is a structure inheriting from spec.Spec defined
+// in runtime-spec/specs-go package. It relies on the CompatOCIProcess
+// structure declared above, in order to be compatible with both
+// v1.0.0-rc4 and v1.0.0-rc5.
+// Refer to: https://github.com/opencontainers/runtime-spec/commit/37391fb
+type CompatOCISpec struct {
+	spec.Spec
+	Process *CompatOCIProcess `json:"process,omitempty"`
+}
+
 // RuntimeConfig aggregates all runtime specific settings
 type RuntimeConfig struct {
 	VMConfig vc.Resources
@@ -65,7 +85,7 @@ func SetLog(logger *logrus.Logger) {
 	ociLog = logger
 }
 
-func cmdEnvs(spec spec.Spec, envs []vc.EnvVar) []vc.EnvVar {
+func cmdEnvs(spec CompatOCISpec, envs []vc.EnvVar) []vc.EnvVar {
 	for _, env := range spec.Process.Env {
 		kv := strings.Split(env, "=")
 		if len(kv) < 2 {
@@ -96,7 +116,7 @@ func newHook(h spec.Hook) vc.Hook {
 	}
 }
 
-func containerHooks(spec spec.Spec) vc.Hooks {
+func containerHooks(spec CompatOCISpec) vc.Hooks {
 	ociHooks := spec.Hooks
 	if ociHooks == nil {
 		return vc.Hooks{}
@@ -119,7 +139,7 @@ func containerHooks(spec spec.Spec) vc.Hooks {
 	return hooks
 }
 
-func networkConfig(ocispec spec.Spec) (vc.NetworkConfig, error) {
+func networkConfig(ocispec CompatOCISpec) (vc.NetworkConfig, error) {
 	linux := ocispec.Linux
 	if linux == nil {
 		return vc.NetworkConfig{}, ErrNoLinux
@@ -143,7 +163,7 @@ func networkConfig(ocispec spec.Spec) (vc.NetworkConfig, error) {
 
 // PodConfig converts an OCI compatible runtime configuration file
 // to a virtcontainers pod configuration structure.
-func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodConfig, *spec.Spec, error) {
+func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodConfig, *CompatOCISpec, error) {
 	configPath := filepath.Join(bundlePath, "config.json")
 	ociLog.Debugf("converting %s", configPath)
 
@@ -152,7 +172,7 @@ func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodC
 		return nil, nil, err
 	}
 
-	var ocispec spec.Spec
+	var ocispec CompatOCISpec
 	if err = json.Unmarshal(configByte, &ocispec); err != nil {
 		return nil, nil, err
 	}
@@ -295,20 +315,20 @@ func EnvVars(envs []string) ([]vc.EnvVar, error) {
 
 // PodToOCIConfig returns an OCI spec configuration from the annotation
 // stored into the pod.
-func PodToOCIConfig(pod vc.Pod) (spec.Spec, error) {
+func PodToOCIConfig(pod vc.Pod) (CompatOCISpec, error) {
 	ociConfigPath, err := pod.Annotations(ConfigPathKey)
 	if err != nil {
-		return spec.Spec{}, err
+		return CompatOCISpec{}, err
 	}
 
 	data, err := ioutil.ReadFile(ociConfigPath)
 	if err != nil {
-		return spec.Spec{}, err
+		return CompatOCISpec{}, err
 	}
 
-	var ociSpec spec.Spec
+	var ociSpec CompatOCISpec
 	if err := json.Unmarshal(data, &ociSpec); err != nil {
-		return spec.Spec{}, err
+		return CompatOCISpec{}, err
 	}
 
 	return ociSpec, nil

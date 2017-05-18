@@ -21,6 +21,7 @@ import (
 	"reflect"
 	"testing"
 
+	. "github.com/containers/virtcontainers/pkg/mock"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
@@ -29,7 +30,15 @@ var testKeyHook = "test-key"
 var testContainerIDHook = "test-container-id"
 var testControllerIDHook = "test-controller-id"
 var testProcessIDHook = 12345
-var testBinHookPath = "/tmp/bin/hook"
+var testBinHookPath = "/usr/bin/virtcontainers/bin/test/hook"
+
+func getMockHookBinPath() string {
+	if DefaultMockHookBinPath == "" {
+		return testBinHookPath
+	}
+
+	return DefaultMockHookBinPath
+}
 
 func TestBuildHookState(t *testing.T) {
 	expected := specs.State{
@@ -45,7 +54,7 @@ func TestBuildHookState(t *testing.T) {
 
 func createHook(timeout int) *Hook {
 	return &Hook{
-		Path:    testBinHookPath,
+		Path:    getMockHookBinPath(),
 		Args:    []string{testKeyHook, testContainerIDHook, testControllerIDHook},
 		Env:     os.Environ(),
 		Timeout: timeout,
@@ -54,7 +63,7 @@ func createHook(timeout int) *Hook {
 
 func createWrongHook() *Hook {
 	return &Hook{
-		Path: testBinHookPath,
+		Path: getMockHookBinPath(),
 		Args: []string{"wrong-args"},
 		Env:  os.Environ(),
 	}

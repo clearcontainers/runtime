@@ -201,7 +201,7 @@ func newTestPodConfigHyperstartAgentCNMNetwork() PodConfig {
 	hooks := Hooks{
 		PreStartHooks: []Hook{
 			{
-				Path: testBinHookPath,
+				Path: getMockHookBinPath(),
 				Args: []string{testKeyHook, testContainerIDHook, testControllerIDHook},
 			},
 		},

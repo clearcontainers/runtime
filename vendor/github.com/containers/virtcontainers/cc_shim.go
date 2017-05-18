@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"syscall"
 )
 
 type ccShim struct{}
@@ -75,6 +76,15 @@ func (s *ccShim) start(pod Pod, params ShimParams) (int, error) {
 		cmd.Stdin = f
 		cmd.Stdout = f
 		cmd.Stderr = f
+		cmd.SysProcAttr = &syscall.SysProcAttr{
+			// Create Session
+			Setsid: true,
+
+			// Set Controlling terminal to Ctty
+			Setctty: true,
+			Ctty:    int(f.Fd()),
+		}
+
 	}
 	defer func() {
 		if f != nil {

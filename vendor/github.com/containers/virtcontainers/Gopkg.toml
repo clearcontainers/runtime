@@ -25,7 +25,7 @@
 
 [[dependencies]]
   name = "github.com/opencontainers/runtime-spec"
-  revision = "a5c4e91dae9533c46a98f122b5085c0b3fe27ee4"
+  version = "v1.0.0-rc5"
 
 [[dependencies]]
   branch = "master"
