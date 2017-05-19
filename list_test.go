@@ -378,17 +378,27 @@ func TestStateToJSON(t *testing.T) {
 			t.Fatalf("Expected %d lines, got %d", expectedLength, length)
 		}
 
-		// FIXME: Work around bug in golang tip that doesn't maintain
-		// FIXME: the monotonic clock value ("m=±ddd.nnnnnnnnn") when
-		// FIXME: Unmarshalling time values.
-		for i, ts := range testStatuses {
-			// If the unmarshalled time matches the full
-			// time up to the final monotonic value part...
-			if strings.HasPrefix(ts.Created.String(), states[i].Created.String()) {
-				// ... copy the monotonic value to keep
-				// assert.Equal() happy.
-				states[i].Created = ts.Created
-			}
+		// golang tip (what will presumably become v1.9) now
+		// stores a monotonic clock value as part of time.Time's
+		// internal representation (this is shown by a suffix in
+		// the form "m=±ddd.nnnnnnnnn" when calling String() on
+		// the time.Time object). However, this monotonic value
+		// is stripped out when marshaling.
+		//
+		// This behaviour change makes comparing the original
+		// object and the marshaled-and-then-unmarshaled copy of
+		// the object doomed to failure.
+		//
+		// The solution? Manually strip the monotonic time out
+		// of the original before comparison (yuck!)
+		//
+		// See:
+		//
+		// - https://go-review.googlesource.com/c/36255/7/src/time/time.go#54
+		//
+		for i := 0; i < expectedLength; i++ {
+			// remove monotonic time part
+			testStatuses[i].Created = testStatuses[i].Created.Truncate(0)
 		}
 
 		assert.Equal(t, states, testStatuses, "states + testStatuses")
