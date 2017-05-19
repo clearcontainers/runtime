@@ -1,5 +1,6 @@
 DESTDIR :=
 BINDIR := /usr/local/bin
+SYSCONFDIR := /etc
 
 SOURCES := $(shell find . 2>&1 | grep -E '.*\.(c|h|go)$$')
 VERSION := ${shell cat ./VERSION}
@@ -7,6 +8,7 @@ COMMIT_NO := $(shell git rev-parse HEAD 2> /dev/null || true)
 COMMIT := $(if $(shell git status --porcelain --untracked-files=no),"${COMMIT_NO}-dirty","${COMMIT_NO}")
 
 TARGET = cc-runtime
+CONFIG = configuration.toml
 
 .DEFAULT: $(TARGET)
 $(TARGET): $(SOURCES)
@@ -22,7 +24,8 @@ check-go-static:
 	.ci/go-static-checks.sh $(GO_STATIC_CHECKS_ARGS)
 
 install:
-	$(QUIET_INST)install -D $(TARGET) $(DESTDIR)$(BINDIR)/$(TARGET) || exit 1;
+	$(QUIET_INST)install -D $(TARGET) $(DESTDIR)$(BINDIR)/$(TARGET)
+	$(QUIET_INST)install -D config/$(CONFIG) $(DESTDIR)$(SYSCONFDIR)/clear-containers/$(CONFIG)
 
 clean:
 	rm -f $(TARGET)
