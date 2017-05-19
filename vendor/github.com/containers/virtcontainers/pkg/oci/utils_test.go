@@ -107,7 +107,10 @@ func TestMinimalPodConfig(t *testing.T) {
 
 		Containers: []vc.ContainerConfig{expectedContainerConfig},
 
-		Annotations: map[string]string{},
+		Annotations: map[string]string{
+			ConfigPathKey: configPath,
+			BundlePathKey: tempBundlePath,
+		},
 	}
 
 	podConfig, _, err := PodConfig(runtimeConfig, tempBundlePath, containerID, consolePath)

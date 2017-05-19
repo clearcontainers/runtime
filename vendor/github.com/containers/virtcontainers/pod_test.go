@@ -21,6 +21,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sync"
 	"testing"
 )
 
@@ -755,5 +756,51 @@ func TestGetAllContainers(t *testing.T) {
 		if c.id != containerIDs[i] {
 			t.Fatal()
 		}
+	}
+}
+
+func TestSetAnnotations(t *testing.T) {
+	pod := Pod{
+		id:              "abcxyz123",
+		storage:         &filesystem{},
+		annotationsLock: &sync.RWMutex{},
+		config: &PodConfig{
+			Annotations: map[string]string{
+				"annotation1": "abc",
+			},
+		},
+	}
+
+	keyAnnotation := "annotation2"
+	valueAnnotation := "xyz"
+	newAnnotations := map[string]string{
+		keyAnnotation: valueAnnotation,
+	}
+
+	// Add a new annotation
+	pod.SetAnnotations(newAnnotations)
+
+	v, err := pod.Annotations(keyAnnotation)
+	if err != nil {
+		t.Fatal()
+	}
+
+	if v != valueAnnotation {
+		t.Fatal()
+	}
+
+	//Change the value of an annotation
+	valueAnnotation = "123"
+	newAnnotations[keyAnnotation] = valueAnnotation
+
+	pod.SetAnnotations(newAnnotations)
+
+	v, err = pod.Annotations(keyAnnotation)
+	if err != nil {
+		t.Fatal()
+	}
+
+	if v != valueAnnotation {
+		t.Fatal()
 	}
 }

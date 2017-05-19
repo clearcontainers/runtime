@@ -237,7 +237,10 @@ func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodC
 
 		Containers: []vc.ContainerConfig{containerConfig},
 
-		Annotations: map[string]string{},
+		Annotations: map[string]string{
+			ConfigPathKey: configPath,
+			BundlePathKey: bundlePath,
+		},
 	}
 
 	return &podConfig, &ocispec, nil
