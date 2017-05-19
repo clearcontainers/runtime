@@ -21,6 +21,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -372,6 +373,8 @@ type Pod struct {
 	state State
 
 	lockFile *os.File
+
+	annotationsLock *sync.RWMutex
 }
 
 // ID returns the pod identifier string.
@@ -387,6 +390,31 @@ func (p *Pod) Annotations(key string) (string, error) {
 	}
 
 	return value, nil
+}
+
+// SetAnnotations sets or adds an annotations
+func (p *Pod) SetAnnotations(annotations map[string]string) error {
+	p.annotationsLock.Lock()
+	defer p.annotationsLock.Unlock()
+
+	for k, v := range annotations {
+		p.config.Annotations[k] = v
+	}
+
+	err := p.storage.storePodResource(p.id, configFileType, *(p.config))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// GetAnnotations returns pod's annotations
+func (p *Pod) GetAnnotations() map[string]string {
+	p.annotationsLock.RLock()
+	defer p.annotationsLock.RUnlock()
+
+	return p.config.Annotations
 }
 
 // URL returns the pod URL for any runtime to connect to the proxy.
@@ -458,18 +486,19 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 	network := newNetwork(podConfig.NetworkModel)
 
 	p := &Pod{
-		id:         podConfig.ID,
-		hypervisor: hypervisor,
-		agent:      agent,
-		proxy:      proxy,
-		shim:       shim,
-		storage:    &filesystem{},
-		network:    network,
-		config:     &podConfig,
-		volumes:    podConfig.Volumes,
-		runPath:    filepath.Join(runStoragePath, podConfig.ID),
-		configPath: filepath.Join(configStoragePath, podConfig.ID),
-		state:      State{},
+		id:              podConfig.ID,
+		hypervisor:      hypervisor,
+		agent:           agent,
+		proxy:           proxy,
+		shim:            shim,
+		storage:         &filesystem{},
+		network:         network,
+		config:          &podConfig,
+		volumes:         podConfig.Volumes,
+		runPath:         filepath.Join(runStoragePath, podConfig.ID),
+		configPath:      filepath.Join(configStoragePath, podConfig.ID),
+		state:           State{},
+		annotationsLock: &sync.RWMutex{},
 	}
 
 	containers, err := createContainers(p, podConfig.Containers)

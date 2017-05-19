@@ -127,6 +127,11 @@ func (c *Container) URL() string {
 	return c.pod.URL()
 }
 
+// GetAnnotations returns container's annotations
+func (c *Container) GetAnnotations() map[string]string {
+	return c.config.Annotations
+}
+
 func (c *Container) startShim() error {
 	proxyInfo, url, err := c.pod.proxy.connect(*(c.pod), true)
 	if err != nil {
