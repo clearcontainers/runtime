@@ -138,7 +138,7 @@ func kill(containerID, signal string, all bool) error {
 		return err
 	}
 
-	if err := vc.KillContainer(containerID, podStatus.ContainersStatus[0].ID, signum); err != nil {
+	if err := vc.KillContainer(containerID, podStatus.ContainersStatus[0].ID, signum, all); err != nil {
 		return err
 	}
 

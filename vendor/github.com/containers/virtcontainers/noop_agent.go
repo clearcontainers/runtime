@@ -61,6 +61,6 @@ func (n *noopAgent) stopContainer(pod Pod, c Container) error {
 }
 
 // killContainer is the Noop agent Container signaling implementation. It does nothing.
-func (n *noopAgent) killContainer(pod Pod, c Container, signal syscall.Signal) error {
+func (n *noopAgent) killContainer(pod Pod, c Container, signal syscall.Signal, all bool) error {
 	return nil
 }

@@ -58,8 +58,9 @@ type FileCommand struct {
 // KillCommand is the structure corresponding to the format expected by
 // hyperstart to kill a container on the guest.
 type KillCommand struct {
-	Container string         `json:"container"`
-	Signal    syscall.Signal `json:"signal"`
+	Container    string         `json:"container"`
+	Signal       syscall.Signal `json:"signal"`
+	AllProcesses bool           `json:"allProcesses"`
 }
 
 // ExecCommand is the structure corresponding to the format expected by

@@ -191,6 +191,6 @@ func (s *sshd) stopContainer(pod Pod, c Container) error {
 }
 
 // killContainer is the agent Container signaling implementation for sshd.
-func (s *sshd) killContainer(pod Pod, c Container, signal syscall.Signal) error {
+func (s *sshd) killContainer(pod Pod, c Container, signal syscall.Signal, all bool) error {
 	return nil
 }

@@ -657,8 +657,9 @@ func statusContainer(pod *Pod, containerID string) (ContainerStatus, error) {
 }
 
 // KillContainer is the virtcontainers entry point to send a signal
-// to a container running inside a pod.
-func KillContainer(podID, containerID string, signal syscall.Signal) error {
+// to a container running inside a pod. If all is true, all processes in
+// the container will be sent the signal.
+func KillContainer(podID, containerID string, signal syscall.Signal, all bool) error {
 	if podID == "" {
 		return errNeedPodID
 	}
@@ -685,7 +686,7 @@ func KillContainer(podID, containerID string, signal syscall.Signal) error {
 	}
 
 	// Send a signal to the process.
-	err = c.kill(signal)
+	err = c.kill(signal, all)
 	if err != nil {
 		return err
 	}

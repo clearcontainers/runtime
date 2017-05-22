@@ -214,10 +214,10 @@ func (h *hyper) removePauseBinary(podID string) error {
 	return os.RemoveAll(pauseDir)
 }
 
-func (h *hyper) bindMountContainerRootfs(podID, cID, cRootFs string) error {
+func (h *hyper) bindMountContainerRootfs(podID, cID, cRootFs string, readonly bool) error {
 	rootfsDest := filepath.Join(defaultSharedDir, podID, cID, rootfsDir)
 
-	return bindMount(cRootFs, rootfsDest)
+	return bindMount(cRootFs, rootfsDest, readonly)
 }
 
 func (h *hyper) bindUnmountContainerRootfs(podID, cID string) error {
@@ -356,7 +356,7 @@ func (h *hyper) stopPod(pod Pod) error {
 			continue
 		}
 
-		if err := h.killOneContainer(c.id, syscall.SIGTERM); err != nil {
+		if err := h.killOneContainer(c.id, syscall.SIGTERM, true); err != nil {
 			return err
 		}
 
@@ -422,7 +422,7 @@ func (h *hyper) startOneContainer(pod Pod, c Container) error {
 		Process: process,
 	}
 
-	if err := h.bindMountContainerRootfs(pod.id, c.id, c.rootFs); err != nil {
+	if err := h.bindMountContainerRootfs(pod.id, c.id, c.rootFs, c.config.ReadonlyRootfs); err != nil {
 		h.bindUnmountAllRootfs(pod)
 		return err
 	}
@@ -451,7 +451,7 @@ func (h *hyper) startContainer(pod Pod, c Container) error {
 }
 
 func (h *hyper) stopPauseContainer(podID string) error {
-	if err := h.killOneContainer(pauseContainerName, syscall.SIGKILL); err != nil {
+	if err := h.killOneContainer(pauseContainerName, syscall.SIGKILL, true); err != nil {
 		return err
 	}
 
@@ -489,14 +489,15 @@ func (h *hyper) stopOneContainer(podID, cID string) error {
 }
 
 // killContainer is the agent process signal implementation for hyperstart.
-func (h *hyper) killContainer(pod Pod, c Container, signal syscall.Signal) error {
-	return h.killOneContainer(c.id, signal)
+func (h *hyper) killContainer(pod Pod, c Container, signal syscall.Signal, all bool) error {
+	return h.killOneContainer(c.id, signal, all)
 }
 
-func (h *hyper) killOneContainer(cID string, signal syscall.Signal) error {
+func (h *hyper) killOneContainer(cID string, signal syscall.Signal, all bool) error {
 	killCmd := hyperstart.KillCommand{
-		Container: cID,
-		Signal:    signal,
+		Container:    cID,
+		Signal:       signal,
+		AllProcesses: all,
 	}
 
 	proxyCmd := hyperstartProxyCmd{
