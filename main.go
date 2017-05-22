@@ -103,8 +103,7 @@ func main() {
 	}
 
 	app.Before = func(context *cli.Context) error {
-		if context.NArg() == 0 ||
-			(context.NArg() == 1 && context.Args()[0] == "help") {
+		if userWantsUsage(context) {
 			// No setup required if the user just
 			// wants to see the usage statement.
 			return nil
@@ -157,6 +156,24 @@ func main() {
 	if err := app.Run(os.Args); err != nil {
 		fatal(err)
 	}
+}
+
+// userWantsUsage determines if the user only wishes to see the usage
+// statement.
+func userWantsUsage(context *cli.Context) bool {
+	if context.NArg() == 0 {
+		return true
+	}
+
+	if context.NArg() == 1 && context.Args()[0] == "help" {
+		return true
+	}
+
+	if context.NArg() >= 2 && (context.Args()[1] == "-h" || context.Args()[1] == "--help") {
+		return true
+	}
+
+	return false
 }
 
 // fatal prints the error's details exits the program.
