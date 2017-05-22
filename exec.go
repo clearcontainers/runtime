@@ -27,7 +27,7 @@ import (
 )
 
 type execParams struct {
-	ociProcess   specs.Process
+	ociProcess   oci.CompatOCIProcess
 	cID          string
 	pidFile      string
 	console      string
@@ -130,7 +130,7 @@ func generateExecParams(context *cli.Context) (execParams, error) {
 	}
 
 	if context.IsSet("process") == true {
-		var ociProcess specs.Process
+		var ociProcess oci.CompatOCIProcess
 
 		fileContent, err := ioutil.ReadFile(context.String("process"))
 		if err != nil {
@@ -143,17 +143,16 @@ func generateExecParams(context *cli.Context) (execParams, error) {
 
 		params.ociProcess = ociProcess
 	} else {
-		params.ociProcess = specs.Process{
-			Terminal: context.Bool("tty"),
-			User: specs.User{
-				Username: context.String("user"),
-			},
-			Args:            ctxArgs.Tail(),
-			Env:             context.StringSlice("env"),
-			Cwd:             context.String("cwd"),
-			NoNewPrivileges: context.Bool("no-new-privs"),
-			ApparmorProfile: context.String("apparmor"),
+		params.ociProcess = oci.CompatOCIProcess{}
+		params.ociProcess.Terminal = context.Bool("tty")
+		params.ociProcess.User = specs.User{
+			Username: context.String("user"),
 		}
+		params.ociProcess.Args = ctxArgs.Tail()
+		params.ociProcess.Env = context.StringSlice("env")
+		params.ociProcess.Cwd = context.String("cwd")
+		params.ociProcess.NoNewPrivileges = context.Bool("no-new-privs")
+		params.ociProcess.ApparmorProfile = context.String("apparmor")
 	}
 
 	return params, nil
