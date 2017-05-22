@@ -31,7 +31,7 @@ const mountPerm = os.FileMode(0755)
 // * evaluate all symlinks
 // * ensure the source exists
 // * recursively create the destination
-func bindMount(source, destination string) error {
+func bindMount(source, destination string, readonly bool) error {
 	if source == "" {
 		return fmt.Errorf("source must be specified")
 	}
@@ -48,6 +48,12 @@ func bindMount(source, destination string) error {
 		return fmt.Errorf("Could not create destination mount point %v: %v", destination, err)
 	} else if err := syscall.Mount(absSource, destination, "bind", syscall.MS_BIND, ""); err != nil {
 		return fmt.Errorf("Could not bind mount %v to %v: %v", absSource, destination, err)
+	}
+
+	// For readonly bind mounts, we need to remount with the readonly flag.
+	// This is needed as only very recent versions of libmount/util-linux support "bind,ro"
+	if readonly {
+		return syscall.Mount(absSource, destination, "bind", uintptr(syscall.MS_BIND|syscall.MS_REMOUNT|syscall.MS_RDONLY), "")
 	}
 
 	return nil
