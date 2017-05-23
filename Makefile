@@ -1,6 +1,7 @@
 DESTDIR :=
-BINDIR := /usr/local/bin
-SYSCONFDIR := /etc
+PREFIX := /usr/local
+BINDIR := $(PREFIX)/bin
+SYSCONFDIR := $(PREFIX)/etc
 
 SOURCES := $(shell find . 2>&1 | grep -E '.*\.(c|h|go)$$')
 VERSION := ${shell cat ./VERSION}
