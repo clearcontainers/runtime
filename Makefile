@@ -11,7 +11,7 @@ TARGET = cc-runtime
 CONFIG = configuration.toml
 
 .DEFAULT: $(TARGET)
-$(TARGET): $(SOURCES)
+$(TARGET): $(SOURCES) Makefile
 	go build -i -ldflags "-X main.commit=${COMMIT} -X main.version=${VERSION}" -o $@ .
 
 .PHONY: check check-go-static
