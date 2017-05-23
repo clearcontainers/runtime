@@ -57,13 +57,19 @@ func main() {
 
 	v := make([]string, 0, 3)
 	if version != "" {
-		v = append(v, "runtime  : "+version)
+		v = append(v, name+"  : "+version)
 	}
 	if commit != "" {
 		v = append(v, "   commit   : "+commit)
 	}
 	v = append(v, "   OCI specs: "+specs.Version)
 	app.Version = strings.Join(v, "\n")
+
+	// Override the default function to display version details to
+	// ensure the "--version" option and "version" command are identical.
+	cli.VersionPrinter = func(c *cli.Context) {
+		fmt.Println(c.App.Version)
+	}
 
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
@@ -100,6 +106,7 @@ func main() {
 		runCommand,
 		startCommand,
 		stateCommand,
+		versionCommand,
 	}
 
 	app.Before = func(context *cli.Context) error {
@@ -165,7 +172,7 @@ func userWantsUsage(context *cli.Context) bool {
 		return true
 	}
 
-	if context.NArg() == 1 && context.Args()[0] == "help" {
+	if context.NArg() == 1 && (context.Args()[0] == "help" || context.Args()[0] == "version") {
 		return true
 	}
 
