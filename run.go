@@ -18,9 +18,12 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
+	"sync"
 
 	"github.com/containers/virtcontainers/pkg/oci"
+	"github.com/docker/docker/pkg/term"
 	"github.com/urfave/cli"
 )
 
@@ -67,12 +70,48 @@ func run(context *cli.Context) error {
 		return errors.New("invalid runtime config")
 	}
 
-	if err := create(context.Args().First(),
+	consolePath := context.String("console")
+
+	var wg sync.WaitGroup
+	var console *Console
+	var err error
+	var consoleState *term.State
+
+	// if consolePath is /dev/ptmx or /dev/pts/ptmx
+	// means that we have to allocate a new pts
+	if consolePath == ptmxPath || consolePath == ptsPtmxPath {
+		console, err = newConsole()
+		if err != nil {
+			return err
+		}
+
+		// now consolePath is the slave pts
+		consolePath = console.Path()
+	}
+
+	if err = create(context.Args().First(),
 		context.String("bundle"),
-		context.String("console"),
+		consolePath,
 		context.String("pid-file"),
 		runtimeConfig); err != nil {
 		return err
+	}
+
+	detach := context.Bool("detach")
+
+	if !detach {
+		wg.Add(1)
+		go io.Copy(console, os.Stdin)
+		go func() {
+			defer wg.Done()
+			io.Copy(os.Stdout, console)
+		}()
+
+		// Save console state because it will be restored once container ends
+		consoleState, err = term.SetRawTerminal(os.Stdin.Fd())
+		if err != nil {
+			return nil
+		}
 	}
 
 	pod, err := start(context.Args().First())
@@ -80,7 +119,6 @@ func run(context *cli.Context) error {
 		return err
 	}
 
-	detach := context.Bool("detach")
 	if !detach {
 		containers := pod.GetAllContainers()
 		if len(containers) == 0 {
@@ -98,9 +136,16 @@ func run(context *cli.Context) error {
 		}
 
 		// delete container's resources
-		if err := delete(containers[0].ID(), true); err != nil {
+		if err = delete(containers[0].ID(), true); err != nil {
 			return err
 		}
+
+		// wait for routines
+		wg.Wait()
+
+		// close and restore console
+		console.Close()
+		term.RestoreTerminal(os.Stdin.Fd(), consoleState)
 	}
 
 	return nil
