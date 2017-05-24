@@ -109,6 +109,7 @@ var runtimeCommands = []cli.Command{
 	killCLICommand,
 	listCLICommand,
 	pauseCLICommand,
+	psCLICommand,
 	resumeCLICommand,
 	runCLICommand,
 	startCLICommand,
