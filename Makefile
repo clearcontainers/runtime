@@ -1,6 +1,7 @@
 DESTDIR :=
-BINDIR := /usr/local/bin
-SYSCONFDIR := /etc
+PREFIX := /usr/local
+BINDIR := $(PREFIX)/bin
+SYSCONFDIR := $(PREFIX)/etc
 
 SOURCES := $(shell find . 2>&1 | grep -E '.*\.(c|h|go)$$')
 VERSION := ${shell cat ./VERSION}
@@ -11,7 +12,7 @@ TARGET = cc-runtime
 CONFIG = configuration.toml
 
 .DEFAULT: $(TARGET)
-$(TARGET): $(SOURCES)
+$(TARGET): $(SOURCES) Makefile
 	go build -i -ldflags "-X main.commit=${COMMIT} -X main.version=${VERSION}" -o $@ .
 
 .PHONY: check check-go-static
