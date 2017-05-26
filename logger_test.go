@@ -60,14 +60,6 @@ func grep(pattern, file string) error {
 	return nil
 }
 
-func fileExists(path string) bool {
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return false
-	}
-
-	return true
-}
-
 func TestNewGlobalLogHook(t *testing.T) {
 	tmpdir, err := ioutil.TempDir("", "")
 	if err != nil {

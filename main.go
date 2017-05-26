@@ -198,3 +198,11 @@ func (f *fatalWriter) Write(p []byte) (n int, err error) {
 	ccLog.Error(string(p))
 	return f.cliErrWriter.Write(p)
 }
+
+func fileExists(path string) bool {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return false
+	}
+
+	return true
+}
