@@ -49,3 +49,7 @@ func TestMain(m *testing.M) {
 
 	os.Exit(ret)
 }
+
+func createEmptyFile(path string) (err error) {
+	return ioutil.WriteFile(path, []byte(""), testFileMode)
+}

@@ -115,10 +115,6 @@ func NewTestFileWriter(name string) (w *TestFileWriter, err error) {
 	return w, nil
 }
 
-func createEmptyFile(path string) (err error) {
-	return ioutil.WriteFile(path, []byte(""), testFileMode)
-}
-
 func TestGetHypervisorDetails(t *testing.T) {
 	tmpDir, err := ioutil.TempDir(testDir, "hypervisor-details-")
 	if err != nil {
