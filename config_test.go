@@ -65,7 +65,7 @@ path = "` + shimPath + `"
 func createConfig(fileName string, fileData string) (string, error) {
 	configPath := path.Join(testDir, fileName)
 
-	err := ioutil.WriteFile(configPath, []byte(fileData), 0755)
+	err := ioutil.WriteFile(configPath, []byte(fileData), testFileMode)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to create config file %s %v\n", configPath, err)
 		return "", err
