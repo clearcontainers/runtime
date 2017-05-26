@@ -15,7 +15,7 @@ CONFIG = configuration.toml
 $(TARGET): $(SOURCES) Makefile
 	go build -i -ldflags "-X main.commit=${COMMIT} -X main.version=${VERSION}" -o $@ .
 
-.PHONY: check check-go-static
+.PHONY: check check-go-static check-go-test
 check: check-go-static check-go-test
 
 check-go-test:
