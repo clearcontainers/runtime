@@ -221,6 +221,7 @@ func getContainers(context *cli.Context) ([]fullContainerState, error) {
 		for _, container := range pod.ContainersStatus {
 			s = append(s, fullContainerState{
 				containerState: containerState{
+					Version:        ociState.Version,
 					ID:             ociState.ID,
 					InitProcessPid: ociState.Pid,
 					Status:         ociState.Status,
@@ -230,7 +231,6 @@ func getContainers(context *cli.Context) ([]fullContainerState, error) {
 					Annotations:    ociState.Annotations,
 
 					// FIXME: Owner,
-					// FIXME: Version,
 				},
 				hypervisorDetails: hypervisorDetails,
 			})
