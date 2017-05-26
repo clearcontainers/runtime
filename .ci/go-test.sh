@@ -11,7 +11,7 @@ echo Running go test on packages "'$test_packages'" with flags "'$go_test_flags'
 function test_html_coverage
 {
 	test_coverage
-	go tool cover -html=profile.cov
+	go tool cover -html=profile.cov -o coverage.html
 	rm -f profile.cov
 }
 
