@@ -208,22 +208,26 @@ func getContainers(context *cli.Context) ([]fullContainerState, error) {
 	var s []fullContainerState
 
 	for _, pod := range podList {
+		if len(pod.ContainersStatus) != 1 {
+			// ignore empty pods
+			continue
+		}
+
+		ociState, err := oci.StatusToOCIState(pod)
+		if err != nil {
+			return nil, err
+		}
+
 		for _, container := range pod.ContainersStatus {
-
-			bundlePath, ok := container.Annotations[oci.BundlePathKey]
-			if !ok {
-				bundlePath = ""
-			}
-
 			s = append(s, fullContainerState{
 				containerState: containerState{
-					ID:             container.ID,
-					InitProcessPid: container.PID,
-					Status:         string(container.State.State),
-					Bundle:         bundlePath,
+					ID:             ociState.ID,
+					InitProcessPid: ociState.Pid,
+					Status:         ociState.Status,
+					Bundle:         ociState.Bundle,
 					Rootfs:         container.RootFs,
 					Created:        container.StartTime,
-					Annotations:    container.Annotations,
+					Annotations:    ociState.Annotations,
 
 					// FIXME: Owner,
 					// FIXME: Version,
