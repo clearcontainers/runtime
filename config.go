@@ -16,6 +16,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"path/filepath"
 
@@ -166,16 +167,64 @@ func checkConfigParams(tomlConf tomlConfig) error {
 	return nil
 }
 
-func updateRuntimeConfig(tomlConf tomlConfig, config *oci.RuntimeConfig) error {
+func newQemuHypervisorConfig(h hypervisor) (vc.HypervisorConfig, error) {
+	hypervisor := h.path()
+	kernel := h.kernel()
+	image := h.image()
+
+	for _, file := range []string{hypervisor, kernel, image} {
+		if !fileExists(file) {
+			return vc.HypervisorConfig{},
+				fmt.Errorf("File does not exist: %v", file)
+		}
+	}
+
+	return vc.HypervisorConfig{
+		HypervisorPath: hypervisor,
+		KernelPath:     kernel,
+		ImagePath:      image,
+	}, nil
+}
+
+func newHyperstartAgentConfig(a agent) (vc.HyperConfig, error) {
+	dir := a.pauseRootPath()
+
+	if !fileExists(dir) {
+		return vc.HyperConfig{}, fmt.Errorf("Directory does not exist: %v", dir)
+	}
+
+	path := filepath.Join(dir, pauseBinRelativePath)
+
+	if !fileExists(path) {
+		return vc.HyperConfig{}, fmt.Errorf("File does not exist: %v", path)
+	}
+
+	return vc.HyperConfig{
+		PauseBinPath: path,
+	}, nil
+}
+
+func newCCShimConfig(s shim) (vc.CCShimConfig, error) {
+	path := s.path()
+
+	if !fileExists(path) {
+		return vc.CCShimConfig{}, fmt.Errorf("File does not exist: %v", path)
+	}
+
+	return vc.CCShimConfig{
+		Path: path,
+	}, nil
+}
+
+func updateRuntimeConfig(configPath string, tomlConf tomlConfig, config *oci.RuntimeConfig) error {
 	for k, hypervisor := range tomlConf.Hypervisor {
 		switch k {
 		case qemu:
 			fallthrough
 		case qemuLite:
-			hConfig := vc.HypervisorConfig{
-				HypervisorPath: hypervisor.path(),
-				KernelPath:     hypervisor.kernel(),
-				ImagePath:      hypervisor.image(),
+			hConfig, err := newQemuHypervisorConfig(hypervisor)
+			if err != nil {
+				return fmt.Errorf("%v: %v", configPath, err)
 			}
 
 			config.HypervisorConfig = hConfig
@@ -201,11 +250,9 @@ func updateRuntimeConfig(tomlConf tomlConfig, config *oci.RuntimeConfig) error {
 	for k, agent := range tomlConf.Agent {
 		switch k {
 		case hyperstartAgent:
-			path := filepath.Join(agent.pauseRootPath(),
-				pauseBinRelativePath)
-
-			agentConfig := vc.HyperConfig{
-				PauseBinPath: path,
+			agentConfig, err := newHyperstartAgentConfig(agent)
+			if err != nil {
+				return fmt.Errorf("%v: %v", configPath, err)
 			}
 
 			config.AgentConfig = agentConfig
@@ -217,8 +264,9 @@ func updateRuntimeConfig(tomlConf tomlConfig, config *oci.RuntimeConfig) error {
 	for k, shim := range tomlConf.Shim {
 		switch k {
 		case ccShim:
-			shConfig := vc.CCShimConfig{
-				Path: shim.path(),
+			shConfig, err := newCCShimConfig(shim)
+			if err != nil {
+				return fmt.Errorf("%v: %v", configPath, err)
 			}
 
 			config.ShimType = vc.CCShimType
@@ -280,7 +328,7 @@ func loadConfiguration(configPath string) (oci.RuntimeConfig, error) {
 		return config, err
 	}
 
-	if err := updateRuntimeConfig(tomlConf, &config); err != nil {
+	if err := updateRuntimeConfig(configPath, tomlConf, &config); err != nil {
 		return config, err
 	}
 

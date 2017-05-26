@@ -21,46 +21,34 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	vc "github.com/containers/virtcontainers"
 	"github.com/containers/virtcontainers/pkg/oci"
 )
 
-const hypervisorPath = "/foo/qemu-lite-system-x86_64"
-const kernelPath = "/foo/clear-containers/vmlinux.container"
-const imagePath = "/foo/clear-containers/clear-containers.img"
 const proxyURL = "foo:///foo/clear-containers/proxy.sock"
-const shimPath = "/foo/clear-containers/cc-shim"
-const agentPauseRootPath = "/foo/clear-containers/pause_bundle"
 
-const runtimeConfig = `
-# Clear Containers runtime configuration file
+func makeRuntimeConfigFileData(hypervisorPath, kernelPath, imagePath, shimPath, agentPauseRootPath, proxyURL string) string {
+	return `
+	# Clear Containers runtime configuration file
 
-[hypervisor.qemu-lite]
-path = "` + hypervisorPath + `"
-kernel = "` + kernelPath + `"
-image = "` + imagePath + `"
+	[hypervisor.qemu-lite]
+	path = "` + hypervisorPath + `"
+	kernel = "` + kernelPath + `"
+	image = "` + imagePath + `"
 
-[proxy.cc]
-url = "` + proxyURL + `"
+	[proxy.cc]
+	url = "` + proxyURL + `"
 
-[shim.cc]
-path = "` + shimPath + `"
+	[shim.cc]
+	path = "` + shimPath + `"
 
-[agent.hyperstart]
-pause_root_path = "` + agentPauseRootPath + `"
-`
-
-const runtimeMinimalConfig = `
-# Clear Containers runtime configuration file
-
-[proxy.cc]
-url = "` + proxyURL + `"
-
-[shim.cc]
-path = "` + shimPath + `"
-`
+	[agent.hyperstart]
+	pause_root_path = "` + agentPauseRootPath + `"
+	`
+}
 
 func createConfig(fileName string, fileData string) (string, error) {
 	configPath := path.Join(testDir, fileName)
@@ -75,12 +63,61 @@ func createConfig(fileName string, fileData string) (string, error) {
 }
 
 func TestRuntimeConfig(t *testing.T) {
+	dir, err := ioutil.TempDir(testDir, "runtime-config-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	hypervisorPath := path.Join(dir, "hypervisor")
+	kernelPath := path.Join(dir, "kernel")
+	imagePath := path.Join(dir, "image")
+	shimPath := path.Join(dir, "shim")
+	agentPauseRootPath := path.Join(dir, "agentPauseRoot")
+	agentPauseRootBin := path.Join(agentPauseRootPath, "bin")
+	pauseBinPath := path.Join(agentPauseRootBin, "pause")
+
+	runtimeConfig := makeRuntimeConfigFileData(hypervisorPath, kernelPath, imagePath, shimPath, agentPauseRootPath, proxyURL)
+
 	configPath, err := createConfig("runtime.toml", runtimeConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	config, err := loadConfiguration(configPath)
+	if err == nil {
+		t.Fatalf("Expected loadConfiguration to fail as no paths exist: %+v", config)
+	}
+
+	err = os.MkdirAll(agentPauseRootBin, testDirMode)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	config, err = loadConfiguration(configPath)
+	if err == nil {
+		t.Fatalf("Expected loadConfiguration to fail as only pause path exists: %+v", config)
+	}
+
+	files := []string{pauseBinPath, hypervisorPath, kernelPath, imagePath, shimPath}
+	filesLen := len(files)
+
+	for i, file := range files {
+		_, err = loadConfiguration(configPath)
+		if err == nil {
+			t.Fatalf("Expected loadConfiguration to fail as not all paths exist (not created %v)",
+				strings.Join(files[i:filesLen], ","))
+		}
+
+		// create the resource
+		err = createEmptyFile(file)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+
+	// all paths exist now
+	config, err = loadConfiguration(configPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,12 +164,40 @@ func TestRuntimeConfig(t *testing.T) {
 }
 
 func TestMinimalRuntimeConfig(t *testing.T) {
+	dir, err := ioutil.TempDir(testDir, "minimal-runtime-config-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	shimPath := path.Join(dir, "shim")
+
+	runtimeMinimalConfig := `
+	# Clear Containers runtime configuration file
+
+	[proxy.cc]
+	url = "` + proxyURL + `"
+
+	[shim.cc]
+	path = "` + shimPath + `"
+`
+
 	configPath, err := createConfig("runtime.toml", runtimeMinimalConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	config, err := loadConfiguration(configPath)
+	if err == nil {
+		t.Fatalf("Expected loadConfiguration to fail as shim path does not exist: %+v", config)
+	}
+
+	err = createEmptyFile(shimPath)
+	if err != nil {
+		t.Error(err)
+	}
+
+	config, err = loadConfiguration(configPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,5 +240,146 @@ func TestMinimalRuntimeConfig(t *testing.T) {
 
 	if err := os.Remove(configPath); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestNewQemuHypervisorConfig(t *testing.T) {
+	dir, err := ioutil.TempDir(testDir, "hypervisor-config-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	hypervisorPath := path.Join(dir, "hypervisor")
+	kernelPath := path.Join(dir, "kernel")
+	imagePath := path.Join(dir, "image")
+
+	hypervisor := hypervisor{
+		Path:   hypervisorPath,
+		Kernel: kernelPath,
+		Image:  imagePath,
+	}
+
+	files := []string{hypervisorPath, kernelPath, imagePath}
+	filesLen := len(files)
+
+	for i, file := range files {
+		_, err := newQemuHypervisorConfig(hypervisor)
+		if err == nil {
+			t.Fatalf("Expected newQemuHypervisorConfig to fail as not all paths exist (not created %v)",
+				strings.Join(files[i:filesLen], ","))
+		}
+
+		// create the resource
+		err = createEmptyFile(file)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+
+	// all paths exist now
+	config, err := newQemuHypervisorConfig(hypervisor)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if config.HypervisorPath != hypervisor.Path {
+		t.Errorf("Expected hypervisor path %v, got %v", hypervisor.Path, config.HypervisorPath)
+	}
+
+	if config.KernelPath != hypervisor.Kernel {
+		t.Errorf("Expected kernel path %v, got %v", hypervisor.Kernel, config.KernelPath)
+	}
+
+	if config.ImagePath != hypervisor.Image {
+		t.Errorf("Expected image path %v, got %v", hypervisor.Image, config.ImagePath)
+	}
+}
+
+func TestNewHyperstartAgentConfig(t *testing.T) {
+	dir, err := ioutil.TempDir(testDir, "hyperstart-agent-config-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	agentPauseRootPath := path.Join(dir, "agentPauseRoot")
+	agentPauseRootBin := path.Join(agentPauseRootPath, "bin")
+	pauseBinPath := path.Join(agentPauseRootBin, "pause")
+
+	agent := agent{
+		PauseRootPath: agentPauseRootPath,
+	}
+
+	_, err = newHyperstartAgentConfig(agent)
+	if err == nil {
+		t.Fatalf("Expected newHyperstartAgentConfig to fail as no paths exist")
+	}
+
+	err = os.MkdirAll(agentPauseRootPath, testDirMode)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = newHyperstartAgentConfig(agent)
+	if err == nil {
+		t.Fatalf("Expected newHyperstartAgentConfig to fail as only pause root path exists")
+	}
+
+	err = os.MkdirAll(agentPauseRootBin, testDirMode)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = newHyperstartAgentConfig(agent)
+	if err == nil {
+		t.Fatalf("Expected newHyperstartAgentConfig to fail as only pause bin path exists")
+	}
+
+	err = createEmptyFile(pauseBinPath)
+	if err != nil {
+		t.Error(err)
+	}
+
+	agentConfig, err := newHyperstartAgentConfig(agent)
+	if err != nil {
+		t.Fatalf("newHyperstartAgentConfig failed unexpectedly: %v", err)
+	}
+
+	if agentConfig.PauseBinPath != pauseBinPath {
+		t.Errorf("Expected pause bin path %v, got %v", pauseBinPath, agentConfig.PauseBinPath)
+	}
+}
+
+func TestNewCCShimConfig(t *testing.T) {
+	dir, err := ioutil.TempDir(testDir, "shim-config-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	shimPath := path.Join(dir, "shim")
+
+	shim := shim{
+		Path: shimPath,
+	}
+
+	_, err = newCCShimConfig(shim)
+	if err == nil {
+		t.Fatalf("Expected newCCShimConfig to fail as no paths exist")
+	}
+
+	err = createEmptyFile(shimPath)
+	if err != nil {
+		t.Error(err)
+	}
+
+	shConfig, err := newCCShimConfig(shim)
+	if err != nil {
+		t.Fatalf("newCCShimConfig failed unexpectedly: %v", err)
+	}
+
+	if shConfig.Path != shimPath {
+		t.Errorf("Expected shim path %v, got %v", shimPath, shConfig.Path)
 	}
 }
