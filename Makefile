@@ -23,6 +23,7 @@ check-go-test:
 
 check-go-static:
 	.ci/go-static-checks.sh $(GO_STATIC_CHECKS_ARGS)
+	.ci/go-no-os-exit.sh
 
 coverage:
 	.ci/go-test.sh html-coverage
