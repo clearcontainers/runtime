@@ -187,7 +187,7 @@ func userWantsUsage(context *cli.Context) bool {
 func fatal(err error) {
 	ccLog.Error(err)
 	fmt.Fprintln(os.Stderr, err)
-	os.Exit(1)
+	exit(1)
 }
 
 type fatalWriter struct {
