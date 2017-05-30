@@ -17,7 +17,7 @@ function test_html_coverage
 
 function test_coverage
 {
-	echo "mode: count" > profile.cov
+	echo "mode: atomic" > profile.cov
 
 	for pkg in $test_packages; do
 		go test $go_test_flags -covermode=atomic -coverprofile=profile_tmp.cov $pkg
