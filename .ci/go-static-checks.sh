@@ -77,10 +77,16 @@ go list -f '{{.Dir}}/*.go' $go_packages |\
 echo "Running go vet..."
 go vet $go_packages
 
+cmd="gofmt -s -d -l"
 echo "Running gofmt..."
-find . -not -wholename '*/vendor/*' -name '*.go' | \
-    xargs gofmt -s -d -l | \
-    wc -l | xargs -I % bash -c "test % -eq 0"
+diff=$(find . -not -wholename '*/vendor/*' -name '*.go' | \
+	xargs $cmd)
+if [ -n "$diff" -a $(echo "$diff" | wc -l) -ne 0 ]
+then
+	echo 2>&1 "ERROR: '$cmd' found problems:"
+	echo 2>&1 "$diff"
+	exit 1
+fi
 
 echo "Running cyclo..."
 gocyclo -over 15 `go list -f '{{.Dir}}/*.go' $go_packages`
