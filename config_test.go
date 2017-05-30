@@ -383,3 +383,114 @@ func TestNewCCShimConfig(t *testing.T) {
 		t.Errorf("Expected shim path %v, got %v", shimPath, shConfig.Path)
 	}
 }
+
+func TestCheckConfigParams(t *testing.T) {
+	validHypervisor := map[string]hypervisor{
+		"h1": {},
+	}
+
+	invalidHypervisor := map[string]hypervisor{
+		"h1": {},
+		"h2": {},
+	}
+
+	validProxy := map[string]proxy{
+		"p1": {},
+	}
+
+	invalidProxy := map[string]proxy{
+		"p1": {},
+		"p2": {},
+	}
+
+	validShim := map[string]shim{
+		"s1": {},
+	}
+
+	invalidShim := map[string]shim{
+		"s1": {},
+		"s2": {},
+	}
+
+	validAgent := map[string]agent{
+		"a1": {},
+	}
+
+	invalidAgent := map[string]agent{
+		"a1": {},
+		"a2": {},
+	}
+
+	validRuntime := runtime{}
+
+	type testData struct {
+		cfg           tomlConfig
+		expectFailure bool
+	}
+
+	data := []testData{
+		{
+			tomlConfig{
+				Hypervisor: invalidHypervisor,
+				Proxy:      validProxy,
+				Shim:       validShim,
+				Agent:      validAgent,
+				Runtime:    validRuntime,
+			},
+			true,
+		},
+		{
+			tomlConfig{
+				Hypervisor: validHypervisor,
+				Proxy:      invalidProxy,
+				Shim:       validShim,
+				Agent:      validAgent,
+				Runtime:    validRuntime,
+			},
+			true,
+		},
+		{
+			tomlConfig{
+				Hypervisor: validHypervisor,
+				Proxy:      validProxy,
+				Shim:       invalidShim,
+				Agent:      validAgent,
+				Runtime:    validRuntime,
+			},
+			true,
+		},
+		{
+			tomlConfig{
+				Hypervisor: validHypervisor,
+				Proxy:      validProxy,
+				Shim:       validShim,
+				Agent:      invalidAgent,
+				Runtime:    validRuntime,
+			},
+			true,
+		},
+		{
+			tomlConfig{
+				Hypervisor: validHypervisor,
+				Proxy:      validProxy,
+				Shim:       validShim,
+				Agent:      validAgent,
+				Runtime:    validRuntime,
+			},
+			false,
+		},
+	}
+
+	for _, d := range data {
+		err := checkConfigParams(d.cfg)
+		if d.expectFailure {
+			if err == nil {
+				t.Errorf("checkConfigParams succeeded unexpectedly: %v", d)
+			}
+		} else {
+			if err != nil {
+				t.Errorf("checkConfigParams failed unexpectedly: %v: %v", d, err)
+			}
+		}
+	}
+}
