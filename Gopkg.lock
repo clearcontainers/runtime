@@ -1,10 +1,16 @@
-memo = "3acb5b9124a33a8410d32701c38207f2fcc2c4eec005fd085331a65234904e28"
+memo = "7de58db4b53e29a707f40bf506bca47ff10050e84c2fc0cfd86ba94a0b3903d6"
 
 [[projects]]
   branch = "master"
   name = "github.com/01org/ciao"
   packages = ["qemu","ssntp/uuid"]
   revision = "a16660bbedd1aa3479b38a7b05b5812f7ece8114"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/Azure/go-ansiterm"
+  packages = [".","winterm"]
+  revision = "fa152c58bc15761d0200cb75fe958b89a9d4888e"
 
 [[projects]]
   name = "github.com/BurntSushi/toml"
@@ -40,6 +46,12 @@ memo = "3acb5b9124a33a8410d32701c38207f2fcc2c4eec005fd085331a65234904e28"
   packages = ["spew"]
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
   version = "v1.1.0"
+
+[[projects]]
+  name = "github.com/docker/docker"
+  packages = ["pkg/term","pkg/term/windows"]
+  revision = "89658bed64c2a8fe05a978e5b87dbec409d57a0f"
+  version = "v17.05.0-ce"
 
 [[projects]]
   branch = "master"
