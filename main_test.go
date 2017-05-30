@@ -20,16 +20,17 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"testing"
+
+	"github.com/dlespiau/covertool/pkg/cover"
 )
 
 // package variables set in TestMain
 var testDir = ""
 var testDirMode = os.FileMode(0750)
 
-// TestMain is the common main function used by ALL the test functions
-// for this package.
-func TestMain(m *testing.M) {
+func runUnitTests(m *testing.M) {
 	var err error
 
 	testDir, err = ioutil.TempDir("", fmt.Sprintf("%s-", name))
@@ -48,6 +49,28 @@ func TestMain(m *testing.M) {
 	os.RemoveAll(testDir)
 
 	os.Exit(ret)
+}
+
+// TestMain is the common main function used by ALL the test functions
+// for this package.
+func TestMain(m *testing.M) {
+	// Parse the command line using the stdlib flag package so the flags defined
+	// in the testing package get populated.
+	cover.ParseAndStripTestFlags()
+
+	// Make sure we have the opportunity to flush the coverage report to disk when
+	// terminating the process.
+	atexit(cover.FlushProfiles)
+
+	// If the test binary name is cc-runtime.coverage, we've are being asked to
+	// run the coverage-instrumented cc-runtime.
+	if path.Base(os.Args[0]) == name+".coverage" ||
+		path.Base(os.Args[0]) == name {
+		main()
+		exit(0)
+	}
+
+	runUnitTests(m)
 }
 
 func createEmptyFile(path string) (err error) {

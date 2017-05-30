@@ -16,6 +16,9 @@ $(TARGET): $(SOURCES) Makefile
 	go build -i -ldflags "-X main.commit=${COMMIT} -X main.version=${VERSION}" -o $@ .
 
 .PHONY: check check-go-static check-go-test coverage
+$(TARGET).coverage: $(SOURCES) Makefile
+	go test -o $@ -covermode count
+
 check: check-go-static check-go-test
 
 check-go-test:
