@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"os"
 
-	vc "github.com/containers/virtcontainers"
 	"github.com/containers/virtcontainers/pkg/oci"
 	"github.com/urfave/cli"
 )
@@ -45,14 +44,7 @@ instance of a container.`,
 
 func state(containerID string) error {
 	// Checks the MUST and MUST NOT from OCI runtime specification
-	fullID, err := expandContainerID(containerID)
-	if err != nil {
-		return err
-	}
-
-	containerID = fullID
-
-	status, err := vc.StatusContainer(containerID, containerID)
+	status, _, err := getExistingContainerInfo(containerID)
 	if err != nil {
 		return err
 	}

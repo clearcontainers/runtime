@@ -62,14 +62,7 @@ EXAMPLE:
 
 func delete(containerID string, force bool) error {
 	// Checks the MUST and MUST NOT from OCI runtime specification
-	fullID, err := expandContainerID(containerID)
-	if err != nil {
-		return err
-	}
-
-	containerID = fullID
-
-	status, err := vc.StatusContainer(containerID, containerID)
+	status, podID, err := getExistingContainerInfo(containerID)
 	if err != nil {
 		return err
 	}
@@ -91,18 +84,18 @@ func delete(containerID string, force bool) error {
 		return err
 	}
 
-	if _, err = vc.StopPod(containerID); err != nil {
+	if _, err = vc.StopPod(podID); err != nil {
 		return err
 	}
 
-	if _, err := vc.DeletePod(containerID); err != nil {
+	if _, err := vc.DeletePod(podID); err != nil {
 		return err
 	}
 
 	// In order to prevent any file descriptor leak related to cgroups files
 	// that have been previously created, we have to remove them before this
 	// function returns.
-	cgroupsPathList, err := processCgroupsPath(ociSpec)
+	cgroupsPathList, err := processCgroupsPath(ociSpec, true)
 	if err != nil {
 		return err
 	}

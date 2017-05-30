@@ -103,7 +103,7 @@ func create(containerID, bundlePath, console, pidFilePath string,
 	// is shim's in our case. This is mandatory to make sure there is no one
 	// else (like Docker) trying to create those files on our behalf. We want to
 	// know those files location so that we can remove them when delete is called.
-	cgroupsPathList, err := processCgroupsPath(ociSpec)
+	cgroupsPathList, err := processCgroupsPath(ociSpec, true)
 	if err != nil {
 		return err
 	}

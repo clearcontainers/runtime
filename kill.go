@@ -99,17 +99,12 @@ var signals = map[string]syscall.Signal{
 
 func kill(containerID, signal string, all bool) error {
 	// Checks the MUST and MUST NOT from OCI runtime specification
-	fullID, err := expandContainerID(containerID)
+	status, podID, err := getExistingContainerInfo(containerID)
 	if err != nil {
 		return err
 	}
 
-	containerID = fullID
-
-	status, err := vc.StatusContainer(containerID, containerID)
-	if err != nil {
-		return err
-	}
+	containerID = status.ID
 
 	// container MUST be running
 	if status.State.State != vc.StateRunning {
@@ -134,7 +129,7 @@ func kill(containerID, signal string, all bool) error {
 		return err
 	}
 
-	if err := vc.KillContainer(containerID, containerID, signum, all); err != nil {
+	if err := vc.KillContainer(podID, containerID, signum, all); err != nil {
 		return err
 	}
 

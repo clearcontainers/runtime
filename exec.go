@@ -159,17 +159,12 @@ func generateExecParams(context *cli.Context) (execParams, error) {
 }
 
 func execute(params execParams) error {
-	fullID, err := expandContainerID(params.cID)
+	status, podID, err := getExistingContainerInfo(params.cID)
 	if err != nil {
 		return err
 	}
 
-	params.cID = fullID
-
-	status, err := vc.StatusContainer(params.cID, params.cID)
-	if err != nil {
-		return err
-	}
+	params.cID = status.ID
 
 	// container MUST be running
 	if status.State.State != vc.StateRunning {
@@ -203,7 +198,7 @@ func execute(params execParams) error {
 		Console:     params.console,
 	}
 
-	_, _, process, err := vc.EnterContainer(params.cID, params.cID, cmd)
+	_, _, process, err := vc.EnterContainer(podID, params.cID, cmd)
 	if err != nil {
 		return err
 	}
