@@ -57,6 +57,8 @@ bash .ci/install_cc_shim.sh
 
 bash .ci/install_virtcontainers.sh
 
+bash .ci/install_cc_tests.sh
+
 popd
 
 echo "Start cc-proxy service"
