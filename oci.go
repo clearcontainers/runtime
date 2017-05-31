@@ -151,7 +151,7 @@ func processRunning(pid int) (bool, error) {
 	return true, nil
 }
 
-func stopContainer(status vc.ContainerStatus) error {
+func stopContainer(podID string, status vc.ContainerStatus) error {
 	containerType, err := oci.GetContainerType(status.Annotations)
 	if err != nil {
 		return err
@@ -162,14 +162,14 @@ func stopContainer(status vc.ContainerStatus) error {
 		// Calling StopPod allows to make sure the pod is properly
 		// stopped. That way, containers/pod states are updated to
 		// the expected "stopped" state.
-		if _, err := vc.StopPod(status.ID); err != nil {
+		if _, err := vc.StopPod(podID); err != nil {
 			return err
 		}
 	case vc.PodContainer:
 		// Calling StopContainer allows to make sure the container is
 		// properly stopped and removed from the pod. That way, the
 		// container's state is updated to the expected "stopped" state.
-		if _, err := vc.StopContainer(status.ID, status.ID); err != nil {
+		if _, err := vc.StopContainer(podID, status.ID); err != nil {
 			return err
 		}
 	default:

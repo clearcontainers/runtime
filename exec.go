@@ -177,7 +177,7 @@ func execute(params execParams) error {
 		return err
 	}
 	if running == false {
-		if err := stopContainer(status); err != nil {
+		if err := stopContainer(podID, status); err != nil {
 			return err
 		}
 

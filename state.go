@@ -44,7 +44,7 @@ instance of a container.`,
 
 func state(containerID string) error {
 	// Checks the MUST and MUST NOT from OCI runtime specification
-	status, _, err := getExistingContainerInfo(containerID)
+	status, podID, err := getExistingContainerInfo(containerID)
 	if err != nil {
 		return err
 	}
@@ -64,7 +64,7 @@ func state(containerID string) error {
 	if running == false && state.Status == oci.StateRunning {
 		ccLog.Infof("Setting container state to %q as process %d is not running",
 			oci.StateStopped, state.Pid)
-		if err := stopContainer(status); err != nil {
+		if err := stopContainer(podID, status); err != nil {
 			return err
 		}
 
