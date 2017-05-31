@@ -15,7 +15,7 @@ CONFIG = configuration.toml
 $(TARGET): $(SOURCES) Makefile
 	go build -i -ldflags "-X main.commit=${COMMIT} -X main.version=${VERSION}" -o $@ .
 
-.PHONY: check check-go-static
+.PHONY: check check-go-static check-go-test coverage
 check: check-go-static check-go-test
 
 check-go-test:
@@ -23,6 +23,9 @@ check-go-test:
 
 check-go-static:
 	.ci/go-static-checks.sh $(GO_STATIC_CHECKS_ARGS)
+
+coverage:
+	.ci/go-test.sh html-coverage
 
 install:
 	$(QUIET_INST)install -D $(TARGET) $(DESTDIR)$(BINDIR)/$(TARGET)
