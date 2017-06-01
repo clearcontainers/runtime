@@ -73,8 +73,8 @@ func main() {
 
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
-			Name:  "cc-config",
-			Usage: "clear containers config file path",
+			Name:  "config",
+			Usage: "clear containers configuration file path",
 		},
 		cli.BoolFlag{
 			Name:  "debug",
@@ -139,7 +139,7 @@ func main() {
 		// Set virtcontainers logger.
 		vc.SetLog(ccLog)
 
-		runtimeConfig, err := loadConfiguration(context.GlobalString("cc-config"))
+		runtimeConfig, err := loadConfiguration(context.GlobalString("config"))
 		if err != nil {
 			return err
 		}
