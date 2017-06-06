@@ -238,8 +238,16 @@ type Resources struct {
 	// VCPUs is the number of available virtual CPUs.
 	VCPUs uint
 
+	Unconstrained_sockets uint32
+	Unconstrained_cores uint32
+	Unconstrained_threads uint32
+
 	// Memory is the amount of available memory in MiB.
 	Memory uint
+
+	Unconstrained_memory uint32
+	Unconstrained_slots uint8
+	Unconstrained_max_memory uint32
 }
 
 // PodStatus describes a pod status.

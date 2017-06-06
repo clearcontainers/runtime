@@ -36,6 +36,12 @@ const (
 	defaultKernelPath           = "/usr/share/clear-containers/vmlinux.container"
 	defaultImagePath            = "/usr/share/clear-containers/clear-containers.img"
 	defaultHypervisorPath       = "/usr/bin/qemu-lite-system-x86_64"
+	defaultUnconstrained_sockets    = 1
+	defaultUnconstrained_cores      = 2
+	defaultUnconstrained_threads    = 1
+	defaultUnconstrained_memory     = 256
+	defaultUnconstrained_slots      = 2
+	defaultUnconstrained_max_memory = 512
 	defaultProxyURL             = "unix:///run/cc-oci-runtime/proxy.sock"
 	defaultPauseRootPath        = "/var/lib/clear-containers/runtime/bundles/pause_bundle"
 	pauseBinRelativePath        = "bin/pause"
@@ -81,6 +87,14 @@ type hypervisor struct {
 	Path   string
 	Kernel string
 	Image  string
+
+	Unconstrained_sockets  uint32
+	Unconstrained_cores  uint32
+	Unconstrained_threads  uint32
+
+	Unconstrained_memory  uint32
+	Unconstrained_slots  uint8
+	Unconstrained_max_memory  uint32
 }
 
 type proxy struct {
@@ -121,6 +135,54 @@ func (h hypervisor) image() string {
 	}
 
 	return h.Image
+}
+
+func (h hypervisor) unconstrained_sockets() uint32 {
+	if h.Unconstrained_sockets == 0 {
+		return defaultUnconstrained_sockets
+	}
+
+       return h.Unconstrained_sockets
+}
+
+func (h hypervisor) unconstrained_cores() uint32 {
+	if h.Unconstrained_cores == 0 {
+		return defaultUnconstrained_cores
+	}
+
+	return h.Unconstrained_cores
+}
+
+func (h hypervisor) unconstrained_threads() uint32 {
+	if h.Unconstrained_threads == 0 {
+		return defaultUnconstrained_threads
+	}
+
+	return h.Unconstrained_threads
+}
+
+func (h hypervisor) unconstrained_memory() uint32 {
+	if h.Unconstrained_memory == 0 {
+		return defaultUnconstrained_memory
+	}
+
+	return h.Unconstrained_memory
+}
+
+func (h hypervisor) unconstrained_slots() uint8 {
+	if h.Unconstrained_slots == 0 {
+		return defaultUnconstrained_slots
+	}
+
+	return h.Unconstrained_slots
+}
+
+func (h hypervisor) unconstrained_max_memory() uint32 {
+	if h.Unconstrained_max_memory == 0 {
+		return defaultUnconstrained_max_memory
+	}
+
+	return h.Unconstrained_max_memory
 }
 
 func (p proxy) url() string {
@@ -171,6 +233,12 @@ func newQemuHypervisorConfig(h hypervisor) (vc.HypervisorConfig, error) {
 	hypervisor := h.path()
 	kernel := h.kernel()
 	image := h.image()
+	sockets    :=      h.unconstrained_sockets()
+	cores      :=      h.unconstrained_cores()
+	threads    :=      h.unconstrained_threads()
+	memory     :=      h.unconstrained_memory()
+	slots      :=      h.unconstrained_slots()
+	max_memory :=      h.unconstrained_max_memory()
 
 	for _, file := range []string{hypervisor, kernel, image} {
 		if !fileExists(file) {
@@ -183,6 +251,12 @@ func newQemuHypervisorConfig(h hypervisor) (vc.HypervisorConfig, error) {
 		HypervisorPath: hypervisor,
 		KernelPath:     kernel,
 		ImagePath:      image,
+		Unconstrained_sockets:    sockets,
+		Unconstrained_cores:      cores,
+		Unconstrained_threads:    threads,
+		Unconstrained_memory:     memory,
+		Unconstrained_slots:      slots,
+		Unconstrained_max_memory: max_memory,
 	}, nil
 }
 
@@ -284,6 +358,12 @@ func loadConfiguration(configPath string) (oci.RuntimeConfig, error) {
 		HypervisorPath: defaultHypervisorPath,
 		KernelPath:     defaultKernelPath,
 		ImagePath:      defaultImagePath,
+		Unconstrained_sockets:      defaultUnconstrained_sockets,
+		Unconstrained_cores:        defaultUnconstrained_cores,
+		Unconstrained_threads:      defaultUnconstrained_threads,
+		Unconstrained_memory:       defaultUnconstrained_memory,
+		Unconstrained_slots:        defaultUnconstrained_slots,
+		Unconstrained_max_memory:   defaultUnconstrained_max_memory,
 	}
 
 	defaultAgentConfig := vc.HyperConfig{
