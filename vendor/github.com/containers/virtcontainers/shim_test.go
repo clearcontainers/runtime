@@ -17,8 +17,13 @@
 package virtcontainers
 
 import (
+	"os/exec"
 	"reflect"
 	"testing"
+)
+
+var (
+	testRunningProcess = "sleep"
 )
 
 func testSetShimType(t *testing.T, value string, expected ShimType) {
@@ -146,4 +151,42 @@ func TestNewShimConfigFromUnknownShimPodConfig(t *testing.T) {
 	}
 
 	testNewShimConfigFromPodConfig(t, podConfig, nil)
+}
+
+func TestStopShimSuccessfulProcessNotRunning(t *testing.T) {
+	binPath, err := exec.LookPath(testRunningProcess)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command(binPath, "0")
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	pid := cmd.Process.Pid
+
+	if err := cmd.Wait(); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := stopShim(pid); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestStopShimSuccessfulProcessRunning(t *testing.T) {
+	binPath, err := exec.LookPath(testRunningProcess)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command(binPath, "999")
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := stopShim(cmd.Process.Pid); err != nil {
+		t.Fatal(err)
+	}
 }

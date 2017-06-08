@@ -55,8 +55,8 @@ func (r *handlerResponse) AddResult(key string, value interface{}) {
 type streamHandler func(frame *api.Frame, userData interface{}) error
 
 type protocol struct {
-	cmdHandlers   [api.CmdMax]commandHandler
-	streamHandler streamHandler
+	cmdHandlers    [api.CmdMax]commandHandler
+	streamHandlers [api.StreamMax]streamHandler
 }
 
 func newProtocol() *protocol {
@@ -68,9 +68,10 @@ func (proto *protocol) HandleCommand(cmd api.Command, handler commandHandler) {
 }
 
 // HandleStream registers a callback to call when the protocol receives a
-// stream frame. The callback is called from a goroutine internal to proto.
-func (proto *protocol) HandleStream(handler streamHandler) {
-	proto.streamHandler = handler
+// stream frame of kind stream. The callback is called from a goroutine
+// internal to proto.
+func (proto *protocol) HandleStream(stream api.Stream, handler streamHandler) {
+	proto.streamHandlers[stream] = handler
 }
 
 type clientCtx struct {
@@ -126,10 +127,15 @@ func (proto *protocol) handleCommand(ctx *clientCtx, cmd *api.Frame) *api.Frame 
 }
 
 func (proto *protocol) handlerStream(ctx *clientCtx, frame *api.Frame) error {
-	if proto.streamHandler == nil {
-		return errors.New("protocol: unexpected stream frame")
+	// cmd.Header.Opcode is guaranteed to be within the right bounds by
+	// ReadFrame().
+	handler := proto.streamHandlers[frame.Header.Opcode]
+	if handler == nil {
+		return fmt.Errorf("no handler for stream %s",
+			api.Stream(frame.Header.Opcode))
 	}
-	return proto.streamHandler(frame, ctx.userData)
+
+	return handler(frame, ctx.userData)
 }
 
 func (proto *protocol) Serve(conn net.Conn, userData interface{}) error {

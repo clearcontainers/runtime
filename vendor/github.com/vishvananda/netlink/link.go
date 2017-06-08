@@ -170,7 +170,6 @@ type LinkStatistics64 struct {
 type LinkXdp struct {
 	Fd       int
 	Attached bool
-	Flags    uint32
 }
 
 // Device links cannot be created via netlink. These links
@@ -732,22 +731,6 @@ func (vrf *Vrf) Attrs() *LinkAttrs {
 
 func (vrf *Vrf) Type() string {
 	return "vrf"
-}
-
-type GTP struct {
-	LinkAttrs
-	FD0         int
-	FD1         int
-	Role        int
-	PDPHashsize int
-}
-
-func (gtp *GTP) Attrs() *LinkAttrs {
-	return &gtp.LinkAttrs
-}
-
-func (gtp *GTP) Type() string {
-	return "gtp"
 }
 
 // iproute2 supported devices;

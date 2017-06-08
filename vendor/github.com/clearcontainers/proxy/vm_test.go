@@ -32,8 +32,7 @@ type vmRig struct {
 	wg sync.WaitGroup
 
 	// hyperstart mocking
-	Hyperstart      *mock.Hyperstart
-	ctlPath, ioPath string
+	Hyperstart *mock.Hyperstart
 }
 
 func newVMRig(t *testing.T) *vmRig {
@@ -131,7 +130,7 @@ func TestHyperRelocationNewcontainer(t *testing.T) {
 	// associate a dummy shim
 	vm.AssociateShim(Token(token), 1, nil)
 	// relocate
-	err := vm.relocateHyperCommand(cmd)
+	_, err := vm.relocateHyperCommand(cmd)
 	assert.Nil(t, err)
 
 	// Check that the relocated command contains the seq numbers
@@ -145,7 +144,7 @@ func TestHyperRelocationNewcontainer(t *testing.T) {
 
 	// Giving more than 1 token should result in an error
 	cmd = rig.createExecmd(vm, 2)
-	err = vm.relocateHyperCommand(cmd)
+	_, err = vm.relocateHyperCommand(cmd)
 	assert.NotNil(t, err)
 
 	rig.Stop()
@@ -169,7 +168,7 @@ func TestHyperRelocationNewcontainerNoToken(t *testing.T) {
 	// given.
 
 	// relocate
-	err := vm.relocateHyperCommand(cmd)
+	_, err := vm.relocateHyperCommand(cmd)
 	assert.Nil(t, err)
 
 	// Check that the relocated command contains the seq numbers
@@ -210,7 +209,7 @@ func TestHyperRelocationExeccmd(t *testing.T) {
 	// associate a dummy shim
 	vm.AssociateShim(Token(token), 1, nil)
 	// relocate
-	err := vm.relocateHyperCommand(cmd)
+	_, err := vm.relocateHyperCommand(cmd)
 	assert.Nil(t, err)
 
 	// Check that the relocated command contains the seq numbers
@@ -224,7 +223,7 @@ func TestHyperRelocationExeccmd(t *testing.T) {
 
 	// Giving more than 1 token should result in an error
 	cmd = rig.createExecmd(vm, 2)
-	err = vm.relocateHyperCommand(cmd)
+	_, err = vm.relocateHyperCommand(cmd)
 	assert.NotNil(t, err)
 
 	rig.Stop()
@@ -244,7 +243,7 @@ func TestHyperRelocationPing(t *testing.T) {
 	// 1 process can be spawned using execcmd.
 	cmd := rig.createHyperCmd(vm, "ping", 1, nil)
 	originalCmd := *cmd
-	err := vm.relocateHyperCommand(cmd)
+	_, err := vm.relocateHyperCommand(cmd)
 	assert.NotNil(t, err)
 	assert.Equal(t, originalCmd, *cmd)
 

@@ -63,8 +63,9 @@ type Endpoint struct {
 
 // NetworkNamespace contains all data related to its network namespace.
 type NetworkNamespace struct {
-	NetNsPath string
-	Endpoints []Endpoint
+	NetNsPath    string
+	NetNsCreated bool
+	Endpoints    []Endpoint
 }
 
 // NetworkModel describes the type of network specification.
@@ -126,21 +127,17 @@ func newNetwork(networkType NetworkModel) network {
 	}
 }
 
-func initNetworkCommon(config *NetworkConfig) error {
-	if config == nil {
-		return fmt.Errorf("config cannot be empty")
-	}
-
+func initNetworkCommon(config NetworkConfig) (string, bool, error) {
 	if config.NetNSPath == "" {
 		path, err := createNetNS()
 		if err != nil {
-			return err
+			return "", false, err
 		}
 
-		config.NetNSPath = path
+		return path, true, nil
 	}
 
-	return nil
+	return config.NetNSPath, false, nil
 }
 
 func runNetworkCommon(networkNSPath string, cb func() error) error {
@@ -530,13 +527,13 @@ func addNetDevHypervisor(pod Pod, endpoints []Endpoint) error {
 // between VM netns and the host network physical interface.
 type network interface {
 	// init initializes the network, setting a new network namespace.
-	init(config *NetworkConfig) error
+	init(config NetworkConfig) (string, bool, error)
 
 	// run runs a callback function in a specified network namespace.
 	run(networkNSPath string, cb func() error) error
 
 	// add adds all needed interfaces inside the network namespace.
-	add(pod Pod, config NetworkConfig) (NetworkNamespace, error)
+	add(pod Pod, config NetworkConfig, netNsPath string, netNsCreated bool) (NetworkNamespace, error)
 
 	// remove unbridges and deletes TAP interfaces. It also removes virtual network
 	// interfaces and deletes the network namespace.

@@ -14,63 +14,68 @@
   revision = "fa152c58bc15761d0200cb75fe958b89a9d4888e"
 
 [[projects]]
+  branch = "master"
   name = "github.com/BurntSushi/toml"
   packages = ["."]
-  revision = "b26d9c308763d68093482582cea63d69be07a0f0"
-  version = "v0.3.0"
+  revision = "e643e9ef00b049d75de26e61109c5ea01885cd21"
 
 [[projects]]
   branch = "master"
   name = "github.com/Sirupsen/logrus"
   packages = ["."]
-  revision = "5e5dc898656f695e2a086b8e12559febbfc01562"
+  revision = "acfabf31db8f45a9174f54a0d48ea4d15627af4d"
 
 [[projects]]
   name = "github.com/clearcontainers/proxy"
   packages = ["api","client"]
-  revision = "398fd8b9d8d1e223fc7034ff4d7ab6db131fff30"
+  revision = "d6109f0b84f38cd40b012154c4c88eabb1f98842"
 
 [[projects]]
   branch = "master"
   name = "github.com/containernetworking/cni"
   packages = ["libcni","pkg/invoke","pkg/ns","pkg/types","pkg/types/020","pkg/types/current","pkg/version"]
-  revision = "0ebcfe7ea32d5516c88c4bdc3db7cf0b30c98c7e"
+  revision = "c71a7c068fd7f88a84e5dc0f9b0258f612cc1e68"
+
+[[projects]]
+  name = "github.com/containers/virtcontainers"
+  packages = [".","pkg/cni","pkg/hyperstart","pkg/oci"]
+  revision = "1d48ac9d057585c4a8b33bec55d8817d174a1d16"
 
 [[projects]]
   branch = "master"
-  name = "github.com/containers/virtcontainers"
-  packages = [".","pkg/cni","pkg/hyperstart","pkg/oci"]
-  revision = "d23b31719e42001bd91c1aa9a8f133e3974136fc"
-
-[[projects]]
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
-  version = "v1.1.0"
 
 [[projects]]
   branch = "master"
   name = "github.com/dlespiau/covertool"
   packages = ["pkg/cover"]
-  revision = "008c0ab1339d84959c927f52e3a0cd05cd3afe8f"
+  revision = "b82616d290e628437bc08b858b5ecb3d7fe9ea53"
 
 [[projects]]
+  branch = "master"
   name = "github.com/docker/docker"
   packages = ["pkg/term","pkg/term/windows"]
-  revision = "89658bed64c2a8fe05a978e5b87dbec409d57a0f"
-  version = "v17.05.0-ce"
+  revision = "3d31198cda7d1230415b37970172480b5190c1e3"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/kubernetes-incubator/cri-o"
+  packages = ["pkg/annotations"]
+  revision = "77fc45e7bcd8871b33f806d08662afdc8abcac66"
 
 [[projects]]
   branch = "master"
   name = "github.com/mitchellh/mapstructure"
   packages = ["."]
-  revision = "cc8532a8e9a55ea36402aa21efdf403a60d34096"
+  revision = "53818660ed4955e899c0bcafa97299a388bd7c8e"
 
 [[projects]]
+  branch = "master"
   name = "github.com/opencontainers/runtime-spec"
   packages = ["specs-go"]
-  revision = "035da1dca3dfbb00d752eb58b0b158d6129f3776"
-  version = "v1.0.0-rc5"
+  revision = "e95b4f8ead3dd0a0ce2676339490f0ce126ca898"
 
 [[projects]]
   name = "github.com/pmezard/go-difflib"
@@ -79,22 +84,22 @@
   version = "v1.0.0"
 
 [[projects]]
+  branch = "master"
   name = "github.com/stretchr/testify"
   packages = ["assert"]
-  revision = "69483b4bd14f5845b5a1e55bca19e954e827f1d0"
-  version = "v1.1.4"
+  revision = "4d4bfba8f1d1027c4fdbe371823030df51419987"
 
 [[projects]]
   branch = "master"
   name = "github.com/urfave/cli"
   packages = ["."]
-  revision = "d70f47eeca3afd795160003bc6e28b001d60c67c"
+  revision = "9e5b04886c4bfee2ceba1465b8121057355c4e53"
 
 [[projects]]
   branch = "master"
   name = "github.com/vishvananda/netlink"
   packages = [".","nl"]
-  revision = "58c32ae2d72285baf322aaff05213c2fba8fb8a2"
+  revision = "1e045880fbc2f6703d3c771db56cfb0351208637"
 
 [[projects]]
   branch = "master"
@@ -106,17 +111,17 @@
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["curve25519","ed25519","ed25519/internal/edwards25519","ssh"]
-  revision = "ab89591268e0c8b748cbe4047b00197516011af5"
+  revision = "728b753d0135da6801d45a38e6f43ff55779c5c2"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
-  revision = "1e99a4f9d247b28c670884b9a8d6801f39a47b77"
+  revision = "99f16d856c9836c42d24e7ab64ea72916925fa97"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "2a2f91fb6c803db3b2ba4a84c2171be6ce097d656e4f353b43c15d998e9603ac"
+  inputs-digest = "761e78b757f867c879c3d53d290e3348e0cdfd27225734143e32c498d5c4fb3b"
   solver-name = "gps-cdcl"
   solver-version = 1

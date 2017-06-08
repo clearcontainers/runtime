@@ -301,3 +301,88 @@ func (client *Client) Kill(signal syscall.Signal) error {
 func (client *Client) SendTerminalSize(columns, rows int) error {
 	return client.signal(syscall.SIGWINCH, columns, rows)
 }
+
+func (client *Client) sendStream(op api.Stream, data []byte) error {
+	return api.WriteStream(client.conn, op, data)
+}
+
+// SendStdin sends stdin data. This can only be used from shim clients.
+func (client *Client) SendStdin(data []byte) error {
+	return client.sendStream(api.StreamStdin, data)
+}
+
+// LogLevel is the severity of log entries.
+type LogLevel uint8
+
+const (
+	// LogLevelDebug is for log messages only useful debugging.
+	LogLevelDebug LogLevel = iota
+	// LogLevelInfo is for reporting landmark events.
+	LogLevelInfo
+	// LogLevelWarn is for reporting warnings.
+	LogLevelWarn
+	// LogLevelError is for reporting errors.
+	LogLevelError
+
+	logLevelMax
+)
+
+var levelToString = []string{"debug", "info", "warn", "error"}
+
+// String implements stringer for LogLevel.
+func (l LogLevel) String() string {
+	if l < logLevelMax {
+		return levelToString[l]
+	}
+
+	return "unknown"
+}
+
+// LogSource is the source of log entries
+type LogSource uint8
+
+const (
+	// LogSourceRuntime represents a runtime.
+	LogSourceRuntime LogSource = iota
+	// LogSourceShim represents a shim.
+	LogSourceShim
+
+	logSourceMax
+)
+
+var sourceToString = []string{"runtime", "shim"}
+
+// String implements stringer for LogSource
+func (s LogSource) String() string {
+	if s < logSourceMax {
+		return sourceToString[s]
+	}
+
+	return "unknown"
+}
+
+// Log sends log entries.
+func (client *Client) Log(level LogLevel, source LogSource, containerID string, args ...interface{}) {
+	payload := api.LogEntry{
+		Level:       level.String(),
+		Source:      source.String(),
+		ContainerID: containerID,
+		Message:     fmt.Sprint(args...),
+	}
+
+	data, _ := json.Marshal(&payload)
+	_ = client.sendStream(api.StreamLog, data)
+}
+
+// Logf sends log entries.
+func (client *Client) Logf(level LogLevel, source LogSource, containerID string, format string, args ...interface{}) {
+	payload := api.LogEntry{
+		Level:       level.String(),
+		Source:      source.String(),
+		ContainerID: containerID,
+		Message:     fmt.Sprintf(format, args...),
+	}
+
+	data, _ := json.Marshal(&payload)
+	_ = client.sendStream(api.StreamLog, data)
+}

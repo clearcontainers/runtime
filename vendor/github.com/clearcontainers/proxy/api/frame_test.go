@@ -65,6 +65,7 @@ func TestStreamString(t *testing.T) {
 		{StreamStdin, "stdin"},
 		{StreamStdout, "stdout"},
 		{StreamStderr, "stderr"},
+		{StreamLog, "log"},
 		{StreamMax, "unknown"},
 	}
 

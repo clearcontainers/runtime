@@ -73,12 +73,14 @@ func TestMain(m *testing.M) {
 
 	flag.Parse()
 
-	virtLog.Level = logrus.ErrorLevel
+	logger := logrus.New()
+	logger.Level = logrus.ErrorLevel
 	for _, arg := range flag.Args() {
 		if arg == "debug-logs" {
-			virtLog.Level = logrus.DebugLevel
+			logger.Level = logrus.DebugLevel
 		}
 	}
+	SetLogger(logger)
 
 	testDir, err = ioutil.TempDir("", "virtcontainers-tmp-")
 	if err != nil {

@@ -18,6 +18,7 @@ import (
 	"bufio"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -25,10 +26,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/clearcontainers/proxy/api"
 
 	"github.com/containers/virtcontainers/pkg/hyperstart"
-	"github.com/golang/glog"
 )
 
 // Represents a single qemu/hyperstart instance on the system
@@ -36,6 +37,9 @@ type vm struct {
 	sync.Mutex
 
 	containerID string
+
+	logIO   *logrus.Entry
+	logQemu *logrus.Entry
 
 	hyperHandler *hyperstart.Hyperstart
 
@@ -56,7 +60,7 @@ type vm struct {
 	// tokenToSession associate a token to the corresponding ioSession
 	tokenToSession map[Token]*ioSession
 
-	// nullSession is a special I/O session used for containers and execmd processes
+	// nullSession is a special I/O session used for containers and execcmd processes
 	// when client of the proxy indicates they don't care about communicating with the
 	// process inside the VM.
 	nullSession ioSession
@@ -72,6 +76,9 @@ type vm struct {
 type ioSession struct {
 	// token is what identifies the I/O session to the external world
 	token Token
+
+	// containerID is the container ID related to this session
+	containerID string
 
 	// Back pointer to the VM this session is attached to.
 	vm *vm
@@ -91,6 +98,11 @@ type ioSession struct {
 	// commands newcontainer and execcmd will wait for the shim to be ready
 	// before forwarding the command to hyperstart)
 	shimConnected chan interface{}
+
+	// Channel to signal the process corresponding to that session has been
+	// started. This is used to stop the shim from sending stdin data to a
+	// non-existent process.
+	processStarted chan interface{}
 }
 
 const (
@@ -102,8 +114,12 @@ const (
 func newVM(id, ctlSerial, ioSerial string) *vm {
 	h := hyperstart.NewHyperstart(ctlSerial, ioSerial, "unix")
 
+	log := proxyLog.WithFields(logrus.Fields{"vm": id})
+
 	vm := &vm{
 		containerID:    id,
+		logIO:          log.WithField("section", "io"),
+		logQemu:        log.WithField("source", "qemu"),
 		hyperHandler:   h,
 		nextIoBase:     firstIoBase,
 		ioSessions:     make(map[uint64]*ioSession),
@@ -112,10 +128,11 @@ func newVM(id, ctlSerial, ioSerial string) *vm {
 	}
 
 	vm.nullSession = ioSession{
-		vm:            vm,
-		nStreams:      2,
-		ioBase:        nullSessionStdout,
-		shimConnected: make(chan interface{}),
+		vm:             vm,
+		nStreams:       2,
+		ioBase:         nullSessionStdout,
+		shimConnected:  make(chan interface{}),
+		processStarted: make(chan interface{}),
 	}
 	vm.ioSessions[nullSessionStdout] = &vm.nullSession
 	vm.ioSessions[nullSessionStderr] = &vm.nullSession
@@ -123,6 +140,17 @@ func newVM(id, ctlSerial, ioSerial string) *vm {
 	close(vm.nullSession.shimConnected)
 
 	return vm
+}
+
+// ResetShim resets the session state related to the shim. Call this when we
+// lose the connection to the shim, whether we close it ourselves or the shim
+// crashes and the connection is closed.
+func (session *ioSession) ResetShim() {
+	session.vm.logIO.Debug("lost the shim for %s", session.token)
+	if session == &session.vm.nullSession {
+		return
+	}
+	session.shimConnected = make(chan interface{})
 }
 
 // setConsole() will make the proxy output the console data on stderr
@@ -138,29 +166,16 @@ func (vm *vm) shortName() string {
 	return vm.containerID[0:length]
 }
 
-func (vm *vm) info(lvl glog.Level, channel string, msg string) {
-	if !glog.V(lvl) {
+func (vm *vm) dump(data []byte) {
+	if logrus.GetLevel() != logrus.DebugLevel {
 		return
 	}
-	glog.Infof("[vm %s %s] %s", vm.shortName(), channel, msg)
-}
 
-func (vm *vm) infof(lvl glog.Level, channel string, fmt string, a ...interface{}) {
-	if !glog.V(lvl) {
+	if len(data) == 0 {
 		return
 	}
-	a = append(a, 0, 0)
-	copy(a[2:], a[0:])
-	a[0] = vm.shortName()
-	a[1] = channel
-	glog.Infof("[vm %s %s] "+fmt, a...)
-}
 
-func (vm *vm) dump(lvl glog.Level, data []byte) {
-	if !glog.V(lvl) {
-		return
-	}
-	glog.Infof("\n%s", hex.Dump(data))
+	proxyLog.WithField("wm", vm.containerID).Debug("\n", hex.Dump(data))
 }
 
 func (vm *vm) findSessionBySeq(seq uint64) *ioSession {
@@ -214,8 +229,8 @@ func (vm *vm) ioHyperToClients() {
 
 		// The nullSession acts like /dev/null, discard data associated with it
 		if session == &vm.nullSession {
-			vm.info(1, "io", "data received for the null session, discarding")
-			vm.dump(2, msg.Message)
+			vm.logIO.Info("data received for the null session, discarding")
+			vm.dump(msg.Message)
 			continue
 		}
 
@@ -228,15 +243,15 @@ func (vm *vm) ioHyperToClients() {
 			continue
 		}
 
-		vm.infof(1, "io", "<- writing to client #%d", session.clientID)
-		vm.dump(2, msg.Message)
+		vm.logIO.Debugf("<- writing to client #%d", session.clientID)
+		vm.dump(msg.Message)
 
 		frame := hyperstartTtyMessageToFrame(msg, session)
 		err = api.WriteFrame(session.client, frame)
 		if err != nil {
 			// When the shim is forcefully killed, it's possible we
 			// still have data to write. Ignore errors for that case.
-			vm.infof(1, "io", "error writing I/O data to client:", err)
+			vm.logIO.Errorf("error writing I/O data to client: %v", err)
 			continue
 		}
 	}
@@ -249,14 +264,9 @@ func (vm *vm) ioHyperToClients() {
 
 // Stream the VM console to stderr
 func (vm *vm) consoleToLog() {
-	reader := bufio.NewReader(vm.console.conn)
-	for {
-		line, err := reader.ReadString('\n')
-		if err != nil {
-			break
-		}
-
-		vm.infof(3, "hyperstart", line)
+	scanner := bufio.NewScanner(vm.console.conn)
+	for scanner.Scan() {
+		vm.logQemu.Debug(scanner.Text())
 	}
 
 	vm.wg.Done()
@@ -306,7 +316,7 @@ func relocateProcess(process *hyperstart.Process, session *ioSession) error {
 	// When relocating a process asking for a terminal, we need to make sure
 	// Process.Stderr is 0. We only need the Stdio sequence number in that case and
 	// hyperstart will be mad at us if we specify Stderr.
-	if process.Terminal == false {
+	if !process.Terminal {
 		process.Stderr = session.ioBase + 1
 	}
 
@@ -339,7 +349,12 @@ func newcontainerHandler(vm *vm, hyper *api.Hyper, session *ioSession) error {
 		return err
 	}
 
-	relocateProcess(cmdIn.Process, session)
+	session.containerID = cmdIn.ID
+
+	if err := relocateProcess(cmdIn.Process, session); err != nil {
+		return err
+	}
+
 	newData, err := json.Marshal(&cmdIn)
 	if err != nil {
 		return err
@@ -350,11 +365,16 @@ func newcontainerHandler(vm *vm, hyper *api.Hyper, session *ioSession) error {
 	return nil
 }
 
-// RelocateHyperCommand performs the sequence number relocation in the
-// newcontainer and execmd hyper commands given the corresponding list of
+// relocateHyperCommand performs the sequence number relocation in the
+// newcontainer and execcmd hyper commands given the corresponding list of
 // tokens. Starpod isn't handled as it's not currently use to start processes
 // and indicated as deprecated in the hyperstart API.
-func (vm *vm) relocateHyperCommand(hyper *api.Hyper) error {
+// relocateHyperCommand will return the Session of the process in question if
+// the hyper command needed a relocation. This is the same thing as saying if
+// the hyper command is either newcontainer or execcmd.
+func (vm *vm) relocateHyperCommand(hyper *api.Hyper) (*ioSession, error) {
+	var session *ioSession
+
 	cmds := []struct {
 		name    string
 		handler relocationHandler
@@ -369,10 +389,9 @@ func (vm *vm) relocateHyperCommand(hyper *api.Hyper) error {
 	for _, cmd := range cmds {
 		if hyper.HyperName == cmd.name {
 			if nTokens > 1 {
-				return fmt.Errorf("expected 0 or 1 token, got %d", nTokens)
+				return nil, fmt.Errorf("expected 0 or 1 token, got %d", nTokens)
 			}
 
-			var session *ioSession
 			if nTokens == 0 {
 				// When not given any token, we use the nullSession and will discard data
 				// received from hyper
@@ -381,18 +400,18 @@ func (vm *vm) relocateHyperCommand(hyper *api.Hyper) error {
 				token := hyper.Tokens[0]
 				session = vm.findSessionByToken(Token(token))
 				if session == nil {
-					return fmt.Errorf("unknown token %s", token)
+					return nil, fmt.Errorf("unknown token %s", token)
 				}
 			}
 
 			if err := cmd.handler(vm, hyper, session); err != nil {
-				return err
+				return nil, err
 			}
 
 			// Wait for the corresponding shim to be registered with the proxy so we can
 			// start forwarding data as soon as we receive it
 			if err := session.WaitForShim(); err != nil {
-				return err
+				return nil, err
 			}
 
 			needsRelocation = true
@@ -403,20 +422,28 @@ func (vm *vm) relocateHyperCommand(hyper *api.Hyper) error {
 	// If a hyper command doesn't need a token but one is given anyway, reject the
 	// command.
 	if !needsRelocation && nTokens > 0 {
-		return fmt.Errorf("%s doesn't need tokens but %d token(s) were given",
+		return nil, fmt.Errorf("%s doesn't need tokens but %d token(s) were given",
 			hyper.HyperName, nTokens)
 
 	}
 
-	return nil
+	return session, nil
 }
 
-func (vm *vm) SendMessage(hyper *api.Hyper) error {
-	if err := vm.relocateHyperCommand(hyper); err != nil {
+func (vm *vm) SendMessage(hyper *api.Hyper) (err error) {
+	var session *ioSession
+
+	if session, err = vm.relocateHyperCommand(hyper); err != nil {
 		return err
 	}
 
-	_, err := vm.hyperHandler.SendCtlMessage(hyper.HyperName, hyper.Data)
+	_, err = vm.hyperHandler.SendCtlMessage(hyper.HyperName, hyper.Data)
+
+	if session != nil {
+		// We have now started the process inside the VM, let the shim send stdin
+		// data and signals.
+		close(session.processStarted)
+	}
 	return err
 }
 
@@ -426,27 +453,53 @@ var waitForShimTimeout = 30 * time.Second
 // itself with the proxy. If the shim has already done so, WaitForSim will
 // return immediately.
 func (session *ioSession) WaitForShim() error {
-	session.vm.infof(1, "session",
+	session.vm.logIO.Infof(
 		"waiting for shim to register itself with token %s (timeout %s)",
 		session.token, waitForShimTimeout)
 
 	select {
 	case <-session.shimConnected:
 	case <-time.After(waitForShimTimeout):
-		return fmt.Errorf("timeout waiting for shim with token %s", session.token)
+		msg := fmt.Sprintf("timeout waiting for shim with token %s", session.token)
+		session.vm.logIO.Error(msg)
+		// No need to call session.ResetShim() here. We time out because we haven't
+		// seen a shim. This error will be reported to the runtime.
+		return errors.New(msg)
 	}
+
+	return nil
+}
+
+var waitForProcessTimeout = 30 * time.Second
+
+// WaitForProcess will wait until the process inside the VM is fully started. If
+// it's already the case, WaitForProcess will return immediately.
+// shouldReset controls if we should reset the internal shim state on timeout.
+// It should be set to true in code path that will close the shim connection on
+// timeout.
+func (session *ioSession) WaitForProcess(shouldReset bool) error {
+	session.vm.logIO.Infof("waiting for runtime to execute the process for token %s (timeout %s)",
+		session.token, waitForProcessTimeout)
+
+	select {
+	case <-session.processStarted:
+	case <-time.After(waitForProcessTimeout):
+		// Runtime failed to do a newcontainer or execcmd.
+		msg := fmt.Sprintf("timeout waiting for process with token %s", session.token)
+		session.vm.logIO.Error(msg)
+		if shouldReset {
+			session.ResetShim()
+		}
+		return errors.New(msg)
+	}
+
 	return nil
 }
 
 // ForwardStdin forwards an api.Frame with stdin data to hyperstart
 func (session *ioSession) ForwardStdin(frame *api.Frame) error {
-	if frame.Header.Type != api.TypeStream {
-		return fmt.Errorf("expected stream frame got %s", frame.Header.Type)
-	}
-
-	streamType := api.Stream(frame.Header.Opcode)
-	if streamType != api.StreamStdin {
-		return fmt.Errorf("expected stdin stream frame got %s", streamType)
+	if err := session.WaitForProcess(true); err != nil {
+		return err
 	}
 
 	vm := session.vm
@@ -455,8 +508,8 @@ func (session *ioSession) ForwardStdin(frame *api.Frame) error {
 		Message: frame.Payload,
 	}
 
-	vm.infof(1, "io", "-> writing to hyper from #%d", session.clientID)
-	vm.dump(2, msg.Message)
+	vm.logIO.Infof("-> writing to hyper from #%d", session.clientID)
+	vm.dump(msg.Message)
 
 	return vm.hyperHandler.SendIoMessage(msg)
 }
@@ -490,8 +543,25 @@ func (session *ioSession) SendTerminalSize(columns, rows int) error {
 
 // SendSignal
 func (session *ioSession) SendSignal(signal syscall.Signal) error {
+
+	// In case the containerID related to the session is empty, the signal
+	// must not be forwarded to the initial container process. This is a
+	// case where the caller is trying to send a signal to a process
+	// started with "execcmd". Because hyperstart does not provide the
+	// support to perform this action, we don't forward the signal at all
+	// and return an error to the shim.
+	//
+	// FIXME: Change this when hyperstart will be capable of forwarding a
+	// signal to a process different from the initial container process.
+	if session.containerID == "" {
+		return fmt.Errorf("Could not send the signal %s: Sending" +
+			" a signal to a process different from the initial" +
+			" container process is not supported",
+			signal.String())
+	}
+
 	msg := &hyperstart.KillCommand{
-		Container: session.vm.containerID,
+		Container: session.containerID,
 		Signal:    signal,
 	}
 
@@ -520,11 +590,12 @@ func (vm *vm) AllocateToken() (Token, error) {
 	}
 
 	session := &ioSession{
-		vm:            vm,
-		token:         token,
-		nStreams:      nStreams,
-		ioBase:        ioBase,
-		shimConnected: make(chan interface{}),
+		vm:             vm,
+		token:          token,
+		nStreams:       nStreams,
+		ioBase:         ioBase,
+		shimConnected:  make(chan interface{}),
+		processStarted: make(chan interface{}),
 	}
 
 	// This mapping is to get the session from the seq number in an
@@ -603,7 +674,7 @@ func (vm *vm) Close() {
 	// properly cleaning up all sessions.
 	vm.Lock()
 	for token := range vm.tokenToSession {
-		vm.freeTokenUnlocked(token)
+		_ = vm.freeTokenUnlocked(token)
 		delete(vm.tokenToSession, token)
 	}
 	vm.Unlock()

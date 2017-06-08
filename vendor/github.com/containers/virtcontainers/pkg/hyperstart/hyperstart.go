@@ -129,10 +129,10 @@ type Hyperstart struct {
 	ctlChDone chan interface{}
 }
 
-var hyperLog = logrus.New()
+var hyperLog = logrus.FieldLogger(logrus.New())
 
-// SetLog sets the logger for hyperstart package.
-func SetLog(logger *logrus.Logger) {
+// SetLogger sets the logger for hyperstart package.
+func SetLogger(logger logrus.FieldLogger) {
 	hyperLog = logger
 }
 

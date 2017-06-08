@@ -4,7 +4,7 @@ The [Open Container Initiative][oci] develops specifications for standards on Op
 
 # <a name="ociRuntimeSpecAbstract" />Abstract
 
-The OCI Runtime Specification aims to specify the configuration, execution environment, and lifecycle a container.
+The OCI Runtime Specification aims to specify the configuration, execution environment, and lifecycle of a container.
 
 A container's configuration is specified as the `config.json` for the supported platforms and details the fields that enable the creation of a container.
 The execution environment is specified to ensure that applications running inside a container have a consistent environment between runtimes along with common actions defined for the container's lifecycle.
@@ -33,7 +33,7 @@ Platforms defined by this specification are:
 
 # <a name="ociRuntimeSpecNotationalConventions" />Notational Conventions
 
-The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" are to be interpreted as described in [RFC 2119][rfc2119].
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" are to be interpreted as described in [RFC 2119][rfc2119].
 
 The key words "unspecified", "undefined", and "implementation-defined" are to be interpreted as described in the [rationale for the C99 standard][c99-unspecified].
 

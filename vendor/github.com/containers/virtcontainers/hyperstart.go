@@ -35,6 +35,7 @@ var mountTag = "hyperShared"
 var rootfsDir = "rootfs"
 var pauseBinName = "pause"
 var pauseContainerName = "pause-container"
+var maxHostnameLen = 64
 
 const (
 	unixSocket = "unix"
@@ -111,13 +112,10 @@ func (h *hyper) buildHyperContainerProcess(cmd Cmd) (*hyperstart.Process, error)
 	}
 
 	process := &hyperstart.Process{
-		User:             cmd.User,
-		Group:            cmd.PrimaryGroup,
-		AdditionalGroups: cmd.SupplementaryGroups,
-		Terminal:         cmd.Interactive,
-		Args:             cmd.Args,
-		Envs:             envVars,
-		Workdir:          cmd.WorkDir,
+		Terminal: cmd.Interactive,
+		Args:     cmd.Args,
+		Envs:     envVars,
+		Workdir:  cmd.WorkDir,
 	}
 
 	return process, nil
@@ -314,8 +312,13 @@ func (h *hyper) startPod(pod Pod) error {
 		return err
 	}
 
+	hostname := pod.id
+	if len(hostname) > maxHostnameLen {
+		hostname = hostname[:maxHostnameLen]
+	}
+
 	hyperPod := hyperstart.Pod{
-		Hostname:   pod.id,
+		Hostname:   hostname,
 		Containers: []hyperstart.Container{},
 		Interfaces: ifaces,
 		Routes:     routes,
@@ -422,7 +425,7 @@ func (h *hyper) startOneContainer(pod Pod, c Container) error {
 		Process: process,
 	}
 
-	if err := h.bindMountContainerRootfs(pod.id, c.id, c.rootFs, c.config.ReadonlyRootfs); err != nil {
+	if err := h.bindMountContainerRootfs(pod.id, c.id, c.rootFs, false); err != nil {
 		h.bindUnmountAllRootfs(pod)
 		return err
 	}

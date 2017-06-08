@@ -21,10 +21,12 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"reflect"
 	"testing"
 
 	vc "github.com/containers/virtcontainers"
+	"github.com/kubernetes-incubator/cri-o/pkg/annotations"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
@@ -81,12 +83,14 @@ func TestMinimalPodConfig(t *testing.T) {
 	}
 
 	expectedContainerConfig := vc.ContainerConfig{
-		ID:     containerID,
-		RootFs: path.Join(tempBundlePath, "rootfs"),
-		Cmd:    expectedCmd,
+		ID:             containerID,
+		RootFs:         path.Join(tempBundlePath, "rootfs"),
+		ReadonlyRootfs: true,
+		Cmd:            expectedCmd,
 		Annotations: map[string]string{
-			ConfigPathKey: configPath,
-			BundlePathKey: tempBundlePath,
+			ConfigPathKey:    configPath,
+			BundlePathKey:    tempBundlePath,
+			ContainerTypeKey: string(vc.PodSandbox),
 		},
 	}
 
@@ -113,12 +117,17 @@ func TestMinimalPodConfig(t *testing.T) {
 		},
 	}
 
-	podConfig, _, err := PodConfig(runtimeConfig, tempBundlePath, containerID, consolePath)
+	ociSpec, err := ParseConfigJSON(tempBundlePath)
+	if err != nil {
+		t.Fatalf("Could not parse config.json: %v", err)
+	}
+
+	podConfig, err := PodConfig(ociSpec, runtimeConfig, tempBundlePath, containerID, consolePath)
 	if err != nil {
 		t.Fatalf("Could not create Pod configuration %v", err)
 	}
 
-	if reflect.DeepEqual(podConfig, &expectedPodConfig) == false {
+	if reflect.DeepEqual(podConfig, expectedPodConfig) == false {
 		t.Fatalf("Got %v\n expecting %v", podConfig, expectedPodConfig)
 	}
 
@@ -127,8 +136,8 @@ func TestMinimalPodConfig(t *testing.T) {
 	}
 }
 
-func testStatusToOCIStateSuccessful(t *testing.T, podStatus vc.PodStatus, expected specs.State) {
-	ociState, err := StatusToOCIState(podStatus)
+func testStatusToOCIStateSuccessful(t *testing.T, cStatus vc.ContainerStatus, expected specs.State) {
+	ociState, err := StatusToOCIState(cStatus)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,7 +153,7 @@ func TestStatusToOCIStateSuccessfulWithReadyState(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	testPodID := "testPodID"
+	testContID := "testContID"
 	testPID := 12345
 	testRootFs := "testRootFs"
 
@@ -157,32 +166,24 @@ func TestStatusToOCIStateSuccessfulWithReadyState(t *testing.T) {
 		BundlePathKey: tempBundlePath,
 	}
 
-	cStatuses := []vc.ContainerStatus{
-		{
-			State:       state,
-			PID:         testPID,
-			RootFs:      testRootFs,
-			Annotations: containerAnnotations,
-		},
-	}
-
-	podStatus := vc.PodStatus{
-		ID:               testPodID,
-		State:            state,
-		ContainersStatus: cStatuses,
-		Annotations:      map[string]string{},
+	cStatus := vc.ContainerStatus{
+		ID:          testContID,
+		State:       state,
+		PID:         testPID,
+		RootFs:      testRootFs,
+		Annotations: containerAnnotations,
 	}
 
 	expected := specs.State{
 		Version:     specs.Version,
-		ID:          testPodID,
+		ID:          testContID,
 		Status:      "created",
 		Pid:         testPID,
 		Bundle:      tempBundlePath,
 		Annotations: containerAnnotations,
 	}
 
-	testStatusToOCIStateSuccessful(t, podStatus, expected)
+	testStatusToOCIStateSuccessful(t, cStatus, expected)
 
 	if err := os.Remove(configPath); err != nil {
 		t.Fatal(err)
@@ -195,7 +196,7 @@ func TestStatusToOCIStateSuccessfulWithRunningState(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	testPodID := "testPodID"
+	testContID := "testContID"
 	testPID := 12345
 	testRootFs := "testRootFs"
 
@@ -208,32 +209,24 @@ func TestStatusToOCIStateSuccessfulWithRunningState(t *testing.T) {
 		BundlePathKey: tempBundlePath,
 	}
 
-	cStatuses := []vc.ContainerStatus{
-		{
-			State:       state,
-			PID:         testPID,
-			RootFs:      testRootFs,
-			Annotations: containerAnnotations,
-		},
-	}
-
-	podStatus := vc.PodStatus{
-		ID:               testPodID,
-		State:            state,
-		ContainersStatus: cStatuses,
-		Annotations:      map[string]string{},
+	cStatus := vc.ContainerStatus{
+		ID:          testContID,
+		State:       state,
+		PID:         testPID,
+		RootFs:      testRootFs,
+		Annotations: containerAnnotations,
 	}
 
 	expected := specs.State{
 		Version:     specs.Version,
-		ID:          testPodID,
+		ID:          testContID,
 		Status:      "running",
 		Pid:         testPID,
 		Bundle:      tempBundlePath,
 		Annotations: containerAnnotations,
 	}
 
-	testStatusToOCIStateSuccessful(t, podStatus, expected)
+	testStatusToOCIStateSuccessful(t, cStatus, expected)
 
 	if err := os.Remove(configPath); err != nil {
 		t.Fatal(err)
@@ -246,7 +239,7 @@ func TestStatusToOCIStateSuccessfulWithStoppedState(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	testPodID := "testPodID"
+	testContID := "testContID"
 	testPID := 12345
 	testRootFs := "testRootFs"
 
@@ -259,32 +252,24 @@ func TestStatusToOCIStateSuccessfulWithStoppedState(t *testing.T) {
 		BundlePathKey: tempBundlePath,
 	}
 
-	cStatuses := []vc.ContainerStatus{
-		{
-			State:       state,
-			PID:         testPID,
-			RootFs:      testRootFs,
-			Annotations: containerAnnotations,
-		},
-	}
-
-	podStatus := vc.PodStatus{
-		ID:               testPodID,
-		State:            state,
-		ContainersStatus: cStatuses,
-		Annotations:      map[string]string{},
+	cStatus := vc.ContainerStatus{
+		ID:          testContID,
+		State:       state,
+		PID:         testPID,
+		RootFs:      testRootFs,
+		Annotations: containerAnnotations,
 	}
 
 	expected := specs.State{
 		Version:     specs.Version,
-		ID:          testPodID,
+		ID:          testContID,
 		Status:      "stopped",
 		Pid:         testPID,
 		Bundle:      tempBundlePath,
 		Annotations: containerAnnotations,
 	}
 
-	testStatusToOCIStateSuccessful(t, podStatus, expected)
+	testStatusToOCIStateSuccessful(t, cStatus, expected)
 
 	if err := os.Remove(configPath); err != nil {
 		t.Fatal(err)
@@ -297,7 +282,7 @@ func TestStatusToOCIStateSuccessfulWithNoState(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	testPodID := "testPodID"
+	testContID := "testContID"
 	testPID := 12345
 	testRootFs := "testRootFs"
 
@@ -306,47 +291,25 @@ func TestStatusToOCIStateSuccessfulWithNoState(t *testing.T) {
 		BundlePathKey: tempBundlePath,
 	}
 
-	cStatuses := []vc.ContainerStatus{
-		{
-			PID:         testPID,
-			RootFs:      testRootFs,
-			Annotations: containerAnnotations,
-		},
-	}
-
-	podStatus := vc.PodStatus{
-		ID:               testPodID,
-		State:            vc.State{},
-		ContainersStatus: cStatuses,
-		Annotations:      map[string]string{},
+	cStatus := vc.ContainerStatus{
+		ID:          testContID,
+		PID:         testPID,
+		RootFs:      testRootFs,
+		Annotations: containerAnnotations,
 	}
 
 	expected := specs.State{
 		Version:     specs.Version,
-		ID:          testPodID,
+		ID:          testContID,
 		Status:      "",
 		Pid:         testPID,
 		Bundle:      tempBundlePath,
 		Annotations: containerAnnotations,
 	}
 
-	testStatusToOCIStateSuccessful(t, podStatus, expected)
+	testStatusToOCIStateSuccessful(t, cStatus, expected)
 
 	if err := os.Remove(configPath); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestStatusToOCIStateFailure(t *testing.T) {
-	testPodID := "testPodID"
-
-	podStatus := vc.PodStatus{
-		ID:               testPodID,
-		State:            vc.State{},
-		ContainersStatus: []vc.ContainerStatus{},
-	}
-
-	if _, err := StatusToOCIState(podStatus); err == nil {
 		t.Fatal(err)
 	}
 }
@@ -354,22 +317,22 @@ func TestStatusToOCIStateFailure(t *testing.T) {
 func TestStateToOCIState(t *testing.T) {
 	var state vc.State
 
-	if ociState := stateToOCIState(state); ociState != "" {
+	if ociState := StateToOCIState(state); ociState != "" {
 		t.Fatalf("Expecting \"created\" state, got \"%s\"", ociState)
 	}
 
 	state.State = vc.StateReady
-	if ociState := stateToOCIState(state); ociState != "created" {
+	if ociState := StateToOCIState(state); ociState != "created" {
 		t.Fatalf("Expecting \"created\" state, got \"%s\"", ociState)
 	}
 
 	state.State = vc.StateRunning
-	if ociState := stateToOCIState(state); ociState != "running" {
+	if ociState := StateToOCIState(state); ociState != "running" {
 		t.Fatalf("Expecting \"created\" state, got \"%s\"", ociState)
 	}
 
 	state.State = vc.StateStopped
-	if ociState := stateToOCIState(state); ociState != "stopped" {
+	if ociState := StateToOCIState(state); ociState != "stopped" {
 		t.Fatalf("Expecting \"created\" state, got \"%s\"", ociState)
 	}
 }
@@ -432,6 +395,141 @@ func TestMalformedEnvVars(t *testing.T) {
 	r, err = EnvVars(envVars)
 	if err == nil {
 		t.Fatalf("EnvVars() succeeded unexpectedly: [%s] variable=%s value=%s", envVars[0], r[0].Var, r[0].Value)
+	}
+}
+
+func TestGetConfigPath(t *testing.T) {
+	expected := filepath.Join(tempBundlePath, "config.json")
+
+	configPath := getConfigPath(tempBundlePath)
+
+	if configPath != expected {
+		t.Fatalf("Got %s, Expecting %s", configPath, expected)
+	}
+}
+
+func testGetContainerTypeSuccessful(t *testing.T, annotations map[string]string, expected vc.ContainerType) {
+	containerType, err := GetContainerType(annotations)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if containerType != expected {
+		t.Fatalf("Got %s, Expecting %s", containerType, expected)
+	}
+}
+
+func TestGetContainerTypePodSandbox(t *testing.T) {
+	annotations := map[string]string{
+		ContainerTypeKey: string(vc.PodSandbox),
+	}
+
+	testGetContainerTypeSuccessful(t, annotations, vc.PodSandbox)
+}
+
+func TestGetContainerTypePodContainer(t *testing.T) {
+	annotations := map[string]string{
+		ContainerTypeKey: string(vc.PodContainer),
+	}
+
+	testGetContainerTypeSuccessful(t, annotations, vc.PodContainer)
+}
+
+func TestGetContainerTypeFailure(t *testing.T) {
+	expected := vc.UnknownContainerType
+
+	containerType, err := GetContainerType(map[string]string{})
+	if err == nil {
+		t.Fatalf("This test should fail because annotations is empty")
+	}
+
+	if containerType != expected {
+		t.Fatalf("Got %s, Expecting %s", containerType, expected)
+	}
+}
+
+func testContainerTypeSuccessful(t *testing.T, ociSpec CompatOCISpec, expected vc.ContainerType) {
+	containerType, err := ociSpec.ContainerType()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if containerType != expected {
+		t.Fatalf("Got %s, Expecting %s", containerType, expected)
+	}
+}
+
+func TestContainerTypePodSandbox(t *testing.T) {
+	var ociSpec CompatOCISpec
+
+	ociSpec.Annotations = map[string]string{
+		annotations.ContainerType: annotations.ContainerTypeSandbox,
+	}
+
+	testContainerTypeSuccessful(t, ociSpec, vc.PodSandbox)
+}
+
+func TestContainerTypePodContainer(t *testing.T) {
+	var ociSpec CompatOCISpec
+
+	ociSpec.Annotations = map[string]string{
+		annotations.ContainerType: annotations.ContainerTypeContainer,
+	}
+
+	testContainerTypeSuccessful(t, ociSpec, vc.PodContainer)
+}
+
+func TestContainerTypePodSandboxEmptyAnnotation(t *testing.T) {
+	testContainerTypeSuccessful(t, CompatOCISpec{}, vc.PodSandbox)
+}
+
+func TestContainerTypeFailure(t *testing.T) {
+	var ociSpec CompatOCISpec
+	expected := vc.UnknownContainerType
+	unknownType := "unknown_type"
+
+	ociSpec.Annotations = map[string]string{
+		annotations.ContainerType: unknownType,
+	}
+
+	containerType, err := ociSpec.ContainerType()
+	if err == nil {
+		t.Fatalf("This test should fail because the container type is %s", unknownType)
+	}
+
+	if containerType != expected {
+		t.Fatalf("Got %s, Expecting %s", containerType, expected)
+	}
+}
+
+func TestPodIDSuccessful(t *testing.T) {
+	var ociSpec CompatOCISpec
+	testPodID := "testPodID"
+
+	ociSpec.Annotations = map[string]string{
+		annotations.SandboxName: testPodID,
+	}
+
+	podID, err := ociSpec.PodID()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if podID != testPodID {
+		t.Fatalf("Got %s, Expecting %s", podID, testPodID)
+	}
+}
+
+func TestPodIDFailure(t *testing.T) {
+	var ociSpec CompatOCISpec
+
+	podID, err := ociSpec.PodID()
+	if err == nil {
+		t.Fatalf("This test should fail because annotations is empty")
+	}
+
+	if podID != "" {
+		t.Fatalf("Got %s, Expecting empty pod ID", podID)
 	}
 }
 

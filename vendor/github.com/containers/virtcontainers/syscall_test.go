@@ -111,14 +111,14 @@ func TestBindMountReadonlySuccessful(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	defer syscall.Unmount(dest, 0)
+
 	// should not be able to create file in read-only mount
 	destFile := filepath.Join(dest, "foo")
 	_, err = os.OpenFile(destFile, os.O_CREATE, mountPerm)
 	if err == nil {
 		t.Fatal(err)
 	}
-
-	syscall.Unmount(dest, 0)
 }
 
 func TestEnsureDestinationExistsNonExistingSource(t *testing.T) {

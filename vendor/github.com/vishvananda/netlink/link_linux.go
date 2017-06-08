@@ -846,8 +846,6 @@ func (h *Handle) linkModify(link Link, flags int) error {
 		addVrfAttrs(vrf, linkInfo)
 	} else if bridge, ok := link.(*Bridge); ok {
 		addBridgeAttrs(bridge, linkInfo)
-	} else if gtp, ok := link.(*GTP); ok {
-		addGTPAttrs(gtp, linkInfo)
 	}
 
 	req.AddData(linkInfo)
@@ -1081,8 +1079,6 @@ func LinkDeserialize(hdr *syscall.NlMsghdr, m []byte) (Link, error) {
 						link = &Vti{}
 					case "vrf":
 						link = &Vrf{}
-					case "gtp":
-						link = &GTP{}
 					default:
 						link = &GenericLink{LinkType: linkType}
 					}
@@ -1114,8 +1110,6 @@ func LinkDeserialize(hdr *syscall.NlMsghdr, m []byte) (Link, error) {
 						parseVrfData(link, data)
 					case "bridge":
 						parseBridgeData(link, data)
-					case "gtp":
-						parseGTPData(link, data)
 					}
 				}
 			}
@@ -1606,8 +1600,6 @@ func addXdpAttrs(xdp *LinkXdp, req *nl.NetlinkRequest) {
 	b := make([]byte, 4)
 	native.PutUint32(b, uint32(xdp.Fd))
 	nl.NewRtAttrChild(attrs, nl.IFLA_XDP_FD, b)
-	native.PutUint32(b, xdp.Flags)
-	nl.NewRtAttrChild(attrs, nl.IFLA_XDP_FLAGS, b)
 	req.AddData(attrs)
 }
 
@@ -1623,8 +1615,6 @@ func parseLinkXdp(data []byte) (*LinkXdp, error) {
 			xdp.Fd = int(native.Uint32(attr.Value[0:4]))
 		case nl.IFLA_XDP_ATTACHED:
 			xdp.Attached = attr.Value[0] != 0
-		case nl.IFLA_XDP_FLAGS:
-			xdp.Flags = native.Uint32(attr.Value[0:4])
 		}
 	}
 	return xdp, nil
@@ -1743,32 +1733,6 @@ func parseBridgeData(bridge Link, data []syscall.NetlinkRouteAttr) {
 		case nl.IFLA_BR_MCAST_SNOOPING:
 			mcastSnooping := datum.Value[0] == 1
 			br.MulticastSnooping = &mcastSnooping
-		}
-	}
-}
-
-func addGTPAttrs(gtp *GTP, linkInfo *nl.RtAttr) {
-	data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
-	nl.NewRtAttrChild(data, nl.IFLA_GTP_FD0, nl.Uint32Attr(uint32(gtp.FD0)))
-	nl.NewRtAttrChild(data, nl.IFLA_GTP_FD1, nl.Uint32Attr(uint32(gtp.FD1)))
-	nl.NewRtAttrChild(data, nl.IFLA_GTP_PDP_HASHSIZE, nl.Uint32Attr(131072))
-	if gtp.Role != nl.GTP_ROLE_GGSN {
-		nl.NewRtAttrChild(data, nl.IFLA_GTP_ROLE, nl.Uint32Attr(uint32(gtp.Role)))
-	}
-}
-
-func parseGTPData(link Link, data []syscall.NetlinkRouteAttr) {
-	gtp := link.(*GTP)
-	for _, datum := range data {
-		switch datum.Attr.Type {
-		case nl.IFLA_GTP_FD0:
-			gtp.FD0 = int(native.Uint32(datum.Value))
-		case nl.IFLA_GTP_FD1:
-			gtp.FD1 = int(native.Uint32(datum.Value))
-		case nl.IFLA_GTP_PDP_HASHSIZE:
-			gtp.PDPHashsize = int(native.Uint32(datum.Value))
-		case nl.IFLA_GTP_ROLE:
-			gtp.Role = int(native.Uint32(datum.Value))
 		}
 	}
 }

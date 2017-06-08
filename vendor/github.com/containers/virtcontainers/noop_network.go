@@ -23,8 +23,8 @@ type noopNetwork struct {
 
 // init initializes the network, setting a new network namespace for the Noop network.
 // It does nothing.
-func (n *noopNetwork) init(config *NetworkConfig) error {
-	return nil
+func (n *noopNetwork) init(config NetworkConfig) (string, bool, error) {
+	return "", true, nil
 }
 
 // run runs a callback in the specified network namespace for
@@ -36,7 +36,7 @@ func (n *noopNetwork) run(networkNSPath string, cb func() error) error {
 
 // add adds all needed interfaces inside the network namespace the Noop network.
 // It does nothing.
-func (n *noopNetwork) add(pod Pod, config NetworkConfig) (NetworkNamespace, error) {
+func (n *noopNetwork) add(pod Pod, config NetworkConfig, netNsPath string, netNsCreated bool) (NetworkNamespace, error) {
 	return NetworkNamespace{}, nil
 }
 

@@ -168,3 +168,16 @@ type Signal struct {
 type ErrorResponse struct {
 	Message string `json:"msg"`
 }
+
+// LogEntry is the payload for the StreamLog data.
+type LogEntry struct {
+	// Source is the source of the log entry. One of "shim" or "runtime".
+	Source string `json:"source"`
+	// ContainerID is the ID of the container the log entry is for (optional).
+	ContainerID string `json:"containerId,omitempty"`
+	// Level is the verbosity level of the log entry. One of "debug", "info", "warn"
+	// or "error".
+	Level string `json:"level"`
+	// Message is the log message
+	Message string `json:"msg"`
+}
