@@ -21,6 +21,7 @@ import (
 	"io"
 	"os"
 	"sync"
+	"syscall"
 
 	"github.com/containers/virtcontainers/pkg/oci"
 	"github.com/docker/docker/pkg/term"
@@ -146,6 +147,9 @@ func run(context *cli.Context) error {
 		// close and restore console
 		console.Close()
 		term.RestoreTerminal(os.Stdin.Fd(), consoleState)
+
+		//runtime should forward container exit code to the system
+		return cli.NewExitError("", ps.Sys().(syscall.WaitStatus).ExitStatus())
 	}
 
 	return nil
