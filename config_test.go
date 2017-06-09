@@ -26,6 +26,7 @@ import (
 
 	vc "github.com/containers/virtcontainers"
 	"github.com/containers/virtcontainers/pkg/oci"
+	"github.com/stretchr/testify/assert"
 )
 
 const proxyURL = "foo:///foo/clear-containers/proxy.sock"
@@ -493,4 +494,55 @@ func TestCheckConfigParams(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestHypervisorDefaults(t *testing.T) {
+	h := hypervisor{}
+
+	assert.Equal(t, h.path(), defaultHypervisorPath, "default hypervisor path wrong")
+	assert.Equal(t, h.kernel(), defaultKernelPath, "default hypervisor kernel wrong")
+	assert.Equal(t, h.image(), defaultImagePath, "default hypervisor image wrong")
+
+	path := "/foo"
+	h.Path = path
+	assert.Equal(t, h.path(), path, "custom hypervisor path wrong")
+
+	kernel := "wibble"
+	h.Kernel = kernel
+	assert.Equal(t, h.kernel(), kernel, "custom hypervisor kernel wrong")
+
+	image := "foo"
+	h.Image = image
+	assert.Equal(t, h.image(), image, "custom hypervisor image wrong")
+}
+
+func TestProxyDefaults(t *testing.T) {
+	p := proxy{}
+
+	assert.Equal(t, p.url(), defaultProxyURL, "default proxy url wrong")
+
+	url := "unix:///hello/world.sock"
+	p.URL = url
+	assert.Equal(t, p.url(), url, "custom proxy url wrong")
+
+}
+
+func TestShimDefaults(t *testing.T) {
+	s := shim{}
+
+	assert.Equal(t, s.path(), defaultShimPath, "default shim path wrong")
+
+	path := "/foo/bar"
+	s.Path = path
+	assert.Equal(t, s.path(), path, "custom shim path wrong")
+}
+
+func TestAgentDefaults(t *testing.T) {
+	a := agent{}
+
+	assert.Equal(t, a.pauseRootPath(), defaultPauseRootPath, "default agent pause root path wrong")
+
+	path := "/foo/bar/baz"
+	a.PauseRootPath = path
+	assert.Equal(t, a.pauseRootPath(), path, "custom agent pause root path wrong")
 }
