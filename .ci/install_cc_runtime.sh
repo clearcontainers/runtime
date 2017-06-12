@@ -47,7 +47,11 @@ sudo mkdir -p ${config_path}
 sed 's/^#\(\[runtime\]\|global_log_path =\)/\1/g' config/${config_file} | sudo tee ${config_path}/${config_file}
 
 echo "Install cc-proxy service (/etc/init/cc-proxy.conf)"
-sudo cp .ci/upstart-services/cc-proxy.conf /etc/init/
+upstart_services_path="/etc/init"
+sudo cp .ci/upstart-services/cc-proxy.conf ${upstart_services_path}/
+
+echo "Install crio service (/etc/init/crio.conf)"
+sudo cp .ci/upstart-services/crio.conf ${upstart_services_path}/
 
 bash .ci/install_cc_env_ubuntu.sh
 
@@ -57,9 +61,19 @@ bash .ci/install_cc_shim.sh
 
 bash .ci/install_virtcontainers.sh
 
+bash .ci/install_cni_plugins.sh
+
+bash .ci/install_crio.sh
+
 bash .ci/install_cc_tests.sh
+
+echo "Install CRI-O bats"
+sudo cp .ci/tests/crio.bats $GOPATH/src/github.com/kubernetes-incubator/cri-o/test/
 
 popd
 
 echo "Start cc-proxy service"
 sudo service cc-proxy start
+
+echo "Start crio service"
+sudo service crio start
