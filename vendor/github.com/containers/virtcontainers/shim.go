@@ -18,6 +18,7 @@ package virtcontainers
 
 import (
 	"fmt"
+	"syscall"
 
 	"github.com/mitchellh/mapstructure"
 )
@@ -94,6 +95,20 @@ func newShimConfig(config PodConfig) interface{} {
 	default:
 		return nil
 	}
+}
+
+func stopShim(pid int) error {
+	if pid <= 0 {
+		return nil
+	}
+
+	virtLog.Infof("Stopping shim PID %d", pid)
+
+	if err := syscall.Kill(pid, syscall.SIGKILL); err != nil && err != syscall.ESRCH {
+		return err
+	}
+
+	return nil
 }
 
 // shim is the virtcontainers shim interface.

@@ -1,4 +1,4 @@
-memo = "917f44d6975d69f6054c2dffad960b595e8c0071442c56c5a1bc892f34909b92"
+memo = "575f5788244dd156352286fcf1ec74ff5d76afcd464d7e277ea3b0c43e2ceb87"
 
 [[projects]]
   branch = "master"
@@ -28,6 +28,12 @@ memo = "917f44d6975d69f6054c2dffad960b595e8c0071442c56c5a1bc892f34909b92"
   packages = ["spew"]
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
   version = "v1.1.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/kubernetes-incubator/cri-o"
+  packages = ["pkg/annotations"]
+  revision = "a8848bc0283ddb0fe06f4c5095aab0ec9a79387d"
 
 [[projects]]
   branch = "master"

@@ -28,10 +28,10 @@ func init() {
 	runtime.LockOSThread()
 }
 
-var virtLog = logrus.New()
+var virtLog = logrus.FieldLogger(logrus.New())
 
-// SetLog sets the logger for virtcontainers package.
-func SetLog(logger *logrus.Logger) {
+// SetLogger sets the logger for virtcontainers package.
+func SetLogger(logger logrus.FieldLogger) {
 	virtLog = logger
 }
 
@@ -51,13 +51,13 @@ func CreatePod(podConfig PodConfig) (*Pod, error) {
 	}
 
 	// Initialize the network.
-	err = p.network.init(&(p.config.NetworkConfig))
+	netNsPath, netNsCreated, err := p.network.init(p.config.NetworkConfig)
 	if err != nil {
 		return nil, err
 	}
 
 	// Execute prestart hooks inside netns
-	err = p.network.run(p.config.NetworkConfig.NetNSPath, func() error {
+	err = p.network.run(netNsPath, func() error {
 		return p.config.Hooks.preStartHooks()
 	})
 	if err != nil {
@@ -65,7 +65,7 @@ func CreatePod(podConfig PodConfig) (*Pod, error) {
 	}
 
 	// Add the network
-	networkNS, err := p.network.add(*p, p.config.NetworkConfig)
+	networkNS, err := p.network.add(*p, p.config.NetworkConfig, netNsPath, netNsCreated)
 	if err != nil {
 		return nil, err
 	}
@@ -77,18 +77,13 @@ func CreatePod(podConfig PodConfig) (*Pod, error) {
 	}
 
 	// Start the VM
-	err = p.startVM()
+	err = p.startVM(netNsPath)
 	if err != nil {
 		return nil, err
 	}
 
 	// Start shims
 	if err := p.startShims(); err != nil {
-		return nil, err
-	}
-
-	err = p.endSession()
-	if err != nil {
 		return nil, err
 	}
 
@@ -120,6 +115,11 @@ func DeletePod(podID string) (*Pod, error) {
 		return nil, err
 	}
 
+	// Stop shims
+	if err := p.stopShims(); err != nil {
+		return nil, err
+	}
+
 	// Stop the VM
 	err = p.stopVM()
 	if err != nil {
@@ -127,9 +127,10 @@ func DeletePod(podID string) (*Pod, error) {
 	}
 
 	// Remove the network
-	err = p.network.remove(*p, networkNS)
-	if err != nil {
-		return nil, err
+	if networkNS.NetNsCreated {
+		if err := p.network.remove(*p, networkNS); err != nil {
+			return nil, err
+		}
 	}
 
 	// Delete it.
@@ -138,8 +139,8 @@ func DeletePod(podID string) (*Pod, error) {
 		return nil, err
 	}
 
-	err = p.endSession()
-	if err != nil {
+	// Execute poststop hooks.
+	if err := p.config.Hooks.postStopHooks(); err != nil {
 		return nil, err
 	}
 
@@ -167,28 +168,14 @@ func StartPod(podID string) (*Pod, error) {
 		return nil, err
 	}
 
-	// Fetch the network config
-	networkNS, err := p.storage.fetchPodNetwork(podID)
-	if err != nil {
-		return nil, err
-	}
-
 	// Start it
 	err = p.start()
 	if err != nil {
 		return nil, err
 	}
 
-	// Execute poststart hooks inside netns
-	err = p.network.run(networkNS.NetNsPath, func() error {
-		return p.config.Hooks.postStartHooks()
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	err = p.endSession()
-	if err != nil {
+	// Execute poststart hooks.
+	if err := p.config.Hooks.postStartHooks(); err != nil {
 		return nil, err
 	}
 
@@ -214,30 +201,10 @@ func StopPod(podID string) (*Pod, error) {
 		return nil, err
 	}
 
-	// Fetch the network config
-	networkNS, err := p.storage.fetchPodNetwork(podID)
-	if err != nil {
-		return nil, err
-	}
-
 	// Stop it.
 	err = p.stop()
 	if err != nil {
 		p.delete()
-		return nil, err
-	}
-
-	// Execute poststop hooks inside netns
-	err = p.network.run(networkNS.NetNsPath, func() error {
-		return p.config.Hooks.postStopHooks()
-	})
-	if err != nil {
-		p.delete()
-		return nil, err
-	}
-
-	err = p.endSession()
-	if err != nil {
 		return nil, err
 	}
 
@@ -266,13 +233,13 @@ func RunPod(podConfig PodConfig) (*Pod, error) {
 	defer unlockPod(lockFile)
 
 	// Initialize the network.
-	err = p.network.init(&(p.config.NetworkConfig))
+	netNsPath, netNsCreated, err := p.network.init(p.config.NetworkConfig)
 	if err != nil {
 		return nil, err
 	}
 
 	// Execute prestart hooks inside netns
-	err = p.network.run(p.config.NetworkConfig.NetNSPath, func() error {
+	err = p.network.run(netNsPath, func() error {
 		return p.config.Hooks.preStartHooks()
 	})
 	if err != nil {
@@ -280,7 +247,7 @@ func RunPod(podConfig PodConfig) (*Pod, error) {
 	}
 
 	// Add the network
-	networkNS, err := p.network.add(*p, p.config.NetworkConfig)
+	networkNS, err := p.network.add(*p, p.config.NetworkConfig, netNsPath, netNsCreated)
 	if err != nil {
 		return nil, err
 	}
@@ -292,7 +259,7 @@ func RunPod(podConfig PodConfig) (*Pod, error) {
 	}
 
 	// Start the VM
-	err = p.startVM()
+	err = p.startVM(netNsPath)
 	if err != nil {
 		return nil, err
 	}
@@ -313,11 +280,6 @@ func RunPod(podConfig PodConfig) (*Pod, error) {
 	err = p.network.run(networkNS.NetNsPath, func() error {
 		return p.config.Hooks.postStartHooks()
 	})
-	if err != nil {
-		return nil, err
-	}
-
-	err = p.endSession()
 	if err != nil {
 		return nil, err
 	}
@@ -428,11 +390,6 @@ func CreateContainer(podID string, containerConfig ContainerConfig) (*Pod, *Cont
 		return nil, nil, err
 	}
 
-	err = p.endSession()
-	if err != nil {
-		return nil, nil, err
-	}
-
 	return p, c, nil
 }
 
@@ -483,11 +440,6 @@ func DeleteContainer(podID, containerID string) (*Container, error) {
 		return nil, err
 	}
 
-	err = p.endSession()
-	if err != nil {
-		return nil, err
-	}
-
 	return c, nil
 }
 
@@ -523,11 +475,6 @@ func StartContainer(podID, containerID string) (*Container, error) {
 	err = c.start()
 	if err != nil {
 		c.delete()
-		return nil, err
-	}
-
-	err = p.endSession()
-	if err != nil {
 		return nil, err
 	}
 
@@ -569,11 +516,6 @@ func StopContainer(podID, containerID string) (*Container, error) {
 		return nil, err
 	}
 
-	err = p.endSession()
-	if err != nil {
-		return nil, err
-	}
-
 	return c, nil
 }
 
@@ -607,11 +549,6 @@ func EnterContainer(podID, containerID string, cmd Cmd) (*Pod, *Container, *Proc
 
 	// Enter it.
 	process, err := c.enter(cmd)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	err = p.endSession()
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -687,11 +624,6 @@ func KillContainer(podID, containerID string, signal syscall.Signal, all bool) e
 
 	// Send a signal to the process.
 	err = c.kill(signal, all)
-	if err != nil {
-		return err
-	}
-
-	err = p.endSession()
 	if err != nil {
 		return err
 	}

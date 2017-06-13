@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"os"
 
-	vc "github.com/containers/virtcontainers"
 	"github.com/containers/virtcontainers/pkg/oci"
 	"github.com/urfave/cli"
 )
@@ -45,20 +44,13 @@ instance of a container.`,
 
 func state(containerID string) error {
 	// Checks the MUST and MUST NOT from OCI runtime specification
-	fullID, err := expandContainerID(containerID)
-	if err != nil {
-		return err
-	}
-
-	containerID = fullID
-
-	podStatus, err := vc.StatusPod(containerID)
+	status, podID, err := getExistingContainerInfo(containerID)
 	if err != nil {
 		return err
 	}
 
 	// Convert the status to the expected State structure
-	state, err := oci.StatusToOCIState(podStatus)
+	state, err := oci.StatusToOCIState(status)
 	if err != nil {
 		return err
 	}
@@ -68,12 +60,15 @@ func state(containerID string) error {
 	if err != nil {
 		return err
 	}
-	if running == false {
-		if err := stopContainer(podStatus); err != nil {
+
+	if running == false && state.Status == oci.StateRunning {
+		ccLog.Infof("Setting container state to %q as process %d is not running",
+			oci.StateStopped, state.Pid)
+		if err := stopContainer(podID, status); err != nil {
 			return err
 		}
 
-		state.Status = "stopped"
+		state.Status = oci.StateStopped
 	}
 
 	stateJSON, err := json.Marshal(state)

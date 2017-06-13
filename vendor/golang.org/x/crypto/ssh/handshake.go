@@ -74,7 +74,7 @@ type handshakeTransport struct {
 	startKex chan *pendingKex
 
 	// data for host key checking
-	hostKeyCallback HostKeyCallback
+	hostKeyCallback func(hostname string, remote net.Addr, key PublicKey) error
 	dialAddress     string
 	remoteAddr      net.Addr
 
@@ -107,8 +107,6 @@ func newHandshakeTransport(conn keyingTransport, config *Config, clientVersion, 
 
 		config: config,
 	}
-	t.resetReadThresholds()
-	t.resetWriteThresholds()
 
 	// We always start with a mandatory key exchange.
 	t.requestKex <- struct{}{}
@@ -239,17 +237,6 @@ func (t *handshakeTransport) requestKeyExchange() {
 	}
 }
 
-func (t *handshakeTransport) resetWriteThresholds() {
-	t.writePacketsLeft = packetRekeyThreshold
-	if t.config.RekeyThreshold > 0 {
-		t.writeBytesLeft = int64(t.config.RekeyThreshold)
-	} else if t.algorithms != nil {
-		t.writeBytesLeft = t.algorithms.w.rekeyBytes()
-	} else {
-		t.writeBytesLeft = 1 << 30
-	}
-}
-
 func (t *handshakeTransport) kexLoop() {
 
 write:
@@ -298,8 +285,12 @@ write:
 		t.writeError = err
 		t.sentInitPacket = nil
 		t.sentInitMsg = nil
-
-		t.resetWriteThresholds()
+		t.writePacketsLeft = packetRekeyThreshold
+		if t.config.RekeyThreshold > 0 {
+			t.writeBytesLeft = int64(t.config.RekeyThreshold)
+		} else if t.algorithms != nil {
+			t.writeBytesLeft = t.algorithms.w.rekeyBytes()
+		}
 
 		// we have completed the key exchange. Since the
 		// reader is still blocked, it is safe to clear out
@@ -353,17 +344,6 @@ write:
 // key exchange itself.
 const packetRekeyThreshold = (1 << 31)
 
-func (t *handshakeTransport) resetReadThresholds() {
-	t.readPacketsLeft = packetRekeyThreshold
-	if t.config.RekeyThreshold > 0 {
-		t.readBytesLeft = int64(t.config.RekeyThreshold)
-	} else if t.algorithms != nil {
-		t.readBytesLeft = t.algorithms.r.rekeyBytes()
-	} else {
-		t.readBytesLeft = 1 << 30
-	}
-}
-
 func (t *handshakeTransport) readOnePacket(first bool) ([]byte, error) {
 	p, err := t.conn.readPacket()
 	if err != nil {
@@ -411,7 +391,12 @@ func (t *handshakeTransport) readOnePacket(first bool) ([]byte, error) {
 		return nil, err
 	}
 
-	t.resetReadThresholds()
+	t.readPacketsLeft = packetRekeyThreshold
+	if t.config.RekeyThreshold > 0 {
+		t.readBytesLeft = int64(t.config.RekeyThreshold)
+	} else {
+		t.readBytesLeft = t.algorithms.r.rekeyBytes()
+	}
 
 	// By default, a key exchange is hidden from higher layers by
 	// translating it into msgIgnore.
@@ -589,9 +574,7 @@ func (t *handshakeTransport) enterKeyExchange(otherInitPacket []byte) error {
 	}
 	result.SessionID = t.sessionID
 
-	if err := t.conn.prepareKeyChange(t.algorithms, result); err != nil {
-		return err
-	}
+	t.conn.prepareKeyChange(t.algorithms, result)
 	if err = t.conn.writePacket([]byte{msgNewKeys}); err != nil {
 		return err
 	}
@@ -631,9 +614,11 @@ func (t *handshakeTransport) client(kex kexAlgorithm, algs *algorithms, magics *
 		return nil, err
 	}
 
-	err = t.hostKeyCallback(t.dialAddress, t.remoteAddr, hostKey)
-	if err != nil {
-		return nil, err
+	if t.hostKeyCallback != nil {
+		err = t.hostKeyCallback(t.dialAddress, t.remoteAddr, hostKey)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return result, nil

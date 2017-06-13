@@ -103,6 +103,11 @@ func (c *Container) ID() string {
 	return c.id
 }
 
+// Pod returns the pod handler related to this container.
+func (c *Container) Pod() *Pod {
+	return c.pod
+}
+
 // Process returns the container process.
 func (c *Container) Process() Process {
 	return c.process
@@ -335,6 +340,10 @@ func (c *Container) delete() error {
 
 	if state.State != StateReady && state.State != StateStopped {
 		return fmt.Errorf("Container not ready or stopped, impossible to delete")
+	}
+
+	if err := stopShim(c.process.Pid); err != nil {
+		return err
 	}
 
 	err = c.pod.storage.deleteContainerResources(c.podID, c.id, nil)

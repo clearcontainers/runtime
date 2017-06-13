@@ -30,6 +30,8 @@ import (
 //
 //       • Changed the frame header to include additional fields: version,
 //         header length, type and opcode.
+//       • Added a log messages for clients to insert log entries to the
+//         consolidated proxy log.
 //
 //   • version 1: initial version released with Clear Containers 2.1
 const Version = 2
@@ -53,6 +55,8 @@ const (
 	TypeMax
 )
 
+const unknown = "unknown"
+
 // String implements Stringer for FrameType.
 func (t FrameType) String() string {
 	switch t {
@@ -65,7 +69,7 @@ func (t FrameType) String() string {
 	case TypeNotification:
 		return "notification"
 	default:
-		return "unknown"
+		return unknown
 	}
 }
 
@@ -112,7 +116,7 @@ func (t Command) String() string {
 	case CmdSignal:
 		return "Signal"
 	default:
-		return "unknown"
+		return unknown
 	}
 }
 
@@ -127,6 +131,11 @@ const (
 	StreamStdout
 	// StreamStderr is a stream conveying stderr data.
 	StreamStderr
+	// StreamLog is a stream conveying structured logs messages. Each Log frame
+	// contains a JSON object which fields are the structured log. By convention
+	// it would be nice to have a few common fields in log entries to ease
+	// post-processing. See the LogEntry payload for details.
+	StreamLog
 	// StreamMax is the number of stream types.
 	StreamMax
 )
@@ -140,8 +149,10 @@ func (s Stream) String() string {
 		return "stdout"
 	case StreamStderr:
 		return "stderr"
+	case StreamLog:
+		return "log"
 	default:
-		return "unknown"
+		return unknown
 	}
 }
 
@@ -162,7 +173,7 @@ func (n Notification) String() string {
 	case NotificationProcessExited:
 		return "ProcessExited"
 	default:
-		return "unknown"
+		return unknown
 	}
 }
 

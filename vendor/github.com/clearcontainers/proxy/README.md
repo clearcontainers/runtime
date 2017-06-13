@@ -100,14 +100,14 @@ Detailed info in `selinux/README.md`
 
 ## Debugging
 
-`cc-proxy` uses [glog](https://github.com/golang/glog) for its log messages.
+`cc-proxy` uses [logrus](https://github.com/Sirupsen/logrus) for its log
+ messages.
 
-`glog` can be configured through command line parameters, try the `-h` option
-for more details. Contrary to the `glog` defaults, `cc-proxy` defaults to
-writing log messages to stderr .
+Logging verbosity can be configured through the `-log` command line
+ parameter, try the `-h` option for more details.
 
 ```
-$ sudo ./cc-proxy -v 2
+$ sudo ./cc-proxy --log info
 ```
 
 Additionally, the `CC_PROXY_LOG_LEVEL` environment variable can be used to set
@@ -115,12 +115,13 @@ the log level. The command line parameter `-v` takes precedence over the
 environment variable.
 
 ```
-$ sudo CC_PROXY_LOG_LEVEL=1 ./cc-proxy
+$ sudo CC_PROXY_LOG_LEVEL=debug ./cc-proxy
 ```
 
-There are 3 verbosity levels:
+The log level defines how verbose logging will be:
 
-  - Level 1 will show the important events happening at the proxy interfaces
-  - Level 2 will dump the raw data going over the I/O channel
-  - Level 3 will display the VM console logs. With clear VM images, this will
-    show hyperstart's stdout and stderr.
+  - Level "info" will show the important events happening at the proxy
+   interface and during the lifetime of a pod.
+  - Level "debug" will dump the raw data going over the I/O channel and
+   display the VM console logs. With clear VM images, this will show
+   hyperstart's stdout and stderr.

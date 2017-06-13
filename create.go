@@ -75,35 +75,45 @@ var createCommand = cli.Command{
 
 func create(containerID, bundlePath, console, pidFilePath string,
 	runtimeConfig oci.RuntimeConfig) error {
+
 	// Checks the MUST and MUST NOT from OCI runtime specification
 	if err := validCreateParams(containerID, bundlePath); err != nil {
 		return err
 	}
 
-	podConfig, ociSpec, err := getConfigs(bundlePath, containerID, console, runtimeConfig)
+	ociSpec, err := oci.ParseConfigJSON(bundlePath)
 	if err != nil {
 		return err
 	}
 
-	pod, err := vc.CreatePod(podConfig)
+	containerType, err := ociSpec.ContainerType()
 	if err != nil {
 		return err
 	}
 
-	// Start the shim to retrieve its PID.
-	containers := pod.GetAllContainers()
-	if len(containers) != 1 {
-		return fmt.Errorf("BUG: Container list from pod is wrong, expecting only one container, found %d containers", len(containers))
-	}
+	var process vc.Process
 
-	process := containers[0].Process()
+	switch containerType {
+	case vc.PodSandbox:
+		process, err = createPod(ociSpec, runtimeConfig, containerID, bundlePath, console)
+		if err != nil {
+			return err
+		}
+	case vc.PodContainer:
+		process, err = createContainer(ociSpec, containerID, bundlePath, console)
+		if err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("Invalid container type %q found", string(containerType))
+	}
 
 	// config.json provides a cgroups path that has to be used to create "tasks"
 	// and "cgroups.procs" files. Those files have to be filled with a PID, which
 	// is shim's in our case. This is mandatory to make sure there is no one
 	// else (like Docker) trying to create those files on our behalf. We want to
 	// know those files location so that we can remove them when delete is called.
-	cgroupsPathList, err := processCgroupsPath(ociSpec)
+	cgroupsPathList, err := processCgroupsPath(ociSpec, containerType.IsPod())
 	if err != nil {
 		return err
 	}
@@ -122,13 +132,46 @@ func create(containerID, bundlePath, console, pidFilePath string,
 	return nil
 }
 
-func getConfigs(bundlePath, containerID, console string, runtimeConfig oci.RuntimeConfig) (vc.PodConfig, oci.CompatOCISpec, error) {
-	podConfig, ociSpec, err := oci.PodConfig(runtimeConfig, bundlePath, containerID, console)
+func createPod(ociSpec oci.CompatOCISpec, runtimeConfig oci.RuntimeConfig,
+	containerID, bundlePath, console string) (vc.Process, error) {
+
+	podConfig, err := oci.PodConfig(ociSpec, runtimeConfig, bundlePath, containerID, console)
 	if err != nil {
-		return vc.PodConfig{}, oci.CompatOCISpec{}, err
+		return vc.Process{}, err
 	}
 
-	return *podConfig, *ociSpec, nil
+	pod, err := vc.CreatePod(podConfig)
+	if err != nil {
+		return vc.Process{}, err
+	}
+
+	containers := pod.GetAllContainers()
+	if len(containers) != 1 {
+		return vc.Process{}, fmt.Errorf("BUG: Container list from pod is wrong, expecting only one container, found %d containers", len(containers))
+	}
+
+	return containers[0].Process(), nil
+}
+
+func createContainer(ociSpec oci.CompatOCISpec, containerID, bundlePath,
+	console string) (vc.Process, error) {
+
+	contConfig, err := oci.ContainerConfig(ociSpec, bundlePath, containerID, console)
+	if err != nil {
+		return vc.Process{}, err
+	}
+
+	podID, err := ociSpec.PodID()
+	if err != nil {
+		return vc.Process{}, err
+	}
+
+	_, c, err := vc.CreateContainer(podID, contConfig)
+	if err != nil {
+		return vc.Process{}, err
+	}
+
+	return c.Process(), nil
 }
 
 func createCgroupsFiles(cgroupsPathList []string, pid int) error {

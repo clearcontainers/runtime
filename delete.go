@@ -62,58 +62,85 @@ EXAMPLE:
 
 func delete(containerID string, force bool) error {
 	// Checks the MUST and MUST NOT from OCI runtime specification
-	fullID, err := expandContainerID(containerID)
+	status, podID, err := getExistingContainerInfo(containerID)
 	if err != nil {
 		return err
 	}
 
-	containerID = fullID
+	containerID = status.ID
 
-	if force == false {
-		podStatus, err := vc.StatusPod(containerID)
-		if err != nil {
-			return err
-		}
-
-		state, err := oci.StatusToOCIState(podStatus)
-		if err != nil {
-			return err
-		}
-
-		running, err := processRunning(state.Pid)
-		if err != nil {
-			return err
-		}
-
-		if running == true {
-			return fmt.Errorf("Container still running, should be stopped")
-		}
-	}
-
-	pod, err := vc.StopPod(containerID)
+	containerType, err := oci.GetContainerType(status.Annotations)
 	if err != nil {
 		return err
 	}
 
 	// Retrieve OCI spec configuration.
-	ociSpec, err := oci.PodToOCIConfig(*pod)
+	ociSpec, err := oci.GetOCIConfig(status)
 	if err != nil {
 		return err
 	}
 
-	if _, err := vc.DeletePod(containerID); err != nil {
+	running, err := processRunning(status.PID)
+	if err != nil {
 		return err
+	}
+
+	if !force && running {
+		return fmt.Errorf("Container still running, should be stopped")
+	}
+
+	forceStop := false
+	if oci.StateToOCIState(status.State) == oci.StateRunning {
+		forceStop = true
+		ccLog.Info("Force stopping the pod/container before deleting")
+	}
+
+	switch containerType {
+	case vc.PodSandbox:
+		if err := deletePod(podID, forceStop); err != nil {
+			return err
+		}
+	case vc.PodContainer:
+		if err := deleteContainer(podID, containerID, forceStop); err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("Invalid container type found")
 	}
 
 	// In order to prevent any file descriptor leak related to cgroups files
 	// that have been previously created, we have to remove them before this
 	// function returns.
-	cgroupsPathList, err := processCgroupsPath(ociSpec)
+	cgroupsPathList, err := processCgroupsPath(ociSpec, containerType.IsPod())
 	if err != nil {
 		return err
 	}
 
-	if err := removeCgroupsPath(cgroupsPathList); err != nil {
+	return removeCgroupsPath(cgroupsPathList)
+}
+
+func deletePod(podID string, forceStop bool) error {
+	if forceStop {
+		if _, err := vc.StopPod(podID); err != nil {
+			return err
+		}
+	}
+
+	if _, err := vc.DeletePod(podID); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func deleteContainer(podID, containerID string, forceStop bool) error {
+	if forceStop {
+		if _, err := vc.StopContainer(podID, containerID); err != nil {
+			return err
+		}
+	}
+
+	if _, err := vc.DeleteContainer(podID, containerID); err != nil {
 		return err
 	}
 

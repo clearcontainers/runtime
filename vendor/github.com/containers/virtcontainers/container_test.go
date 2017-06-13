@@ -17,6 +17,7 @@
 package virtcontainers
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -39,5 +40,19 @@ func TestGetAnnotations(t *testing.T) {
 		if annotations[k] != v {
 			t.Fatalf("Expecting ['%s']='%s', Got ['%s']='%s'\n", k, annotations[k], k, v)
 		}
+	}
+}
+
+func TestContainerPod(t *testing.T) {
+	expectedPod := &Pod{}
+
+	container := Container{
+		pod: expectedPod,
+	}
+
+	pod := container.Pod()
+
+	if !reflect.DeepEqual(pod, expectedPod) {
+		t.Fatalf("Expecting %+v\nGot %+v", expectedPod, pod)
 	}
 }

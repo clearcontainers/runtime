@@ -27,14 +27,14 @@ import (
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
-func TestGetContainerIDByPrefixContainerIDEmptyFailure(t *testing.T) {
-	fullID, err := getContainerIDByPrefix("")
+func TestGetContainerInfoContainerIDEmptyFailure(t *testing.T) {
+	status, _, err := getContainerInfo("")
 	if err == nil {
 		t.Fatalf("This test should fail because containerID is empty")
 	}
 
-	if fullID != "" {
-		t.Fatalf("Expected blank fullID, but got %v", fullID)
+	if status.ID != "" {
+		t.Fatalf("Expected blank fullID, but got %v", status.ID)
 	}
 }
 
@@ -44,15 +44,15 @@ func TestValidCreateParamsContainerIDEmptyFailure(t *testing.T) {
 	}
 }
 
-func TestExpandContainerID(t *testing.T) {
-	fullID, err := expandContainerID("")
+func TestGetExistingContainerInfoContainerIDEmptyFailure(t *testing.T) {
+	status, _, err := getExistingContainerInfo("")
 
 	if err == nil {
 		t.Fatalf("This test should fail because containerID is empty")
 	}
 
-	if fullID != "" {
-		t.Fatalf("Expected blank fullID, but got %v", fullID)
+	if status.ID != "" {
+		t.Fatalf("Expected blank fullID, but got %v", status.ID)
 	}
 }
 
@@ -77,7 +77,7 @@ func TestProcessRunningSuccessful(t *testing.T) {
 }
 
 func TestStopContainerPodStatusEmptyFailure(t *testing.T) {
-	if err := stopContainer(vc.PodStatus{}); err == nil {
+	if err := stopContainer("", vc.ContainerStatus{}); err == nil {
 		t.Fatalf("This test should fail because PodStatus is empty")
 	}
 }
@@ -89,13 +89,13 @@ func TestStopContainerTooManyContainerStatusesFailure(t *testing.T) {
 		podStatus.ContainersStatus = append(podStatus.ContainersStatus, vc.ContainerStatus{})
 	}
 
-	if err := stopContainer(vc.PodStatus{}); err == nil {
+	if err := stopContainer("", vc.ContainerStatus{}); err == nil {
 		t.Fatalf("This test should fail because PodStatus has too many container statuses")
 	}
 }
 
 func testProcessCgroupsPath(t *testing.T, ociSpec oci.CompatOCISpec, expected []string) {
-	result, err := processCgroupsPath(ociSpec)
+	result, err := processCgroupsPath(ociSpec, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,7 +117,7 @@ func TestProcessCgroupsPathEmptyPathSuccessful(t *testing.T) {
 
 func TestProcessCgroupsPathRelativePathSuccessful(t *testing.T) {
 	relativeCgroupsPath := "relative/cgroups/path"
-	cgroupsMemDirPath = "/foo/runtime/base"
+	cgroupsDirPath = "/foo/runtime/base"
 
 	ociSpec := oci.CompatOCISpec{}
 
@@ -128,7 +128,7 @@ func TestProcessCgroupsPathRelativePathSuccessful(t *testing.T) {
 		CgroupsPath: relativeCgroupsPath,
 	}
 
-	testProcessCgroupsPath(t, ociSpec, []string{filepath.Join(cgroupsMemDirPath, "memory", relativeCgroupsPath)})
+	testProcessCgroupsPath(t, ociSpec, []string{filepath.Join(cgroupsDirPath, "memory", relativeCgroupsPath)})
 }
 
 func TestProcessCgroupsPathAbsoluteNoCgroupMountFailure(t *testing.T) {
@@ -143,7 +143,7 @@ func TestProcessCgroupsPathAbsoluteNoCgroupMountFailure(t *testing.T) {
 		CgroupsPath: absoluteCgroupsPath,
 	}
 
-	_, err := processCgroupsPath(ociSpec)
+	_, err := processCgroupsPath(ociSpec, true)
 	if err == nil {
 		t.Fatalf("This test should fail because no cgroup mount provided")
 	}
@@ -167,7 +167,7 @@ func TestProcessCgroupsPathAbsoluteNoCgroupMountDestinationFailure(t *testing.T)
 		},
 	}
 
-	_, err := processCgroupsPath(ociSpec)
+	_, err := processCgroupsPath(ociSpec, true)
 	if err == nil {
 		t.Fatalf("This test should fail because no cgroup mount destination provided")
 	}

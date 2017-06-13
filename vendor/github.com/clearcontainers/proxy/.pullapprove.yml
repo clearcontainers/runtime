@@ -25,7 +25,15 @@ group_defaults:
     ignored: true
 
 groups:
-  code-reviewers:
+  reviewers:
     required: 1
     teams:
       - clear-containers
+
+  approvers:
+    required: 1
+    users:
+      - amshinde
+      - dlespiau
+      - mcastelino
+      - sameo

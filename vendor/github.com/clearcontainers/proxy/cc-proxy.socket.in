@@ -4,7 +4,7 @@ Documentation=https://github.com/clearcontainers/proxy
 PartOf=cc-proxy.service
 
 [Socket]
-ListenStream=@localstatedir@/run/cc-oci-runtime/proxy.sock
+ListenStream=@localstatedir@/run/clear-containers/proxy.sock
 DirectoryMode=0770
 SocketMode=0660
 

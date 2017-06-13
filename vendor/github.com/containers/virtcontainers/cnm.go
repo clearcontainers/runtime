@@ -157,7 +157,7 @@ func (n *cnm) createEndpointsFromScan(networkNSPath string) ([]Endpoint, error) 
 }
 
 // init initializes the network, setting a new network namespace for the CNM network.
-func (n *cnm) init(config *NetworkConfig) error {
+func (n *cnm) init(config NetworkConfig) (string, bool, error) {
 	return initNetworkCommon(config)
 }
 
@@ -167,15 +167,16 @@ func (n *cnm) run(networkNSPath string, cb func() error) error {
 }
 
 // add adds all needed interfaces inside the network namespace for the CNM network.
-func (n *cnm) add(pod Pod, config NetworkConfig) (NetworkNamespace, error) {
-	endpoints, err := n.createEndpointsFromScan(config.NetNSPath)
+func (n *cnm) add(pod Pod, config NetworkConfig, netNsPath string, netNsCreated bool) (NetworkNamespace, error) {
+	endpoints, err := n.createEndpointsFromScan(netNsPath)
 	if err != nil {
 		return NetworkNamespace{}, err
 	}
 
 	networkNS := NetworkNamespace{
-		NetNsPath: config.NetNSPath,
-		Endpoints: endpoints,
+		NetNsPath:    netNsPath,
+		NetNsCreated: netNsCreated,
+		Endpoints:    endpoints,
 	}
 
 	if err := addNetworkCommon(pod, &networkNS); err != nil {

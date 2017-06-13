@@ -137,7 +137,7 @@ func main() {
 		}
 
 		// Set virtcontainers logger.
-		vc.SetLog(ccLog)
+		vc.SetLogger(ccLog)
 
 		runtimeConfig, err := loadConfiguration(context.GlobalString("cc-config"))
 		if err != nil {

@@ -17,6 +17,10 @@
 
 [[dependencies]]
   branch = "master"
+  name = "github.com/kubernetes-incubator/cri-o"
+
+[[dependencies]]
+  branch = "master"
   name = "github.com/mitchellh/mapstructure"
 
 [[dependencies]]

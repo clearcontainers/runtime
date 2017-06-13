@@ -419,8 +419,7 @@ const (
 	IFLA_XDP_UNSPEC   = iota
 	IFLA_XDP_FD       /* fd of xdp program to attach, or -1 to remove */
 	IFLA_XDP_ATTACHED /* read-only bool indicating if prog is attached */
-	IFLA_XDP_FLAGS    /* xdp prog related flags */
-	IFLA_XDP_MAX      = IFLA_XDP_FLAGS
+	IFLA_XDP_MAX      = IFLA_XDP_ATTACHED
 )
 
 const (
@@ -504,17 +503,4 @@ const (
 	IFLA_BR_MCAST_IGMP_VERSION
 	IFLA_BR_MCAST_MLD_VERSION
 	IFLA_BR_MAX = IFLA_BR_MCAST_MLD_VERSION
-)
-
-const (
-	IFLA_GTP_UNSPEC = iota
-	IFLA_GTP_FD0
-	IFLA_GTP_FD1
-	IFLA_GTP_PDP_HASHSIZE
-	IFLA_GTP_ROLE
-)
-
-const (
-	GTP_ROLE_GGSN = iota
-	GTP_ROLE_SGSN
 )

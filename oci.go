@@ -41,47 +41,68 @@ const (
 )
 
 var (
-	errNeedLinuxResource = errors.New("Linux resource cannot be empty")
+	errNeedLinuxResource     = errors.New("Linux resource cannot be empty")
+	errPrefixContIDNotUnique = errors.New("Partial container ID not unique")
 )
 
-var cgroupsMemDirPath = "/sys/fs/cgroup"
+var cgroupsDirPath = "/sys/fs/cgroup"
 
-// getContainerByPrefix returns the full containerID for a container
-// whose ID matches the specified prefix.
-//
+// getContainerInfo returns the container status and its pod ID.
+// It internally expands the container ID from the prefix provided.
 // An error is returned if >1 containers are found with the specified
 // prefix.
-func getContainerIDByPrefix(containerID string) (string, error) {
+func getContainerInfo(containerID string) (vc.ContainerStatus, string, error) {
+	var cStatus vc.ContainerStatus
+	var podID string
+
+	// container ID MUST be provided.
 	if containerID == "" {
-		return "", fmt.Errorf("Missing container ID")
+		return vc.ContainerStatus{}, "", fmt.Errorf("Missing container ID")
 	}
 
 	podStatusList, err := vc.ListPod()
 	if err != nil {
-		return "", err
+		return vc.ContainerStatus{}, "", err
 	}
 
-	var matches []string
-
+	matchFound := false
 	for _, podStatus := range podStatusList {
-		if podStatus.ID == containerID {
-			return containerID, nil
-		}
+		for _, containerStatus := range podStatus.ContainersStatus {
+			if containerStatus.ID == containerID {
+				return containerStatus, podStatus.ID, nil
+			}
 
-		if strings.HasPrefix(podStatus.ID, containerID) {
-			matches = append(matches, podStatus.ID)
+			if strings.HasPrefix(containerStatus.ID, containerID) {
+				if matchFound {
+					return vc.ContainerStatus{}, "", errPrefixContIDNotUnique
+				}
+
+				matchFound = true
+				cStatus = containerStatus
+				podID = podStatus.ID
+			}
 		}
 	}
 
-	l := len(matches)
-
-	if l == 1 {
-		return matches[0], nil
-	} else if l > 1 {
-		return "", fmt.Errorf("Partial container ID not unique")
+	if matchFound {
+		return cStatus, podID, nil
 	}
 
-	return "", nil
+	return vc.ContainerStatus{}, "", nil
+}
+
+func getExistingContainerInfo(containerID string) (vc.ContainerStatus, string, error) {
+	cStatus, podID, err := getContainerInfo(containerID)
+	if err != nil {
+		return vc.ContainerStatus{}, "", err
+	}
+
+	// container ID MUST exist.
+	if cStatus.ID == "" {
+		return vc.ContainerStatus{}, "", fmt.Errorf("Container ID does not exist")
+	}
+
+	return cStatus, podID, nil
 }
 
 func validCreateParams(containerID, bundlePath string) error {
@@ -91,12 +112,12 @@ func validCreateParams(containerID, bundlePath string) error {
 	}
 
 	// container ID MUST be unique.
-	fullID, err := getContainerIDByPrefix(containerID)
+	cStatus, _, err := getContainerInfo(containerID)
 	if err != nil {
 		return err
 	}
 
-	if fullID != "" {
+	if cStatus.ID != "" {
 		return fmt.Errorf("ID already in use, unique ID should be provided")
 	}
 
@@ -117,24 +138,6 @@ func validCreateParams(containerID, bundlePath string) error {
 	return nil
 }
 
-func expandContainerID(containerID string) (fullID string, err error) {
-	// container ID MUST be provided.
-	if containerID == "" {
-		return "", fmt.Errorf("Missing container ID")
-	}
-
-	// container ID MUST exist.
-	fullID, err = getContainerIDByPrefix(containerID)
-	if err != nil {
-		return "", err
-	}
-	if fullID == "" {
-		return "", fmt.Errorf("Container ID does not exist")
-	}
-
-	return fullID, nil
-}
-
 func processRunning(pid int) (bool, error) {
 	process, err := os.FindProcess(pid)
 	if err != nil {
@@ -148,16 +151,29 @@ func processRunning(pid int) (bool, error) {
 	return true, nil
 }
 
-func stopContainer(podStatus vc.PodStatus) error {
-	if len(podStatus.ContainersStatus) != 1 {
-		return fmt.Errorf("ContainerStatus list from PodStatus is wrong, expecting only one ContainerStatus")
+func stopContainer(podID string, status vc.ContainerStatus) error {
+	containerType, err := oci.GetContainerType(status.Annotations)
+	if err != nil {
+		return err
 	}
 
-	// Calling StopContainer allows to make sure the container is properly
-	// stopped and removed from the pod. That way, the container's state is
-	// updated to the expected "stopped" state.
-	if _, err := vc.StopContainer(podStatus.ID, podStatus.ContainersStatus[0].ID); err != nil {
-		return err
+	switch containerType {
+	case vc.PodSandbox:
+		// Calling StopPod allows to make sure the pod is properly
+		// stopped. That way, containers/pod states are updated to
+		// the expected "stopped" state.
+		if _, err := vc.StopPod(podID); err != nil {
+			return err
+		}
+	case vc.PodContainer:
+		// Calling StopContainer allows to make sure the container is
+		// properly stopped and removed from the pod. That way, the
+		// container's state is updated to the expected "stopped" state.
+		if _, err := vc.StopContainer(podID, status.ID); err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("Invalid container type found")
 	}
 
 	return nil
@@ -166,7 +182,7 @@ func stopContainer(podStatus vc.PodStatus) error {
 // processCgroupsPath process the cgroups path as expected from the
 // OCI runtime specification. It returns a list of complete paths
 // that should be created and used for every specified resource.
-func processCgroupsPath(ociSpec oci.CompatOCISpec) ([]string, error) {
+func processCgroupsPath(ociSpec oci.CompatOCISpec, isPod bool) ([]string, error) {
 	var cgroupsPathList []string
 
 	if ociSpec.Linux.CgroupsPath == "" {
@@ -178,7 +194,7 @@ func processCgroupsPath(ociSpec oci.CompatOCISpec) ([]string, error) {
 	}
 
 	if ociSpec.Linux.Resources.Memory != nil {
-		memCgroupsPath, err := processCgroupsPathForResource(ociSpec, "memory")
+		memCgroupsPath, err := processCgroupsPathForResource(ociSpec, "memory", isPod)
 		if err != nil {
 			return []string{}, err
 		}
@@ -189,7 +205,7 @@ func processCgroupsPath(ociSpec oci.CompatOCISpec) ([]string, error) {
 	}
 
 	if ociSpec.Linux.Resources.CPU != nil {
-		cpuCgroupsPath, err := processCgroupsPathForResource(ociSpec, "cpu")
+		cpuCgroupsPath, err := processCgroupsPathForResource(ociSpec, "cpu", isPod)
 		if err != nil {
 			return []string{}, err
 		}
@@ -200,7 +216,7 @@ func processCgroupsPath(ociSpec oci.CompatOCISpec) ([]string, error) {
 	}
 
 	if ociSpec.Linux.Resources.Pids != nil {
-		pidsCgroupsPath, err := processCgroupsPathForResource(ociSpec, "pids")
+		pidsCgroupsPath, err := processCgroupsPathForResource(ociSpec, "pids", isPod)
 		if err != nil {
 			return []string{}, err
 		}
@@ -211,7 +227,7 @@ func processCgroupsPath(ociSpec oci.CompatOCISpec) ([]string, error) {
 	}
 
 	if ociSpec.Linux.Resources.BlockIO != nil {
-		blkIOCgroupsPath, err := processCgroupsPathForResource(ociSpec, "blkio")
+		blkIOCgroupsPath, err := processCgroupsPathForResource(ociSpec, "blkio", isPod)
 		if err != nil {
 			return []string{}, err
 		}
@@ -224,14 +240,14 @@ func processCgroupsPath(ociSpec oci.CompatOCISpec) ([]string, error) {
 	return cgroupsPathList, nil
 }
 
-func processCgroupsPathForResource(ociSpec oci.CompatOCISpec, resource string) (string, error) {
+func processCgroupsPathForResource(ociSpec oci.CompatOCISpec, resource string, isPod bool) (string, error) {
 	if resource == "" {
 		return "", errNeedLinuxResource
 	}
 
 	// Relative cgroups path provided.
 	if filepath.IsAbs(ociSpec.Linux.CgroupsPath) == false {
-		return filepath.Join(cgroupsMemDirPath, resource, ociSpec.Linux.CgroupsPath), nil
+		return filepath.Join(cgroupsDirPath, resource, ociSpec.Linux.CgroupsPath), nil
 	}
 
 	// Absolute cgroups path provided.
@@ -245,8 +261,15 @@ func processCgroupsPathForResource(ociSpec oci.CompatOCISpec, resource string) (
 		}
 	}
 
-	if cgroupMountFound == false {
-		return "", fmt.Errorf("cgroupsPath is absolute, cgroup mount MUST exist")
+	if !cgroupMountFound {
+		if isPod {
+			return "", fmt.Errorf("cgroupsPath %q is absolute, cgroup mount MUST exist",
+				ociSpec.Linux.CgroupsPath)
+		}
+
+		// In case of container (CRI-O), if the mount point is not
+		// provided, we assume this is a relative path.
+		return filepath.Join(cgroupsDirPath, resource, ociSpec.Linux.CgroupsPath), nil
 	}
 
 	if cgroupMount.Destination == "" {

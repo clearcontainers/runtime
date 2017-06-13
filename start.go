@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	vc "github.com/containers/virtcontainers"
+	"github.com/containers/virtcontainers/pkg/oci"
 	"github.com/urfave/cli"
 )
 
@@ -49,17 +50,26 @@ var startCommand = cli.Command{
 
 func start(containerID string) (*vc.Pod, error) {
 	// Checks the MUST and MUST NOT from OCI runtime specification
-	fullID, err := expandContainerID(containerID)
+	status, podID, err := getExistingContainerInfo(containerID)
 	if err != nil {
 		return nil, err
 	}
 
-	containerID = fullID
+	containerID = status.ID
 
-	pod, err := vc.StartPod(containerID)
+	containerType, err := oci.GetContainerType(status.Annotations)
 	if err != nil {
 		return nil, err
 	}
 
-	return pod, nil
+	if containerType.IsPod() {
+		return vc.StartPod(podID)
+	}
+
+	c, err := vc.StartContainer(podID, containerID)
+	if err != nil {
+		return nil, err
+	}
+
+	return c.Pod(), nil
 }

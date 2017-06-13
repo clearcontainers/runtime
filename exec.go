@@ -159,34 +159,25 @@ func generateExecParams(context *cli.Context) (execParams, error) {
 }
 
 func execute(params execParams) error {
-	fullID, err := expandContainerID(params.cID)
+	status, podID, err := getExistingContainerInfo(params.cID)
 	if err != nil {
 		return err
 	}
 
-	params.cID = fullID
-
-	podStatus, err := vc.StatusPod(params.cID)
-	if err != nil {
-		return err
-	}
-
-	if len(podStatus.ContainersStatus) != 1 {
-		return fmt.Errorf("BUG: ContainerStatus list from PodStatus %s is wrong, expecting only one ContainerStatus: %v", params.cID, podStatus.ContainersStatus)
-	}
+	params.cID = status.ID
 
 	// container MUST be running
-	if podStatus.ContainersStatus[0].State.State != vc.StateRunning {
+	if status.State.State != vc.StateRunning {
 		return fmt.Errorf("Container %s is not running", params.cID)
 	}
 
 	// Check status of process running inside the container
-	running, err := processRunning(podStatus.ContainersStatus[0].PID)
+	running, err := processRunning(status.PID)
 	if err != nil {
 		return err
 	}
 	if running == false {
-		if err := stopContainer(podStatus); err != nil {
+		if err := stopContainer(podID, status); err != nil {
 			return err
 		}
 
@@ -207,7 +198,7 @@ func execute(params execParams) error {
 		Console:     params.console,
 	}
 
-	_, _, process, err := vc.EnterContainer(params.cID, podStatus.ContainersStatus[0].ID, cmd)
+	_, _, process, err := vc.EnterContainer(podID, params.cID, cmd)
 	if err != nil {
 		return err
 	}

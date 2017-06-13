@@ -68,3 +68,15 @@ sudo install --owner root --group root --mode 0755 .${cc_img_path}/vmlinux-${ker
 
 echo -e "Create symbolic link ${cc_img_path}/${cc_kernel_link_name}"
 sudo ln -fs ${cc_img_path}/vmlinux-${kernel_version}.container ${cc_img_path}/${cc_kernel_link_name}
+
+echo "Install nsenter"
+util_linux_path="util-linux"
+chronic sudo apt-get install -y autopoint
+git clone git://git.kernel.org/pub/scm/utils/util-linux/util-linux.git
+pushd ${util_linux_path}
+./autogen.sh
+./configure --without-python --disable-all-programs --enable-nsenter
+make
+sudo cp nsenter /usr/bin/
+popd
+rm -rf ${util_linux_path}
