@@ -85,6 +85,8 @@ func run(context *cli.Context) error {
 		if err != nil {
 			return err
 		}
+		// close and restore console
+		defer console.Close()
 
 		// now consolePath is the slave pts
 		consolePath = console.Path()
@@ -100,7 +102,7 @@ func run(context *cli.Context) error {
 
 	detach := context.Bool("detach")
 
-	if !detach {
+	if !detach && isTerminal(os.Stdout.Fd()) {
 		wg.Add(1)
 		go io.Copy(console, os.Stdin)
 		go func() {
@@ -111,8 +113,9 @@ func run(context *cli.Context) error {
 		// Save console state because it will be restored once container ends
 		consoleState, err = term.SetRawTerminal(os.Stdin.Fd())
 		if err != nil {
-			return nil
+			return err
 		}
+		defer term.RestoreTerminal(os.Stdin.Fd(), consoleState)
 	}
 
 	pod, err := start(context.Args().First())
@@ -143,10 +146,6 @@ func run(context *cli.Context) error {
 
 		// wait for routines
 		wg.Wait()
-
-		// close and restore console
-		console.Close()
-		term.RestoreTerminal(os.Stdin.Fd(), consoleState)
 
 		//runtime should forward container exit code to the system
 		return cli.NewExitError("", ps.Sys().(syscall.WaitStatus).ExitStatus())

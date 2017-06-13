@@ -42,3 +42,21 @@ func TestNewConsole(t *testing.T) {
 		t.Fatalf("console file is nil")
 	}
 }
+
+func TestIsTerminal(t *testing.T) {
+	var fd uintptr = 4
+	if isTerminal(fd) {
+		t.Fatalf("Fd %d is not a terminal", fd)
+	}
+
+	console, err := newConsole()
+	if err != nil {
+		t.Fatalf("failed to create a new console: %s", err)
+	}
+	defer console.Close()
+
+	fd = console.File().Fd()
+	if !isTerminal(fd) {
+		t.Fatalf("Fd %d is a terminal", fd)
+	}
+}

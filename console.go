@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"syscall"
 	"unsafe"
 
 	"golang.org/x/sys/unix"
@@ -34,6 +35,13 @@ type Console struct {
 
 	master    *os.File
 	slavePath string
+}
+
+// isTerminal returns true if fd is a terminal, else false
+func isTerminal(fd uintptr) bool {
+	var termios syscall.Termios
+	_, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, syscall.TCGETS, uintptr(unsafe.Pointer(&termios)))
+	return err == 0
 }
 
 // ConsoleFromFile creates a console from a file
