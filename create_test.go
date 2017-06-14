@@ -89,9 +89,9 @@ func TestCreatePIDFileSuccessful(t *testing.T) {
 	os.RemoveAll(pidFilePath)
 }
 
-func TestCreatePIDFileEmptyPathFailure(t *testing.T) {
+func TestCreatePIDFileEmptyPathSuccessful(t *testing.T) {
 	file := ""
-	if err := createPIDFile(file, testPID); err == nil {
-		t.Fatalf("This test should fail (pidFilePath %q, pid %d)", file, testPID)
+	if err := createPIDFile(file, testPID); err != nil {
+		t.Fatalf("This test should not fail (pidFilePath %q, pid %d)", file, testPID)
 	}
 }
