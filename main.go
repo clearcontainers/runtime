@@ -104,6 +104,8 @@ func main() {
 		killCommand,
 		listCommand,
 		runCommand,
+		pauseCommand,
+		resumeCommand,
 		startCommand,
 		stateCommand,
 		versionCommand,
