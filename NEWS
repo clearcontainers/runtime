@@ -1,0 +1,6 @@
+3.0.0-alpha.0
+    First Clear Container 3.0.0 alpha release
+    Support for Docker create, run, version, list, exec, rm, stop
+    Initial CRI-O support
+    CNM and CNI networking enabled
+    Travis and Semaphore CI support
