@@ -44,6 +44,11 @@
 		"version": "23def4e",
 		"license": "Apache v2.0"
 	},
+	"github.com/gophercloud/gophercloud": {
+		"url": "https://github.com/gophercloud/gophercloud.git",
+		"version": "268e995",
+		"license": "Apache v2.0"
+	},
 	"github.com/gorilla/mux": {
 		"url": "https://github.com/gorilla/mux.git",
 		"version": "757bef9",
@@ -68,11 +73,6 @@
 		"url": "https://github.com/pkg/errors.git",
 		"version": "248dadf",
 		"license": "BSD (2-clause)"
-	},
-	"github.com/rackspace/gophercloud": {
-		"url": "https://github.com/rackspace/gophercloud.git",
-		"version": "1f02c2b",
-		"license": "Apache v2.0"
 	},
 	"github.com/vishvananda/netlink": {
 		"url": "https://github.com/vishvananda/netlink.git",

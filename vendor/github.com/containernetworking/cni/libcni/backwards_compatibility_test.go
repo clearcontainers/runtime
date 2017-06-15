@@ -55,20 +55,24 @@ var _ = Describe("Backwards compatibility", func() {
 	})
 
 	It("correctly handles the request from a runtime with an older libcni", func() {
+		// We need to be root (or have CAP_SYS_ADMIN...)
+		if os.Geteuid() != 0 {
+			Fail("must be run as root")
+		}
+
 		example := legacy_examples.V010_Runtime
 
 		binPath, err := example.Build()
 		Expect(err).NotTo(HaveOccurred())
 
 		for _, configName := range example.NetConfs {
-			conf, err := example.GenerateNetConf(configName)
-			if err != nil {
-				Fail("Failed to generate config name " + configName + ": " + err.Error())
+			configStr, ok := legacy_examples.NetConfs[configName]
+			if !ok {
+				Fail("Invalid config name " + configName)
 			}
-			defer conf.Cleanup()
 
 			cmd := exec.Command(binPath, pluginDirs...)
-			cmd.Stdin = strings.NewReader(conf.Config)
+			cmd.Stdin = strings.NewReader(configStr)
 
 			session, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
 			Expect(err).NotTo(HaveOccurred())

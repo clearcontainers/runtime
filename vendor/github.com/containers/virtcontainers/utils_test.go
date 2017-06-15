@@ -116,3 +116,15 @@ func TestFileCopySourceNotExistFailure(t *testing.T) {
 		t.Fatal("This test should fail because source file does not exist")
 	}
 }
+
+func TestGenerateRandomBytes(t *testing.T) {
+	bytesNeeded := 8
+	randBytes, err := generateRandomBytes(bytesNeeded)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(randBytes) != bytesNeeded {
+		t.Fatalf("Failed to generate %d random bytes", bytesNeeded)
+	}
+}

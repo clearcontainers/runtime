@@ -33,7 +33,7 @@ func clearReadTimeout(conn net.Conn) {
 }
 
 func setWriteTimeout(conn net.Conn) {
-	conn.SetWriteDeadline(time.Now().Add(readTimeout * time.Second))
+	conn.SetWriteDeadline(time.Now().Add(writeTimeout * time.Second))
 }
 
 func clearWriteTimeout(conn net.Conn) {

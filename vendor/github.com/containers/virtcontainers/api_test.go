@@ -23,6 +23,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -412,6 +414,53 @@ func TestStopPodNoopAgentSuccessful(t *testing.T) {
 	p, err = StopPod(p.id)
 	if p == nil || err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestPauseThenResumePodNoopAgentSuccessful(t *testing.T) {
+	cleanUp()
+
+	config := newTestPodConfigNoop()
+
+	p, _, err := createAndStartPod(config)
+	if p == nil || err != nil {
+		t.Fatal(err)
+	}
+
+	contID := "100"
+	contConfig := newTestContainerConfigNoop(contID)
+
+	_, c, err := CreateContainer(p.id, contConfig)
+	if c == nil || err != nil {
+		t.Fatal(err)
+	}
+
+	p, err = PausePod(p.id)
+	if p == nil || err != nil {
+		t.Fatal(err)
+	}
+
+	expectedState := StatePaused
+
+	assert.Equal(t, p.state.State, expectedState, "unexpected paused pod state")
+
+	for i, c := range p.GetAllContainers() {
+		assert.Equal(t, expectedState, c.state.State,
+			fmt.Sprintf("paused container %d has unexpected state", i))
+	}
+
+	p, err = ResumePod(p.id)
+	if p == nil || err != nil {
+		t.Fatal(err)
+	}
+
+	expectedState = StateRunning
+
+	assert.Equal(t, p.state.State, expectedState, "unexpected resumed pod state")
+
+	for i, c := range p.GetAllContainers() {
+		assert.Equal(t, c.state.State, expectedState,
+			fmt.Sprintf("resumed container %d has unexpected state", i))
 	}
 }
 

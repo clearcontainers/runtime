@@ -45,6 +45,9 @@ const (
 
 	// lockFileType represents a lock file type (pod only)
 	lockFileType
+
+	// mountsFileType represents a mount file type
+	mountsFileType
 )
 
 // configFile is the file name used for every JSON pod configuration.
@@ -61,6 +64,8 @@ const processFile = "process.json"
 
 // lockFile is the file name locking the usage of a pod.
 const lockFileName = "lock"
+
+const mountsFile = "mounts.json"
 
 // dirMode is the permission bits used for creating a directory
 const dirMode = os.FileMode(0750)
@@ -103,6 +108,8 @@ type resourceStorage interface {
 	fetchContainerState(podID, containerID string) (State, error)
 	fetchContainerProcess(podID, containerID string) (Process, error)
 	storeContainerProcess(podID, containerID string, process Process) error
+	fetchContainerMounts(podID, containerID string) ([]Mount, error)
+	storeContainerMounts(podID, containerID string, mounts []Mount) error
 }
 
 // filesystem is a resourceStorage interface implementation for a local filesystem.
@@ -217,7 +224,7 @@ func resourceDir(podSpecific bool, podID, containerID string, resource podResour
 	case configFileType:
 		path = configStoragePath
 		break
-	case stateFileType, networkFileType, processFileType, lockFileType:
+	case stateFileType, networkFileType, processFileType, lockFileType, mountsFileType:
 		path = runStoragePath
 		break
 	default:
@@ -257,6 +264,9 @@ func (fs *filesystem) resourceURI(podSpecific bool, podID, containerID string, r
 		filename = processFile
 	case lockFileType:
 		filename = lockFileName
+		break
+	case mountsFileType:
+		filename = mountsFile
 		break
 	default:
 		return "", "", fmt.Errorf("Invalid pod resource")
@@ -351,6 +361,17 @@ func (fs *filesystem) storeResource(podSpecific bool, podID, containerID string,
 		}
 
 		return fs.storeFile(processFile, file)
+	case []Mount:
+		if resource != mountsFileType {
+			return fmt.Errorf("Invalid pod resource")
+		}
+
+		mountsFile, _, err := fs.resourceURI(podSpecific, podID, containerID, mountsFileType)
+		if err != nil {
+			return err
+		}
+
+		return fs.storeFile(mountsFile, file)
 
 	default:
 		return fmt.Errorf("Invalid resource data type")
@@ -413,8 +434,16 @@ func (fs *filesystem) fetchResource(podSpecific bool, podID, containerID string,
 		}
 
 		return process, nil
-	}
 
+	case mountsFileType:
+		mounts := []Mount{}
+		err = fs.fetchFile(path, &mounts)
+		if err != nil {
+			return nil, err
+		}
+
+		return mounts, nil
+	}
 	return nil, fmt.Errorf("Invalid pod resource")
 }
 
@@ -568,6 +597,32 @@ func (fs *filesystem) fetchContainerProcess(podID, containerID string) (Process,
 
 func (fs *filesystem) storeContainerProcess(podID, containerID string, process Process) error {
 	return fs.storeContainerResource(podID, containerID, processFileType, process)
+}
+
+func (fs *filesystem) fetchContainerMounts(podID, containerID string) ([]Mount, error) {
+	if podID == "" {
+		return []Mount{}, errNeedPodID
+	}
+
+	if containerID == "" {
+		return []Mount{}, errNeedContainerID
+	}
+
+	data, err := fs.fetchResource(false, podID, containerID, mountsFileType)
+	if err != nil {
+		return []Mount{}, err
+	}
+
+	switch mounts := data.(type) {
+	case []Mount:
+		return mounts, nil
+	default:
+		return []Mount{}, fmt.Errorf("Unknown mounts type : [%T]", mounts)
+	}
+}
+
+func (fs *filesystem) storeContainerMounts(podID, containerID string, mounts []Mount) error {
+	return fs.storeContainerResource(podID, containerID, mountsFileType, mounts)
 }
 
 func (fs *filesystem) deleteContainerResources(podID, containerID string, resources []podResource) error {

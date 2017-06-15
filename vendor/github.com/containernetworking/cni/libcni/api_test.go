@@ -297,7 +297,6 @@ var _ = Describe("Invoking plugins", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				Expect(result).To(Equal(&current.Result{
-					CNIVersion: current.ImplementedSpecVersion,
 					IPs: []*current.IPConfig{
 						{
 							Version: "4",
@@ -480,7 +479,6 @@ var _ = Describe("Invoking plugins", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				Expect(result).To(Equal(&current.Result{
-					CNIVersion: current.ImplementedSpecVersion,
 					// IP4 added by first plugin
 					IPs: []*current.IPConfig{
 						{
