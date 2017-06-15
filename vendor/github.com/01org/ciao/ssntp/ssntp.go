@@ -955,7 +955,7 @@ type boolFlag struct {
 type ssntpStatus uint32
 
 const (
-	ssntpIdle ssntpStatus = iota
+	_ ssntpStatus = iota
 	ssntpConnecting
 	ssntpConnected
 	ssntpClosed

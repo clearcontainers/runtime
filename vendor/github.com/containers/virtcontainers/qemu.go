@@ -598,6 +598,53 @@ func (q *qemu) stopPod() error {
 	return nil
 }
 
+func (q *qemu) togglePausePod(pause bool) error {
+	defer func(qemu *qemu) {
+		if q.qmpMonitorCh.qmp != nil {
+			q.qmpMonitorCh.qmp.Shutdown()
+		}
+	}(q)
+
+	cfg := ciaoQemu.QMPConfig{Logger: qmpLogger{}}
+
+	// Auto-closed by QMPStart().
+	disconnectCh := make(chan struct{})
+
+	qmp, _, err := ciaoQemu.QMPStart(q.qmpControlCh.ctx, q.qmpControlCh.path, cfg, disconnectCh)
+	if err != nil {
+		virtLog.Errorf("Failed to connect to QEMU instance %v", err)
+		return err
+	}
+
+	q.qmpMonitorCh.qmp = qmp
+
+	err = qmp.ExecuteQMPCapabilities(q.qmpMonitorCh.ctx)
+	if err != nil {
+		virtLog.Errorf("Failed to negotiate capabilities with QEMU %v", err)
+		return err
+	}
+
+	if pause {
+		err = q.qmpMonitorCh.qmp.ExecuteStop(q.qmpMonitorCh.ctx)
+	} else {
+		err = q.qmpMonitorCh.qmp.ExecuteCont(q.qmpMonitorCh.ctx)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (q *qemu) pausePod() error {
+	return q.togglePausePod(true)
+}
+
+func (q *qemu) resumePod() error {
+	return q.togglePausePod(false)
+}
+
 // addDevice will add extra devices to Qemu command line.
 func (q *qemu) addDevice(devInfo interface{}, devType deviceType) error {
 	switch devType {

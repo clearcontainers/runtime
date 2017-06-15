@@ -45,6 +45,21 @@ type ContainerStatus struct {
 	Annotations map[string]string
 }
 
+// Mount describes a container mount.
+type Mount struct {
+	Source      string
+	Destination string
+
+	// Type specifies the type of filesystem to mount.
+	Type string
+
+	// Options list all the mount options of the filesystem.
+	Options []string
+
+	// HostPath used to store host side bind mount path
+	HostPath string
+}
+
 // ContainerConfig describes one container runtime configuration.
 type ContainerConfig struct {
 	ID string
@@ -62,6 +77,8 @@ type ContainerConfig struct {
 	// for example to add additional status values required
 	// to support particular specifications.
 	Annotations map[string]string
+
+	Mounts []Mount
 }
 
 // valid checks that the container configuration is valid.
@@ -96,6 +113,8 @@ type Container struct {
 	state State
 
 	process Process
+
+	mounts []Mount
 }
 
 // ID returns the container identifier string.
@@ -172,6 +191,14 @@ func (c *Container) fetchProcess() (Process, error) {
 	return c.pod.storage.fetchContainerProcess(c.podID, c.id)
 }
 
+func (c *Container) storeMounts() error {
+	return c.pod.storage.storeContainerMounts(c.podID, c.id, c.mounts)
+}
+
+func (c *Container) fetchMounts() ([]Mount, error) {
+	return c.pod.storage.fetchContainerMounts(c.podID, c.id)
+}
+
 // fetchContainer fetches a container config from a pod ID and returns a Container.
 func fetchContainer(pod *Pod, containerID string) (*Container, error) {
 	if pod == nil {
@@ -204,15 +231,19 @@ func (c *Container) storeContainer() error {
 	return nil
 }
 
+// setContainerState sets both the in-memory and on-disk state of the
+// container.
 func (c *Container) setContainerState(state stateString) error {
 	if state == "" {
 		return errNeedState
 	}
 
+	// update in-memory state
 	c.state = State{
 		State: state,
 	}
 
+	// update on-disk state
 	err := c.pod.storage.storeContainerResource(c.podID, c.id, stateFileType, c.state)
 	if err != nil {
 		return err
@@ -259,6 +290,7 @@ func createContainers(pod *Pod, contConfigs []ContainerConfig) ([]*Container, er
 			containerPath: filepath.Join(pod.id, contConfig.ID),
 			state:         State{},
 			process:       Process{},
+			mounts:        contConfig.Mounts,
 		}
 
 		state, err := c.pod.storage.fetchContainerState(c.podID, c.id)
@@ -269,6 +301,11 @@ func createContainers(pod *Pod, contConfigs []ContainerConfig) ([]*Container, er
 		process, err := c.pod.storage.fetchContainerProcess(c.podID, c.id)
 		if err == nil {
 			c.process = process
+		}
+
+		mounts, err := c.fetchMounts()
+		if err == nil {
+			c.mounts = mounts
 		}
 
 		containers = append(containers, c)
@@ -307,6 +344,11 @@ func createContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 	process, err := c.fetchProcess()
 	if err == nil {
 		c.process = process
+	}
+
+	mounts, err := c.fetchMounts()
+	if err == nil {
+		c.mounts = mounts
 	}
 
 	state, err := c.pod.storage.fetchContainerState(c.podID, c.id)
@@ -409,6 +451,8 @@ func (c *Container) start() error {
 		c.stop()
 		return err
 	}
+
+	c.storeMounts()
 
 	err = c.setContainerState(StateRunning)
 	if err != nil {

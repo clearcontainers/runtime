@@ -32,7 +32,9 @@ func TestLibcni(t *testing.T) {
 }
 
 var plugins = map[string]string{
-	"noop": "github.com/containernetworking/cni/plugins/test/noop",
+	"noop":       "github.com/containernetworking/cni/plugins/test/noop",
+	"ptp":        "github.com/containernetworking/cni/plugins/main/ptp",
+	"host-local": "github.com/containernetworking/cni/plugins/ipam/host-local",
 }
 
 var pluginPaths map[string]string

@@ -47,7 +47,6 @@ func testResult() *current.Result {
 
 	// Set every field of the struct to ensure source compatibility
 	return &current.Result{
-		CNIVersion: "0.3.1",
 		Interfaces: []*current.Interface{
 			{
 				Name:    "eth0",
@@ -104,7 +103,6 @@ var _ = Describe("Current types operations", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		Expect(string(out)).To(Equal(`{
-    "cniVersion": "0.3.1",
     "interfaces": [
         {
             "name": "eth0",
@@ -174,7 +172,6 @@ var _ = Describe("Current types operations", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		Expect(string(out)).To(Equal(`{
-    "cniVersion": "0.2.0",
     "ip4": {
         "ip": "1.2.3.30/24",
         "gateway": "1.2.3.1",
