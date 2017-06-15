@@ -214,7 +214,8 @@ func createCgroupsFiles(cgroupsPathList []string, pid int) error {
 
 func createPIDFile(pidFilePath string, pid int) error {
 	if pidFilePath == "" {
-		return fmt.Errorf("Missing PID file path")
+		// runtime should not fail since pid file is optional
+		return nil
 	}
 
 	if err := os.RemoveAll(pidFilePath); err != nil {
