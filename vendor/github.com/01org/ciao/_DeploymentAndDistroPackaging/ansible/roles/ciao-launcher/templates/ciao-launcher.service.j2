@@ -1,0 +1,14 @@
+[Unit]
+Description=CIAO Launcher Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/ciao-launcher --cacert=/etc/pki/ciao/CAcert-{{ ciao_controller_fqdn }}.pem \
+                                 --cert=/etc/pki/ciao/{{ role_key }} \
+                                 --v 3
+Restart=always
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target

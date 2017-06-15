@@ -36,11 +36,17 @@ The plan is to use OCI projects and best of breed libraries for different aspect
 
 It is currently in active development in the Kubernetes community through the [design proposal](https://github.com/kubernetes/kubernetes/pull/26788).  Questions and issues should be raised in the Kubernetes [sig-node Slack channel](https://kubernetes.slack.com/archives/sig-node).
 
+## Communication
+
+For async communication and long running discussions please use issues and pull requests on the github repo. This will be the best place to discuss design and implementation.
+
+For sync communication we have an IRC channel #cri-o, on chat.freenode.net, that everyone is welcome to join and chat about development.
+
 ## Getting started
 
 ### Prerequisites
 
-`runc` version 1.0.0.rc1 or greater is expected to be installed on the system. It is picked up as the default runtime by crio.
+Latest verion of `runc` is expected to be installed on the system. It is picked up as the default runtime by crio.
 
 ### Build Dependencies
 
@@ -177,9 +183,11 @@ To run a full cluster, see [the instructions](kubernetes.md).
 
 ### Current Roadmap
 
-1. Basic pod/container lifecycle, basic image pull (already works)
-1. Support for tty handling and state management
-1. Basic integration with kubelet once client side changes are ready
-1. Support for log management, networking integration using CNI, pluggable image/storage management
-1. Support for exec/attach
-1. Target fully automated kubernetes testing without failures
+1. Basic pod/container lifecycle, basic image pull (done)
+1. Support for tty handling and state management (done)
+1. Basic integration with kubelet once client side changes are ready (done)
+1. Support for log management, networking integration using CNI, pluggable image/storage management (done)
+1. Support for exec/attach (done)
+1. Target fully automated kubernetes testing without failures [e2e status](https://github.com/kubernetes-incubator/cri-o/issues/533)
+1. Release 1.0
+1. Track upstream k8s releases

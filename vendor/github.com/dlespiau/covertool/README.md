@@ -30,7 +30,7 @@ Finally, the `example/calc` directory contains a fully working example:
 ```
 $ cd $GOPATH/src/github.com/dlespiau/covertool/examples/calc
 $ ./run-tests.sh 
-• Build the coverage-instructed version of calc
+• Build the coverage-instrumented version of calc
 
 • Run the unit tests
 PASS

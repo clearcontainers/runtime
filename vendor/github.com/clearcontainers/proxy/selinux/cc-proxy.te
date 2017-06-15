@@ -1,0 +1,12 @@
+module cc-proxy 1.0;
+
+require {
+        type init_t;
+        type unconfined_service_t;
+        class unix_stream_socket { bind create listen setopt };
+}
+
+#============= init_t ==============
+
+allow init_t unconfined_service_t:unix_stream_socket { listen bind create setopt };
+

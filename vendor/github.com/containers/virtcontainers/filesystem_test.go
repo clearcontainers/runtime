@@ -325,6 +325,115 @@ func TestFilesystemFetchContainerConfigFailingPodIDEmpty(t *testing.T) {
 	}
 }
 
+func TestFilesystemFetchContainerMountsSuccessful(t *testing.T) {
+	fs := &filesystem{}
+	contID := "100"
+
+	contMountsDir := filepath.Join(runStoragePath, testPodID, contID)
+	os.MkdirAll(contMountsDir, dirMode)
+
+	path := filepath.Join(contMountsDir, mountsFile)
+	os.Remove(path)
+
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	source := "/dev/sda1"
+	dest := "/root"
+	mntType := "ext4"
+	options := "rw"
+	hostPath := "/tmp/root"
+
+	mountData := fmt.Sprintf(`
+		[
+		  {
+			"Source":"%s",
+			"Destination":"%s",
+			"Type":"%s",
+			"Options": ["%s"],
+			"HostPath":"%s"
+		  }
+		]
+	`, source, dest, mntType, options, hostPath)
+
+	n, err := f.WriteString(mountData)
+	if err != nil || n != len(mountData) {
+		f.Close()
+		t.Fatal(err)
+	}
+	f.Close()
+
+	data, err := fs.fetchContainerMounts(testPodID, contID)
+	if err != nil {
+		data, _ := ioutil.ReadFile(path)
+		t.Logf("Data from file : %s", string(data[:]))
+		t.Fatal(err)
+	}
+
+	expected := []Mount{
+		{
+			Source:      source,
+			Destination: dest,
+			Type:        mntType,
+			Options:     []string{"rw"},
+			HostPath:    hostPath,
+		},
+	}
+
+	if reflect.DeepEqual(data, expected) == false {
+		t.Fatalf("Expected : [%v]\n, Got : [%v]\n", expected, data)
+	}
+}
+
+func TestFilesystemFetchContainerMountsInvalidType(t *testing.T) {
+	fs := &filesystem{}
+	contID := "100"
+
+	contMountsDir := filepath.Join(runStoragePath, testPodID, contID)
+	os.MkdirAll(contMountsDir, dirMode)
+
+	path := filepath.Join(contMountsDir, mountsFile)
+	os.Remove(path)
+
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	configData := fmt.Sprintf("{\"ID\":\"%s\",\"RootFs\":\"rootfs\"}", contID)
+	n, err := f.WriteString(configData)
+	if err != nil || n != len(configData) {
+		f.Close()
+		t.Fatal(err)
+	}
+	f.Close()
+
+	_, err = fs.fetchContainerMounts(testPodID, contID)
+	if err == nil {
+		t.Fatal()
+	}
+}
+
+func TestFilesystemFetchContainerMountsFailingContIDEmpty(t *testing.T) {
+	fs := &filesystem{}
+
+	_, err := fs.fetchContainerMounts(testPodID, "")
+	if err == nil {
+		t.Fatal()
+	}
+}
+
+func TestFilesystemFetchContainerMountsFailingPodIDEmpty(t *testing.T) {
+	fs := &filesystem{}
+
+	_, err := fs.fetchContainerMounts("", "100")
+	if err == nil {
+		t.Fatal()
+	}
+}
+
 func TestFilesystemResourceDirFailingPodIDEmpty(t *testing.T) {
 	for _, b := range []bool{true, false} {
 		_, err := resourceDir(b, "", "", configFileType)

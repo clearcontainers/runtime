@@ -1,3 +1,14 @@
+1.0.0-rc.0:
+	Added pod pause and resume support
+	Added bind mounts support
+	Added CRI-O support
+	Added QEMU Q35 machine type support
+	Added readonly rootfs support
+	Added annotations passing to the OCI config file
+	Fixed hyperstart users and groups management
+	Fixed the installation and build scripts
+	Fixed networking MAC address configuration
+
 0.7.0:
 	Added Clear Containers 3.0 shim support
 	Added Clear Containers 3.0 proxy protocol support

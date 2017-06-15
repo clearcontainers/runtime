@@ -163,6 +163,30 @@ func containerHooks(spec CompatOCISpec) vc.Hooks {
 	return hooks
 }
 
+func newMount(m spec.Mount) vc.Mount {
+	return vc.Mount{
+		Source:      m.Source,
+		Destination: m.Destination,
+		Type:        m.Type,
+		Options:     m.Options,
+	}
+}
+
+func containerMounts(spec CompatOCISpec) []vc.Mount {
+	ociMounts := spec.Spec.Mounts
+
+	if ociMounts == nil {
+		return []vc.Mount{}
+	}
+
+	var mnts []vc.Mount
+	for _, m := range ociMounts {
+		mnts = append(mnts, newMount(m))
+	}
+
+	return mnts
+}
+
 func networkConfig(ocispec CompatOCISpec) (vc.NetworkConfig, error) {
 	linux := ocispec.Linux
 	if linux == nil {
@@ -339,6 +363,7 @@ func ContainerConfig(ocispec CompatOCISpec, bundlePath, cid, console string) (vc
 			ConfigPathKey: configPath,
 			BundlePathKey: bundlePath,
 		},
+		Mounts: containerMounts(ocispec),
 	}
 
 	cType, err := ocispec.ContainerType()

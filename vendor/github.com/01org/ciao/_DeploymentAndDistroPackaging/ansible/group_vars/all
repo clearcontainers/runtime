@@ -1,0 +1,34 @@
+---
+controller_fqdn: "{{ hostvars[groups['controllers'][0]]['ansible_fqdn'] }}"
+
+# ceph: https://github.com/01org/ciao/tree/master/_DeploymentAndDistroPackaging/ansible/roles/ceph
+ceph_config: files
+ceph_config_dir: ./ceph
+
+# keystone: https://github.com/01org/ciao/tree/master/_DeploymentAndDistroPackaging/ansible/roles/keystone
+keystone_fqdn: "{{ controller_fqdn }}"
+keystone_admin_password: adminUserPassword
+mysql_data: /var/lib/mysql
+
+# ciao-common: https://github.com/01org/ciao/tree/master/_DeploymentAndDistroPackaging/ansible/roles/ciao-common
+ciao_controller_fqdn: "{{ controller_fqdn }}"
+
+# ciao-controller: https://github.com/01org/ciao/tree/master/_DeploymentAndDistroPackaging/ansible/roles/ciao-controller
+ciao_service_user: ciao
+ciao_service_password: ciaoUserPassword
+
+# Create a demo project and a demo user for ciao
+keystone_projects:
+  - project: demo
+    description: Demo Project
+  - project: service
+    description: Service Project
+keystone_users:
+  - user: demo
+    password: demoUserPassword
+    project: demo
+    email: demo@example.com
+keystone_user_roles:
+  - user: demo
+    project: demo
+    role: user
