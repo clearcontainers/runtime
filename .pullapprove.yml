@@ -41,7 +41,10 @@ groups:
   documentation:
     conditions:
       files:
-        - "*.md"
+        include:
+          - "*.md"
+        exclude:
+          - "vendor/*"
     required: 1
     teams:
       - documentation
