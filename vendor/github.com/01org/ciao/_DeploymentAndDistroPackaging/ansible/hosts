@@ -1,0 +1,8 @@
+[controllers]
+controller.example.com
+
+[networks]
+network.example.com
+
+[computes]
+compute.example.com

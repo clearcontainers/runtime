@@ -630,3 +630,15 @@ func KillContainer(podID, containerID string, signal syscall.Signal, all bool) e
 
 	return nil
 }
+
+// PausePod is the virtcontainers pausing entry point which pauses an
+// already running pod.
+func PausePod(podID string) (*Pod, error) {
+	return togglePausePod(podID, true)
+}
+
+// ResumePod is the virtcontainers resuming entry point which resumes
+// (or unpauses) and already paused pod.
+func ResumePod(podID string) (*Pod, error) {
+	return togglePausePod(podID, false)
+}

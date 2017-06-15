@@ -86,51 +86,6 @@ const minimalConfig = `
 				"mode=0620",
 				"gid=5"
 			]
-		},
-		{
-			"destination": "/dev/shm",
-			"type": "tmpfs",
-			"source": "shm",
-			"options": [
-				"nosuid",
-				"noexec",
-				"nodev",
-				"mode=1777",
-				"size=65536k"
-			]
-		},
-		{
-			"destination": "/dev/mqueue",
-			"type": "mqueue",
-			"source": "mqueue",
-			"options": [
-				"nosuid",
-				"noexec",
-				"nodev"
-			]
-		},
-		{
-			"destination": "/sys",
-			"type": "sysfs",
-			"source": "sysfs",
-			"options": [
-				"nosuid",
-				"noexec",
-				"nodev",
-				"ro"
-			]
-		},
-		{
-			"destination": "/sys/fs/cgroup",
-			"type": "cgroup",
-			"source": "cgroup",
-			"options": [
-				"nosuid",
-				"noexec",
-				"nodev",
-				"relatime",
-				"ro"
-			]
 		}
 	],
 	"hooks": {},

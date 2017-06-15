@@ -1,0 +1,7 @@
+description: "Ubuntu latest container"
+vm_type: docker
+image_name: "ubuntu:latest"
+defaults:
+  vcpus: 2
+  mem_mb: 512
+cloud_init: "docker-ubuntu.yaml"

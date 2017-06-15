@@ -123,14 +123,21 @@ func TestPodStateReadyRunning(t *testing.T) {
 }
 
 func TestPodStateRunningPaused(t *testing.T) {
-	err := testPodStateTransition(t, StateRunning, StateStopped)
+	err := testPodStateTransition(t, StateRunning, StatePaused)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestPodStatePausedRunning(t *testing.T) {
-	err := testPodStateTransition(t, StateStopped, StateRunning)
+	err := testPodStateTransition(t, StatePaused, StateRunning)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPodStatePausedStopped(t *testing.T) {
+	err := testPodStateTransition(t, StatePaused, StateStopped)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -257,6 +264,7 @@ func testStateValid(t *testing.T, stateStr stateString, expected bool) {
 func TestStateValidSuccessful(t *testing.T) {
 	testStateValid(t, StateReady, true)
 	testStateValid(t, StateRunning, true)
+	testStateValid(t, StatePaused, true)
 	testStateValid(t, StateStopped, true)
 }
 
@@ -443,6 +451,142 @@ func TestPodEnterSuccessful(t *testing.T) {
 	pod := &Pod{}
 
 	err := pod.enter([]string{})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPodSetPodAndContainerState(t *testing.T) {
+	contID := "505"
+	contConfig := newTestContainerConfigNoop(contID)
+	hConfig := newHypervisorConfig(nil, nil)
+
+	// create a pod
+	p, err := testCreatePod(t, testPodID, MockHypervisor, hConfig, NoopAgentType, NoopNetworkModel, NetworkConfig{}, []ContainerConfig{contConfig}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	l := len(p.GetAllContainers())
+	if l != 1 {
+		t.Fatalf("Expected 1 container found %v", l)
+	}
+
+	initialPodState := State{
+		State: StateReady,
+		URL:   "",
+	}
+
+	// initially, a container has an empty state
+	initialContainerState := State{
+		State: "",
+		URL:   "",
+	}
+
+	if p.state.State != initialPodState.State {
+		t.Errorf("Expected pod state %v, got %v", initialPodState.State, p.state.State)
+	}
+
+	if p.state.URL != initialPodState.URL {
+		t.Errorf("Expected pod state URL %v, got %v", initialPodState.URL, p.state.URL)
+	}
+
+	c, err := p.getContainer(contID)
+	if err != nil {
+		t.Fatalf("Failed to retrieve container %v: %v", contID, err)
+	}
+
+	if c.state.State != initialContainerState.State {
+		t.Errorf("Expected container state %v, got %v", initialContainerState.State, c.state.State)
+	}
+
+	if c.state.URL != initialContainerState.URL {
+		t.Errorf("Expected container state URL %v, got %v", initialContainerState.URL, c.state.URL)
+	}
+
+	// persist to disk
+	err = p.storePod()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	newPodState := State{
+		State: StateRunning,
+		URL:   "http://pod/url",
+	}
+
+	newContainerState := State{
+		State: StateStopped,
+		URL:   "",
+	}
+
+	// force pod state change
+	err = p.setPodState(newPodState)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v (pod %+v)", err, p)
+	}
+
+	// check the in-memory state is correct
+	if p.state.State != newPodState.State {
+		t.Errorf("Expected state %v, got %v", newPodState.State, p.state.State)
+	}
+
+	if p.state.URL != newPodState.URL {
+		t.Errorf("Expected state URL %v, got %v", newPodState.URL, p.state.URL)
+	}
+
+	// force container state change
+	err = p.setContainerState(contID, newContainerState.State)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v (pod %+v)", err, p)
+	}
+
+	// check the in-memory state is correct
+	if c.state.State != newContainerState.State {
+		t.Errorf("Expected state %v, got %v", newContainerState.State, c.state.State)
+	}
+
+	if c.state.URL != newContainerState.URL {
+		t.Errorf("Expected state URL %v, got %v", newContainerState.URL, c.state.URL)
+	}
+
+	// force state to be read from disk
+	p2, err := fetchPod(p.ID())
+	if err != nil {
+		t.Fatalf("Failed to fetch pod %v: %v", p.ID(), err)
+	}
+
+	// check on-disk state is correct
+	if p2.state.State != newPodState.State {
+		t.Errorf("Expected state %v, got %v", newPodState.State, p2.state.State)
+	}
+
+	if p2.state.URL != newPodState.URL {
+		t.Errorf("Expected state URL %v, got %v", newPodState.URL, p2.state.URL)
+	}
+
+	c2, err := p2.getContainer(contID)
+	if err != nil {
+		t.Fatalf("Failed to find container %v: %v", contID, err)
+	}
+
+	// check on-disk state is correct
+	if c2.state.State != newContainerState.State {
+		t.Errorf("Expected state %v, got %v", newContainerState.State, c2.state.State)
+	}
+
+	if c2.state.URL != newContainerState.URL {
+		t.Errorf("Expected state URL %v, got %v", newContainerState.URL, c2.state.URL)
+	}
+
+	// revert pod state to allow it to be deleted
+	err = p.setPodState(initialPodState)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v (pod %+v)", err, p)
+	}
+
+	// clean up
+	err = p.delete()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -802,5 +946,54 @@ func TestSetAnnotations(t *testing.T) {
 
 	if v != valueAnnotation {
 		t.Fatal()
+	}
+}
+
+func TestPodGetContainer(t *testing.T) {
+
+	emptyPod := Pod{}
+	_, err := emptyPod.getContainer("")
+	if err == nil {
+		t.Fatal("Expected error for containerless pod")
+	}
+
+	_, err = emptyPod.getContainer("foo")
+	if err == nil {
+		t.Fatal("Expected error for containerless pod and invalid containerID")
+	}
+
+	hConfig := newHypervisorConfig(nil, nil)
+	p, err := testCreatePod(t, testPodID, MockHypervisor, hConfig, NoopAgentType, NoopNetworkModel, NetworkConfig{}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p.state.URL = noopProxyURL
+
+	contID := "999"
+	contConfig := newTestContainerConfigNoop(contID)
+	_, err = createContainer(p, contConfig)
+	if err != nil {
+		t.Fatalf("Failed to create container %+v in pod %+v: %v", contConfig, p, err)
+	}
+
+	got := false
+	for _, c := range p.GetAllContainers() {
+		c2, err := p.getContainer(c.ID())
+		if err != nil {
+			t.Fatalf("Failed to find container %v: %v", c.ID(), err)
+		}
+
+		if c2.ID() != c.ID() {
+			t.Fatalf("Expected container %v but got %v", c.ID(), c2.ID())
+		}
+
+		if c2.ID() == contID {
+			got = true
+		}
+	}
+
+	if !got {
+		t.Fatalf("Failed to find container %v", contID)
 	}
 }

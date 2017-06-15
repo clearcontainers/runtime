@@ -1,4 +1,4 @@
-# Container Networking Interface Specification
+# Container Networking Interface Proposal
 
 ## Version
 This is CNI **spec** version **0.3.1**.
@@ -353,13 +353,10 @@ Note that the runtime adds the `cniVersion` and `name` fields from configuration
     "net.core.somaxconn": "500"
   },
   "prevResult": {
-    "ips": [
-        {
-          "version": "4",
-          "address": "10.0.0.5/32",
-          "interface": 0
-        }
-    ],
+    "ip4": {
+      "ip": "10.1.0.3/16",
+      "gateway": "10.1.0.1",
+    },
     "dns": {
       "nameservers": [ "10.1.0.1" ]
     }

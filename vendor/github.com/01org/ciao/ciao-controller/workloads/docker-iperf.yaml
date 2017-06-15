@@ -1,0 +1,5 @@
+---
+#cloud-config
+runcmd:
+  - [ /bin/bash, runIperf.sh, "-P 8" ]
+...

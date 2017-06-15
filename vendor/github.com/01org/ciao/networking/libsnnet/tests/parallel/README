@@ -1,0 +1,8 @@
+These tests are placed in an independent test folder as they need a large
+amount of time to run (upwards of 10 minutes). The -short version of
+this test suite will complete in under a minute if there are no errors.
+
+sudo ip link add testdummy type dummy
+sudo ip addr add 198.51.100.1/24 dev testdummy
+export SNNET_ENV=198.51.100.0/24
+sudo -E go test --tags travis -v --short

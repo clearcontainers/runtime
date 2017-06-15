@@ -1,0 +1,99 @@
+---
+# Copyright (c) 2016 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+  - name: Create openrc file
+    become: no
+    template: src=openrc.j2 dest=./openrc mode=0600
+
+  - name: Create clouds.yaml file
+    become: no
+    template: src=clouds.yaml.j2 dest=./clouds.yaml mode=0600
+
+  - name: Wait for keystone to be ready
+    wait_for: host="{{ keystone_fqdn }}" port=5000 state=started
+
+  - name: Create custom services
+    keystone:
+      command: "ensure_service"
+      service_name: "{{ item.service }}"
+      service_type: "{{ item.type }}"
+      description: "{{ item.description | default('') }}"
+      endpoint: "https://{{ keystone_fqdn }}:35357/v3"
+      login_user: "admin"
+      login_password: "{{ keystone_admin_password }}"
+      login_project_name: "admin"
+      insecure: yes
+    with_items: "{{ keystone_services | default([]) }}"
+
+  - name: Create custom projects
+    keystone:
+      command: ensure_project
+      project_name: "{{ item.project }}"
+      domain_name: Default
+      description: "{{ item.description | default('') }}"
+      endpoint: "https://{{ keystone_fqdn }}:35357/v3"
+      login_user: admin
+      login_password: "{{ keystone_admin_password }}"
+      login_project_name: "admin"
+      insecure: yes
+    with_items: "{{ keystone_projects | default([]) }}"
+    # TODO: Remove the following workaround
+    # There is an issue with clearcontainers where it says the port is open
+    # even when it is not ready yet.
+    # https://github.com/01org/cc-oci-runtime/issues/349
+    register: result
+    until: result.failed == false or result.failed is undefined
+    retries: 10
+    delay: 1
+
+  - name: Create custom roles
+    keystone:
+      command: "ensure_role"
+      role_name: "{{ item }}"
+      endpoint: "https://{{ keystone_fqdn }}:35357/v3"
+      login_user: admin
+      login_password: "{{ keystone_admin_password }}"
+      login_project_name: "admin"
+      insecure: yes
+    with_items: "{{ keystone_roles | default([]) }}"
+
+  - name: Create custom users
+    keystone:
+      command: "ensure_user"
+      user_name: "{{ item.user }}"
+      project_name: "{{ item.project }}"
+      password: "{{ item.password }}"
+      email: "{{ item.email | default('') }}"
+      domain_name: "Default"
+      endpoint: "https://{{ keystone_fqdn }}:35357/v3"
+      login_user: admin
+      login_password: "{{ keystone_admin_password }}"
+      login_project_name: "admin"
+      insecure: yes
+    with_items: "{{ keystone_users | default([]) }}"
+    no_log: true
+
+  - name: Map users and roles
+    keystone:
+      command: "ensure_user_role"
+      user_name: "{{ item.user }}"
+      project_name: "{{ item.project }}"
+      role_name: "{{ item.role }}"
+      endpoint: "https://{{ keystone_fqdn }}:35357/v3"
+      login_user: "admin"
+      login_password: "{{ keystone_admin_password }}"
+      login_project_name: "admin"
+      insecure: yes
+    with_items: "{{ keystone_user_roles | default([]) }}"

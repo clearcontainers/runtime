@@ -42,6 +42,14 @@ func (m *mockHypervisor) stopPod() error {
 	return nil
 }
 
+func (m *mockHypervisor) pausePod() error {
+	return nil
+}
+
+func (m *mockHypervisor) resumePod() error {
+	return nil
+}
+
 func (m *mockHypervisor) addDevice(devInfo interface{}, devType deviceType) error {
 	return nil
 }

@@ -1,0 +1,10 @@
+{
+    "ociVersion": "1.0.0",
+    "platform": {
+        "os": "linux",
+        "arch": "amd64"
+    },
+    "root": {
+        "path": "rootfs"
+    }
+}

@@ -105,3 +105,15 @@
 [[constraint]]
   branch = "master"
   name = "golang.org/x/sys"
+
+[[constraint]]
+  name = "github.com/01org/ciao"
+  revision = "d521860ec96c7f7881285817d7881c6b75ea9862"
+
+[[override]]
+  name = "github.com/01org/ciao"
+  revision = "d521860ec96c7f7881285817d7881c6b75ea9862"
+
+[[constraint]]
+  name = "github.com/containers/virtcontainers"
+  version = "1.0.0-alpha.0"

@@ -37,3 +37,13 @@ groups:
       - dlespiau
       - mcastelino
       - sameo
+
+  documentation:
+    conditions:
+      files:
+        - "*.md"
+    required: 1
+    teams:
+      - documentation
+
+
