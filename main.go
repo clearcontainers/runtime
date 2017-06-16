@@ -103,6 +103,8 @@ func main() {
 		execCommand,
 		killCommand,
 		listCommand,
+		pauseCommand,
+		resumeCommand,
 		runCommand,
 		startCommand,
 		stateCommand,
