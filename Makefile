@@ -16,31 +16,35 @@ CONFIG = configuration.toml
 
 V           = @
 Q           = $(V:1=)
+QUIET_BUILD = $(Q:@=@echo    '     BUILD   '$@;)
+QUIET_CHECK = $(Q:@=@echo    '     CHECK   '$@;)
+QUIET_CLEAN = $(Q:@=@echo    '     CLEAN   '$@;)
 QUIET_INST  = $(Q:@=@echo    '     INSTALL '$@;)
+QUIET_TEST  = $(Q:@=@echo    '     TEST    '$@;)
 
 .DEFAULT: $(TARGET)
 $(TARGET): $(SOURCES) Makefile
-	go build -i -ldflags "-X main.commit=${COMMIT} -X main.version=${VERSION} -X main.libExecDir=${LIBEXECDIR}" -o $@ .
+	$(QUIET_BUILD)go build -i -ldflags "-X main.commit=${COMMIT} -X main.version=${VERSION} -X main.libExecDir=${LIBEXECDIR}" -o $@ .
 
 .PHONY: check check-go-static check-go-test coverage
 $(TARGET).coverage: $(SOURCES) Makefile
-	go test -o $@ -covermode count
+	$(QUIET_TEST)go test -o $@ -covermode count
 
 check: check-go-static check-go-test
 
 check-go-test:
-	.ci/go-test.sh
+	$(QUIET_TEST).ci/go-test.sh
 
 check-go-static:
-	.ci/go-static-checks.sh $(GO_STATIC_CHECKS_ARGS)
-	.ci/go-no-os-exit.sh
+	$(QUIET_CHECK).ci/go-static-checks.sh $(GO_STATIC_CHECKS_ARGS)
+	$(QUIET_CHECK).ci/go-no-os-exit.sh
 
 coverage:
-	.ci/go-test.sh html-coverage
+	$(QUIET_TEST).ci/go-test.sh html-coverage
 
 install:
 	$(QUIET_INST)install -D $(TARGET) $(DESTDIR)$(BINDIR)/$(TARGET)
 	$(QUIET_INST)install -D config/$(CONFIG) $(DESTDIR)$(SYSCONFDIR)/$(CCDIR)/$(CONFIG)
 
 clean:
-	rm -f $(TARGET)
+	$(QUIET_CLEAN)rm -f $(TARGET)
