@@ -4,6 +4,8 @@ BINDIR := $(PREFIX)/bin
 SYSCONFDIR := $(PREFIX)/etc
 LIBEXECDIR := $(PREFIX)/libexec
 
+CCDIR := "clear-containers"
+
 SOURCES := $(shell find . 2>&1 | grep -E '.*\.(c|h|go)$$')
 VERSION := ${shell cat ./VERSION}
 COMMIT_NO := $(shell git rev-parse HEAD 2> /dev/null || true)
@@ -34,7 +36,7 @@ coverage:
 
 install:
 	$(QUIET_INST)install -D $(TARGET) $(DESTDIR)$(BINDIR)/$(TARGET)
-	$(QUIET_INST)install -D config/$(CONFIG) $(DESTDIR)$(SYSCONFDIR)/clear-containers/$(CONFIG)
+	$(QUIET_INST)install -D config/$(CONFIG) $(DESTDIR)$(SYSCONFDIR)/$(CCDIR)/$(CONFIG)
 
 clean:
 	rm -f $(TARGET)
