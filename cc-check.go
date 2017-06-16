@@ -33,6 +33,7 @@ type kernelModule struct {
 }
 
 const (
+	procCPUInfo    = "/proc/cpuinfo"
 	moduleParamDir = "parameters"
 	cpuFlagsTag    = "flags"
 )
@@ -226,7 +227,7 @@ var ccCheckCommand = cli.Command{
 	Name:  "cc-check",
 	Usage: "tests if system can run " + project,
 	Action: func(context *cli.Context) error {
-		err := hostIsClearContainersCapable("/proc/cpuinfo")
+		err := hostIsClearContainersCapable(procCPUInfo)
 		if err != nil {
 			return fmt.Errorf("ERROR: %v", err)
 		}
