@@ -28,7 +28,10 @@ import (
 )
 
 // name holds the name of this program
-const name = "cc-runtime"
+const (
+	name    = "cc-runtime"
+	project = "Intel® Clear Containers"
+)
 
 // version is the runtime version. It is be specified at compilation time (see
 // Makefile).
@@ -41,10 +44,17 @@ var commit = ""
 // specConfig is the name of the file holding the containers configuration
 const specConfig = "config.json"
 
-const usage = `Clear Containers runtime
+const usage = project + ` runtime
 
 cc-runtime is a command line program for running applications packaged
 according to the Open Container Initiative (OCI).`
+
+const notes = `
+NOTES:
+
+- Commands starting "cc-" and options starting "--cc-" are ` + project + ` extensions.
+
+`
 
 var defaultRootDirectory = "/run/clear-containers"
 
@@ -54,6 +64,8 @@ func main() {
 	app := cli.NewApp()
 	app.Name = name
 	app.Usage = usage
+
+	cli.AppHelpTemplate = fmt.Sprintf(`%s%s`, cli.AppHelpTemplate, notes)
 
 	v := make([]string, 0, 3)
 	if version != "" {
@@ -74,7 +86,7 @@ func main() {
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "cc-config",
-			Usage: "clear containers config file path",
+			Usage: project + " config file path",
 		},
 		cli.BoolFlag{
 			Name:  "debug",
@@ -98,6 +110,7 @@ func main() {
 	}
 
 	app.Commands = []cli.Command{
+		ccCheckCommand,
 		createCommand,
 		deleteCommand,
 		execCommand,
@@ -112,9 +125,11 @@ func main() {
 	}
 
 	app.Before = func(context *cli.Context) error {
-		if userWantsUsage(context) {
+		if userWantsUsage(context) || (context.NArg() == 1 && (context.Args()[0] == "cc-check")) {
 			// No setup required if the user just
-			// wants to see the usage statement.
+			// wants to see the usage statement or are
+			// running a command that does not manipulate
+			// containers.
 			return nil
 		}
 
@@ -199,12 +214,4 @@ type fatalWriter struct {
 func (f *fatalWriter) Write(p []byte) (n int, err error) {
 	ccLog.Error(string(p))
 	return f.cliErrWriter.Write(p)
-}
-
-func fileExists(path string) bool {
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return false
-	}
-
-	return true
 }
