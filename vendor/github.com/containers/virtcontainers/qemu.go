@@ -22,7 +22,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -81,17 +80,6 @@ var supportedQemuMachines = []ciaoQemu.Machine{
 		Acceleration: "kvm,kernel_irqchip,nvdimm,nosmm,nosmbus,nosata,nopit,nofw",
 	},
 }
-
-const (
-	defaultSockets uint32 = 1
-	defaultThreads uint32 = 1
-)
-
-const (
-	defaultMemSize        = "2G"
-	defaultMemMax         = "3G"
-	defaultMemSlots uint8 = 2
-)
 
 const (
 	defaultConsole = "console.sock"
@@ -428,7 +416,7 @@ func (q *qemu) qmpMonitor(connectedCh chan struct{}) {
 }
 
 func (q *qemu) setCPUResources(podConfig PodConfig) ciaoQemu.SMP {
-	vcpus := uint(runtime.NumCPU())
+	vcpus := uint(q.config.Unconstrained_cores)
 	if podConfig.VMConfig.VCPUs > 0 {
 		vcpus = podConfig.VMConfig.VCPUs
 	}
@@ -436,16 +424,16 @@ func (q *qemu) setCPUResources(podConfig PodConfig) ciaoQemu.SMP {
 	smp := ciaoQemu.SMP{
 		CPUs:    uint32(vcpus),
 		Cores:   uint32(vcpus),
-		Sockets: defaultSockets,
-		Threads: defaultThreads,
+		Sockets: q.config.Unconstrained_sockets,
+		Threads: q.config.Unconstrained_threads,
 	}
 
 	return smp
 }
 
 func (q *qemu) setMemoryResources(podConfig PodConfig) ciaoQemu.Memory {
-	mem := defaultMemSize
-	memMax := defaultMemMax
+	mem := fmt.Sprintf("%dM", q.config.Unconstrained_memory)
+	memMax := fmt.Sprintf("%dM", q.config.Unconstrained_max_memory)
 	if podConfig.VMConfig.Memory > 0 {
 		mem = fmt.Sprintf("%dM", podConfig.VMConfig.Memory)
 		intMemMax := int(float64(podConfig.VMConfig.Memory) * 1.5)
@@ -454,7 +442,7 @@ func (q *qemu) setMemoryResources(podConfig PodConfig) ciaoQemu.Memory {
 
 	memory := ciaoQemu.Memory{
 		Size:   mem,
-		Slots:  defaultMemSlots,
+		Slots:  q.config.Unconstrained_slots,
 		MaxMem: memMax,
 	}
 

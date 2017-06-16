@@ -3,6 +3,15 @@ path = "/usr/bin/qemu-lite-system-x86_64"
 kernel = "/usr/share/clear-containers/vmlinux.container"
 image = "/usr/share/clear-containers/clear-containers.img"
 
+unconstrained_sockets = 1
+unconstrained_cores = 2
+unconstrained_threads = 1
+
+# The amount of memory is in MiB
+unconstrained_memory = 256
+unconstrained_slots = 2
+unconstrained_max_memory = 512
+
 [proxy.cc]
 url = "unix:///var/run/clear-containers/proxy.sock"
 

@@ -109,6 +109,13 @@ type HypervisorConfig struct {
 	// ImagePath is the guest image host path.
 	ImagePath string
 
+	Unconstrained_sockets      uint32
+	Unconstrained_cores        uint32
+	Unconstrained_threads      uint32
+	Unconstrained_memory       uint32
+	Unconstrained_slots        uint8
+	Unconstrained_max_memory   uint32
+
 	// HypervisorPath is the hypervisor executable host path.
 	HypervisorPath string
 
@@ -134,6 +141,30 @@ func (conf *HypervisorConfig) valid() (bool, error) {
 
 	if conf.ImagePath == "" {
 		return false, fmt.Errorf("Missing image path")
+	}
+
+	if conf.Unconstrained_sockets == 0 {
+		return false, fmt.Errorf("Missing cpu sockets")
+	}
+
+	if conf.Unconstrained_cores == 0 {
+		return false, fmt.Errorf("Missing cpu cores")
+	}
+
+	if conf.Unconstrained_threads == 0 {
+		return false, fmt.Errorf("Missing cpu threads")
+	}
+
+	if conf.Unconstrained_memory == 0 {
+		return false, fmt.Errorf("Missing memory")
+	}
+
+	if conf.Unconstrained_slots == 0 {
+		return false, fmt.Errorf("Missing slots")
+	}
+
+	if conf.Unconstrained_max_memory == 0 {
+		return false, fmt.Errorf("Missing max memory")
 	}
 
 	return true, nil
