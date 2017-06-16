@@ -26,6 +26,21 @@ test_repo="github.com/clearcontainers/tests"
 # Clone Tests repository.
 go get "$test_repo"
 
+test_repo_dir="${GOPATH}/src/${test_repo}"
+
+if [ "$TRAVIS" = true ]
+then
+    # Check the commits in the branch
+    checkcommits_dir="${test_repo_dir}/cmd/checkcommits"
+    (cd "${checkcommits_dir}" && make)
+    checkcommits \
+        --need-fixes \
+        --need-sign-offs \
+        --body-length 72 \
+        --subject-length 75 \
+        --verbose
+fi
+
 # Setup environment and build components.
-cd "${GOPATH}/src/${test_repo}/"
+cd "${test_repo_dir}"
 sudo -E PATH=$PATH bash .ci/setup.sh
