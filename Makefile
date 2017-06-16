@@ -2,6 +2,7 @@ DESTDIR :=
 PREFIX := /usr/local
 BINDIR := $(PREFIX)/bin
 SYSCONFDIR := $(PREFIX)/etc
+LIBEXECDIR := $(PREFIX)/libexec
 
 SOURCES := $(shell find . 2>&1 | grep -E '.*\.(c|h|go)$$')
 VERSION := ${shell cat ./VERSION}
@@ -13,7 +14,7 @@ CONFIG = configuration.toml
 
 .DEFAULT: $(TARGET)
 $(TARGET): $(SOURCES) Makefile
-	go build -i -ldflags "-X main.commit=${COMMIT} -X main.version=${VERSION}" -o $@ .
+	go build -i -ldflags "-X main.commit=${COMMIT} -X main.version=${VERSION} -X main.libExecDir=${LIBEXECDIR}" -o $@ .
 
 .PHONY: check check-go-static check-go-test coverage
 $(TARGET).coverage: $(SOURCES) Makefile
