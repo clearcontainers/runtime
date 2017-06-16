@@ -14,6 +14,10 @@ COMMIT := $(if $(shell git status --porcelain --untracked-files=no),"${COMMIT_NO
 TARGET = cc-runtime
 CONFIG = configuration.toml
 
+V           = @
+Q           = $(V:1=)
+QUIET_INST  = $(Q:@=@echo    '     INSTALL '$@;)
+
 .DEFAULT: $(TARGET)
 $(TARGET): $(SOURCES) Makefile
 	go build -i -ldflags "-X main.commit=${COMMIT} -X main.version=${VERSION} -X main.libExecDir=${LIBEXECDIR}" -o $@ .
