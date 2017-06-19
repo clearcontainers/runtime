@@ -60,6 +60,61 @@ var defaultRootDirectory = "/run/clear-containers"
 
 var ccLog = logrus.New()
 
+func beforeSubcommands(context *cli.Context) error {
+	if userWantsUsage(context) || (context.NArg() == 1 && (context.Args()[0] == "cc-check")) {
+		// No setup required if the user just
+		// wants to see the usage statement or are
+		// running a command that does not manipulate
+		// containers.
+		return nil
+	}
+
+	if context.GlobalBool("debug") {
+		ccLog.Level = logrus.DebugLevel
+	}
+	if path := context.GlobalString("log"); path != "" {
+		f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND|os.O_SYNC, 0640)
+		if err != nil {
+			return err
+		}
+		ccLog.Out = f
+	}
+
+	switch context.GlobalString("log-format") {
+	case "text":
+		// retain logrus's default.
+	case "json":
+		ccLog.Formatter = new(logrus.JSONFormatter)
+	default:
+		return fmt.Errorf("unknown log-format %q", context.GlobalString("log-format"))
+	}
+
+	// Set virtcontainers logger.
+	vc.SetLogger(ccLog)
+
+	ignoreLogging := false
+	if context.NArg() == 1 && context.Args()[0] == "cc-env" {
+		// "cc-env" should simply report the logging setup
+		ignoreLogging = true
+	}
+
+	configFile, logfilePath, runtimeConfig, err := loadConfiguration(context.GlobalString("cc-config"), ignoreLogging)
+	if err != nil {
+		fatal(err)
+	}
+
+	ccLog.Infof("%v (version %v, commit %v) called as: %v", name, version, commit, context.Args())
+
+	// make the data accessible to the sub-commands.
+	context.App.Metadata = map[string]interface{}{
+		"runtimeConfig": runtimeConfig,
+		"configFile":    configFile,
+		"logfilePath":   logfilePath,
+	}
+
+	return nil
+}
+
 func main() {
 	app := cli.NewApp()
 	app.Name = name
@@ -111,6 +166,7 @@ func main() {
 
 	app.Commands = []cli.Command{
 		ccCheckCommand,
+		ccEnvCommand,
 		createCommand,
 		deleteCommand,
 		execCommand,
@@ -124,53 +180,7 @@ func main() {
 		versionCommand,
 	}
 
-	app.Before = func(context *cli.Context) error {
-		if userWantsUsage(context) || (context.NArg() == 1 && (context.Args()[0] == "cc-check")) {
-			// No setup required if the user just
-			// wants to see the usage statement or are
-			// running a command that does not manipulate
-			// containers.
-			return nil
-		}
-
-		if context.GlobalBool("debug") {
-			ccLog.Level = logrus.DebugLevel
-		}
-		if path := context.GlobalString("log"); path != "" {
-			f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND|os.O_SYNC, 0640)
-			if err != nil {
-				return err
-			}
-			ccLog.Out = f
-		}
-
-		switch context.GlobalString("log-format") {
-		case "text":
-			// retain logrus's default.
-		case "json":
-			ccLog.Formatter = new(logrus.JSONFormatter)
-		default:
-			return fmt.Errorf("unknown log-format %q", context.GlobalString("log-format"))
-		}
-
-		// Set virtcontainers logger.
-		vc.SetLogger(ccLog)
-
-		runtimeConfig, err := loadConfiguration(context.GlobalString("cc-config"))
-		if err != nil {
-			return err
-		}
-
-		ccLog.Infof("%v (version %v, commit %v) called as: %v", name, version, commit, context.Args())
-
-		// make the data accessible to the sub-commands.
-		context.App.Metadata = map[string]interface{}{
-			"runtimeConfig": runtimeConfig,
-		}
-
-		return nil
-	}
-
+	app.Before = beforeSubcommands
 	// If the command returns an error, cli takes upon itself to print
 	// the error on cli.ErrWriter and exit.
 	// Use our own writer here to ensure the log gets sent to the right

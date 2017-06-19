@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"syscall"
 	"testing"
 
 	vc "github.com/containers/virtcontainers"
@@ -31,7 +32,7 @@ import (
 
 const proxyURL = "foo:///foo/clear-containers/proxy.sock"
 
-func makeRuntimeConfigFileData(hypervisorPath, kernelPath, imagePath, shimPath, agentPauseRootPath, proxyURL string) string {
+func makeRuntimeConfigFileData(hypervisorPath, kernelPath, imagePath, shimPath, agentPauseRootPath, proxyURL, logPath string) string {
 	return `
 	# Clear Containers runtime configuration file
 
@@ -48,6 +49,9 @@ func makeRuntimeConfigFileData(hypervisorPath, kernelPath, imagePath, shimPath, 
 
 	[agent.hyperstart]
 	pause_root_path = "` + agentPauseRootPath + `"
+
+        [runtime]
+        global_log_path = "` + logPath + `"
 	`
 }
 
@@ -77,38 +81,53 @@ func TestRuntimeConfig(t *testing.T) {
 	agentPauseRootPath := path.Join(dir, "agentPauseRoot")
 	agentPauseRootBin := path.Join(agentPauseRootPath, "bin")
 	pauseBinPath := path.Join(agentPauseRootBin, "pause")
+	logPath := path.Join(dir, "logs/runtime.log")
 
-	runtimeConfig := makeRuntimeConfigFileData(hypervisorPath, kernelPath, imagePath, shimPath, agentPauseRootPath, proxyURL)
+	runtimeConfig := makeRuntimeConfigFileData(hypervisorPath, kernelPath, imagePath, shimPath, agentPauseRootPath, proxyURL, logPath)
 
 	configPath, err := createConfig("runtime.toml", runtimeConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	config, err := loadConfiguration(configPath)
+	configPathLink := path.Join(filepath.Dir(configPath), "link-to-configuration.toml")
+
+	// create a link to the config file
+	err = syscall.Symlink(configPath, configPathLink)
+	assert.NoError(t, err)
+
+	_, _, config, err := loadConfiguration(configPathLink, true)
 	if err == nil {
 		t.Fatalf("Expected loadConfiguration to fail as no paths exist: %+v", config)
 	}
+
+	assert.False(t, fileExists(filepath.Dir(logPath)))
+	assert.False(t, fileExists(logPath))
 
 	err = os.MkdirAll(agentPauseRootBin, testDirMode)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	config, err = loadConfiguration(configPath)
+	_, _, config, err = loadConfiguration(configPathLink, true)
 	if err == nil {
 		t.Fatalf("Expected loadConfiguration to fail as only pause path exists: %+v", config)
 	}
+
+	assert.False(t, fileExists(filepath.Dir(logPath)))
+	assert.False(t, fileExists(logPath))
 
 	files := []string{pauseBinPath, hypervisorPath, kernelPath, imagePath, shimPath}
 	filesLen := len(files)
 
 	for i, file := range files {
-		_, err = loadConfiguration(configPath)
+		_, _, _, err = loadConfiguration(configPathLink, true)
 		if err == nil {
 			t.Fatalf("Expected loadConfiguration to fail as not all paths exist (not created %v)",
 				strings.Join(files[i:filesLen], ","))
 		}
+
+		assert.False(t, fileExists(filepath.Dir(logPath)))
+		assert.False(t, fileExists(logPath))
 
 		// create the resource
 		err = createEmptyFile(file)
@@ -118,10 +137,15 @@ func TestRuntimeConfig(t *testing.T) {
 	}
 
 	// all paths exist now
-	config, err = loadConfiguration(configPath)
+	resolvedConfigPath, logfilePath, config, err := loadConfiguration(configPathLink, true)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	assert.Equal(t, configPath, resolvedConfigPath)
+	assert.Equal(t, logfilePath, logPath)
+	assert.False(t, fileExists(filepath.Dir(logPath)))
+	assert.False(t, fileExists(logPath))
 
 	expectedHypervisorConfig := vc.HypervisorConfig{
 		HypervisorPath: hypervisorPath,
@@ -159,7 +183,17 @@ func TestRuntimeConfig(t *testing.T) {
 		t.Fatalf("Got %v\n expecting %v", config, expectedConfig)
 	}
 
-	if err := os.Remove(configPath); err != nil {
+	resolvedConfigPath, logfilePath, _, err = loadConfiguration(configPathLink, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, configPath, resolvedConfigPath)
+	assert.Equal(t, logfilePath, logPath)
+	assert.True(t, fileExists(filepath.Dir(logPath)))
+	assert.True(t, fileExists(logPath))
+
+	if err := os.Remove(configPathLink); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -188,7 +222,7 @@ func TestMinimalRuntimeConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	config, err := loadConfiguration(configPath)
+	_, _, config, err := loadConfiguration(configPath, false)
 	if err == nil {
 		t.Fatalf("Expected loadConfiguration to fail as shim path does not exist: %+v", config)
 	}
@@ -198,7 +232,7 @@ func TestMinimalRuntimeConfig(t *testing.T) {
 		t.Error(err)
 	}
 
-	config, err = loadConfiguration(configPath)
+	_, _, config, err = loadConfiguration(configPath, false)
 	if err != nil {
 		t.Fatal(err)
 	}
