@@ -33,14 +33,6 @@ const (
 	project = "Intel® Clear Containers"
 )
 
-// version is the runtime version. It is be specified at compilation time (see
-// Makefile).
-var version = ""
-
-// commit is the git commit the runtime is compiled from. It is specified at
-// compilation time (see Makefile)
-var commit = ""
-
 // specConfig is the name of the file holding the containers configuration
 const specConfig = "config.json"
 

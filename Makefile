@@ -12,19 +12,52 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Determine the lower-case name of the distro
+distro := $(shell \
+for file in /etc/os-release /usr/lib/os-release; do \
+    if [ -e $$file ]; then \
+        grep ^ID= $$file|cut -d= -f2-|tr -d '"'; \
+        break; \
+    fi \
+done)
+
 TARGET = cc-runtime
 DESTDIR :=
 PREFIX := /usr/local
 BINDIR := $(PREFIX)/bin
-QEMUBINDIR := $(BINDIR)
 SYSCONFDIR := $(PREFIX)/etc
 LIBEXECDIR := $(PREFIX)/libexec
 LOCALSTATEDIR := $(PREFIX)/var
 SHAREDIR := $(PREFIX)/share
 
 CCDIR := clear-containers
+
 PKGDATADIR := $(SHAREDIR)/$(CCDIR)
+PKGLIBDIR := $(LOCALSTATEDIR)/lib/$(CCDIR)
+PKGRUNDIR := $(LOCALSTATEDIR)/run/$(CCDIR)
 PKGLIBEXECDIR := $(LIBEXECDIR)/$(CCDIR)
+
+KERNELPATH := $(PKGDATADIR)/vmlinux.container
+IMAGEPATH := $(PKGDATADIR)/clear-containers.img
+
+QEMUBINDIR := $(BINDIR)
+
+# The CentOS/RHEL hypervisor binary is not called qemu-lite
+ifeq (,$(filter-out centos rhel,$(distro)))
+QEMUCMD := qemu-system-x86_64
+else
+QEMUCMD := qemu-lite-system-x86_64
+endif
+
+QEMUPATH := $(QEMUBINDIR)/$(QEMUCMD)
+
+SHIMCMD := cc-shim
+SHIMPATH := $(PKGLIBEXECDIR)/$(SHIMCMD)
+
+PROXYURL := unix://$(PKGRUNDIR)/proxy.sock
+
+PAUSEROOTPATH := $(PKGLIBDIR)/runtime/bundles/pause_bundle
+PAUSEBINRELPATH := bin/pause
 
 SED = sed
 
@@ -48,29 +81,70 @@ USER_VARS += BINDIR
 USER_VARS += DESTCONFIG
 USER_VARS += DESTDIR
 USER_VARS += DESTTARGET
+USER_VARS += IMAGEPATH
+USER_VARS += KERNELPATH
 USER_VARS += LIBEXECDIR
 USER_VARS += LOCALSTATEDIR
+USER_VARS += PAUSEBINRELPATH
+USER_VARS += PAUSEROOTPATH
 USER_VARS += PKGDATADIR
+USER_VARS += PKGLIBDIR
 USER_VARS += PKGLIBEXECDIR
+USER_VARS += PKGRUNDIR
 USER_VARS += PREFIX
+USER_VARS += PROXYURL
 USER_VARS += QEMUBINDIR
+USER_VARS += QEMUCMD
+USER_VARS += QEMUPATH
 USER_VARS += SHAREDIR
+USER_VARS += SHIMPATH
 USER_VARS += SYSCONFDIR
 
-V            = @
-Q            = $(V:1=)
-QUIET_BUILD  = $(Q:@=@echo    '     BUILD   '$@;)
-QUIET_CHECK  = $(Q:@=@echo    '     CHECK   '$@;)
-QUIET_CLEAN  = $(Q:@=@echo    '     CLEAN   '$@;)
-QUIET_CONFIG = $(Q:@=@echo    '     CONFIG  '$@;)
-QUIET_INST   = $(Q:@=@echo    '     INSTALL '$@;)
-QUIET_TEST   = $(Q:@=@echo    '     TEST    '$@;)
+V              = @
+Q              = $(V:1=)
+QUIET_BUILD    = $(Q:@=@echo    '     BUILD   '$@;)
+QUIET_CHECK    = $(Q:@=@echo    '     CHECK   '$@;)
+QUIET_CLEAN    = $(Q:@=@echo    '     CLEAN   '$@;)
+QUIET_CONFIG   = $(Q:@=@echo    '     CONFIG  '$@;)
+QUIET_GENERATE = $(Q:@=@echo    '     GENERATE '$@;)
+QUIET_INST     = $(Q:@=@echo    '     INSTALL '$@;)
+QUIET_TEST     = $(Q:@=@echo    '     TEST    '$@;)
 
 default: $(TARGET) $(CONFIG)
 .DEFAULT: default
 
-$(TARGET): $(SOURCES) Makefile | show-summary
-	$(QUIET_BUILD)go build -i -ldflags "-X main.commit=${COMMIT} -X main.version=${VERSION} -X main.libExecDir=${LIBEXECDIR}" -o $@ .
+define GENERATED_CODE
+// WARNING: This file is auto-generated - DO NOT EDIT!
+package main
+
+// commit is the git commit the runtime is compiled from.
+const commit = "$(COMMIT)"
+
+// version is the runtime version.
+const version = "$(VERSION)"
+
+const defaultHypervisorPath = "$(QEMUPATH)"
+const defaultImagePath = "$(IMAGEPATH)"
+const defaultKernelPath = "$(KERNELPATH)"
+const defaultPauseRootPath = "$(PAUSEROOTPATH)"
+const defaultProxyURL = "$(PROXYURL)"
+const defaultRuntimeConfiguration = "$(DESTCONFIG)"
+const defaultRuntimeLib = "$(PKGLIBDIR)"
+const defaultRuntimeRun = "$(PKGRUNDIR)"
+const defaultShimPath = "$(SHIMPATH)"
+const pauseBinRelativePath = "$(PAUSEBINRELPATH)"
+endef
+
+export GENERATED_CODE
+
+
+GENERATED_FILES += config-generated.go
+
+config-generated.go:
+	$(QUIET_GENERATE)echo "$$GENERATED_CODE" >$@
+
+$(TARGET): $(SOURCES) $(GENERATED_FILES) Makefile | show-summary
+	$(QUIET_BUILD)go build -i -o $@ .
 
 .PHONY: \
 	check \
@@ -83,7 +157,7 @@ $(TARGET): $(SOURCES) Makefile | show-summary
 	show-summary \
 	show-variables
 
-$(TARGET).coverage: $(SOURCES) Makefile
+$(TARGET).coverage: $(SOURCES) $(GENERATED_FILES) Makefile
 	$(QUIET_TEST)go test -o $@ -covermode count
 
 $(CONFIG): $(CONFIG_IN)
@@ -115,7 +189,7 @@ install: default
 	$(QUIET_INST)install -D $(CONFIG) $(DESTCONFIG)
 
 clean:
-	$(QUIET_CLEAN)rm -f $(TARGET) $(CONFIG)
+	$(QUIET_CLEAN)rm -f $(TARGET) $(CONFIG) $(GENERATED_FILES)
 
 show-usage: show-header
 	@printf "• Overview:\n"
