@@ -236,6 +236,8 @@ func getExpectedRuntimeDetails(configFile, logFile string) RuntimeInfo {
 }
 
 func getExpectedSettings(config oci.RuntimeConfig, tmpdir, configFile, logFile string) (EnvInfo, error) {
+	meta := getExpectedMetaInfo()
+
 	runtime := getExpectedRuntimeDetails(configFile, logFile)
 
 	proxy, err := getExpectedProxyDetails(config)
@@ -263,6 +265,7 @@ func getExpectedSettings(config oci.RuntimeConfig, tmpdir, configFile, logFile s
 	image := getExpectedImage(config)
 
 	ccEnv := EnvInfo{
+		Meta:       meta,
 		Runtime:    runtime,
 		Hypervisor: hypervisor,
 		Image:      image,
@@ -274,6 +277,20 @@ func getExpectedSettings(config oci.RuntimeConfig, tmpdir, configFile, logFile s
 	}
 
 	return ccEnv, nil
+}
+
+func getExpectedMetaInfo() MetaInfo {
+	return MetaInfo{
+		Version: formatVersion,
+	}
+}
+
+func TestCCEnvGetMetaInfo(t *testing.T) {
+	expectedMeta := getExpectedMetaInfo()
+
+	meta := getMetaInfo()
+
+	assert.Equal(t, expectedMeta, meta)
 }
 
 func TestCCEnvGetHostInfo(t *testing.T) {

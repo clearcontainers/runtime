@@ -28,6 +28,18 @@ import (
 	"github.com/urfave/cli"
 )
 
+// Semantic version for the output of the "cc-env" command.
+//
+// XXX: Increment for every change to the output format
+// (meaning any change to the EnvInfo type).
+const formatVersion = "1.0.0"
+
+// MetaInfo stores information on the format of the output itself
+type MetaInfo struct {
+	// output format version
+	Version string
+}
+
 // PathInfo stores a path in its original, and fully resolved forms
 type PathInfo struct {
 	Path     string
@@ -95,9 +107,12 @@ type HostInfo struct {
 	CCCapable bool
 }
 
-// EnvInfo collects all information that will be displayed by the "cc-env"
-// command.
+// EnvInfo collects all information that will be displayed by the
+// "cc-env" command.
+//
+// XXX: Any changes must be coupled with a change to formatVersion.
 type EnvInfo struct {
+	Meta       MetaInfo
 	Runtime    RuntimeInfo
 	Hypervisor PathInfo
 	Image      PathInfo
@@ -106,6 +121,12 @@ type EnvInfo struct {
 	Shim       ShimInfo
 	Agent      AgentInfo
 	Host       HostInfo
+}
+
+func getMetaInfo() MetaInfo {
+	return MetaInfo{
+		Version: formatVersion,
+	}
 }
 
 func getRuntimeInfo(configFile, logFile string, config oci.RuntimeConfig) (RuntimeInfo, error) {
@@ -260,6 +281,8 @@ func getAgentInfo(config oci.RuntimeConfig) (AgentInfo, error) {
 }
 
 func getEnvInfo(configFile, logfilePath string, config oci.RuntimeConfig) (env EnvInfo, err error) {
+	meta := getMetaInfo()
+
 	ccRuntime, err := getRuntimeInfo(configFile, logfilePath, config)
 	if err != nil {
 		return EnvInfo{}, err
@@ -306,6 +329,7 @@ func getEnvInfo(configFile, logfilePath string, config oci.RuntimeConfig) (env E
 	}
 
 	env = EnvInfo{
+		Meta:       meta,
 		Runtime:    ccRuntime,
 		Hypervisor: hypervisor,
 		Image:      image,
