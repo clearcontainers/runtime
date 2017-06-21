@@ -69,6 +69,12 @@ $ make
 $ sudo make install
 ```
 
+For more details on the runtime's build system, run:
+
+```bash
+$ make help
+```
+
 4. Virtcontainers
 
 This step will only install the ``pause`` binary included in [https://github.com/containers/virtcontainers](https://github.com/containers/virtcontainers)
