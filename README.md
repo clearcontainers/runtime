@@ -5,39 +5,32 @@
 
 # runtime
 
-## Global logging
+## Debugging
 
-Additional to the (global) `--log=` option, the runtime also has the
-concept of a global logfile.
+To provide a persistent log of all container activity on the system, the runtime
+provides a global logging facility. By default, this feature is disabled.
 
-The purpose of this secondary logfile is twofold:
+To enable the global log:
 
-- To allow all log output to be recorded in a non-container-specific
-  path.
+```bash
+$ sudo sed -i -e 's/^#\(\[runtime\]\|global_log_path =\)/\1/g' /etc/clear-containers/containers.toml
+```
 
-  This is particularly useful under container managers such as Docker
-  where if a container fails to start, the container-specific directory
-  (which contains the `--log=` logfile) will be deleted on error, making
-  debugging a challenge.
+Note: The configuration file on your system may be located at a different path. To
+determine the configuration file path for your host, run:
 
-- To collate the log output from all runtimes in a single place.
+```bash
+$ cc-runtime cc-env | grep -A 2 'Runtime.Config.Location'
+```
 
-The global logfile comprises one line per entry. Each line contains the
-following fields separated by colons:
+The path to the global log file can be determined subsequently by
+running:
 
-- timestamp
-- PID
-- program name
-- log level
-- log message
+```bash
+$ cc-runtime cc-env | grep GlobalLogPath
+```
 
-The global logfile records all log output sent to the standard logfile.
-
-Note that if output is disabled for the standard logfile, the global log
-will still record all logging calls the runtime makes.
-
-The global logfile is disabled by default. It can be enabled either in
-the `configuration.toml` configuration file or by setting the
+Note that it is also possible to enable the global log by setting  the
 `CC_RUNTIME_GLOBAL_LOG` environment variable to a suitable path. The
 environment variable takes priority over the configuration file.
 
