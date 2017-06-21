@@ -66,10 +66,10 @@ QUIET_CONFIG = $(Q:@=@echo    '     CONFIG  '$@;)
 QUIET_INST   = $(Q:@=@echo    '     INSTALL '$@;)
 QUIET_TEST   = $(Q:@=@echo    '     TEST    '$@;)
 
-default: $(TARGET)
+default: $(TARGET) $(CONFIG)
 .DEFAULT: default
 
-$(TARGET): $(SOURCES) Makefile show-summary
+$(TARGET): $(SOURCES) Makefile | show-summary
 	$(QUIET_BUILD)go build -i -ldflags "-X main.commit=${COMMIT} -X main.version=${VERSION} -X main.libExecDir=${LIBEXECDIR}" -o $@ .
 
 .PHONY: \
@@ -110,7 +110,7 @@ check-go-static:
 coverage:
 	$(QUIET_TEST).ci/go-test.sh html-coverage
 
-install: $(TARGET) $(CONFIG)
+install: default
 	$(QUIET_INST)install -D $(TARGET) $(DESTTARGET)
 	$(QUIET_INST)install -D $(CONFIG) $(DESTCONFIG)
 
