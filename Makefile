@@ -75,6 +75,7 @@ $(TARGET): $(SOURCES) Makefile show-summary
 	check-go-static \
 	check-go-test \
 	coverage \
+	install \
 	show-header \
 	show-summary \
 	show-variables
