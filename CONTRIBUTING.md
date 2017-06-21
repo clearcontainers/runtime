@@ -115,6 +115,13 @@ To report a bug that is not already documented, please [open an issue in
 github](https://github.com/clearcontainers/runtime/issues/new) so we all get
 visibility on the problem and work toward resolution.
 
+To help the developers resolve your issue, please include the output
+from the command below in the issue:
+
+```bash
+$ cc-runtime cc-env
+```
+
 ## Closing issues
 
 You can either close issues manually by adding the fixing commit SHA1 to the
