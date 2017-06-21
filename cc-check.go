@@ -33,13 +33,13 @@ type kernelModule struct {
 }
 
 const (
-	procCPUInfo    = "/proc/cpuinfo"
 	moduleParamDir = "parameters"
 	cpuFlagsTag    = "flags"
 )
 
 // variables rather than consts to allow tests to modify them
 var (
+	procCPUInfo  = "/proc/cpuinfo"
 	sysModuleDir = "/sys/module"
 	modInfoCmd   = "modinfo"
 )

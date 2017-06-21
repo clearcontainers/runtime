@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 
 	"github.com/BurntSushi/toml"
@@ -285,7 +286,12 @@ func updateRuntimeConfig(configPath string, tomlConf tomlConfig, config *oci.Run
 	return nil
 }
 
-func loadConfiguration(configPath string) (oci.RuntimeConfig, error) {
+// loadConfiguration loads the configuration file and converts it into a
+// runtime configuration.
+//
+// If ignoreLogging is true, the global log will not be initialised nor
+// will this function make any log calls.
+func loadConfiguration(configPath string, ignoreLogging bool) (resolvedConfigPath, logfilePath string, config oci.RuntimeConfig, err error) {
 	defaultHypervisorConfig := vc.HypervisorConfig{
 		HypervisorPath: defaultHypervisorPath,
 		KernelPath:     defaultKernelPath,
@@ -297,7 +303,7 @@ func loadConfiguration(configPath string) (oci.RuntimeConfig, error) {
 			pauseBinRelativePath),
 	}
 
-	config := oci.RuntimeConfig{
+	config = oci.RuntimeConfig{
 		HypervisorType:   defaultHypervisor,
 		HypervisorConfig: defaultHypervisorConfig,
 		AgentType:        defaultAgent,
@@ -310,33 +316,48 @@ func loadConfiguration(configPath string) (oci.RuntimeConfig, error) {
 		configPath = defaultRuntimeConfiguration
 	}
 
-	configData, err := ioutil.ReadFile(configPath)
+	resolved, err := filepath.EvalSymlinks(configPath)
 	if err != nil {
-		return config, err
+		if os.IsNotExist(err) {
+			// Make the error clearer than the one returned
+			// by EvalSymlinks().
+			return "", "", config, fmt.Errorf("Config file %v does not exist", configPath)
+		}
+
+		return "", "", config, err
+	}
+
+	configData, err := ioutil.ReadFile(resolved)
+	if err != nil {
+		return "", "", config, err
 	}
 
 	var tomlConf tomlConfig
 	_, err = toml.Decode(string(configData), &tomlConf)
 	if err != nil {
-		return config, err
+		return "", "", config, err
 	}
 
-	// The configuration file may have enabled global logging,
-	// so handle that before any log calls.
-	err = handleGlobalLog(tomlConf.Runtime.GlobalLogPath)
-	if err != nil {
-		return config, err
-	}
+	logfilePath = tomlConf.Runtime.GlobalLogPath
 
-	ccLog.Debugf("TOML configuration: %v", tomlConf)
+	if !ignoreLogging {
+		// The configuration file may have enabled global logging,
+		// so handle that before any log calls.
+		err = handleGlobalLog(logfilePath)
+		if err != nil {
+			return "", "", config, err
+		}
+
+		ccLog.Debugf("TOML configuration: %v", tomlConf)
+	}
 
 	if err := checkConfigParams(tomlConf); err != nil {
-		return config, err
+		return "", "", config, err
 	}
 
-	if err := updateRuntimeConfig(configPath, tomlConf, &config); err != nil {
-		return config, err
+	if err := updateRuntimeConfig(resolved, tomlConf, &config); err != nil {
+		return "", "", config, err
 	}
 
-	return config, nil
+	return resolved, logfilePath, config, nil
 }
