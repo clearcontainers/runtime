@@ -59,6 +59,8 @@ PROXYURL := unix://$(PKGRUNDIR)/proxy.sock
 PAUSEROOTPATH := $(PKGLIBDIR)/runtime/bundles/pause_bundle
 PAUSEBINRELPATH := bin/pause
 
+GLOBALLOGPATH := $(PKGLIBDIR)/runtime/runtime.log
+
 SED = sed
 
 SOURCES := $(shell find . 2>&1 | grep -E '.*\.(c|h|go)$$')
@@ -81,6 +83,7 @@ USER_VARS += BINDIR
 USER_VARS += DESTCONFIG
 USER_VARS += DESTDIR
 USER_VARS += DESTTARGET
+USER_VARS += GLOBALLOGPATH
 USER_VARS += IMAGEPATH
 USER_VARS += KERNELPATH
 USER_VARS += LIBEXECDIR
@@ -162,12 +165,16 @@ $(TARGET).coverage: $(SOURCES) $(GENERATED_FILES) Makefile
 
 $(CONFIG): $(CONFIG_IN)
 	$(QUIET_CONFIG)$(SED) \
-		-e "s|@CCDIR@|$(CCDIR)|g" \
 		-e "s|@CONFIG_IN@|$(CONFIG_IN)|g" \
-		-e "s|@PKGLIBEXECDIR@|$(PKGLIBEXECDIR)|g" \
-		-e "s|@PKGDATADIR@|$(PKGDATADIR)|g" \
-		-e "s|@QEMUBINDIR@|$(QEMUBINDIR)|g" \
+		-e "s|@IMAGEPATH@|$(IMAGEPATH)|g" \
+		-e "s|@KERNELPATH@|$(KERNELPATH)|g" \
 		-e "s|@LOCALSTATEDIR@|$(LOCALSTATEDIR)|g" \
+		-e "s|@PAUSEROOTPATH@|$(PAUSEROOTPATH)|g" \
+		-e "s|@PKGLIBEXECDIR@|$(PKGLIBEXECDIR)|g" \
+		-e "s|@PROXYURL@|$(PROXYURL)|g" \
+		-e "s|@QEMUPATH@|$(QEMUPATH)|g" \
+		-e "s|@SHIMPATH@|$(SHIMPATH)|g" \
+		-e "s|@GLOBALLOGPATH@|$(GLOBALLOGPATH)|g" \
 		$< > $@
 
 generate-config: $(CONFIG)
