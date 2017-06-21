@@ -66,7 +66,9 @@ QUIET_CONFIG = $(Q:@=@echo    '     CONFIG  '$@;)
 QUIET_INST   = $(Q:@=@echo    '     INSTALL '$@;)
 QUIET_TEST   = $(Q:@=@echo    '     TEST    '$@;)
 
-.DEFAULT: $(TARGET)
+default: $(TARGET)
+.DEFAULT: default
+
 $(TARGET): $(SOURCES) Makefile show-summary
 	$(QUIET_BUILD)go build -i -ldflags "-X main.commit=${COMMIT} -X main.version=${VERSION} -X main.libExecDir=${LIBEXECDIR}" -o $@ .
 
@@ -75,6 +77,7 @@ $(TARGET): $(SOURCES) Makefile show-summary
 	check-go-static \
 	check-go-test \
 	coverage \
+	default \
 	install \
 	show-header \
 	show-summary \
@@ -126,6 +129,7 @@ show-usage: show-header
 	@printf "\tcheck           : run tests\n"
 	@printf "\tclean           : remove built files\n"
 	@printf "\tcoverage        : run coverage tests\n"
+	@printf "\tdefault         : same as just \"make\"\n"
 	@printf "\tgenerate-config : create configuration file\n"
 	@printf "\tinstall         : install files\n"
 	@printf "\tshow-summary    : show install locations\n"
