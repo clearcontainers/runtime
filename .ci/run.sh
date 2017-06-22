@@ -30,24 +30,27 @@ sudo docker exec ${container_id} echo hello
 sudo docker ps -a
 
 # try to unpause a container that isn't paused a few times
+tmpfile=$(mktemp)
 for i in 1 2 3
 do
-	{ sudo docker unpause ${container_id}; ret=$?; } || true
-	[ $ret -eq 1 ]
+	{ sudo docker unpause ${container_id} &>"$tmpfile"; ret=$?; } || true
+	[ $ret -eq 0 ] && { cat "$tmpfile"; exit 1; }
 done
 
 sudo docker pause ${container_id}
-sudo docker inspect ${container_id}|grep -i "\"Paused\":.*true"
+sudo docker inspect ${container_id}|grep -qi "\"Paused\":.*true"
 
 # try to pause an already paused container a few times
 for i in 1 2 3
 do
-	{ sudo docker pause ${container_id}; ret=$?; } || true
-	[ $ret -eq 1 ]
+	{ sudo docker pause ${container_id} &>"$tmpfile"; ret=$?; } || true
+	[ $ret -eq 0 ] && { cat "$tmpfile"; exit 1; }
 done
 
+rm -f "$tmpfile"
+
 sudo docker unpause ${container_id}
-sudo docker inspect ${container_id}|grep -i "\"Paused\":.*false"
+sudo docker inspect ${container_id}|grep -qi "\"Paused\":.*false"
 
 sudo docker ps -a
 sudo docker stop ${container_id}
