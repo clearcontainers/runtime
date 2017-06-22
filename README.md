@@ -7,7 +7,7 @@
 
 ## Introduction
 
-`cc-runtime` is the next generation Intel® Clear Containers runtime.
+`cc-runtime` is the next generation of Intel® Clear Containers runtime.
 
 This tool, henceforth referred to simply as "the runtime", builds upon
 the [virtcontainers](https://github.com/containers/virtcontainers)
@@ -27,7 +27,7 @@ See [the license file](https://github.com/clearcontainers/runtime/blob/master/LI
 
 ## Hardware requirements
 
-The runtime has a built-in command to determine if your host system is capable of running a Clear Container. Simply run:
+The runtime has a built-in command to determine if your host system is capable of running an Intel® Clear Container. Simply run:
 
 ```bash
 $ cc-runtime cc-check
@@ -54,29 +54,28 @@ $ cc-runtime cc-env
 ## Debugging
 
 To provide a persistent log of all container activity on the system, the runtime
-provides a global logging facility. By default, this feature is disabled.
+offers a global logging facility. By default, this feature is disabled
+but can be enabled with a simple change to the [configuration](#Configuration) file.
 
-To enable the global log:
-
-```bash
-$ sudo sed -i -e 's/^#\(\[runtime\]\|global_log_path =\)/\1/g' /etc/clear-containers/containers.toml
-```
-
-Note: The configuration file on your system may be located at a different path. To
-determine the configuration file path for your host, run:
+First, to determine the configuration file path for your host run:
 
 ```bash
 $ cc-runtime cc-env | grep -A 2 'Runtime.Config.Location'
 ```
 
-The path to the global log file can be determined subsequently by
-running:
+To enable the global log:
+
+```bash
+$ sudo sed -i -e 's/^#\(\[runtime\]\|global_log_path =\)/\1/g' $path_to_your_config_file
+```
+
+The path to the global log file can be determined subsequently by running:
 
 ```bash
 $ cc-runtime cc-env | grep GlobalLogPath
 ```
 
-Note that it is also possible to enable the global log by setting  the
+Note that it is also possible to enable the global log by setting the
 `CC_RUNTIME_GLOBAL_LOG` environment variable to a suitable path. The
 environment variable takes priority over the configuration file.
 
