@@ -5,39 +5,77 @@
 
 # runtime
 
-## Global logging
+## Introduction
 
-Additional to the (global) `--log=` option, the runtime also has the
-concept of a global logfile.
+`cc-runtime` is the next generation of Intel® Clear Containers runtime.
 
-The purpose of this secondary logfile is twofold:
+This tool, henceforth referred to simply as "the runtime", builds upon
+the [virtcontainers](https://github.com/containers/virtcontainers)
+project to provide a high-performance standards-compliant runtime that
+creates hardware-virtualized containers which leverage
+[Intel](https://www.intel.com/)'s VT-x technology.
 
-- To allow all log output to be recorded in a non-container-specific
-  path.
+It is a re-implementation of [`cc-oci-runtime`](https://github.com/01org/cc-oci-runtime) written in the go language and supersedes `cc-oci-runtime` starting from 3.0.0.
 
-  This is particularly useful under container managers such as Docker
-  where if a container fails to start, the container-specific directory
-  (which contains the `--log=` logfile) will be deleted on error, making
-  debugging a challenge.
+The runtime is both [OCI](https://github.com/opencontainers/runtime-spec)-compatible and [CRI-O](https://github.com/kubernetes-incubator/cri-o)-compatible, allowing it to work seamlessly with both Docker and Kubernetes respectively.
 
-- To collate the log output from all runtimes in a single place.
+## License
 
-The global logfile comprises one line per entry. Each line contains the
-following fields separated by colons:
+The code is licensed under an Apache 2.0 license.
 
-- timestamp
-- PID
-- program name
-- log level
-- log message
+See [the license file](LICENSE) for further details.
 
-The global logfile records all log output sent to the standard logfile.
+## Hardware requirements
 
-Note that if output is disabled for the standard logfile, the global log
-will still record all logging calls the runtime makes.
+The runtime has a built-in command to determine if your host system is capable of running an Intel® Clear Container. Simply run:
 
-The global logfile is disabled by default. It can be enabled either in
-the `configuration.toml` configuration file or by setting the
+```bash
+$ cc-runtime cc-check
+```
+
+## Quick start for developers
+
+See the [developer's installation guide](docs/developers-clear-containers-install.md).
+
+## Community
+
+See [the contributing document](CONTRIBUTING.md).
+
+## Configuration
+
+The runtime uses a single configuration file called `configuration.toml` which is normally located at `/etc/clear-containers/configuration.toml`.
+
+To see details of your systems runtime environment (including the location of the configuration file), run:
+
+```bash
+$ cc-runtime cc-env
+```
+
+## Debugging
+
+To provide a persistent log of all container activity on the system, the runtime
+offers a global logging facility. By default, this feature is disabled
+but can be enabled with a simple change to the [configuration](#Configuration) file.
+
+First, to determine the configuration file path for your host run:
+
+```bash
+$ cc-runtime cc-env | grep -A 2 'Runtime.Config.Location'
+```
+
+To enable the global log:
+
+```bash
+$ sudo sed -i -e 's/^#\(\[runtime\]\|global_log_path =\)/\1/g' $path_to_your_config_file
+```
+
+The path to the global log file can be determined subsequently by running:
+
+```bash
+$ cc-runtime cc-env | grep GlobalLogPath
+```
+
+Note that it is also possible to enable the global log by setting the
 `CC_RUNTIME_GLOBAL_LOG` environment variable to a suitable path. The
 environment variable takes priority over the configuration file.
 
@@ -47,3 +85,7 @@ attempt to create it.
 
 It is the Administrator's responsibility to ensure there is sufficient
 space for the global log.
+
+## Home Page
+
+The canonical home page for the project is: https://github.com/clearcontainers
