@@ -23,7 +23,7 @@ The runtime is both [OCI](https://github.com/opencontainers/runtime-spec)-compat
 
 The code is licensed under an Apache 2.0 license.
 
-See [the license file](https://github.com/clearcontainers/runtime/blob/master/LICENSE) for further details.
+See [the license file](LICENSE) for further details.
 
 ## Hardware requirements
 
@@ -35,11 +35,11 @@ $ cc-runtime cc-check
 
 ## Quick start for developers
 
-See the [developer's installation guide](https://github.com/clearcontainers/runtime/blob/master/docs/developers-clear-containers-install.md).
+See the [developer's installation guide](docs/developers-clear-containers-install.md).
 
 ## Community
 
-See [the contributing document](https://github.com/clearcontainers/runtime/blob/master/CONTRIBUTING.md).
+See [the contributing document](CONTRIBUTING.md).
 
 ## Configuration
 
