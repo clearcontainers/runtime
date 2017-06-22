@@ -9,13 +9,13 @@ process.
 
   * [go 1.8.3](https://golang.org/)
   * [glibc-static](https://www.gnu.org/software/libc/libc.html)
+  * [gcc](https://gcc.gnu.org/)
 
 ## Clear Containers 3.0 components
 
   * [Runtime](https://github.com/clearcontainers/runtime)
   * [Proxy](https://github.com/clearcontainers/proxy)
   * [Shim](https://github.com/clearcontainers/shim)
-  * [Virtcontainers](https://github.com/containers/virtcontainers)
 
 **IMPORTANT:** Do not combine [Clear Containers 2.1](https://github.com/01org/cc-oci-runtime) and [Clear Containers 3.0](https://github.com/clearcontainers).
 Both projects ship ``cc-proxy`` and they are not compatible with each other.
@@ -73,20 +73,6 @@ For more details on the runtime's build system, run:
 
 ```bash
 $ make help
-```
-
-4. Virtcontainers
-
-This step will only install the ``pause`` binary included in [https://github.com/containers/virtcontainers](https://github.com/containers/virtcontainers)
-
-The ``pause`` binary is required to allow the creation of an "empty" pod.
-The pod does not contain any containers; it simply provides the environment
-to allow their creation.
-
-```bash
-$ sudo yum install -y glibc-static
-$ cd $GOPATH/src/github.com/clearcontainers/runtime/.ci/
-$ ./install_virtcontainers.sh
 ```
 
 ## Enable Clear Containers 3.0 for Docker

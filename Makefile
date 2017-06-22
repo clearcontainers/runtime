@@ -78,6 +78,11 @@ DESTTARGET := $(abspath $(DESTBINDIR)/$(TARGET))
 DESTCONFDIR := $(DESTDIR)/$(SYSCONFDIR)/$(CCDIR)
 DESTCONFIG := $(abspath $(DESTCONFDIR)/$(CONFIG_FILE))
 
+PAUSEDESTDIR := $(abspath $(DESTDIR)/$(PAUSEROOTPATH)/$(PAUSEBINRELPATH))
+
+override LIBS +=
+override CFLAGS += -Os -Wall -Wextra -static
+
 # list of variables the user may wish to override
 USER_VARS += BINDIR
 USER_VARS += DESTCONFIG
@@ -102,6 +107,8 @@ USER_VARS += QEMUPATH
 USER_VARS += SHAREDIR
 USER_VARS += SHIMPATH
 USER_VARS += SYSCONFDIR
+USER_VARS += PAUSEDESTDIR
+
 
 V              = @
 Q              = $(V:1=)
@@ -113,7 +120,7 @@ QUIET_GENERATE = $(Q:@=@echo    '     GENERATE '$@;)
 QUIET_INST     = $(Q:@=@echo    '     INSTALL '$@;)
 QUIET_TEST     = $(Q:@=@echo    '     TEST    '$@;)
 
-default: $(TARGET) $(CONFIG)
+default: $(TARGET) $(CONFIG) pause
 .DEFAULT: default
 
 define GENERATED_CODE
@@ -151,6 +158,9 @@ config-generated.go:
 
 $(TARGET): $(SOURCES) $(GENERATED_FILES) Makefile | show-summary
 	$(QUIET_BUILD)go build -i -o $@ .
+
+pause: pause/pause.o
+	$(QUIET_BUILD)$(CC) -o pause/pause pause/*.o $(CFLAGS) $(LIBS)
 
 .PHONY: \
 	check \
@@ -197,9 +207,13 @@ coverage:
 install: default
 	$(QUIET_INST)install -D $(TARGET) $(DESTTARGET)
 	$(QUIET_INST)install -D $(CONFIG) $(DESTCONFIG)
+	@ if [ -e pause/pause ]; then \
+		install -D pause/pause $(PAUSEDESTDIR); \
+	fi
 
 clean:
 	$(QUIET_CLEAN)rm -f $(TARGET) $(CONFIG) $(GENERATED_FILES)
+	$(QUIET_CLEAN)rm -f pause/*.o pause/pause
 
 show-usage: show-header
 	@printf "• Overview:\n"
@@ -216,6 +230,7 @@ show-usage: show-header
 	@printf "\tdefault         : same as just \"make\"\n"
 	@printf "\tgenerate-config : create configuration file\n"
 	@printf "\tinstall         : install files\n"
+	@printf "\tpause           : build pause binary\n"
 	@printf "\tshow-summary    : show install locations\n"
 	@printf "\n"
 
