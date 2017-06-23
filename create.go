@@ -75,9 +75,10 @@ var createCommand = cli.Command{
 
 func create(containerID, bundlePath, console, pidFilePath string,
 	runtimeConfig oci.RuntimeConfig) error {
+	var err error
 
 	// Checks the MUST and MUST NOT from OCI runtime specification
-	if err := validCreateParams(containerID, bundlePath); err != nil {
+	if bundlePath, err = validCreateParams(containerID, bundlePath); err != nil {
 		return err
 	}
 

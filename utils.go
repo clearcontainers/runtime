@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -131,4 +132,24 @@ func getCPUDetails() (vendor, model string, err error) {
 	}
 
 	return "", "", fmt.Errorf("failed to find expected fields in file %v", procCPUInfo)
+}
+
+// resolvePath returns the fully resolved and expanded value of the
+// specified path.
+func resolvePath(path string) (string, error) {
+	if path == "" {
+		return "", fmt.Errorf("path must be specified")
+	}
+
+	absolute, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+
+	resolved, err := filepath.EvalSymlinks(absolute)
+	if err != nil {
+		return "", err
+	}
+
+	return resolved, nil
 }

@@ -39,7 +39,8 @@ func TestGetContainerInfoContainerIDEmptyFailure(t *testing.T) {
 }
 
 func TestValidCreateParamsContainerIDEmptyFailure(t *testing.T) {
-	if err := validCreateParams("", ""); err == nil {
+	_, err := validCreateParams("", "")
+	if err == nil {
 		t.Fatalf("This test should fail because containerID is empty")
 	}
 }
