@@ -1,19 +1,19 @@
 # XXX: Warning: this file is auto-generated from file "@CONFIG_IN@".
 
 [hypervisor.qemu-lite]
-path = "@QEMUBINDIR@/qemu-lite-system-x86_64"
-kernel = "@PKGDATADIR@/vmlinux.container"
-image = "@PKGDATADIR@/clear-containers.img"
+path = "@QEMUPATH@"
+kernel = "@KERNELPATH@"
+image = "@IMAGEPATH@"
 
 [proxy.cc]
-url = "unix://@LOCALSTATEDIR@/run/@CCDIR@/proxy.sock"
+url = "@PROXYURL@"
 
 [shim.cc]
-path = "@PKGLIBEXECDIR@/cc-shim"
+path = "@SHIMPATH@"
 
 [agent.hyperstart]
-pause_root_path = "@LOCALSTATEDIR@/lib/@CCDIR@/runtime/bundles/pause_bundle"
+pause_root_path = "@PAUSEROOTPATH@"
 
 ## Uncomment to enable the global logging to the default path.
 #[runtime]
-#global_log_path = "@LOCALSTATEDIR@/lib/@CCDIR@/runtime/runtime.log"
+#global_log_path = "@GLOBALLOGPATH@"
