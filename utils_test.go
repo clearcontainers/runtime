@@ -100,6 +100,7 @@ func TestGetKernelVersion(t *testing.T) {
 	data := []testData{
 		{"", "", true},
 		{"invalid contents", "", true},
+		{"a b c", "c", false},
 		{validContents, validVersion, false},
 	}
 
@@ -108,6 +109,13 @@ func TestGetKernelVersion(t *testing.T) {
 		panic(err)
 	}
 	defer os.RemoveAll(tmpdir)
+
+	subDir := filepath.Join(tmpdir, "subdir")
+	err = os.MkdirAll(subDir, testDirMode)
+	assert.NoError(t, err)
+
+	_, err = getKernelVersion()
+	assert.Error(t, err)
 
 	file := filepath.Join(tmpdir, "proc-version")
 
@@ -169,6 +177,16 @@ NAME="%s"
 FOO=bar
 VERSION_ID="%s"
 `, nonClrExpectedName, nonClrExpectedVersion)
+
+	subDir := filepath.Join(tmpdir, "subdir")
+	err = os.MkdirAll(subDir, testDirMode)
+	assert.NoError(t, err)
+
+	// override
+	osRelease = subDir
+
+	_, _, err = getDistroDetails()
+	assert.Error(t, err)
 
 	// override
 	osRelease = testOSRelease
