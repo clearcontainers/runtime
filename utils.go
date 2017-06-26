@@ -63,10 +63,6 @@ func getKernelVersion() (string, error) {
 
 	version := fields[2]
 
-	if version == "" {
-		return "", fmt.Errorf("unexpected contents in %v", procVersion)
-	}
-
 	return version, nil
 }
 
