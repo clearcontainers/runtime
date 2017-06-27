@@ -78,7 +78,7 @@ func (n *cnm) createResult(iface net.Interface, addrs []net.Addr, routes []netli
 
 		ipConfig := &types.IPConfig{
 			Version:   version,
-			Interface: iface.Index,
+			Interface: &iface.Index,
 			Address:   *ipNet,
 		}
 
