@@ -458,6 +458,17 @@ func (c *Container) stop() error {
 		return err
 	}
 
+	// In case our container is "ready", there is no point in trying to
+	// stop it because nothing has been started. However, this is a valid
+	// case and we handle this by updating the container state only.
+	if state.State == StateReady {
+		if err := state.validTransition(StateReady, StateStopped); err != nil {
+			return err
+		}
+
+		return c.setContainerState(StateStopped)
+	}
+
 	if state.State != StateRunning {
 		return fmt.Errorf("Container not running, impossible to stop")
 	}

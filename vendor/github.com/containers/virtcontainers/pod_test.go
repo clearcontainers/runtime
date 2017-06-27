@@ -152,8 +152,8 @@ func TestPodStateRunningStopped(t *testing.T) {
 
 func TestPodStateReadyPaused(t *testing.T) {
 	err := testPodStateTransition(t, StateReady, StateStopped)
-	if err == nil {
-		t.Fatal("Invalid transition from Ready to Paused")
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
