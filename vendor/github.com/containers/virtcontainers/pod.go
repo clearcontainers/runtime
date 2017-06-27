@@ -80,7 +80,7 @@ func (state *State) validTransition(oldState stateString, newState stateString) 
 
 	switch state.State {
 	case StateReady:
-		if newState == StateRunning {
+		if newState == StateRunning || newState == StateStopped {
 			return nil
 		}
 

@@ -96,6 +96,10 @@
 
 [[constraint]]
   branch = "master"
+  name = "github.com/containers/virtcontainers"
+
+[[constraint]]
+  branch = "master"
   name = "github.com/davecgh/go-spew"
 
 [[constraint]]

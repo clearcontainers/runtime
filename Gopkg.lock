@@ -44,9 +44,10 @@
   revision = "5bbff37294de9dfb33771dac6f53411c88abe62a"
 
 [[projects]]
+  branch = "master"
   name = "github.com/containers/virtcontainers"
   packages = [".","pkg/cni","pkg/hyperstart","pkg/oci"]
-  revision = "0693a2623cc78adb32f0c01df5ddfe02acd07b6c"
+  revision = "b56b3061518374e9da2790a307a11717bec34a6f"
 
 [[projects]]
   branch = "master"
@@ -129,6 +130,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "761e78b757f867c879c3d53d290e3348e0cdfd27225734143e32c498d5c4fb3b"
+  inputs-digest = "3973113a570424c393905976a8660f2fadd54be00a28242f1f0ecf9178fa7bcf"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -1152,7 +1152,7 @@ func TestStopContainerFailingNoContainer(t *testing.T) {
 	}
 }
 
-func TestStopContainerFailingContNotStarted(t *testing.T) {
+func TestStopContainerFromContReadySuccessful(t *testing.T) {
 	cleanUp()
 
 	contID := "100"
@@ -1177,7 +1177,7 @@ func TestStopContainerFailingContNotStarted(t *testing.T) {
 	}
 
 	c, err = StopContainer(p.id, contID)
-	if c != nil || err == nil {
+	if err != nil {
 		t.Fatal()
 	}
 }
