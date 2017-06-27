@@ -68,6 +68,10 @@
 
 [[constraint]]
   branch = "master"
+  name = "github.com/01org/ciao"
+
+[[constraint]]
+  branch = "master"
   name = "github.com/Azure/go-ansiterm"
 
 [[constraint]]
@@ -80,11 +84,35 @@
 
 [[constraint]]
   branch = "master"
+  name = "github.com/clearcontainers/proxy"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/containernetworking/cni"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/containernetworking/plugins"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/davecgh/go-spew"
+
+[[constraint]]
+  branch = "master"
   name = "github.com/dlespiau/covertool"
 
 [[constraint]]
   branch = "master"
   name = "github.com/docker/docker"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/kubernetes-incubator/cri-o"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/mitchellh/mapstructure"
 
 [[constraint]]
   branch = "master"
@@ -104,16 +132,16 @@
 
 [[constraint]]
   branch = "master"
+  name = "github.com/vishvananda/netlink"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/vishvananda/netns"
+
+[[constraint]]
+  branch = "master"
+  name = "golang.org/x/crypto"
+
+[[constraint]]
+  branch = "master"
   name = "golang.org/x/sys"
-
-[[constraint]]
-  name = "github.com/01org/ciao"
-  revision = "d521860ec96c7f7881285817d7881c6b75ea9862"
-
-[[override]]
-  name = "github.com/01org/ciao"
-  revision = "d521860ec96c7f7881285817d7881c6b75ea9862"
-
-[[constraint]]
-  name = "github.com/containers/virtcontainers"
-  version = "1.0.0-alpha.0"

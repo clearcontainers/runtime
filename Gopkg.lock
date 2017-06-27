@@ -2,9 +2,10 @@
 
 
 [[projects]]
+  branch = "master"
   name = "github.com/01org/ciao"
   packages = ["qemu","ssntp/uuid"]
-  revision = "d521860ec96c7f7881285817d7881c6b75ea9862"
+  revision = "8aeee1901c7bb4988c53db9dc56dfb60b011f46e"
 
 [[projects]]
   branch = "master"
@@ -13,70 +14,75 @@
   revision = "fa152c58bc15761d0200cb75fe958b89a9d4888e"
 
 [[projects]]
+  branch = "master"
   name = "github.com/BurntSushi/toml"
   packages = ["."]
-  revision = "b26d9c308763d68093482582cea63d69be07a0f0"
-  version = "v0.3.0"
+  revision = "e643e9ef00b049d75de26e61109c5ea01885cd21"
 
 [[projects]]
   branch = "master"
   name = "github.com/Sirupsen/logrus"
   packages = ["."]
-  revision = "85b1699d505667d13f8ac4478c1debbf85d6c5de"
+  revision = "acfabf31db8f45a9174f54a0d48ea4d15627af4d"
 
 [[projects]]
+  branch = "master"
   name = "github.com/clearcontainers/proxy"
   packages = ["api","client"]
-  revision = "8b2978d044f5efce201d5f2977fcc51b89e742c0"
-  version = "3.0.0-alpha.0"
+  revision = "cf19e7935daaff8db546111c7a48cfdc2c1f09f6"
 
 [[projects]]
+  branch = "master"
   name = "github.com/containernetworking/cni"
-  packages = ["libcni","pkg/invoke","pkg/ns","pkg/types","pkg/types/020","pkg/types/current","pkg/version"]
-  revision = "137b4975ecab6e1f0c24c1e3c228a50a3cfba75e"
-  version = "v0.5.2"
+  packages = ["libcni","pkg/invoke","pkg/types","pkg/types/020","pkg/types/current","pkg/version"]
+  revision = "49d814cf37bfea351a1caedd0c66825c9d6fca52"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/containernetworking/plugins"
+  packages = ["pkg/ns"]
+  revision = "5bbff37294de9dfb33771dac6f53411c88abe62a"
 
 [[projects]]
   name = "github.com/containers/virtcontainers"
   packages = [".","pkg/cni","pkg/hyperstart","pkg/oci"]
-  revision = "2ebf31a7df9d5c7cfefbc0925a8223e5330aa207"
-  version = "1.0.0-rc.0"
+  revision = "0693a2623cc78adb32f0c01df5ddfe02acd07b6c"
 
 [[projects]]
+  branch = "master"
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
-  version = "v1.1.0"
 
 [[projects]]
   branch = "master"
   name = "github.com/dlespiau/covertool"
   packages = ["pkg/cover"]
-  revision = "a89ec0564bdedd5c8030ab478e6d2bfe95954456"
+  revision = "b82616d290e628437bc08b858b5ecb3d7fe9ea53"
 
 [[projects]]
   branch = "master"
   name = "github.com/docker/docker"
   packages = ["pkg/term","pkg/term/windows"]
-  revision = "6d92b0ee15cff0d5fade6533f696c7bc9f314021"
+  revision = "3d31198cda7d1230415b37970172480b5190c1e3"
 
 [[projects]]
   branch = "master"
   name = "github.com/kubernetes-incubator/cri-o"
   packages = ["pkg/annotations"]
-  revision = "7b9032bac70b1854b993f5e4e77ce3c9f12f13de"
+  revision = "f3f8b67b76d53887b874633c6de13140dae99b76"
 
 [[projects]]
   branch = "master"
   name = "github.com/mitchellh/mapstructure"
   packages = ["."]
-  revision = "d0303fe809921458f417bcf828397a65db30a7e4"
+  revision = "53818660ed4955e899c0bcafa97299a388bd7c8e"
 
 [[projects]]
   branch = "master"
   name = "github.com/opencontainers/runtime-spec"
   packages = ["specs-go"]
-  revision = "b5017e22ec9592d9e4935812fdce8f9a6b71a365"
+  revision = "035da1dca3dfbb00d752eb58b0b158d6129f3776"
 
 [[projects]]
   name = "github.com/pmezard/go-difflib"
@@ -88,13 +94,13 @@
   branch = "master"
   name = "github.com/stretchr/testify"
   packages = ["assert"]
-  revision = "f6abca593680b2315d2075e0f5e2a9751e3f431a"
+  revision = "4d4bfba8f1d1027c4fdbe371823030df51419987"
 
 [[projects]]
   branch = "master"
   name = "github.com/urfave/cli"
   packages = ["."]
-  revision = "cf33a9befefdd6c6ea1a236ab6d546e797a62cbf"
+  revision = "9e5b04886c4bfee2ceba1465b8121057355c4e53"
 
 [[projects]]
   branch = "master"
@@ -112,17 +118,17 @@
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["curve25519","ed25519","ed25519/internal/edwards25519","ssh"]
-  revision = "850760c427c516be930bc91280636328f1a62286"
+  revision = "adbae1b6b6fb4b02448a0fc0dbbc9ba2b95b294d"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
-  packages = ["unix","windows"]
-  revision = "fb4cac33e3196ff7f507ab9b2d2a44b0142f5b5a"
+  packages = ["unix"]
+  revision = "f7928cfef4d09d1b080aa2b6fd3ca9ba1567c733"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "4cef922d6a2c2d0536c97f8bfdfa3066e6c5e056b446e123b3ff00765d9c5c16"
+  inputs-digest = "761e78b757f867c879c3d53d290e3348e0cdfd27225734143e32c498d5c4fb3b"
   solver-name = "gps-cdcl"
   solver-version = 1

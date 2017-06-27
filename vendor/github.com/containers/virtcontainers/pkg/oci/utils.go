@@ -47,8 +47,8 @@ var (
 	CRIContainerTypeKeyList = []string{annotations.ContainerType}
 
 	// CRISandboxNameKeyList lists all the CRI keys that could define
-	// the sandbox name (pod ID) from annotations in the config.json.
-	CRISandboxNameKeyList = []string{annotations.SandboxName}
+	// the sandbox ID (pod ID) from annotations in the config.json.
+	CRISandboxNameKeyList = []string{annotations.SandboxID}
 )
 
 const (

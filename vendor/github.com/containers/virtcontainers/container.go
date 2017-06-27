@@ -267,60 +267,10 @@ func (c *Container) createContainersDirs() error {
 	return nil
 }
 
-func createContainers(pod *Pod, contConfigs []ContainerConfig) ([]*Container, error) {
-	if pod == nil {
-		return nil, errNeedPod
-	}
-
-	var containers []*Container
-
-	for idx, contConfig := range contConfigs {
-		if contConfig.valid() == false {
-			return containers, fmt.Errorf("Invalid container configuration")
-		}
-
-		c := &Container{
-			id:            contConfig.ID,
-			podID:         pod.id,
-			rootFs:        contConfig.RootFs,
-			config:        &contConfigs[idx],
-			pod:           pod,
-			runPath:       filepath.Join(runStoragePath, pod.id, contConfig.ID),
-			configPath:    filepath.Join(configStoragePath, pod.id, contConfig.ID),
-			containerPath: filepath.Join(pod.id, contConfig.ID),
-			state:         State{},
-			process:       Process{},
-			mounts:        contConfig.Mounts,
-		}
-
-		state, err := c.pod.storage.fetchContainerState(c.podID, c.id)
-		if err == nil {
-			c.state.State = state.State
-		}
-
-		process, err := c.pod.storage.fetchContainerProcess(c.podID, c.id)
-		if err == nil {
-			c.process = process
-		}
-
-		mounts, err := c.fetchMounts()
-		if err == nil {
-			c.mounts = mounts
-		}
-
-		containers = append(containers, c)
-	}
-
-	return containers, nil
-}
-
-func createContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
-	if pod == nil {
-		return nil, errNeedPod
-	}
-
+// newContainer creates a Container structure from a pod and a container configuration.
+func newContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 	if contConfig.valid() == false {
-		return nil, fmt.Errorf("Invalid container configuration")
+		return &Container{}, fmt.Errorf("Invalid container configuration")
 	}
 
 	c := &Container{
@@ -334,14 +284,15 @@ func createContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 		containerPath: filepath.Join(pod.id, contConfig.ID),
 		state:         State{},
 		process:       Process{},
+		mounts:        contConfig.Mounts,
 	}
 
-	err := c.createContainersDirs()
-	if err != nil {
-		return nil, err
+	state, err := c.pod.storage.fetchContainerState(c.podID, c.id)
+	if err == nil {
+		c.state.State = state.State
 	}
 
-	process, err := c.fetchProcess()
+	process, err := c.pod.storage.fetchContainerProcess(c.podID, c.id)
 	if err == nil {
 		c.process = process
 	}
@@ -349,6 +300,45 @@ func createContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 	mounts, err := c.fetchMounts()
 	if err == nil {
 		c.mounts = mounts
+	}
+
+	return c, nil
+}
+
+// newContainers uses newContainer to create a Container slice.
+func newContainers(pod *Pod, contConfigs []ContainerConfig) ([]*Container, error) {
+	if pod == nil {
+		return nil, errNeedPod
+	}
+
+	var containers []*Container
+
+	for _, contConfig := range contConfigs {
+		c, err := newContainer(pod, contConfig)
+		if err != nil {
+			return containers, err
+		}
+
+		containers = append(containers, c)
+	}
+
+	return containers, nil
+}
+
+// createContainer creates and start a container inside a Pod.
+func createContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
+	if pod == nil {
+		return nil, errNeedPod
+	}
+
+	c, err := newContainer(pod, contConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	err = c.createContainersDirs()
+	if err != nil {
+		return nil, err
 	}
 
 	state, err := c.pod.storage.fetchContainerState(c.podID, c.id)
@@ -482,7 +472,7 @@ func (c *Container) stop() error {
 	}
 	defer c.pod.proxy.disconnect()
 
-	err = c.pod.agent.killContainer(*(c.pod), *c, syscall.SIGTERM, true)
+	err = c.pod.agent.killContainer(*(c.pod), *c, syscall.SIGKILL, true)
 	if err != nil {
 		return err
 	}

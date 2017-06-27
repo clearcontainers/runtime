@@ -514,7 +514,7 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 		annotationsLock: &sync.RWMutex{},
 	}
 
-	containers, err := createContainers(p, podConfig.Containers)
+	containers, err := newContainers(p, podConfig.Containers)
 	if err != nil {
 		return nil, err
 	}

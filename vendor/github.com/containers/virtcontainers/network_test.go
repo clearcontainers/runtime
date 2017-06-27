@@ -22,7 +22,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/containernetworking/cni/pkg/ns"
+	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 )

@@ -840,7 +840,7 @@ func lexBool(lx *lexer) stateFn {
 	var rs []rune
 	for {
 		r := lx.next()
-		if !unicode.IsLetter(r) {
+		if r == eof || isWhitespace(r) || isNL(r) {
 			lx.backup()
 			break
 		}

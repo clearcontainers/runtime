@@ -42,6 +42,10 @@ const (
 	tokenStateClaimed
 )
 
+// In linux the max socket path is 108 including null character
+// see http://man7.org/linux/man-pages/man7/unix.7.html
+const socketPathMaxLength = 107
+
 // tokenInfo keeps track of per-token data
 type tokenInfo struct {
 	state tokenState
@@ -335,7 +339,8 @@ func hyper(data []byte, userData interface{}, response *handlerResponse) {
 
 	client.log.Infof("hyper(cmd=%s, data=%s)", hyper.HyperName, hyper.Data)
 
-	err := vm.SendMessage(&hyper)
+	data, err := vm.SendMessage(&hyper)
+	response.SetData(data)
 	response.SetError(err)
 }
 
@@ -551,7 +556,7 @@ var ArgSocketPath = flag.String("socket-path", "", "specify path to socket file"
 // getSocketPath computes the path of the proxy socket. Note that when socket
 // activated, the socket path is specified in the systemd socket file but the
 // same value is set in DefaultSocketPath at link time.
-func getSocketPath() string {
+func getSocketPath() (string, error) {
 	// Invoking "go build" without any linker option will not
 	// populate DefaultSocketPath, so fallback to a reasonable
 	// path. People should really use the Makefile though.
@@ -565,7 +570,13 @@ func getSocketPath() string {
 		socketPath = *ArgSocketPath
 	}
 
-	return socketPath
+	if len(socketPath) > socketPathMaxLength {
+		return "", fmt.Errorf("socket path too long %d (max %d)",
+			len(socketPath), socketPathMaxLength)
+
+	}
+
+	return socketPath, nil
 }
 
 func (proxy *proxy) init() error {
@@ -576,7 +587,9 @@ func (proxy *proxy) init() error {
 	proxy.enableVMConsole = logrus.GetLevel() == logrus.DebugLevel
 
 	// Open the proxy socket
-	proxy.socketPath = getSocketPath()
+	if proxy.socketPath, err = getSocketPath(); err != nil {
+		return fmt.Errorf("couldn't get a rigth socket path: %v", err)
+	}
 	fds := listenFds()
 
 	if len(fds) > 1 {

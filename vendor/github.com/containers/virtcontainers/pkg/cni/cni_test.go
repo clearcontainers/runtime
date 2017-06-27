@@ -24,7 +24,7 @@ import (
 	"testing"
 
 	"github.com/containernetworking/cni/libcni"
-	"github.com/containernetworking/cni/pkg/ns"
+	"github.com/containernetworking/plugins/pkg/ns"
 )
 
 const (

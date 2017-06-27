@@ -39,7 +39,7 @@ func TestFilesystemCreateAllResourcesSuccessful(t *testing.T) {
 		storage: fs,
 	}
 
-	containers, err := createContainers(&pod, contConfigs)
+	containers, err := newContainers(&pod, contConfigs)
 	if err != nil {
 		t.Fatal(err)
 	}
