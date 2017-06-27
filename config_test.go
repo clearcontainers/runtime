@@ -193,9 +193,27 @@ func TestRuntimeConfig(t *testing.T) {
 	assert.True(t, fileExists(filepath.Dir(logPath)))
 	assert.True(t, fileExists(logPath))
 
+	configPathLinkDir := filepath.Dir(configPathLink)
+	relativeConfigPathLink := filepath.Base(configPathLink)
+
+	cwd, err := os.Getwd()
+	assert.NoError(t, err)
+
+	err = os.Chdir(configPathLinkDir)
+	assert.NoError(t, err)
+
+	resolvedConfigPath, _, _, err = loadConfiguration(relativeConfigPathLink, false)
+	assert.NoError(t, err)
+	assert.Equal(t, configPath, resolvedConfigPath)
+
+	// undo
+	err = os.Chdir(cwd)
+	assert.NoError(t, err)
+
 	if err := os.Remove(configPathLink); err != nil {
 		t.Fatal(err)
 	}
+
 }
 
 func TestMinimalRuntimeConfig(t *testing.T) {

@@ -105,37 +105,42 @@ func getExistingContainerInfo(containerID string) (vc.ContainerStatus, string, e
 	return cStatus, podID, nil
 }
 
-func validCreateParams(containerID, bundlePath string) error {
+func validCreateParams(containerID, bundlePath string) (string, error) {
 	// container ID MUST be provided.
 	if containerID == "" {
-		return fmt.Errorf("Missing container ID")
+		return "", fmt.Errorf("Missing container ID")
 	}
 
 	// container ID MUST be unique.
 	cStatus, _, err := getContainerInfo(containerID)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	if cStatus.ID != "" {
-		return fmt.Errorf("ID already in use, unique ID should be provided")
+		return "", fmt.Errorf("ID already in use, unique ID should be provided")
 	}
 
 	// bundle path MUST be provided.
 	if bundlePath == "" {
-		return fmt.Errorf("Missing bundle path")
+		return "", fmt.Errorf("Missing bundle path")
 	}
 
 	// bundle path MUST be valid.
 	fileInfo, err := os.Stat(bundlePath)
 	if err != nil {
-		return fmt.Errorf("Invalid bundle path '%s': %s", bundlePath, err)
+		return "", fmt.Errorf("Invalid bundle path '%s': %s", bundlePath, err)
 	}
 	if fileInfo.IsDir() == false {
-		return fmt.Errorf("Invalid bundle path '%s', it should be a directory", bundlePath)
+		return "", fmt.Errorf("Invalid bundle path '%s', it should be a directory", bundlePath)
 	}
 
-	return nil
+	resolved, err := resolvePath(bundlePath)
+	if err != nil {
+		return "", err
+	}
+
+	return resolved, nil
 }
 
 func processRunning(pid int) (bool, error) {

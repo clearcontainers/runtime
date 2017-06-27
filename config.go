@@ -300,7 +300,7 @@ func loadConfiguration(configPath string, ignoreLogging bool) (resolvedConfigPat
 		configPath = defaultRuntimeConfiguration
 	}
 
-	resolved, err := filepath.EvalSymlinks(configPath)
+	resolved, err := resolvePath(configPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			// Make the error clearer than the one returned
