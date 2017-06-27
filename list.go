@@ -208,7 +208,7 @@ func getContainers(context *cli.Context) ([]fullContainerState, error) {
 	var s []fullContainerState
 
 	for _, pod := range podList {
-		if len(pod.ContainersStatus) != 1 {
+		if len(pod.ContainersStatus) == 0 {
 			// ignore empty pods
 			continue
 		}
