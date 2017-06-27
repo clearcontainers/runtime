@@ -48,8 +48,6 @@ NOTES:
 
 `
 
-var defaultRootDirectory = "/run/clear-containers"
-
 var ccLog = logrus.New()
 
 func beforeSubcommands(context *cli.Context) error {
