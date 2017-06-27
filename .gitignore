@@ -1,2 +1,4 @@
 /cc-runtime
 /coverage.html
+/config-generated.go
+/config/configuration.toml
