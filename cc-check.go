@@ -80,6 +80,7 @@ var requiredKernelModules = map[string]kernelModule{
 	},
 }
 
+// return details of the first CPU
 func getCPUInfo(cpuInfoFile string) (string, error) {
 	text, err := getFileContents(cpuInfoFile)
 	if err != nil {
@@ -88,12 +89,12 @@ func getCPUInfo(cpuInfoFile string) (string, error) {
 
 	cpus := strings.SplitAfter(text, "\n\n")
 
-	if len(cpus) == 0 {
+	trimmed := strings.TrimSpace(cpus[0])
+	if trimmed == "" {
 		return "", fmt.Errorf("Cannot determine CPU details")
 	}
 
-	// return details of the first CPU only
-	return cpus[0], nil
+	return trimmed, nil
 }
 
 func findAnchoredString(haystack, needle string) bool {

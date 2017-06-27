@@ -15,6 +15,7 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -32,17 +33,18 @@ func TestCheckGetCPUInfo(t *testing.T) {
 	type testData struct {
 		contents       string
 		expectedResult string
+		expectError    bool
 	}
 
 	data := []testData{
-		{"", ""},
-		{" ", " "},
-		{"\n", "\n"},
-		{"\n\n", "\n\n"},
-		{"hello\n", "hello\n"},
-		{"hello\n\n", "hello\n\n"},
-		{"hello\n\nworld\n\n", "hello\n\n"},
-		{"foo\n\nbar\nbaz\n\n", "foo\n\n"},
+		{"", "", true},
+		{" ", "", true},
+		{"\n", "", true},
+		{"\n\n", "", true},
+		{"hello\n", "hello", false},
+		{"foo\n\n", "foo", false},
+		{"foo\n\nbar\n\n", "foo", false},
+		{"foo\n\nbar\nbaz\n\n", "foo", false},
 	}
 
 	dir, err := ioutil.TempDir("", "")
@@ -64,7 +66,11 @@ func TestCheckGetCPUInfo(t *testing.T) {
 		defer os.Remove(file)
 
 		contents, err := getCPUInfo(file)
-		assert.NoError(t, err, "expected no error")
+		if d.expectError {
+			assert.Error(t, err, fmt.Sprintf("got %q, test data: %+v", contents, d))
+		} else {
+			assert.NoError(t, err, fmt.Sprintf("got %q, test data: %+v", contents, d))
+		}
 
 		assert.Equal(t, d.expectedResult, contents)
 	}
@@ -354,6 +360,96 @@ func TestCheckCheckKernelModules(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestCheckCheckKernelModulesUnreadableFile(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip(testDisabledNeedNonRoot)
+	}
+
+	dir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	testData := map[string]kernelModule{
+		"foo": {
+			desc: "desc",
+			parameters: map[string]string{
+				"param1": "wibble",
+			},
+		},
+	}
+
+	savedModInfoCmd := modInfoCmd
+	savedSysModuleDir := sysModuleDir
+
+	// XXX: override (fake the modprobe command failing)
+	modInfoCmd = "false"
+	sysModuleDir = filepath.Join(dir, "sys/module")
+
+	defer func() {
+		modInfoCmd = savedModInfoCmd
+		sysModuleDir = savedSysModuleDir
+	}()
+
+	modPath := filepath.Join(sysModuleDir, "foo/parameters")
+	err = os.MkdirAll(modPath, testDirMode)
+	assert.NoError(t, err)
+
+	modParamFile := filepath.Join(modPath, "param1")
+
+	err = createEmptyFile(modParamFile)
+	assert.NoError(t, err)
+
+	// make file unreadable by non-root user
+	err = os.Chmod(modParamFile, 0000)
+	assert.NoError(t, err)
+
+	err = checkKernelModules(testData)
+	assert.Error(t, err)
+}
+
+func TestCheckCheckKernelModulesInvalidFileContents(t *testing.T) {
+	dir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	testData := map[string]kernelModule{
+		"foo": {
+			desc: "desc",
+			parameters: map[string]string{
+				"param1": "wibble",
+			},
+		},
+	}
+
+	savedModInfoCmd := modInfoCmd
+	savedSysModuleDir := sysModuleDir
+
+	// XXX: override (fake the modprobe command failing)
+	modInfoCmd = "false"
+	sysModuleDir = filepath.Join(dir, "sys/module")
+
+	defer func() {
+		modInfoCmd = savedModInfoCmd
+		sysModuleDir = savedSysModuleDir
+	}()
+
+	modPath := filepath.Join(sysModuleDir, "foo/parameters")
+	err = os.MkdirAll(modPath, testDirMode)
+	assert.NoError(t, err)
+
+	modParamFile := filepath.Join(modPath, "param1")
+
+	err = createFile(modParamFile, "burp")
+	assert.NoError(t, err)
+
+	err = checkKernelModules(testData)
+	assert.Error(t, err)
+}
+
 func TestCheckHostIsClearContainersCapable(t *testing.T) {
 	type testModuleData struct {
 		path     string
@@ -445,4 +541,11 @@ func TestCheckHostIsClearContainersCapable(t *testing.T) {
 			assert.NoError(t, err)
 		}
 	}
+
+	// remove the modules to force a failure
+	err = os.RemoveAll(sysModuleDir)
+	assert.NoError(t, err)
+
+	err = hostIsClearContainersCapable(file)
+	assert.Error(t, err)
 }
