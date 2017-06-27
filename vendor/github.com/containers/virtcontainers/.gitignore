@@ -1,7 +1,0 @@
-*.patch
-*.o
-/hack/virtc/virtc
-/pause/pause
-/hook/mock/hook
-/shim/mock/shim
-profile.cov
