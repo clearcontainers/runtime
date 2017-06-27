@@ -22,8 +22,10 @@ import (
 	"path"
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 )
 
 type testData struct {
@@ -98,6 +100,14 @@ func TestHandleGlobalLog(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpdir)
 
+	subDir := path.Join(tmpdir, "a/b/global.log")
+	err = os.MkdirAll(subDir, testDirMode)
+	assert.NoError(t, err)
+
+	existingFile := path.Join(tmpdir, "c")
+	err = createEmptyFile(existingFile)
+	assert.NoError(t, err)
+
 	tmpfile := path.Join(tmpdir, "global.log")
 
 	data := []testData{
@@ -107,6 +117,8 @@ func TestHandleGlobalLog(t *testing.T) {
 		{"foo/bar/global.log", true},
 		{"../foo/bar/global.log", true},
 		{"./foo/bar/global.log", true},
+		{subDir, true},
+		{path.Join(existingFile, "global.log"), true},
 
 		{tmpfile, false},
 	}
@@ -193,4 +205,42 @@ func TestHandleGlobalLogEnvVar(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestLoggerFire(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ccLog = logrus.New()
+
+	logFile := path.Join(tmpdir, "a/b/global.log")
+	err = handleGlobalLog(logFile)
+	assert.NoError(t, err)
+
+	//ccLog.Debug("foo")
+
+	entry := &logrus.Entry{
+		Logger:  ccLog,
+		Time:    time.Now().UTC(),
+		Level:   logrus.DebugLevel,
+		Message: "foo",
+	}
+
+	err = ccLog.Hooks.Fire(logrus.DebugLevel, entry)
+	assert.NoError(t, err)
+
+	assert.Equal(t, len(ccLog.Hooks[logrus.DebugLevel]), 1)
+	hook, ok := ccLog.Hooks[logrus.DebugLevel][0].(*GlobalLogHook)
+	assert.True(t, ok)
+
+	err = hook.file.Close()
+	assert.NoError(t, err)
+
+	err = os.RemoveAll(tmpdir)
+	assert.NoError(t, err)
+
+	err = ccLog.Hooks.Fire(logrus.DebugLevel, entry)
+	assert.Error(t, err)
 }
