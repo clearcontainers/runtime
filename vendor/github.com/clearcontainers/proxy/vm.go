@@ -430,21 +430,22 @@ func (vm *vm) relocateHyperCommand(hyper *api.Hyper) (*ioSession, error) {
 	return session, nil
 }
 
-func (vm *vm) SendMessage(hyper *api.Hyper) (err error) {
+func (vm *vm) SendMessage(hyper *api.Hyper) ([]byte, error) {
 	var session *ioSession
+	var err error
 
 	if session, err = vm.relocateHyperCommand(hyper); err != nil {
-		return err
+		return nil, err
 	}
 
-	_, err = vm.hyperHandler.SendCtlMessage(hyper.HyperName, hyper.Data)
+	response, err := vm.hyperHandler.SendCtlMessage(hyper.HyperName, hyper.Data)
 
 	if session != nil {
 		// We have now started the process inside the VM, let the shim send stdin
 		// data and signals.
 		close(session.processStarted)
 	}
-	return err
+	return response.Message, err
 }
 
 var waitForShimTimeout = 30 * time.Second
@@ -554,8 +555,8 @@ func (session *ioSession) SendSignal(signal syscall.Signal) error {
 	// FIXME: Change this when hyperstart will be capable of forwarding a
 	// signal to a process different from the initial container process.
 	if session.containerID == "" {
-		return fmt.Errorf("Could not send the signal %s: Sending" +
-			" a signal to a process different from the initial" +
+		return fmt.Errorf("Could not send the signal %s: Sending"+
+			" a signal to a process different from the initial"+
 			" container process is not supported",
 			signal.String())
 	}

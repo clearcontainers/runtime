@@ -59,11 +59,6 @@ type Command struct {
 	// Full name of command for help, defaults to full command name, including parent commands.
 	HelpName        string
 	commandNamePath []string
-
-	// CustomHelpTemplate the text template for the command help topic.
-	// cli.go uses text/template to render templates. You can
-	// render custom help text by setting this variable.
-	CustomHelpTemplate string
 }
 
 type CommandsByName []Command
@@ -159,20 +154,19 @@ func (c Command) Run(ctx *Context) (err error) {
 	}
 
 	context := NewContext(ctx.App, set, ctx)
-	context.Command = c
 	if checkCommandCompletions(context, c.Name) {
 		return nil
 	}
 
 	if err != nil {
 		if c.OnUsageError != nil {
-			err := c.OnUsageError(context, err, false)
+			err := c.OnUsageError(ctx, err, false)
 			HandleExitCoder(err)
 			return err
 		}
-		fmt.Fprintln(context.App.Writer, "Incorrect Usage:", err.Error())
-		fmt.Fprintln(context.App.Writer)
-		ShowCommandHelp(context, c.Name)
+		fmt.Fprintln(ctx.App.Writer, "Incorrect Usage:", err.Error())
+		fmt.Fprintln(ctx.App.Writer)
+		ShowCommandHelp(ctx, c.Name)
 		return err
 	}
 
@@ -197,9 +191,9 @@ func (c Command) Run(ctx *Context) (err error) {
 	if c.Before != nil {
 		err = c.Before(context)
 		if err != nil {
-			fmt.Fprintln(context.App.Writer, err)
-			fmt.Fprintln(context.App.Writer)
-			ShowCommandHelp(context, c.Name)
+			fmt.Fprintln(ctx.App.Writer, err)
+			fmt.Fprintln(ctx.App.Writer)
+			ShowCommandHelp(ctx, c.Name)
 			HandleExitCoder(err)
 			return err
 		}
@@ -209,6 +203,7 @@ func (c Command) Run(ctx *Context) (err error) {
 		c.Action = helpSubcommand.Action
 	}
 
+	context.Command = c
 	err = HandleAction(c.Action, context)
 
 	if err != nil {
@@ -255,7 +250,6 @@ func (c Command) startApp(ctx *Context) error {
 
 	// set CommandNotFound
 	app.CommandNotFound = ctx.App.CommandNotFound
-	app.CustomAppHelpTemplate = c.CustomHelpTemplate
 
 	// set the flags and commands
 	app.Commands = c.Subcommands

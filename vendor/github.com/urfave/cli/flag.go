@@ -14,13 +14,13 @@ import (
 const defaultPlaceholder = "value"
 
 // BashCompletionFlag enables bash-completion for all commands and subcommands
-var BashCompletionFlag Flag = BoolFlag{
+var BashCompletionFlag = BoolFlag{
 	Name:   "generate-bash-completion",
 	Hidden: true,
 }
 
 // VersionFlag prints the version for the application
-var VersionFlag Flag = BoolFlag{
+var VersionFlag = BoolFlag{
 	Name:  "version, v",
 	Usage: "print the version",
 }
@@ -28,7 +28,7 @@ var VersionFlag Flag = BoolFlag{
 // HelpFlag prints the help for all commands and subcommands
 // Set to the zero value (BoolFlag{}) to disable flag -- keeps subcommand
 // unless HideHelp is set to true)
-var HelpFlag Flag = BoolFlag{
+var HelpFlag = BoolFlag{
 	Name:  "help, h",
 	Usage: "show help",
 }
@@ -630,8 +630,7 @@ func (f Float64Flag) ApplyWithError(set *flag.FlagSet) error {
 func visibleFlags(fl []Flag) []Flag {
 	visible := []Flag{}
 	for _, flag := range fl {
-		field := flagValue(flag).FieldByName("Hidden")
-		if !field.IsValid() || !field.Bool() {
+		if !flagValue(flag).FieldByName("Hidden").Bool() {
 			visible = append(visible, flag)
 		}
 	}
@@ -724,8 +723,9 @@ func stringifyFlag(f Flag) string {
 
 	needsPlaceholder := false
 	defaultValueString := ""
+	val := fv.FieldByName("Value")
 
-	if val := fv.FieldByName("Value"); val.IsValid() {
+	if val.IsValid() {
 		needsPlaceholder = true
 		defaultValueString = fmt.Sprintf(" (default: %v)", val.Interface())
 

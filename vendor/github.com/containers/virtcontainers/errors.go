@@ -27,4 +27,5 @@ var (
 	errNeedContainerID = errors.New("Container ID cannot be empty")
 	errNeedFile        = errors.New("File cannot be empty")
 	errNeedState       = errors.New("State cannot be empty")
+	errInvalidResource = errors.New("Invalid pod resource")
 )

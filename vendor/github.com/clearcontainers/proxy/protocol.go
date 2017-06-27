@@ -22,13 +22,13 @@ import (
 	"github.com/clearcontainers/proxy/api"
 )
 
-// XXX: could do with its own package to remove that ugly namespacing
 type commandHandler func([]byte, interface{}, *handlerResponse)
 
 // Encapsulates the different parts of what a handler can return.
 type handlerResponse struct {
 	err     error
 	results map[string]interface{}
+	data    []byte
 }
 
 func (r *handlerResponse) SetError(err error) {
@@ -48,6 +48,13 @@ func (r *handlerResponse) AddResult(key string, value interface{}) {
 		r.results = make(map[string]interface{})
 	}
 	r.results[key] = value
+}
+
+// SetData sets the data to be sent as the response payload. If both AddResult
+// and SetData are called on the same handlerResponse, SetData takes precedence
+// and defines what we be returned to the caller.
+func (r *handlerResponse) SetData(data []byte) {
+	r.data = data
 }
 
 // streamHandler is the prototype of function that can be registered to be
@@ -115,14 +122,25 @@ func (proto *protocol) handleCommand(ctx *clientCtx, cmd *api.Frame) *api.Frame 
 		return newErrorResponse(cmd.Header.Opcode, hr.err.Error())
 	}
 
-	var payload interface{}
-	if len(hr.results) > 0 {
-		payload = hr.results
+	var frame *api.Frame
+
+	if len(hr.data) > 0 {
+		// We have a full payload defined.
+		frame = api.NewFrame(api.TypeResponse, cmd.Header.Opcode, hr.data)
+	} else {
+		// Otherwise, we'll marshal hr.results, if we have any.
+		var payload interface{}
+		var err error
+
+		if len(hr.results) > 0 {
+			payload = hr.results
+		}
+		frame, err = api.NewFrameJSON(api.TypeResponse, cmd.Header.Opcode, payload)
+		if err != nil {
+			return newErrorResponse(cmd.Header.Opcode, err.Error())
+		}
 	}
-	frame, err := api.NewFrameJSON(api.TypeResponse, cmd.Header.Opcode, payload)
-	if err != nil {
-		return newErrorResponse(cmd.Header.Opcode, err.Error())
-	}
+
 	return frame
 }
 

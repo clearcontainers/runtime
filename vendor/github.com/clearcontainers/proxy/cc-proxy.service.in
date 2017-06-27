@@ -4,6 +4,7 @@ Documentation=https://github.com/clearcontainers/proxy
 
 [Service]
 ExecStart=@libexecdir@/clear-containers/cc-proxy
+LimitNOFILE=infinity
 
 [Install]
 WantedBy=multi-user.target

@@ -24,10 +24,16 @@ import (
 	"runtime"
 
 	"github.com/01org/ciao/ssntp/uuid"
-	"github.com/containernetworking/cni/pkg/ns"
 	types "github.com/containernetworking/cni/pkg/types/current"
+	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
+)
+
+// Introduces constants related to network routes.
+const (
+	defaultRouteDest  = "0.0.0.0/0"
+	defaultRouteLabel = "default"
 )
 
 type netIfaceAddrs struct {

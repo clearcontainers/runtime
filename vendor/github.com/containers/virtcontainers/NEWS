@@ -1,3 +1,7 @@
+1.0.0-rc.1:
+	Added standard error for invalid pod resources
+	Fixed docker gateway routing
+
 1.0.0-rc.0:
 	Added pod pause and resume support
 	Added bind mounts support

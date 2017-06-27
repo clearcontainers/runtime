@@ -41,6 +41,7 @@ func (m mockAddr) String() string {
 
 func TestCNMCreateResults(t *testing.T) {
 	plugin := &cnm{}
+	ifaceIdx := 0
 
 	macAddr := net.HardwareAddr{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
 
@@ -60,7 +61,7 @@ func TestCNMCreateResults(t *testing.T) {
 		IPs: []*types.IPConfig{
 			{
 				Version:   "4",
-				Interface: 0,
+				Interface: &ifaceIdx,
 				Address:   *ipNet,
 			},
 		},

@@ -532,7 +532,7 @@ func TestPodIDSuccessful(t *testing.T) {
 	testPodID := "testPodID"
 
 	ociSpec.Annotations = map[string]string{
-		annotations.SandboxName: testPodID,
+		annotations.SandboxID: testPodID,
 	}
 
 	podID, err := ociSpec.PodID()

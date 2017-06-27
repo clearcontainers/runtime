@@ -202,14 +202,14 @@ func (client *Client) AttachVM(containerID string, options *AttachVMOptions) (*A
 }
 
 // Hyper wraps the Hyper payload (see payload description for more details)
-func (client *Client) Hyper(hyperName string, hyperMessage interface{}) error {
+func (client *Client) Hyper(hyperName string, hyperMessage interface{}) ([]byte, error) {
 	return client.HyperWithTokens(hyperName, nil, hyperMessage)
 }
 
 // HyperWithTokens is a Hyper variant where the users can specify a list of I/O tokens.
 //
 // See the api.Hyper payload description for more details.
-func (client *Client) HyperWithTokens(hyperName string, tokens []string, hyperMessage interface{}) error {
+func (client *Client) HyperWithTokens(hyperName string, tokens []string, hyperMessage interface{}) ([]byte, error) {
 	var data []byte
 
 	if hyperMessage != nil {
@@ -217,7 +217,7 @@ func (client *Client) HyperWithTokens(hyperName string, tokens []string, hyperMe
 
 		data, err = json.Marshal(hyperMessage)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
@@ -232,10 +232,14 @@ func (client *Client) HyperWithTokens(hyperName string, tokens []string, hyperMe
 
 	resp, err := client.sendCommand(api.CmdHyper, &hyper)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return errorFromResponse(resp)
+	if err = errorFromResponse(resp); err != nil {
+		return nil, err
+	}
+
+	return resp.Payload, errorFromResponse(resp)
 }
 
 // UnregisterVM wraps the api.UnregisterVM payload.

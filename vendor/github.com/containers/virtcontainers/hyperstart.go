@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"syscall"
 
+	cniTypes "github.com/containernetworking/cni/pkg/types"
 	"github.com/containers/virtcontainers/pkg/hyperstart"
 )
 
@@ -122,6 +123,30 @@ func (h *hyper) buildHyperContainerProcess(cmd Cmd) (*hyperstart.Process, error)
 	return process, nil
 }
 
+func (h *hyper) processHyperRoute(route *cniTypes.Route, deviceName string) *hyperstart.Route {
+	gateway := route.GW.String()
+	if gateway == "<nil>" {
+		gateway = ""
+	}
+
+	destination := route.Dst.String()
+	if destination == defaultRouteDest {
+		destination = defaultRouteLabel
+	}
+
+	// Skip IPv6 because not supported by hyperstart
+	if destination != defaultRouteDest && route.Dst.IP.To4() == nil {
+		virtLog.Warnf("IPv6 route destination %q not supported", destination)
+		return nil
+	}
+
+	return &hyperstart.Route{
+		Dest:    destination,
+		Gateway: gateway,
+		Device:  deviceName,
+	}
+}
+
 func (h *hyper) buildNetworkInterfacesAndRoutes(pod Pod) ([]hyperstart.NetworkIface, []hyperstart.Route, error) {
 	networkNS, err := pod.storage.fetchPodNetwork(pod.id)
 	if err != nil {
@@ -172,23 +197,12 @@ func (h *hyper) buildNetworkInterfacesAndRoutes(pod Pod) ([]hyperstart.NetworkIf
 		ifaces = append(ifaces, iface)
 
 		for _, r := range endpoint.Properties.Routes {
-			// Skip IPv6 because not supported by hyperstart
-			if r.Dst.IP.To4() == nil {
+			route := h.processHyperRoute(r, endpoint.NetPair.VirtIface.Name)
+			if route == nil {
 				continue
 			}
 
-			gateway := r.GW.String()
-			if gateway == "<nil>" {
-				gateway = ""
-			}
-
-			route := hyperstart.Route{
-				Dest:    r.Dst.String(),
-				Gateway: gateway,
-				Device:  endpoint.NetPair.VirtIface.Name,
-			}
-
-			routes = append(routes, route)
+			routes = append(routes, *route)
 		}
 	}
 
@@ -441,7 +455,7 @@ func (h *hyper) stopPod(pod Pod) error {
 			continue
 		}
 
-		if err := h.killOneContainer(c.id, syscall.SIGTERM, true); err != nil {
+		if err := h.killOneContainer(c.id, syscall.SIGKILL, true); err != nil {
 			return err
 		}
 
