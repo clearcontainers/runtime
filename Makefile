@@ -131,12 +131,14 @@ const defaultImagePath = "$(IMAGEPATH)"
 const defaultKernelPath = "$(KERNELPATH)"
 const defaultPauseRootPath = "$(PAUSEROOTPATH)"
 const defaultProxyURL = "$(PROXYURL)"
-const defaultRuntimeConfiguration = "$(DESTCONFIG)"
 const defaultRootDirectory = "$(PKGRUNDIR)"
 const defaultRuntimeLib = "$(PKGLIBDIR)"
 const defaultRuntimeRun = "$(PKGRUNDIR)"
 const defaultShimPath = "$(SHIMPATH)"
 const pauseBinRelativePath = "$(PAUSEBINRELPATH)"
+
+// Required to be modifiable (for the tests)
+var defaultRuntimeConfiguration = "$(DESTCONFIG)"
 endef
 
 export GENERATED_CODE

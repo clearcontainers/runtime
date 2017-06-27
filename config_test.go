@@ -32,11 +32,20 @@ import (
 
 const proxyURL = "foo:///foo/clear-containers/proxy.sock"
 
-func makeRuntimeConfigFileData(hypervisorPath, kernelPath, imagePath, shimPath, agentPauseRootPath, proxyURL, logPath string) string {
+type testRuntimeConfig struct {
+	RuntimeConfig     oci.RuntimeConfig
+	RuntimeConfigFile string
+	ConfigPath        string
+	ConfigPathLink    string
+	LogDir            string
+	LogPath           string
+}
+
+func makeRuntimeConfigFileData(hypervisor, hypervisorPath, kernelPath, imagePath, shimPath, agentPauseRootPath, proxyURL, logPath string) string {
 	return `
 	# Clear Containers runtime configuration file
 
-	[hypervisor.qemu-lite]
+	[hypervisor.` + hypervisor + `]
 	path = "` + hypervisorPath + `"
 	kernel = "` + kernelPath + `"
 	image = "` + imagePath + `"
@@ -55,24 +64,27 @@ func makeRuntimeConfigFileData(hypervisorPath, kernelPath, imagePath, shimPath, 
 	`
 }
 
-func createConfig(fileName string, fileData string) (string, error) {
-	configPath := path.Join(testDir, fileName)
+func createConfig(configPath string, fileData string) error {
 
 	err := ioutil.WriteFile(configPath, []byte(fileData), testFileMode)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to create config file %s %v\n", configPath, err)
-		return "", err
+		return err
 	}
 
-	return configPath, nil
+	return nil
 }
 
-func TestRuntimeConfig(t *testing.T) {
-	dir, err := ioutil.TempDir(testDir, "runtime-config-")
-	if err != nil {
-		t.Fatal(err)
+// createAllRuntimeConfigFiles creates all files necessary to call
+// loadConfiguration().
+func createAllRuntimeConfigFiles(dir, hypervisor string) (config testRuntimeConfig, err error) {
+	if dir == "" {
+		return config, fmt.Errorf("BUG: need directory")
 	}
-	defer os.RemoveAll(dir)
+
+	if hypervisor == "" {
+		return config, fmt.Errorf("BUG: need hypervisor")
+	}
 
 	hypervisorPath := path.Join(dir, "hypervisor")
 	kernelPath := path.Join(dir, "kernel")
@@ -81,139 +93,453 @@ func TestRuntimeConfig(t *testing.T) {
 	agentPauseRootPath := path.Join(dir, "agentPauseRoot")
 	agentPauseRootBin := path.Join(agentPauseRootPath, "bin")
 	pauseBinPath := path.Join(agentPauseRootBin, "pause")
-	logPath := path.Join(dir, "logs/runtime.log")
+	logDir := path.Join(dir, "logs")
+	logPath := path.Join(logDir, "runtime.log")
 
-	runtimeConfig := makeRuntimeConfigFileData(hypervisorPath, kernelPath, imagePath, shimPath, agentPauseRootPath, proxyURL, logPath)
+	runtimeConfigFileData := makeRuntimeConfigFileData(hypervisor, hypervisorPath, kernelPath, imagePath, shimPath, agentPauseRootPath, proxyURL, logPath)
 
-	configPath, err := createConfig("runtime.toml", runtimeConfig)
+	configPath := path.Join(dir, "runtime.toml")
+	err = createConfig(configPath, runtimeConfigFileData)
 	if err != nil {
-		t.Fatal(err)
+		return config, err
 	}
 
 	configPathLink := path.Join(filepath.Dir(configPath), "link-to-configuration.toml")
 
 	// create a link to the config file
 	err = syscall.Symlink(configPath, configPathLink)
-	assert.NoError(t, err)
-
-	_, _, config, err := loadConfiguration(configPathLink, true)
-	if err == nil {
-		t.Fatalf("Expected loadConfiguration to fail as no paths exist: %+v", config)
+	if err != nil {
+		return config, err
 	}
-
-	assert.False(t, fileExists(filepath.Dir(logPath)))
-	assert.False(t, fileExists(logPath))
 
 	err = os.MkdirAll(agentPauseRootBin, testDirMode)
 	if err != nil {
-		t.Fatal(err)
+		return config, err
 	}
-	_, _, config, err = loadConfiguration(configPathLink, true)
-	if err == nil {
-		t.Fatalf("Expected loadConfiguration to fail as only pause path exists: %+v", config)
-	}
-
-	assert.False(t, fileExists(filepath.Dir(logPath)))
-	assert.False(t, fileExists(logPath))
 
 	files := []string{pauseBinPath, hypervisorPath, kernelPath, imagePath, shimPath}
-	filesLen := len(files)
 
-	for i, file := range files {
-		_, _, _, err = loadConfiguration(configPathLink, true)
-		if err == nil {
-			t.Fatalf("Expected loadConfiguration to fail as not all paths exist (not created %v)",
-				strings.Join(files[i:filesLen], ","))
-		}
-
-		assert.False(t, fileExists(filepath.Dir(logPath)))
-		assert.False(t, fileExists(logPath))
-
+	for _, file := range files {
 		// create the resource
 		err = createEmptyFile(file)
 		if err != nil {
-			t.Error(err)
+			return config, err
 		}
 	}
 
-	// all paths exist now
-	resolvedConfigPath, logfilePath, config, err := loadConfiguration(configPathLink, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	assert.Equal(t, configPath, resolvedConfigPath)
-	assert.Equal(t, logfilePath, logPath)
-	assert.False(t, fileExists(filepath.Dir(logPath)))
-	assert.False(t, fileExists(logPath))
-
-	expectedHypervisorConfig := vc.HypervisorConfig{
+	hypervisorConfig := vc.HypervisorConfig{
 		HypervisorPath: hypervisorPath,
 		KernelPath:     kernelPath,
 		ImagePath:      imagePath,
 	}
 
-	expectedAgentConfig := vc.HyperConfig{
+	agentConfig := vc.HyperConfig{
 		PauseBinPath: filepath.Join(agentPauseRootPath, pauseBinRelativePath),
 	}
 
-	expectedProxyConfig := vc.CCProxyConfig{
+	proxyConfig := vc.CCProxyConfig{
 		URL: proxyURL,
 	}
 
-	expectedShimConfig := vc.CCShimConfig{
+	shimConfig := vc.CCShimConfig{
 		Path: shimPath,
 	}
 
-	expectedConfig := oci.RuntimeConfig{
+	runtimeConfig := oci.RuntimeConfig{
 		HypervisorType:   defaultHypervisor,
-		HypervisorConfig: expectedHypervisorConfig,
+		HypervisorConfig: hypervisorConfig,
 
 		AgentType:   defaultAgent,
-		AgentConfig: expectedAgentConfig,
+		AgentConfig: agentConfig,
 
 		ProxyType:   defaultProxy,
-		ProxyConfig: expectedProxyConfig,
+		ProxyConfig: proxyConfig,
 
 		ShimType:   defaultShim,
-		ShimConfig: expectedShimConfig,
+		ShimConfig: shimConfig,
 	}
 
-	if reflect.DeepEqual(config, expectedConfig) == false {
-		t.Fatalf("Got %v\n expecting %v", config, expectedConfig)
+	config = testRuntimeConfig{
+		RuntimeConfig:     runtimeConfig,
+		RuntimeConfigFile: configPath,
+		ConfigPath:        configPath,
+		ConfigPathLink:    configPathLink,
+		LogDir:            logDir,
+		LogPath:           logPath,
 	}
 
-	resolvedConfigPath, logfilePath, _, err = loadConfiguration(configPathLink, false)
-	if err != nil {
-		t.Fatal(err)
+	return config, nil
+}
+
+// testLoadConfiguration accepts an optional function that can be used
+// to modify the test: if a function is specified, it indicates if the
+// subsequent call to loadConfiguration() is expected to fail by
+// returning a bool. If the function itself fails, that is considered an
+// error.
+func testLoadConfiguration(t *testing.T, dir string,
+	fn func(config testRuntimeConfig, configFile string, ignoreLogging bool) (bool, error)) {
+	subDir := path.Join(dir, "test")
+
+	for _, hypervisor := range []string{"qemu-lite", "qemu"} {
+	Loop:
+		for _, ignoreLogging := range []bool{true, false} {
+			err := os.RemoveAll(subDir)
+			assert.NoError(t, err)
+
+			err = os.MkdirAll(subDir, testDirMode)
+			assert.NoError(t, err)
+
+			testConfig, err := createAllRuntimeConfigFiles(subDir, hypervisor)
+			assert.NoError(t, err)
+
+			configFiles := []string{testConfig.ConfigPath, testConfig.ConfigPathLink, ""}
+
+			// override
+			defaultRuntimeConfiguration = testConfig.ConfigPath
+
+			for _, file := range configFiles {
+				var err error
+				expectFail := false
+
+				if fn != nil {
+					expectFail, err = fn(testConfig, file, ignoreLogging)
+					assert.NoError(t, err)
+				}
+
+				resolvedConfigPath, logfilePath, config, err := loadConfiguration(file, ignoreLogging)
+				if expectFail {
+					assert.Error(t, err)
+
+					// no point proceeding in the error scenario.
+					break Loop
+				} else {
+					assert.NoError(t, err)
+				}
+
+				if file == "" {
+					assert.Equal(t, defaultRuntimeConfiguration, resolvedConfigPath)
+				} else {
+					assert.Equal(t, testConfig.ConfigPath, resolvedConfigPath)
+				}
+
+				assert.NotEqual(t, "", logfilePath)
+				assert.Equal(t, logfilePath, testConfig.LogPath)
+
+				if ignoreLogging {
+					assert.False(t, fileExists(testConfig.LogDir))
+					assert.False(t, fileExists(testConfig.LogPath))
+				} else {
+					assert.True(t, fileExists(testConfig.LogDir))
+					assert.True(t, fileExists(testConfig.LogPath))
+				}
+
+				assert.Equal(t, defaultRuntimeConfiguration, resolvedConfigPath)
+				result := reflect.DeepEqual(config, testConfig.RuntimeConfig)
+				assert.True(t, result)
+
+				err = os.RemoveAll(testConfig.LogDir)
+				assert.NoError(t, err)
+			}
+		}
+	}
+}
+
+func TestConfigLoadConfiguration(t *testing.T) {
+	tmpdir, err := ioutil.TempDir(testDir, "load-config-")
+	assert.NoError(t, err)
+	defer os.RemoveAll(tmpdir)
+
+	testLoadConfiguration(t, tmpdir, nil)
+}
+
+func TestConfigLoadConfigurationFailBrokenSymLink(t *testing.T) {
+	tmpdir, err := ioutil.TempDir(testDir, "runtime-config-")
+	assert.NoError(t, err)
+	defer os.RemoveAll(tmpdir)
+
+	testLoadConfiguration(t, tmpdir,
+		func(config testRuntimeConfig, configFile string, ignoreLogging bool) (bool, error) {
+			expectFail := false
+
+			if configFile == config.ConfigPathLink {
+				// break the symbolic link
+				err = os.Remove(config.ConfigPathLink)
+				if err != nil {
+					return expectFail, err
+				}
+
+				expectFail = true
+			}
+
+			return expectFail, nil
+		})
+}
+
+func TestConfigLoadConfigurationFailSymLinkLoop(t *testing.T) {
+	tmpdir, err := ioutil.TempDir(testDir, "runtime-config-")
+	assert.NoError(t, err)
+	defer os.RemoveAll(tmpdir)
+
+	testLoadConfiguration(t, tmpdir,
+		func(config testRuntimeConfig, configFile string, ignoreLogging bool) (bool, error) {
+			expectFail := false
+
+			if configFile == config.ConfigPathLink {
+				// remove the config file
+				err = os.Remove(config.ConfigPath)
+				if err != nil {
+					return expectFail, err
+				}
+
+				// now, create a sym-link loop
+				err := os.Symlink(config.ConfigPathLink, config.ConfigPath)
+				if err != nil {
+					return expectFail, err
+				}
+
+				expectFail = true
+			}
+
+			return expectFail, nil
+		})
+}
+
+func TestConfigLoadConfigurationFailMissingPauseBinary(t *testing.T) {
+	tmpdir, err := ioutil.TempDir(testDir, "runtime-config-")
+	assert.NoError(t, err)
+	defer os.RemoveAll(tmpdir)
+
+	testLoadConfiguration(t, tmpdir,
+		func(config testRuntimeConfig, configFile string, ignoreLogging bool) (bool, error) {
+			expectFail := true
+
+			hyperConfig, ok := config.RuntimeConfig.AgentConfig.(vc.HyperConfig)
+			if !ok {
+				return expectFail, fmt.Errorf("cannot determine agent config")
+			}
+
+			err = os.Remove(hyperConfig.PauseBinPath)
+			if err != nil {
+				return expectFail, err
+			}
+
+			return expectFail, nil
+		})
+}
+
+func TestConfigLoadConfigurationFailMissingPauseDir(t *testing.T) {
+	tmpdir, err := ioutil.TempDir(testDir, "runtime-config-")
+	assert.NoError(t, err)
+	defer os.RemoveAll(tmpdir)
+
+	testLoadConfiguration(t, tmpdir,
+		func(config testRuntimeConfig, configFile string, ignoreLogging bool) (bool, error) {
+			expectFail := true
+
+			hyperConfig, ok := config.RuntimeConfig.AgentConfig.(vc.HyperConfig)
+			if !ok {
+				return expectFail, fmt.Errorf("cannot determine agent config")
+			}
+
+			err = os.RemoveAll(filepath.Dir(hyperConfig.PauseBinPath))
+			if err != nil {
+				return expectFail, err
+			}
+
+			return expectFail, nil
+		})
+}
+
+func TestConfigLoadConfigurationFailMissingHypervisor(t *testing.T) {
+	tmpdir, err := ioutil.TempDir(testDir, "runtime-config-")
+	assert.NoError(t, err)
+	defer os.RemoveAll(tmpdir)
+
+	testLoadConfiguration(t, tmpdir,
+		func(config testRuntimeConfig, configFile string, ignoreLogging bool) (bool, error) {
+			expectFail := true
+
+			err = os.Remove(config.RuntimeConfig.HypervisorConfig.HypervisorPath)
+			if err != nil {
+				return expectFail, err
+			}
+
+			return expectFail, nil
+		})
+}
+
+func TestConfigLoadConfigurationFailMissingImage(t *testing.T) {
+	tmpdir, err := ioutil.TempDir(testDir, "runtime-config-")
+	assert.NoError(t, err)
+	defer os.RemoveAll(tmpdir)
+
+	testLoadConfiguration(t, tmpdir,
+		func(config testRuntimeConfig, configFile string, ignoreLogging bool) (bool, error) {
+			expectFail := true
+
+			err = os.Remove(config.RuntimeConfig.HypervisorConfig.ImagePath)
+			if err != nil {
+				return expectFail, err
+			}
+
+			return expectFail, nil
+		})
+}
+
+func TestConfigLoadConfigurationFailMissingKernel(t *testing.T) {
+	tmpdir, err := ioutil.TempDir(testDir, "runtime-config-")
+	assert.NoError(t, err)
+	defer os.RemoveAll(tmpdir)
+
+	testLoadConfiguration(t, tmpdir,
+		func(config testRuntimeConfig, configFile string, ignoreLogging bool) (bool, error) {
+			expectFail := true
+
+			err = os.Remove(config.RuntimeConfig.HypervisorConfig.KernelPath)
+			if err != nil {
+				return expectFail, err
+			}
+
+			return expectFail, nil
+		})
+}
+
+func TestConfigLoadConfigurationFailMissingShim(t *testing.T) {
+	tmpdir, err := ioutil.TempDir(testDir, "runtime-config-")
+	assert.NoError(t, err)
+	defer os.RemoveAll(tmpdir)
+
+	testLoadConfiguration(t, tmpdir,
+		func(config testRuntimeConfig, configFile string, ignoreLogging bool) (bool, error) {
+			expectFail := true
+
+			shimConfig, ok := config.RuntimeConfig.ShimConfig.(vc.CCShimConfig)
+			if !ok {
+				return expectFail, fmt.Errorf("cannot determine shim config")
+			}
+			err = os.Remove(shimConfig.Path)
+			if err != nil {
+				return expectFail, err
+			}
+
+			return expectFail, nil
+		})
+}
+
+func TestConfigLoadConfigurationFailUnreadableConfig(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip(testDisabledNeedNonRoot)
 	}
 
-	assert.Equal(t, configPath, resolvedConfigPath)
-	assert.Equal(t, logfilePath, logPath)
-	assert.True(t, fileExists(filepath.Dir(logPath)))
-	assert.True(t, fileExists(logPath))
-
-	configPathLinkDir := filepath.Dir(configPathLink)
-	relativeConfigPathLink := filepath.Base(configPathLink)
-
-	cwd, err := os.Getwd()
+	tmpdir, err := ioutil.TempDir(testDir, "runtime-config-")
 	assert.NoError(t, err)
+	defer os.RemoveAll(tmpdir)
 
-	err = os.Chdir(configPathLinkDir)
-	assert.NoError(t, err)
+	testLoadConfiguration(t, tmpdir,
+		func(config testRuntimeConfig, configFile string, ignoreLogging bool) (bool, error) {
+			expectFail := true
 
-	resolvedConfigPath, _, _, err = loadConfiguration(relativeConfigPathLink, false)
-	assert.NoError(t, err)
-	assert.Equal(t, configPath, resolvedConfigPath)
+			// make file unreadable by non-root user
+			err = os.Chmod(config.ConfigPath, 0000)
+			if err != nil {
+				return expectFail, err
+			}
 
-	// undo
-	err = os.Chdir(cwd)
-	assert.NoError(t, err)
+			return expectFail, nil
+		})
+}
 
-	if err := os.Remove(configPathLink); err != nil {
-		t.Fatal(err)
+func TestConfigLoadConfigurationFailInvalidLogPath(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip(testDisabledNeedNonRoot)
 	}
 
+	tmpdir, err := ioutil.TempDir(testDir, "runtime-config-")
+	assert.NoError(t, err)
+	defer os.RemoveAll(tmpdir)
+
+	testLoadConfiguration(t, tmpdir,
+		func(config testRuntimeConfig, configFile string, ignoreLogging bool) (bool, error) {
+			if ignoreLogging {
+				return false, nil
+			}
+
+			expectFail := true
+
+			err := os.RemoveAll(config.LogDir)
+			if err != nil {
+				return expectFail, err
+			}
+
+			parentDir := filepath.Dir(config.LogDir)
+
+			err = os.MkdirAll(parentDir, testDirMode)
+			if err != nil {
+				return expectFail, err
+			}
+
+			err = createEmptyFile(config.LogDir)
+			if err != nil {
+				return expectFail, err
+			}
+
+			return expectFail, nil
+		})
+}
+
+func TestConfigLoadConfigurationFailTOMLConfigFileInvalidContents(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip(testDisabledNeedNonRoot)
+	}
+
+	tmpdir, err := ioutil.TempDir(testDir, "runtime-config-")
+	assert.NoError(t, err)
+	defer os.RemoveAll(tmpdir)
+
+	testLoadConfiguration(t, tmpdir,
+		func(config testRuntimeConfig, configFile string, ignoreLogging bool) (bool, error) {
+			expectFail := true
+
+			err := createFile(config.ConfigPath,
+				`<?xml version="1.0"?>
+			<foo>I am not TOML! ;-)</foo>
+			<bar>I am invalid XML!`)
+
+			if err != nil {
+				return expectFail, err
+			}
+
+			return expectFail, nil
+		})
+}
+
+func TestConfigLoadConfigurationFailTOMLConfigFileDuplicatedData(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip(testDisabledNeedNonRoot)
+	}
+
+	tmpdir, err := ioutil.TempDir(testDir, "runtime-config-")
+	assert.NoError(t, err)
+	defer os.RemoveAll(tmpdir)
+
+	testLoadConfiguration(t, tmpdir,
+		func(config testRuntimeConfig, configFile string, ignoreLogging bool) (bool, error) {
+			expectFail := true
+
+			text, err := getFileContents(config.ConfigPath)
+			if err != nil {
+				return expectFail, err
+			}
+
+			// create a config file containing two sets of
+			// data.
+			err = createFile(config.ConfigPath, fmt.Sprintf("%s\n%s\n", text, text))
+			if err != nil {
+				return expectFail, err
+			}
+
+			return expectFail, nil
+		})
 }
 
 func TestMinimalRuntimeConfig(t *testing.T) {
@@ -235,7 +561,8 @@ func TestMinimalRuntimeConfig(t *testing.T) {
 	path = "` + shimPath + `"
 `
 
-	configPath, err := createConfig("runtime.toml", runtimeMinimalConfig)
+	configPath := path.Join(dir, "runtime.toml")
+	err = createConfig(configPath, runtimeMinimalConfig)
 	if err != nil {
 		t.Fatal(err)
 	}

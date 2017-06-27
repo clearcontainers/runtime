@@ -64,6 +64,7 @@ func makeRuntimeConfig(prefixDir string) (configFile string, config oci.RuntimeC
 	}
 
 	runtimeConfig := makeRuntimeConfigFileData(
+		"qemu-lite",
 		hypervisorPath,
 		kernelPath,
 		imagePath,
@@ -72,7 +73,8 @@ func makeRuntimeConfig(prefixDir string) (configFile string, config oci.RuntimeC
 		proxyURL,
 		logPath)
 
-	configFile, err = createConfig("runtime.toml", runtimeConfig)
+	configFile = path.Join(prefixDir, "runtime.toml")
+	err = createConfig(configFile, runtimeConfig)
 	if err != nil {
 		return "", oci.RuntimeConfig{}, err
 	}
