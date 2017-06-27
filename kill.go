@@ -106,8 +106,11 @@ func kill(containerID, signal string, all bool) error {
 
 	containerID = status.ID
 
-	// container MUST be running
-	if status.State.State != vc.StateRunning {
+	// container MUST be created or running
+	if status.State.State == vc.StateReady {
+		ccLog.Infof("Container %s state 'created', nothing to do", containerID)
+		return nil
+	} else if status.State.State != vc.StateRunning {
 		return fmt.Errorf("Container %s is not running", containerID)
 	}
 
