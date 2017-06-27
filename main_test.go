@@ -26,6 +26,8 @@ import (
 	"github.com/dlespiau/covertool/pkg/cover"
 )
 
+const testDisabledNeedRoot = "Test disabled as requires root user"
+
 // package variables set in TestMain
 var testDir = ""
 var testDirMode = os.FileMode(0750)
