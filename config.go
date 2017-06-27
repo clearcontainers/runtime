@@ -52,12 +52,8 @@ const (
 )
 
 var (
-	errUnknownHypervisor  = errors.New("unknown hypervisor")
-	errUnknownAgent       = errors.New("unknown agent")
-	errTooManyHypervisors = errors.New("too many hypervisor sections")
-	errTooManyProxies     = errors.New("too many proxy sections")
-	errTooManyShims       = errors.New("too many shim sections")
-	errTooManyAgents      = errors.New("too many agent sections")
+	errUnknownHypervisor = errors.New("unknown hypervisor")
+	errUnknownAgent      = errors.New("unknown agent")
 )
 
 type tomlConfig struct {
@@ -136,26 +132,6 @@ func (a agent) pauseRootPath() string {
 	}
 
 	return a.PauseRootPath
-}
-
-func checkConfigParams(tomlConf tomlConfig) error {
-	if len(tomlConf.Hypervisor) > 1 {
-		return errTooManyHypervisors
-	}
-
-	if len(tomlConf.Proxy) > 1 {
-		return errTooManyProxies
-	}
-
-	if len(tomlConf.Shim) > 1 {
-		return errTooManyShims
-	}
-
-	if len(tomlConf.Agent) > 1 {
-		return errTooManyAgents
-	}
-
-	return nil
 }
 
 func newQemuHypervisorConfig(h hypervisor) (vc.HypervisorConfig, error) {
@@ -333,10 +309,6 @@ func loadConfiguration(configPath string, ignoreLogging bool) (resolvedConfigPat
 		}
 
 		ccLog.Debugf("TOML configuration: %v", tomlConf)
-	}
-
-	if err := checkConfigParams(tomlConf); err != nil {
-		return "", "", config, err
 	}
 
 	if err := updateRuntimeConfig(resolved, tomlConf, &config); err != nil {

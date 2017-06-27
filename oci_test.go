@@ -175,6 +175,10 @@ func TestProcessCgroupsPathAbsoluteNoCgroupMountDestinationFailure(t *testing.T)
 }
 
 func TestProcessCgroupsPathAbsoluteSuccessful(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip(testDisabledNeedRoot)
+	}
+
 	memoryResource := "memory"
 	absoluteCgroupsPath := "/cgroup/mount/destination"
 
