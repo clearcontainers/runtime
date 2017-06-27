@@ -207,5 +207,9 @@ func (p *ccProxy) sendCmd(cmd interface{}) (interface{}, error) {
 		tokens = append(tokens, proxyCmd.token)
 	}
 
-	return nil, p.client.HyperWithTokens(proxyCmd.cmd, tokens, proxyCmd.message)
+	if _, err := p.client.HyperWithTokens(proxyCmd.cmd, tokens, proxyCmd.message); err != nil {
+		return nil, err
+	}
+
+	return nil, nil
 }

@@ -228,7 +228,7 @@ func resourceDir(podSpecific bool, podID, containerID string, resource podResour
 		path = runStoragePath
 		break
 	default:
-		return "", fmt.Errorf("Invalid pod resource")
+		return "", errInvalidResource
 	}
 
 	dirPath := filepath.Join(path, podID, containerID)
@@ -269,7 +269,7 @@ func (fs *filesystem) resourceURI(podSpecific bool, podID, containerID string, r
 		filename = mountsFile
 		break
 	default:
-		return "", "", fmt.Errorf("Invalid pod resource")
+		return "", "", errInvalidResource
 	}
 
 	filePath := filepath.Join(dirPath, filename)
@@ -315,7 +315,7 @@ func (fs *filesystem) storeResource(podSpecific bool, podID, containerID string,
 	switch file := data.(type) {
 	case PodConfig, ContainerConfig:
 		if resource != configFileType {
-			return fmt.Errorf("Invalid pod resource")
+			return errInvalidResource
 		}
 
 		configFile, _, err := fs.resourceURI(podSpecific, podID, containerID, configFileType)
@@ -327,7 +327,7 @@ func (fs *filesystem) storeResource(podSpecific bool, podID, containerID string,
 
 	case State:
 		if resource != stateFileType {
-			return fmt.Errorf("Invalid pod resource")
+			return errInvalidResource
 		}
 
 		stateFile, _, err := fs.resourceURI(podSpecific, podID, containerID, stateFileType)
@@ -339,7 +339,7 @@ func (fs *filesystem) storeResource(podSpecific bool, podID, containerID string,
 
 	case NetworkNamespace:
 		if resource != networkFileType {
-			return fmt.Errorf("Invalid pod resource")
+			return errInvalidResource
 		}
 
 		// pod only resource
@@ -352,7 +352,7 @@ func (fs *filesystem) storeResource(podSpecific bool, podID, containerID string,
 
 	case Process:
 		if resource != processFileType {
-			return fmt.Errorf("Invalid pod resource")
+			return errInvalidResource
 		}
 
 		processFile, _, err := fs.resourceURI(podSpecific, podID, containerID, processFileType)
@@ -363,7 +363,7 @@ func (fs *filesystem) storeResource(podSpecific bool, podID, containerID string,
 		return fs.storeFile(processFile, file)
 	case []Mount:
 		if resource != mountsFileType {
-			return fmt.Errorf("Invalid pod resource")
+			return errInvalidResource
 		}
 
 		mountsFile, _, err := fs.resourceURI(podSpecific, podID, containerID, mountsFileType)
@@ -444,7 +444,7 @@ func (fs *filesystem) fetchResource(podSpecific bool, podID, containerID string,
 
 		return mounts, nil
 	}
-	return nil, fmt.Errorf("Invalid pod resource")
+	return nil, errInvalidResource
 }
 
 func (fs *filesystem) storePodResource(podID string, resource podResource, data interface{}) error {

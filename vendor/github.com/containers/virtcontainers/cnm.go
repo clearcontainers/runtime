@@ -78,7 +78,7 @@ func (n *cnm) createResult(iface net.Interface, addrs []net.Addr, routes []netli
 
 		ipConfig := &types.IPConfig{
 			Version:   version,
-			Interface: iface.Index,
+			Interface: &iface.Index,
 			Address:   *ipNet,
 		}
 
@@ -95,7 +95,12 @@ func (n *cnm) createResult(iface net.Interface, addrs []net.Addr, routes []netli
 	var resultRoutes []*cniTypes.Route
 	for _, route := range routes {
 		if route.Dst == nil {
-			continue
+			_, defaultRoute, err := net.ParseCIDR(defaultRouteDest)
+			if err != nil {
+				return types.Result{}, err
+			}
+
+			route.Dst = defaultRoute
 		}
 
 		r := &cniTypes.Route{
