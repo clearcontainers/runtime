@@ -15,9 +15,7 @@
 package main
 
 import (
-	"bytes"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 
@@ -328,18 +326,14 @@ func getEnvInfo(configFile, logfilePath string, config oci.RuntimeConfig) (env E
 }
 
 func showSettings(ccEnv EnvInfo, file *os.File) error {
-
-	buf := new(bytes.Buffer)
-	encoder := toml.NewEncoder(buf)
+	encoder := toml.NewEncoder(file)
 
 	err := encoder.Encode(ccEnv)
 	if err != nil {
 		return err
 	}
 
-	_, err = fmt.Fprintf(file, "%v", buf.String())
-
-	return err
+	return nil
 }
 
 func handleSettings(context *cli.Context) error {
