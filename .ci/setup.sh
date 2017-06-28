@@ -39,6 +39,10 @@ then
         --body-length 72 \
         --subject-length 75 \
         --verbose
+
+    # Travis doesn't provide a VT-x environment, so nothing more to do
+    # here.
+    exit 0
 fi
 
 # Setup environment and build components.
