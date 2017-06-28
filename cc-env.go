@@ -32,6 +32,10 @@ import (
 // (meaning any change to the EnvInfo type).
 const formatVersion = "1.0.0"
 
+// defaultOutputFile is the default output file to write the gathered
+// information to.
+var defaultOutputFile = os.Stdout
+
 // MetaInfo stores information on the format of the output itself
 type MetaInfo struct {
 	// output format version
@@ -127,12 +131,7 @@ func getMetaInfo() MetaInfo {
 	}
 }
 
-func getRuntimeInfo(configFile, logFile string, config oci.RuntimeConfig) (RuntimeInfo, error) {
-	configFileResolved, err := filepath.EvalSymlinks(configFile)
-	if err != nil {
-		return RuntimeInfo{}, err
-	}
-
+func getRuntimeInfo(configFile, logFile string, config oci.RuntimeConfig) RuntimeInfo {
 	runtimeVersion := RuntimeVersionInfo{
 		Semver: version,
 		Commit: commit,
@@ -142,17 +141,17 @@ func getRuntimeInfo(configFile, logFile string, config oci.RuntimeConfig) (Runti
 	runtimeConfig := RuntimeConfigInfo{
 		GlobalLogPath: logFile,
 		Location: PathInfo{
+			// This path is already resolved by
+			// loadConfiguration().
 			Path:     configFile,
-			Resolved: configFileResolved,
+			Resolved: configFile,
 		},
 	}
 
-	ccRuntime := RuntimeInfo{
+	return RuntimeInfo{
 		Version: runtimeVersion,
 		Config:  runtimeConfig,
 	}
-
-	return ccRuntime, nil
 }
 
 func getHostInfo() (HostInfo, error) {
@@ -199,6 +198,7 @@ func getHostInfo() (HostInfo, error) {
 
 func getProxyInfo(config oci.RuntimeConfig) (ProxyInfo, error) {
 	proxyConfig, ok := config.ProxyConfig.(vc.CCProxyConfig)
+
 	if !ok {
 		return ProxyInfo{}, errors.New("cannot determine proxy config")
 	}
@@ -265,10 +265,7 @@ func getAgentInfo(config oci.RuntimeConfig) (AgentInfo, error) {
 func getEnvInfo(configFile, logfilePath string, config oci.RuntimeConfig) (env EnvInfo, err error) {
 	meta := getMetaInfo()
 
-	ccRuntime, err := getRuntimeInfo(configFile, logfilePath, config)
-	if err != nil {
-		return EnvInfo{}, err
-	}
+	ccRuntime := getRuntimeInfo(configFile, logfilePath, config)
 
 	resolvedHypervisor, err := getHypervisorDetails(config)
 	if err != nil {
@@ -336,8 +333,10 @@ func showSettings(ccEnv EnvInfo, file *os.File) error {
 	return nil
 }
 
-func handleSettings(context *cli.Context) error {
-	metadata := context.App.Metadata
+func handleSettings(file *os.File, metadata map[string]interface{}) error {
+	if file == nil {
+		return errors.New("Invalid output file specified")
+	}
 
 	configFile, ok := metadata["configFile"].(string)
 	if !ok {
@@ -359,13 +358,13 @@ func handleSettings(context *cli.Context) error {
 		return err
 	}
 
-	return showSettings(ccEnv, os.Stdout)
+	return showSettings(ccEnv, file)
 }
 
 var ccEnvCommand = cli.Command{
 	Name:  "cc-env",
 	Usage: "display settings",
 	Action: func(context *cli.Context) error {
-		return handleSettings(context)
+		return handleSettings(defaultOutputFile, context.App.Metadata)
 	},
 }
