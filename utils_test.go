@@ -324,3 +324,36 @@ func TestUtilsResolvePathValidPath(t *testing.T) {
 
 	assert.Equal(t, resolvedTarget, resolvedLink)
 }
+
+func TestUtilsResolvePathENOENT(t *testing.T) {
+	dir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	target := path.Join(dir, "target")
+	linkDir := path.Join(dir, "a/b/c")
+	linkFile := path.Join(linkDir, "link")
+
+	err = createEmptyFile(target)
+	assert.NoError(t, err)
+
+	err = os.MkdirAll(linkDir, testDirMode)
+	assert.NoError(t, err)
+
+	err = syscall.Symlink(target, linkFile)
+	assert.NoError(t, err)
+
+	cwd, err := os.Getwd()
+	assert.NoError(t, err)
+	defer os.Chdir(cwd)
+
+	err = os.Chdir(dir)
+	assert.NoError(t, err)
+
+	err = os.RemoveAll(dir)
+	assert.NoError(t, err)
+
+	_, err = resolvePath(filepath.Base(linkFile))
+	assert.Error(t, err)
+}
