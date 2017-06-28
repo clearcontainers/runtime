@@ -168,25 +168,9 @@ func getHostInfo() (HostInfo, error) {
 		return HostInfo{}, err
 	}
 
-	if hostDistroName == "" {
-		hostDistroName = unknown
-	}
-
-	if hostDistroVersion == "" {
-		hostDistroVersion = unknown
-	}
-
 	cpuVendor, cpuModel, err := getCPUDetails()
 	if err != nil {
 		return HostInfo{}, err
-	}
-
-	if cpuVendor == "" {
-		cpuVendor = unknown
-	}
-
-	if cpuModel == "" {
-		cpuModel = unknown
 	}
 
 	hostCCCapable := true
