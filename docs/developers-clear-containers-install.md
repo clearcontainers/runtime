@@ -37,9 +37,10 @@ $ mkdir -p $GOPATH
 3. Get the code
 
 ```bash
-$ go get github.com/clearcontainers/runtime
-$ go get github.com/clearcontainers/proxy
-$ git clone https://github.com/clearcontainers/shim $GOPATH/src/github.com/clearcontainers
+$ go get -d github.com/clearcontainers/runtime
+$ go get -d github.com/clearcontainers/proxy
+$ git clone https://github.com/clearcontainers/shim $GOPATH/src/github.com/clearcontainers/shim
+$ go get -d github.com/clearcontainers/tests
 ```
 
 ## Build and install components
@@ -65,8 +66,13 @@ $ sudo make install
 
 ```bash
 $ cd $GOPATH/src/github.com/clearcontainers/runtime
-$ make
-$ sudo make install
+$ export QEMUBINDIR=/usr/bin
+$ export SYSCONFDIR=/etc
+$ export SHAREDIR=/usr/share
+$ export PKGLIBEXECDIR=/usr/libexec/clear-containers
+$ export LOCALSTATEDIR=/var
+$ make -e
+$ sudo -E make -e install
 ```
 
 For more details on the runtime's build system, run:
@@ -75,22 +81,36 @@ For more details on the runtime's build system, run:
 $ make help
 ```
 
-## Enable Clear Containers 3.0 for Docker
+4. Qemu lite
 
-1. Create a link of Clear Containers configuration file
-
-This step is needed due to issue [#206](https://github.com/clearcontainers/runtime/issues/206)
-
-
+In Fedora:
 ```bash
-$ mkdir -p /etc/clear-containers
-$ ln -s /usr/local/etc/clear-containers/configuration.toml /etc/clear-containers/configuration.toml
+$ source /etc/os-release
+$ sudo dnf config-manager --add-repo \
+http://download.opensuse.org/repositories/home:/clearlinux:/preview:/clear-containers-2.1/Fedora\_$VERSION_ID/home:clearlinux:preview:clear-containers-2.1.repo
+$ sudo dnf install qemu-lite
 ```
 
-Edit the file according to your needs.
+5. Rootfs and kernel images
 
-Refer to [https://github.com/clearcontainers/runtime#global-logging](https://github.com/clearcontainers/runtime#global-logging)
-for additional information.
+TODO: kernel version might be old here. Check the latest version in $GOPATH/src/github.com/clearcontainers/tests/.ci/setup_env_ubuntu.sh
+```bash
+$ export clear_release=$(curl -sL https://download.clearlinux.org/latest)
+$ export cc_img_path="/usr/share/clear-containers"
+$ export kernel_clear_release=12760
+$ export kernel_version="4.5-50"
+$ $GOPATH/src/github.com/clearcontainers/tests/.ci/install_clear_image.sh $clear_release $cc_img_path
+$ $GOPATH/src/github.com/clearcontainers/tests/.ci/install_clear_kernel.sh $kernel_clear_release $kernel_version $cc_img_path
+```
+
+## Enable Clear Containers 3.0 for Docker
+
+1. Clear Containers configuration file
+
+Edit $SYSCONFDIR/clear-containers/configuration.toml according to your needs.
+
+Refer to [https://github.com/clearcontainers/runtime#debugging](https://github.com/clearcontainers/runtime#debugging)
+for additional information how to debug the runtime.
 
 2. Configure Docker for Clear Containers 3.0
 
