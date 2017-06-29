@@ -23,7 +23,20 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/urfave/cli"
 )
+
+type testModuleData struct {
+	path     string
+	isDir    bool
+	contents string
+}
+
+type testCPUData struct {
+	vendorID    string
+	flags       string
+	expectError bool
+}
 
 func createFile(file, contents string) error {
 	return ioutil.WriteFile(file, []byte(contents), testFileMode)
@@ -450,17 +463,71 @@ func TestCheckCheckKernelModulesInvalidFileContents(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestCheckHostIsClearContainersCapable(t *testing.T) {
-	type testModuleData struct {
-		path     string
-		isDir    bool
-		contents string
+func setupCheckHostIsClearContainersCapable(t *testing.T, cpuInfoFile string, cpuData []testCPUData, moduleData []testModuleData) {
+	for _, d := range moduleData {
+		var dir string
+
+		if d.isDir {
+			dir = d.path
+		} else {
+			dir = path.Dir(d.path)
+		}
+
+		err := os.MkdirAll(dir, testDirMode)
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if !d.isDir {
+			err = createFile(d.path, d.contents)
+			assert.NoError(t, err)
+		}
+
+		err = hostIsClearContainersCapable(cpuInfoFile)
+		// cpuInfoFile doesn't exist
+		assert.Error(t, err)
 	}
 
-	type testCPUData struct {
-		vendorID    string
-		flags       string
-		expectError bool
+	// all the modules files have now been created, so deal with the
+	// cpuinfo data.
+	for _, d := range cpuData {
+		err := makeCPUInfoFile(cpuInfoFile, d.vendorID, d.flags)
+		assert.NoError(t, err)
+
+		err = hostIsClearContainersCapable(cpuInfoFile)
+		if d.expectError {
+			assert.Error(t, err)
+		} else {
+			assert.NoError(t, err)
+		}
+	}
+}
+
+func TestCheckHostIsClearContainersCapable(t *testing.T) {
+	dir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	savedSysModuleDir := sysModuleDir
+	savedProcCPUInfo := procCPUInfo
+
+	cpuInfoFile := filepath.Join(dir, "cpuinfo")
+
+	// XXX: override
+	sysModuleDir = filepath.Join(dir, "sys/module")
+	procCPUInfo = cpuInfoFile
+
+	defer func() {
+		sysModuleDir = savedSysModuleDir
+		procCPUInfo = savedProcCPUInfo
+	}()
+
+	err = os.MkdirAll(sysModuleDir, testDirMode)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	cpuData := []testCPUData{
@@ -472,28 +539,6 @@ func TestCheckHostIsClearContainersCapable(t *testing.T) {
 		{"GenuineIntel", "lm vmx sse4_1", false},
 	}
 
-	dir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
-
-	file := filepath.Join(dir, "cpuinfo")
-
-	savedSysModuleDir := sysModuleDir
-
-	// XXX: override
-	sysModuleDir = filepath.Join(dir, "sys/module")
-
-	defer func() {
-		sysModuleDir = savedSysModuleDir
-	}()
-
-	err = os.MkdirAll(sysModuleDir, testDirMode)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	moduleData := []testModuleData{
 		{filepath.Join(sysModuleDir, "kvm"), true, ""},
 		{filepath.Join(sysModuleDir, "kvm_intel"), true, ""},
@@ -501,51 +546,111 @@ func TestCheckHostIsClearContainersCapable(t *testing.T) {
 		{filepath.Join(sysModuleDir, "kvm_intel/parameters/unrestricted_guest"), false, "Y"},
 	}
 
-	for _, d := range moduleData {
-		var dir string
-
-		if d.isDir {
-			dir = d.path
-		} else {
-			dir = path.Dir(d.path)
-		}
-
-		err = os.MkdirAll(dir, testDirMode)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if !d.isDir {
-			err = createFile(d.path, d.contents)
-			if err != nil {
-				t.Fatal(err)
-			}
-		}
-
-		err = hostIsClearContainersCapable(file)
-		// file doesn't exist
-		assert.Error(t, err)
-	}
-
-	// all the modules file have now been created, so deal with the
-	// cpuinfo data.
-
-	for _, d := range cpuData {
-		err = makeCPUInfoFile(file, d.vendorID, d.flags)
-		assert.NoError(t, err)
-
-		err = hostIsClearContainersCapable(file)
-		if d.expectError {
-			assert.Error(t, err)
-		} else {
-			assert.NoError(t, err)
-		}
-	}
+	setupCheckHostIsClearContainersCapable(t, cpuInfoFile, cpuData, moduleData)
 
 	// remove the modules to force a failure
 	err = os.RemoveAll(sysModuleDir)
 	assert.NoError(t, err)
 
-	err = hostIsClearContainersCapable(file)
+	err = hostIsClearContainersCapable(cpuInfoFile)
+	assert.Error(t, err)
+}
+
+func TestCCCheckCLIFunction(t *testing.T) {
+	dir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	logfile := filepath.Join(dir, "global.log")
+
+	savedSysModuleDir := sysModuleDir
+	savedProcCPUInfo := procCPUInfo
+
+	cpuInfoFile := filepath.Join(dir, "cpuinfo")
+
+	// XXX: override
+	sysModuleDir = filepath.Join(dir, "sys/module")
+	procCPUInfo = cpuInfoFile
+
+	defer func() {
+		sysModuleDir = savedSysModuleDir
+		procCPUInfo = savedProcCPUInfo
+	}()
+
+	err = os.MkdirAll(sysModuleDir, testDirMode)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cpuData := []testCPUData{
+		{"GenuineIntel", "lm vmx sse4_1", false},
+	}
+
+	moduleData := []testModuleData{
+		{filepath.Join(sysModuleDir, "kvm_intel/parameters/unrestricted_guest"), false, "Y"},
+		{filepath.Join(sysModuleDir, "kvm_intel/parameters/nested"), false, "Y"},
+	}
+
+	devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0666)
+	assert.NoError(t, err)
+
+	savedLogOutput := ccLog.Out
+
+	// discard normal output
+	ccLog.Out = devNull
+
+	defer func() {
+		ccLog.Out = savedLogOutput
+	}()
+
+	assert.False(t, fileExists(logfile))
+
+	err = handleGlobalLog(logfile)
+	assert.NoError(t, err)
+
+	setupCheckHostIsClearContainersCapable(t, cpuInfoFile, cpuData, moduleData)
+
+	assert.True(t, fileExists(logfile))
+
+	app := cli.NewApp()
+	ctx := cli.NewContext(app, nil, nil)
+	app.Name = "foo"
+
+	fn, ok := ccCheckCommand.Action.(func(context *cli.Context) error)
+	assert.True(t, ok)
+
+	err = fn(ctx)
+	assert.NoError(t, err)
+
+	err = grep(successMessage, logfile)
+	assert.NoError(t, err)
+}
+
+func TestCCCheckCLIFunctionFail(t *testing.T) {
+	dir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	oldProcCPUInfo := procCPUInfo
+
+	// doesn't exist
+	procCPUInfo = filepath.Join(dir, "cpuinfo")
+
+	defer func() {
+		procCPUInfo = oldProcCPUInfo
+	}()
+
+	app := cli.NewApp()
+	ctx := cli.NewContext(app, nil, nil)
+	app.Name = "foo"
+
+	fn, ok := ccCheckCommand.Action.(func(context *cli.Context) error)
+	assert.True(t, ok)
+
+	err = fn(ctx)
 	assert.Error(t, err)
 }
