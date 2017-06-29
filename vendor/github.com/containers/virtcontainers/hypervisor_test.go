@@ -165,19 +165,19 @@ func TestHypervisorConfigIsValid(t *testing.T) {
 func TestAppendParams(t *testing.T) {
 	paramList := []Param{
 		{
-			parameter: "param1",
-			value:     "value1",
+			Key:   "param1",
+			Value: "value1",
 		},
 	}
 
 	expectedParams := []Param{
 		{
-			parameter: "param1",
-			value:     "value1",
+			Key:   "param1",
+			Value: "value1",
 		},
 		{
-			parameter: "param2",
-			value:     "value2",
+			Key:   "param2",
+			Value: "value2",
 		},
 	}
 
@@ -197,8 +197,8 @@ func testSerializeParams(t *testing.T, params []Param, delim string, expected []
 func TestSerializeParamsNoParamNoValue(t *testing.T) {
 	params := []Param{
 		{
-			parameter: "",
-			value:     "",
+			Key:   "",
+			Value: "",
 		},
 	}
 	var expected []string
@@ -209,7 +209,7 @@ func TestSerializeParamsNoParamNoValue(t *testing.T) {
 func TestSerializeParamsNoParam(t *testing.T) {
 	params := []Param{
 		{
-			value: "value1",
+			Value: "value1",
 		},
 	}
 
@@ -221,7 +221,7 @@ func TestSerializeParamsNoParam(t *testing.T) {
 func TestSerializeParamsNoValue(t *testing.T) {
 	params := []Param{
 		{
-			parameter: "param1",
+			Key: "param1",
 		},
 	}
 
@@ -233,8 +233,8 @@ func TestSerializeParamsNoValue(t *testing.T) {
 func TestSerializeParamsNoDelim(t *testing.T) {
 	params := []Param{
 		{
-			parameter: "param1",
-			value:     "value1",
+			Key:   "param1",
+			Value: "value1",
 		},
 	}
 
@@ -246,12 +246,38 @@ func TestSerializeParamsNoDelim(t *testing.T) {
 func TestSerializeParams(t *testing.T) {
 	params := []Param{
 		{
-			parameter: "param1",
-			value:     "value1",
+			Key:   "param1",
+			Value: "value1",
 		},
 	}
 
 	expected := []string{"param1=value1"}
 
 	testSerializeParams(t, params, "=", expected)
+}
+
+func TestAddKernelParamValid(t *testing.T) {
+	var config HypervisorConfig
+
+	expected := []Param{
+		{"foo", "bar"},
+	}
+
+	err := config.AddKernelParam(expected[0])
+	if err != nil || reflect.DeepEqual(config.KernelParams, expected) == false {
+		t.Fatal()
+	}
+}
+
+func TestAddKernelParamInvalid(t *testing.T) {
+	var config HypervisorConfig
+
+	invalid := []Param{
+		{"", "bar"},
+	}
+
+	err := config.AddKernelParam(invalid[0])
+	if err == nil {
+		t.Fatal()
+	}
 }

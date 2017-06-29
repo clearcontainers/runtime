@@ -190,7 +190,7 @@ func (h *hyper) buildNetworkInterfacesAndRoutes(pod Pod) ([]hyperstart.NetworkIf
 		iface := hyperstart.NetworkIface{
 			NewDevice:   endpoint.NetPair.VirtIface.Name,
 			IPAddresses: ipAddrs,
-			MTU:         fmt.Sprintf("%d", netIface.MTU),
+			MTU:         netIface.MTU,
 			MACAddr:     endpoint.NetPair.TAPIface.HardAddr,
 		}
 
@@ -323,7 +323,11 @@ func (h *hyper) bindUnmountContainerRootfs(podID, cID string) error {
 func (h *hyper) bindUnmountAllRootfs(pod Pod) {
 	for _, c := range pod.containers {
 		h.bindUnmountContainerMounts(c.mounts)
-		h.bindUnmountContainerRootfs(pod.id, c.id)
+		if c.state.Fstype == "" {
+			// Need to check for error returned by this call.
+			// See: https://github.com/containers/virtcontainers/issues/295
+			h.bindUnmountContainerRootfs(pod.id, c.id)
+		}
 	}
 }
 
@@ -374,6 +378,15 @@ func (h *hyper) init(pod *Pod, config interface{}) (err error) {
 	h.proxy = pod.proxy
 
 	return nil
+}
+
+func (h *hyper) capabilities() capabilities {
+	var caps capabilities
+
+	// add all capabilities supported by agent
+	caps.setBlockDeviceSupport()
+
+	return caps
 }
 
 // exec is the agent command execution implementation for hyperstart.
@@ -521,9 +534,20 @@ func (h *hyper) startOneContainer(pod Pod, c Container) error {
 		Process: process,
 	}
 
-	if err := h.bindMountContainerRootfs(pod.id, c.id, c.rootFs, false); err != nil {
-		h.bindUnmountAllRootfs(pod)
-		return err
+	if c.state.Fstype != "" {
+		driveName, err := getVirtDriveName(c.state.BlockIndex)
+		if err != nil {
+			return err
+		}
+
+		container.Fstype = c.state.Fstype
+		container.Image = driveName
+	} else {
+
+		if err := h.bindMountContainerRootfs(pod.id, c.id, c.rootFs, false); err != nil {
+			h.bindUnmountAllRootfs(pod)
+			return err
+		}
 	}
 
 	//TODO : Enter mount namespace
@@ -596,8 +620,10 @@ func (h *hyper) stopOneContainer(podID string, c Container) error {
 		return err
 	}
 
-	if err := h.bindUnmountContainerRootfs(podID, c.id); err != nil {
-		return err
+	if c.state.Fstype == "" {
+		if err := h.bindUnmountContainerRootfs(podID, c.id); err != nil {
+			return err
+		}
 	}
 
 	return nil

@@ -55,7 +55,7 @@ func testQemuBuildKernelParams(t *testing.T, kernelParams []Param, expected stri
 	}
 }
 
-var testQemuKernelParamsBase = "root=/dev/pmem0p1 rootflags=dax,data=ordered,errors=remount-ro rw rootfstype=ext4 tsc=reliable no_timer_check rcupdate.rcu_expedited=1 i8042.direct=1 i8042.dumbkbd=1 i8042.nopnp=1 i8042.noaux=1 noreplace-smp reboot=k panic=1 console=hvc0 console=hvc1 initcall_debug init=/usr/lib/systemd/systemd systemd.unit=cc-agent.target iommu=off systemd.mask=systemd-networkd.service systemd.mask=systemd-networkd.socket cryptomgr.notests net.ifnames=0"
+var testQemuKernelParamsBase = "root=/dev/pmem0p1 rootflags=dax,data=ordered,errors=remount-ro rw rootfstype=ext4 tsc=reliable no_timer_check rcupdate.rcu_expedited=1 i8042.direct=1 i8042.dumbkbd=1 i8042.nopnp=1 i8042.noaux=1 noreplace-smp reboot=k panic=1 console=hvc0 console=hvc1 initcall_debug iommu=off cryptomgr.notests net.ifnames=0"
 var testQemuKernelParamsNonDebug = "quiet systemd.show_status=false"
 var testQemuKernelParamsDebug = "debug systemd.show_status=true systemd.log_level=debug"
 
@@ -64,12 +64,12 @@ func TestQemuBuildKernelParamsFoo(t *testing.T) {
 	suffixStr := "foo=foo bar=bar"
 	suffixParams := []Param{
 		{
-			parameter: "foo",
-			value:     "foo",
+			Key:   "foo",
+			Value: "foo",
 		},
 		{
-			parameter: "bar",
-			value:     "bar",
+			Key:   "bar",
+			Value: "bar",
 		},
 	}
 
@@ -112,6 +112,8 @@ func testQemuAppend(t *testing.T, structure interface{}, expected []ciaoQemu.Dev
 		case consoleDev:
 			devices = q.appendConsoles(devices, s)
 		}
+	case Drive:
+		devices = q.appendBlockDevice(devices, s)
 	}
 
 	if reflect.DeepEqual(devices, expected) == false {
@@ -167,6 +169,31 @@ func TestQemuAppendSocket(t *testing.T) {
 	}
 
 	testQemuAppend(t, socket, expectedOut, -1)
+}
+
+func TestQemuAppendBlockDevice(t *testing.T) {
+	id := "blockDevTest"
+	file := "/root"
+	format := "raw"
+
+	expectedOut := []ciaoQemu.Device{
+		ciaoQemu.BlockDevice{
+			Driver:    ciaoQemu.VirtioBlock,
+			ID:        id,
+			File:      "/root",
+			AIO:       ciaoQemu.Threads,
+			Format:    ciaoQemu.BlockDeviceFormat(format),
+			Interface: "none",
+		},
+	}
+
+	drive := Drive{
+		File:   file,
+		Format: format,
+		ID:     id,
+	}
+
+	testQemuAppend(t, drive, expectedOut, -1)
 }
 
 func TestQemuAppendFSDevices(t *testing.T) {

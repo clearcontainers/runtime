@@ -58,6 +58,12 @@ const (
 type State struct {
 	State stateString `json:"state"`
 	URL   string      `json:"url,omitempty"`
+
+	// Index of the block device passed to hypervisor.
+	BlockIndex int `json:"blockIndex"`
+
+	// File system of the rootfs incase it is block device
+	Fstype string `json:"fstype"`
 }
 
 // valid checks that the pod state is valid.
@@ -218,6 +224,20 @@ func (s *Sockets) String() string {
 	}
 
 	return strings.Join(sockSlice, " ")
+}
+
+// Drive represents a block storage drive which may be used in case the storage
+// driver has an underlying block storage device.
+type Drive struct {
+
+	// Path to the disk-image/device which will be used with this drive
+	File string
+
+	// Format of the drive
+	Format string
+
+	// ID is used to identify this drive in the hypervisor options.
+	ID string
 }
 
 // EnvVar is a key/value structure representing a command
@@ -540,6 +560,15 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 	if err == nil && state.State != "" {
 		p.state = state
 		return p, nil
+	}
+
+	// fetch agent capabilities and call addDrives if the agent has support
+	// for block devices.
+	caps := p.agent.capabilities()
+	if caps.isBlockDeviceSupported() {
+		if err := p.addDrives(); err != nil {
+			return nil, err
+		}
 	}
 
 	if err := p.createSetStates(); err != nil {
@@ -933,6 +962,24 @@ func (p *Pod) setPodState(state State) error {
 	return nil
 }
 
+// getAndSetPodBlockIndex retrieves pod block index and increments it for
+// subsequent accesses. This index is used to maintain the index at which a
+// block device is assigned to a container in the pod.
+func (p *Pod) getAndSetPodBlockIndex() (int, error) {
+	currentIndex := p.state.BlockIndex
+
+	// Increment so that container gets incremented block index
+	p.state.BlockIndex++
+
+	// update on-disk state
+	err := p.storage.storePodResource(p.id, stateFileType, p.state)
+	if err != nil {
+		return -1, err
+	}
+
+	return currentIndex, nil
+}
+
 func (p *Pod) getContainer(containerID string) (*Container, error) {
 	if containerID == "" {
 		return &Container{}, errNeedContainerID
@@ -952,21 +999,13 @@ func (p *Pod) setContainerState(containerID string, state stateString) error {
 		return errNeedContainerID
 	}
 
-	contState := State{
-		State: state,
+	c := p.GetContainer(containerID)
+	if c == nil {
+		return fmt.Errorf("Pod %s has no container %s", p.id, containerID)
 	}
 
-	c, err := p.getContainer(containerID)
-	if err != nil {
-		return err
-	}
-
-	// update in-memory state
-	c.state = contState
-
-	// update on-disk state
-	err = p.storage.storeContainerResource(p.id, containerID, stateFileType, contState)
-	if err != nil {
+	// Let container handle its state update
+	if err := c.setContainerState(state); err != nil {
 		return err
 	}
 
@@ -1078,4 +1117,70 @@ func togglePausePod(podID string, pause bool) (*Pod, error) {
 	}
 
 	return p, nil
+}
+
+// addDrives can be used to pass block storage devices to the hypervisor in case of devicemapper storage.
+// The container then uses the block device as its rootfs instead of overlay.
+// The container fstype is assigned the file system type of the block device to indicate this.
+func (p *Pod) addDrives() error {
+
+	if p.config.HypervisorConfig.DisableBlockDeviceUse {
+		return nil
+	}
+
+	for _, c := range p.containers {
+		dev, err := getDeviceForPath(c.rootFs)
+		if err != nil && err != errMountPointNotFound {
+			return err
+		}
+
+		if err == errMountPointNotFound {
+			continue
+		}
+
+		virtLog.Infof("Device details for container %s: Major:%d, Minor:%d, MountPoint:%s\n", c.id, dev.major, dev.minor, dev.mountPoint)
+
+		isDM, err := isDeviceMapper(dev.major, dev.minor)
+		if err != nil {
+			return err
+		}
+
+		if !isDM {
+			continue
+		}
+
+		// If device mapper device, then fetch the full path of the device
+		devicePath, fsType, err := getDevicePathAndFsType(dev.mountPoint)
+		if err != nil {
+			return err
+		}
+
+		virtLog.Infof("Block Device path %s detected for container with fstype : %s\n", devicePath, c.id, fsType)
+
+		// Add drive with id as container id
+		devID := fmt.Sprintf("drive-%s", c.id)
+		drive := Drive{
+			File:   devicePath,
+			Format: "raw",
+			ID:     devID,
+		}
+
+		if err := p.hypervisor.addDevice(drive, blockDev); err != nil {
+			return err
+		}
+
+		driveIndex, err := p.getAndSetPodBlockIndex()
+		if err != nil {
+			return err
+		}
+
+		if err := c.setStateBlockIndex(driveIndex); err != nil {
+			return err
+		}
+
+		if err := c.setStateFstype(fsType); err != nil {
+			return err
+		}
+	}
+	return nil
 }

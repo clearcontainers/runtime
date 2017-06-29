@@ -30,6 +30,11 @@ func (n *noopAgent) init(pod *Pod, config interface{}) error {
 	return nil
 }
 
+// capabilities returns empty capabilities, i.e no capabilties are supported.
+func (n *noopAgent) capabilities() capabilities {
+	return capabilities{}
+}
+
 // exec is the Noop agent command execution implementation. It does nothing.
 func (n *noopAgent) exec(pod *Pod, c Container, process Process, cmd Cmd) error {
 	return nil

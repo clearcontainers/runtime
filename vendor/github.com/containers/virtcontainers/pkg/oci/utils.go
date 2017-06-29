@@ -102,6 +102,10 @@ type RuntimeConfig struct {
 	Console string
 }
 
+func (config *RuntimeConfig) AddKernelParam(p vc.Param) error {
+	return config.HypervisorConfig.AddKernelParam(p)
+}
+
 var ociLog = logrus.FieldLogger(logrus.New())
 
 // SetLogger sets the logger for oci package.

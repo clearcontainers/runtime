@@ -97,8 +97,8 @@ func newHypervisor(hType HypervisorType) (hypervisor, error) {
 
 // Param is a key/value representation for hypervisor and kernel parameters.
 type Param struct {
-	parameter string
-	value     string
+	Key   string
+	Value string
 }
 
 // HypervisorConfig is the hypervisor configuration.
@@ -111,6 +111,9 @@ type HypervisorConfig struct {
 
 	// HypervisorPath is the hypervisor executable host path.
 	HypervisorPath string
+
+	// DisableBlockDeviceUse disallows a block device from being used.
+	DisableBlockDeviceUse bool
 
 	// KernelParams are additional guest kernel parameters.
 	KernelParams []Param
@@ -139,6 +142,16 @@ func (conf *HypervisorConfig) valid() (bool, error) {
 	return true, nil
 }
 
+func (conf *HypervisorConfig) AddKernelParam(p Param) error {
+	if p.Key == "" {
+		return fmt.Errorf("Empty kernel parameter")
+	}
+
+	conf.KernelParams = append(conf.KernelParams, p)
+
+	return nil
+}
+
 func appendParam(params []Param, parameter string, value string) []Param {
 	return append(params, Param{parameter, value})
 }
@@ -147,17 +160,17 @@ func serializeParams(params []Param, delim string) []string {
 	var parameters []string
 
 	for _, p := range params {
-		if p.parameter == "" && p.value == "" {
+		if p.Key == "" && p.Value == "" {
 			continue
-		} else if p.parameter == "" {
-			parameters = append(parameters, fmt.Sprintf("%s", p.value))
-		} else if p.value == "" {
-			parameters = append(parameters, fmt.Sprintf("%s", p.parameter))
+		} else if p.Key == "" {
+			parameters = append(parameters, fmt.Sprintf("%s", p.Value))
+		} else if p.Value == "" {
+			parameters = append(parameters, fmt.Sprintf("%s", p.Key))
 		} else if delim == "" {
-			parameters = append(parameters, fmt.Sprintf("%s", p.parameter))
-			parameters = append(parameters, fmt.Sprintf("%s", p.value))
+			parameters = append(parameters, fmt.Sprintf("%s", p.Key))
+			parameters = append(parameters, fmt.Sprintf("%s", p.Value))
 		} else {
-			parameters = append(parameters, fmt.Sprintf("%s%s%s", p.parameter, delim, p.value))
+			parameters = append(parameters, fmt.Sprintf("%s%s%s", p.Key, delim, p.Value))
 		}
 	}
 

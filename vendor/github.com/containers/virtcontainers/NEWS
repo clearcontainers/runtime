@@ -1,3 +1,8 @@
+1.0.0-rc.2:
+	Added support for transitioning from Ready to Stopped
+	Fixed pod container creation
+	Fixed CRI-O support for sandbox identifiers
+
 1.0.0-rc.1:
 	Added standard error for invalid pod resources
 	Fixed docker gateway routing

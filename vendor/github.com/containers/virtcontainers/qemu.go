@@ -140,11 +140,7 @@ var kernelDefaultParams = []Param{
 	{"console", "hvc0"},
 	{"console", "hvc1"},
 	{"initcall_debug", ""},
-	{"init", "/usr/lib/systemd/systemd"},
-	{"systemd.unit", "cc-agent.target"},
 	{"iommu", "off"},
-	{"systemd.mask", "systemd-networkd.service"},
-	{"systemd.mask", "systemd-networkd.socket"},
 	{"cryptomgr.notests", ""},
 	{"net.ifnames", "0"},
 }
@@ -205,6 +201,29 @@ func (q *qemu) appendVolume(devices []ciaoQemu.Device, volume Volume) []ciaoQemu
 	return devices
 }
 
+func (q *qemu) appendBlockDevice(devices []ciaoQemu.Device, drive Drive) []ciaoQemu.Device {
+	if drive.File == "" || drive.ID == "" || drive.Format == "" {
+		return devices
+	}
+
+	if len(drive.ID) > maxDevIDSize {
+		drive.ID = string(drive.ID[:maxDevIDSize])
+	}
+
+	devices = append(devices,
+		ciaoQemu.BlockDevice{
+			Driver:    ciaoQemu.VirtioBlock,
+			ID:        drive.ID,
+			File:      drive.File,
+			AIO:       ciaoQemu.Threads,
+			Format:    ciaoQemu.BlockDeviceFormat(drive.Format),
+			Interface: "none",
+		},
+	)
+
+	return devices
+}
+
 func (q *qemu) appendSocket(devices []ciaoQemu.Device, socket Socket) []ciaoQemu.Device {
 	devID := socket.ID
 	if len(devID) > maxDevIDSize {
@@ -236,6 +255,7 @@ func (q *qemu) appendNetworks(devices []ciaoQemu.Device, endpoints []Endpoint) [
 				MACAddress: endpoint.NetPair.TAPIface.HardAddr,
 				DownScript: "no",
 				Script:     "no",
+				VHost:      true,
 			},
 		)
 	}
@@ -657,6 +677,9 @@ func (q *qemu) addDevice(devInfo interface{}, devType deviceType) error {
 	case netDev:
 		endpoints := devInfo.([]Endpoint)
 		q.qemuConfig.Devices = q.appendNetworks(q.qemuConfig.Devices, endpoints)
+	case blockDev:
+		drive := devInfo.(Drive)
+		q.qemuConfig.Devices = q.appendBlockDevice(q.qemuConfig.Devices, drive)
 	default:
 		break
 	}
