@@ -128,3 +128,12 @@ func TestGenerateRandomBytes(t *testing.T) {
 		t.Fatalf("Failed to generate %d random bytes", bytesNeeded)
 	}
 }
+
+func TestRevereString(t *testing.T) {
+	str := "Teststr"
+	reversed := reverseString(str)
+
+	if reversed != "rtstseT" {
+		t.Fatal("Incorrect String Reversal")
+	}
+}

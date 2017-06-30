@@ -17,7 +17,9 @@
 package virtcontainers
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -995,5 +997,192 @@ func TestPodGetContainer(t *testing.T) {
 
 	if !got {
 		t.Fatalf("Failed to find container %v", contID)
+	}
+}
+
+func TestContainerSetStateBlockIndex(t *testing.T) {
+	containers := []ContainerConfig{
+		{
+			ID: "100",
+		},
+	}
+
+	hConfig := newHypervisorConfig(nil, nil)
+	pod, err := testCreatePod(t, testPodID, MockHypervisor, hConfig, NoopAgentType, NoopNetworkModel, NetworkConfig{}, containers, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fs := &filesystem{}
+	pod.storage = fs
+
+	c := pod.GetContainer("100")
+	if c == nil {
+		t.Fatal()
+	}
+
+	path := filepath.Join(runStoragePath, testPodID, c.id)
+	err = os.MkdirAll(path, dirMode)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	stateFilePath := filepath.Join(path, stateFile)
+
+	os.Remove(stateFilePath)
+
+	f, err := os.Create(stateFilePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	state := State{
+		State:  "stopped",
+		Fstype: "vfs",
+	}
+	c.state = state
+
+	stateData := `{
+		"state":"stopped",
+		"fstype":"vfs"
+	}`
+
+	n, err := f.WriteString(stateData)
+	if err != nil || n != len(stateData) {
+		f.Close()
+		t.Fatal()
+	}
+	f.Close()
+
+	_, err = os.Stat(stateFilePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	newIndex := 20
+	if err := c.setStateBlockIndex(newIndex); err != nil {
+		t.Fatal(err)
+	}
+
+	if c.state.BlockIndex != newIndex {
+		t.Fatal()
+	}
+
+	fileData, err := ioutil.ReadFile(stateFilePath)
+	if err != nil {
+		t.Fatal()
+	}
+
+	var res State
+	err = json.Unmarshal([]byte(string(fileData)), &res)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if res.BlockIndex != newIndex {
+		t.Fatal()
+	}
+
+	if res.Fstype != state.Fstype {
+		t.Fatal()
+	}
+
+	if res.State != state.State {
+		t.Fatal()
+	}
+}
+
+func TestContainerStateSetFstype(t *testing.T) {
+	var err error
+
+	containers := []ContainerConfig{
+		{
+			ID: "100",
+		},
+	}
+
+	hConfig := newHypervisorConfig(nil, nil)
+	pod, err := testCreatePod(t, testPodID, MockHypervisor, hConfig, NoopAgentType, NoopNetworkModel, NetworkConfig{}, containers, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fs := &filesystem{}
+	pod.storage = fs
+
+	c := pod.GetContainer("100")
+	if c == nil {
+		t.Fatal()
+	}
+
+	path := filepath.Join(runStoragePath, testPodID, c.id)
+	err = os.MkdirAll(path, dirMode)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	stateFilePath := filepath.Join(path, stateFile)
+	os.Remove(stateFilePath)
+
+	f, err := os.Create(stateFilePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	state := State{
+		State:      "ready",
+		Fstype:     "vfs",
+		BlockIndex: 3,
+	}
+	c.state = state
+
+	stateData := `{
+		"state":"ready",
+		"fstype":"vfs",
+		"blockIndex": 3
+	}`
+
+	n, err := f.WriteString(stateData)
+	if err != nil || n != len(stateData) {
+		f.Close()
+		t.Fatal()
+	}
+	f.Close()
+
+	_, err = os.Stat(stateFilePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	newFstype := "ext4"
+	if err := c.setStateFstype(newFstype); err != nil {
+		t.Fatal(err)
+	}
+
+	if c.state.Fstype != newFstype {
+		t.Fatal()
+	}
+
+	fileData, err := ioutil.ReadFile(stateFilePath)
+	if err != nil {
+		t.Fatal()
+	}
+
+	var res State
+	err = json.Unmarshal([]byte(string(fileData)), &res)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if res.Fstype != newFstype {
+		t.Fatal()
+	}
+
+	if res.BlockIndex != state.BlockIndex {
+		t.Fatal()
+	}
+
+	if res.State != state.State {
+		t.Fatal()
 	}
 }

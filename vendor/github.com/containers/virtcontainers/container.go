@@ -149,6 +149,28 @@ func (c *Container) SetPid(pid int) error {
 	return c.storeProcess()
 }
 
+func (c *Container) setStateBlockIndex(index int) error {
+	c.state.BlockIndex = index
+
+	err := c.pod.storage.storeContainerResource(c.pod.id, c.id, stateFileType, c.state)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Container) setStateFstype(fstype string) error {
+	c.state.Fstype = fstype
+
+	err := c.pod.storage.storeContainerResource(c.pod.id, c.id, stateFileType, c.state)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // URL returns the URL related to the pod.
 func (c *Container) URL() string {
 	return c.pod.URL()
@@ -239,12 +261,10 @@ func (c *Container) setContainerState(state stateString) error {
 	}
 
 	// update in-memory state
-	c.state = State{
-		State: state,
-	}
+	c.state.State = state
 
 	// update on-disk state
-	err := c.pod.storage.storeContainerResource(c.podID, c.id, stateFileType, c.state)
+	err := c.pod.storage.storeContainerResource(c.pod.id, c.id, stateFileType, c.state)
 	if err != nil {
 		return err
 	}
@@ -289,7 +309,7 @@ func newContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 
 	state, err := c.pod.storage.fetchContainerState(c.podID, c.id)
 	if err == nil {
-		c.state.State = state.State
+		c.state = state
 	}
 
 	process, err := c.pod.storage.fetchContainerProcess(c.podID, c.id)

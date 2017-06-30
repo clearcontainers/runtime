@@ -105,6 +105,10 @@ func (s *sshd) init(pod *Pod, config interface{}) error {
 	return nil
 }
 
+func (s *sshd) capabilities() capabilities {
+	return capabilities{}
+}
+
 // exec is the agent command execution implementation for sshd.
 func (s *sshd) exec(pod *Pod, c Container, process Process, cmd Cmd) error {
 	if pod == nil {

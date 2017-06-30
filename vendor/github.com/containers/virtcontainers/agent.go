@@ -117,6 +117,10 @@ type agent interface {
 	// to handle all other Agent interface methods.
 	init(pod *Pod, config interface{}) error
 
+	// capabilities should return a structure that specifies the capabilities
+	// supported by the agent.
+	capabilities() capabilities
+
 	// exec will tell the agent to run a command in an already running container.
 	exec(pod *Pod, c Container, process Process, cmd Cmd) error
 

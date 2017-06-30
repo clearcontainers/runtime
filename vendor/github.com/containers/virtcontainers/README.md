@@ -183,3 +183,23 @@ __Runtime network setup with CNI__
 4. Create bridge, TAP, and link all together with network interface previously created ([code](https://github.com/containers/virtcontainers/blob/0.5.0/network.go#L123-L205))
 
 5. Start VM inside the netns and start the container ([code](https://github.com/containers/virtcontainers/blob/0.5.0/api.go#L66-L70))
+
+## Storage
+
+Container workloads are shared with the virtualized environment through 9pfs.
+The devicemapper storage driver is a special case. The driver uses dedicated block devices rather than formatted filesystems, and operates at the block level rather than the file level. This knowledge has been used to directly use the underlying block device instead of the overlay file system for the container root file system. The block device maps to the top read-write layer for the overlay. This approach gives much better I/O performance compared to using 9pfs to share the container file system.
+
+The approach above does introduce a limitation in terms of dynamic file copy in/out of the container via `docker cp` operations.
+The copy operation from host to container accesses the mounted file system on the host side. This is not expected to work and may lead to inconsistencies as the block device will be simultaneously written to, from two different mounts.
+The copy operation from container to host will work, provided the user calls `sync(1)` from within the container prior to the copy to make sure any outstanding cached data is written to the block device.
+
+```
+docker cp [OPTIONS] CONTAINER:SRC_PATH HOST:DEST_PATH
+docker cp [OPTIONS] HOST:SRC_PATH CONTAINER:DEST_PATH
+```
+
+The devicemapper block device can only be used when creating a pod. If a container with a devicemapper rootfs is added to a pod, after the VM has started, the devicemapper block device will not be used. The container will fallback to using the overlay file system instead. This should be fixed once capability to hot-plug virtio block devices is added.
+
+#### How to check if container uses devicemapper block device as its rootfs
+
+Start a container. Call mount(8) within the container. You should see '/' mounted on /dev/vda device.

@@ -189,7 +189,7 @@ type NetworkIface struct {
 	Device      string      `json:"device,omitempty"`
 	NewDevice   string      `json:"newDeviceName,omitempty"`
 	IPAddresses []IPAddress `json:"ipAddresses"`
-	MTU         string      `json:"mtu"`
+	MTU         int         `json:"mtu"`
 	MACAddr     string      `json:"macAddr"`
 }
 

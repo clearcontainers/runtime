@@ -558,6 +558,32 @@ func TestPodIDFailure(t *testing.T) {
 	}
 }
 
+func TestAddKernelParamValid(t *testing.T) {
+	var config RuntimeConfig
+
+	expected := []vc.Param{
+		{"foo", "bar"},
+	}
+
+	err := config.AddKernelParam(expected[0])
+	if err != nil || reflect.DeepEqual(config.HypervisorConfig.KernelParams, expected) == false {
+		t.Fatal()
+	}
+}
+
+func TestAddKernelParamInvalid(t *testing.T) {
+	var config RuntimeConfig
+
+	invalid := []vc.Param{
+		{"", "bar"},
+	}
+
+	err := config.AddKernelParam(invalid[0])
+	if err == nil {
+		t.Fatal()
+	}
+}
+
 func TestMain(m *testing.M) {
 	/* Create temp bundle directory if necessary */
 	err := os.MkdirAll(tempBundlePath, dirMode)
