@@ -31,10 +31,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const (
-	testFileMode = os.FileMode(0640)
-)
-
 type TestFileWriter struct {
 	Name string
 	File *os.File
