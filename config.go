@@ -34,9 +34,8 @@ const (
 )
 
 const (
-	qemuLite   = "qemu-lite"
-	qemu       = "qemu"
-	shimBinary = "cc-shim"
+	qemuLite = "qemu-lite"
+	qemu     = "qemu"
 )
 
 const (
