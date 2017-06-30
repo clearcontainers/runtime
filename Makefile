@@ -256,4 +256,8 @@ show-summary: show-header
 	@printf "\n"
 	@printf "\tbinary install path (DESTTARGET) : %s\n" $(DESTTARGET)
 	@printf "\tconfig install path (DESTCONFIG) : %s\n" $(DESTCONFIG)
+	@printf "\thypervisor path (QEMUPATH)        : %s\n" $(QEMUPATH)
+	@printf "\tassets path (PKGDATADIR)          : %s\n" $(PKGDATADIR)
+	@printf "\tproxy+shim path (PKGLIBEXECDIR)   : %s\n" $(PKGLIBEXECDIR)
+	@printf "\tpause bundle path (PAUSEROOTPATH) : %s\n" $(PAUSEROOTPATH)
 	@printf "\n"
