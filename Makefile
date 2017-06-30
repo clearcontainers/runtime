@@ -219,7 +219,7 @@ show-usage: show-header
 	@printf "\tshow-summary    : show install locations\n"
 	@printf "\n"
 
-handle_help: show-usage show-variables show-footer
+handle_help: show-usage show-summary show-variables show-footer
 
 usage: handle_help
 help: handle_help
