@@ -35,6 +35,7 @@ type kernelModule struct {
 const (
 	moduleParamDir = "parameters"
 	cpuFlagsTag    = "flags"
+	successMessage = "System is capable of running " + project
 )
 
 // variables rather than consts to allow tests to modify them
@@ -234,7 +235,7 @@ var ccCheckCommand = cli.Command{
 		}
 
 		ccLog.Info("")
-		ccLog.Info("System is capable of running " + project)
+		ccLog.Info(successMessage)
 
 		return nil
 	},

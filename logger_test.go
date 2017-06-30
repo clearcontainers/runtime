@@ -219,8 +219,6 @@ func TestLoggerFire(t *testing.T) {
 	err = handleGlobalLog(logFile)
 	assert.NoError(t, err)
 
-	//ccLog.Debug("foo")
-
 	entry := &logrus.Entry{
 		Logger:  ccLog,
 		Time:    time.Now().UTC(),
