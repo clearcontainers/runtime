@@ -24,7 +24,7 @@ import (
 	"github.com/urfave/cli"
 )
 
-var deleteCommand = cli.Command{
+var deleteCLICommand = cli.Command{
 	Name:  "delete",
 	Usage: "Delete any resources held by one or more containers",
 	ArgsUsage: `<container-id> [container-id...]

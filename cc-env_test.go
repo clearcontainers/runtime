@@ -1035,7 +1035,7 @@ func TestCCEnvCLIFunction(t *testing.T) {
 		"runtimeConfig": config,
 	}
 
-	fn, ok := ccEnvCommand.Action.(func(context *cli.Context) error)
+	fn, ok := envCLICommand.Action.(func(context *cli.Context) error)
 	assert.True(t, ok)
 
 	devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0666)
@@ -1078,7 +1078,7 @@ func TestCCEnvCLIFunctionFail(t *testing.T) {
 		"runtimeConfig": config,
 	}
 
-	fn, ok := ccEnvCommand.Action.(func(context *cli.Context) error)
+	fn, ok := envCLICommand.Action.(func(context *cli.Context) error)
 	assert.True(t, ok)
 
 	devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0666)

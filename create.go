@@ -26,7 +26,7 @@ import (
 	"github.com/urfave/cli"
 )
 
-var createCommand = cli.Command{
+var createCLICommand = cli.Command{
 	Name:  "create",
 	Usage: "Create a container",
 	ArgsUsage: `<container-id>

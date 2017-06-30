@@ -22,7 +22,7 @@ import (
 
 var noteText = `Use "` + name + ` list" to identify container statuses.`
 
-var pauseCommand = cli.Command{
+var pauseCLICommand = cli.Command{
 	Name:  "pause",
 	Usage: "suspend all processes in a container",
 	ArgsUsage: `<container-id>
@@ -36,7 +36,7 @@ Where "<container-id>" is the container name to be paused.`,
 	},
 }
 
-var resumeCommand = cli.Command{
+var resumeCLICommand = cli.Command{
 	Name:  "resume",
 	Usage: "unpause all previously paused processes in a container",
 	ArgsUsage: `<container-id>

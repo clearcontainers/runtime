@@ -19,7 +19,7 @@ func TestVersion(t *testing.T) {
 	app.Name = testAppName
 	app.Version = testAppVersion
 
-	fn, ok := versionCommand.Action.(func(context *cli.Context) error)
+	fn, ok := versionCLICommand.Action.(func(context *cli.Context) error)
 	assert.True(t, ok)
 
 	tmpfile, err := ioutil.TempFile("", "")

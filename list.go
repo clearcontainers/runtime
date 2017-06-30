@@ -78,7 +78,7 @@ type formatJSON struct{}
 type formatIDList struct{}
 type formatTabular struct{}
 
-var listCommand = cli.Command{
+var listCLICommand = cli.Command{
 	Name:  "list",
 	Usage: "lists containers started by " + name + " with the given root",
 	ArgsUsage: `

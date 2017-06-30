@@ -618,7 +618,7 @@ func TestCCCheckCLIFunction(t *testing.T) {
 	ctx := cli.NewContext(app, nil, nil)
 	app.Name = "foo"
 
-	fn, ok := ccCheckCommand.Action.(func(context *cli.Context) error)
+	fn, ok := checkCLICommand.Action.(func(context *cli.Context) error)
 	assert.True(t, ok)
 
 	err = fn(ctx)
@@ -648,7 +648,7 @@ func TestCCCheckCLIFunctionFail(t *testing.T) {
 	ctx := cli.NewContext(app, nil, nil)
 	app.Name = "foo"
 
-	fn, ok := ccCheckCommand.Action.(func(context *cli.Context) error)
+	fn, ok := checkCLICommand.Action.(func(context *cli.Context) error)
 	assert.True(t, ok)
 
 	err = fn(ctx)
