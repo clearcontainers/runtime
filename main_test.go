@@ -29,11 +29,11 @@ import (
 const (
 	testDisabledNeedRoot    = "Test disabled as requires root user"
 	testDisabledNeedNonRoot = "Test disabled as requires non-root user"
+	testDirMode             = os.FileMode(0750)
 )
 
 // package variables set in TestMain
 var testDir = ""
-var testDirMode = os.FileMode(0750)
 
 func runUnitTests(m *testing.M) {
 	var err error
