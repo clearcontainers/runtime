@@ -34,21 +34,33 @@ const (
 )
 
 const (
-	qemuLite   = "qemu-lite"
-	qemu       = "qemu"
 	shimBinary = "cc-shim"
 )
 
+// The TOML configuration file contains a number of sections (or
+// tables). The names of these tables are in dotted ("nested table")
+// form:
+//
+//   [<component>.<type>]
+//
+// The components are hypervisor, proxy, shim and agent. For example,
+//
+//   [proxy.cc]
+//
+// The currently supported types are listed below:
 const (
-	ccProxy = "cc"
-)
+	// supported hypervisor component types
+	qemuLiteHypervisorTableType = "qemu-lite"
+	qemuHypervisorTableType     = "qemu"
 
-const (
-	ccShim = "cc"
-)
+	// supported proxy component types
+	ccProxyTableType = "cc"
 
-const (
-	hyperstartAgent = "hyperstart"
+	// supported shim component types
+	ccShimTableType = "cc"
+
+	// supported agent component types
+	hyperstartAgentTableType = "hyperstart"
 )
 
 var (
@@ -186,9 +198,9 @@ func newCCShimConfig(s shim) (vc.CCShimConfig, error) {
 func updateRuntimeConfig(configPath string, tomlConf tomlConfig, config *oci.RuntimeConfig) error {
 	for k, hypervisor := range tomlConf.Hypervisor {
 		switch k {
-		case qemu:
+		case qemuHypervisorTableType:
 			fallthrough
-		case qemuLite:
+		case qemuLiteHypervisorTableType:
 			hConfig, err := newQemuHypervisorConfig(hypervisor)
 			if err != nil {
 				return fmt.Errorf("%v: %v", configPath, err)
@@ -202,7 +214,7 @@ func updateRuntimeConfig(configPath string, tomlConf tomlConfig, config *oci.Run
 
 	for k, proxy := range tomlConf.Proxy {
 		switch k {
-		case ccProxy:
+		case ccProxyTableType:
 			pConfig := vc.CCProxyConfig{
 				URL: proxy.url(),
 			}
@@ -216,7 +228,7 @@ func updateRuntimeConfig(configPath string, tomlConf tomlConfig, config *oci.Run
 
 	for k, agent := range tomlConf.Agent {
 		switch k {
-		case hyperstartAgent:
+		case hyperstartAgentTableType:
 			agentConfig, err := newHyperstartAgentConfig(agent)
 			if err != nil {
 				return fmt.Errorf("%v: %v", configPath, err)
@@ -230,7 +242,7 @@ func updateRuntimeConfig(configPath string, tomlConf tomlConfig, config *oci.Run
 
 	for k, shim := range tomlConf.Shim {
 		switch k {
-		case ccShim:
+		case ccShimTableType:
 			shConfig, err := newCCShimConfig(shim)
 			if err != nil {
 				return fmt.Errorf("%v: %v", configPath, err)
