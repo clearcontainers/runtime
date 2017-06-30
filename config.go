@@ -33,10 +33,6 @@ const (
 	defaultAgent      = vc.HyperstartAgent
 )
 
-const (
-	shimBinary = "cc-shim"
-)
-
 // The TOML configuration file contains a number of sections (or
 // tables). The names of these tables are in dotted ("nested table")
 // form:
