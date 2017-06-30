@@ -21,16 +21,47 @@ for file in /etc/os-release /usr/lib/os-release; do \
     fi \
 done)
 
+# A standard build is either triggered by specifying
+# a special target or via an environment variable.
+standard_build_requested := $(foreach f,\
+    build-standard install-standard,\
+    $(findstring $(f),$(MAKECMDGOALS)))
+ifneq (,$(strip $(standard_build_requested)))
+    standard_build = yes
+else
+    standard_build = no
+endif
+
+# If the environment variable is set to any value,
+# enable the standard build.
+ifneq (,$(CC_STANDARD_BUILD))
+    standard_build = yes
+endif
+
 TARGET = cc-runtime
 DESTDIR :=
-PREFIX := /usr/local
-BINDIR := $(PREFIX)/bin
-SYSCONFDIR := $(PREFIX)/etc
-LIBEXECDIR := $(PREFIX)/libexec
-LOCALSTATEDIR := $(PREFIX)/var
-SHAREDIR := $(PREFIX)/share
-
 CCDIR := clear-containers
+
+ifeq ($(standard_build),yes)
+    # Configure the build for a standard system that is
+    # using OBS-generated packages.
+    PREFIX        := /usr
+    BINDIR        := $(PREFIX)/bin
+    DESTBINDIR    := /usr/local/bin
+    QEMUBINDIR    := $(BINDIR)
+    SYSCONFDIR    := /etc
+    LOCALSTATEDIR := /var
+else
+    PREFIX        := /usr/local
+    BINDIR        := $(PREFIX)/bin
+    DESTBINDIR    := $(DESTDIR)/$(BINDIR)
+    QEMUBINDIR    := $(BINDIR)
+    SYSCONFDIR    := $(PREFIX)/etc
+    LOCALSTATEDIR := $(PREFIX)/var
+endif
+
+LIBEXECDIR := $(PREFIX)/libexec
+SHAREDIR := $(PREFIX)/share
 
 PKGDATADIR := $(SHAREDIR)/$(CCDIR)
 PKGLIBDIR := $(LOCALSTATEDIR)/lib/$(CCDIR)
@@ -39,8 +70,6 @@ PKGLIBEXECDIR := $(LIBEXECDIR)/$(CCDIR)
 
 KERNELPATH := $(PKGDATADIR)/vmlinux.container
 IMAGEPATH := $(PKGDATADIR)/clear-containers.img
-
-QEMUBINDIR := $(BINDIR)
 
 # The CentOS/RHEL hypervisor binary is not called qemu-lite
 ifeq (,$(filter-out centos rhel,$(distro)))
@@ -72,7 +101,6 @@ CONFIG_FILE = configuration.toml
 CONFIG = config/$(CONFIG_FILE)
 CONFIG_IN = $(CONFIG).in
 
-DESTBINDIR := $(DESTDIR)/$(BINDIR)
 DESTTARGET := $(abspath $(DESTBINDIR)/$(TARGET))
 
 DESTCONFDIR := $(DESTDIR)/$(SYSCONFDIR)/$(CCDIR)
@@ -115,6 +143,9 @@ QUIET_TEST     = $(Q:@=@echo    '     TEST    '$@;)
 
 default: $(TARGET) $(CONFIG)
 .DEFAULT: default
+
+build-standard: default
+install-standard: install
 
 define GENERATED_CODE
 // WARNING: This file is auto-generated - DO NOT EDIT!
@@ -204,22 +235,24 @@ clean:
 show-usage: show-header
 	@printf "• Overview:\n"
 	@printf "\n"
-	@printf "  To build $(TARGET), just run, \"make\".\n"
+	@printf "\tTo build $(TARGET), just run, \"make\".\n"
 	@printf "\n"
-	@printf "  For a verbose build, run \"make V=1\".\n"
+	@printf "\tFor a verbose build, run \"make V=1\".\n"
 	@printf "\n"
 	@printf "• Additional targets:\n"
 	@printf "\n"
-	@printf "\tcheck           : run tests\n"
-	@printf "\tclean           : remove built files\n"
-	@printf "\tcoverage        : run coverage tests\n"
-	@printf "\tdefault         : same as just \"make\"\n"
-	@printf "\tgenerate-config : create configuration file\n"
-	@printf "\tinstall         : install files\n"
-	@printf "\tshow-summary    : show install locations\n"
+	@printf "\tbuild-standard   : build using standard paths\n"
+	@printf "\tcheck            : run tests\n"
+	@printf "\tclean            : remove built files\n"
+	@printf "\tcoverage         : run coverage tests\n"
+	@printf "\tdefault          : same as just \"make\"\n"
+	@printf "\tgenerate-config  : create configuration file\n"
+	@printf "\tinstall          : install files\n"
+	@printf "\tinstall-standard : install using standard paths\n"
+	@printf "\tshow-summary     : show install locations\n"
 	@printf "\n"
 
-handle_help: show-usage show-variables show-footer
+handle_help: show-usage show-summary show-variables show-footer
 
 usage: handle_help
 help: handle_help
@@ -239,6 +272,12 @@ show-footer:
 show-summary: show-header
 	@printf "• Summary:\n"
 	@printf "\n"
-	@printf "  binary install path (DESTTARGET) : %s\n" $(DESTTARGET)
-	@printf "  config install path (DESTCONFIG) : %s\n" $(DESTCONFIG)
+	@printf "\tstandard build: $(standard_build)\n"
+	@printf "\n"
+	@printf "\tbinary install path (DESTTARGET)  : %s\n" $(DESTTARGET)
+	@printf "\tconfig install path (DESTCONFIG)  : %s\n" $(DESTCONFIG)
+	@printf "\thypervisor path (QEMUPATH)        : %s\n" $(QEMUPATH)
+	@printf "\tassets path (PKGDATADIR)          : %s\n" $(PKGDATADIR)
+	@printf "\tproxy+shim path (PKGLIBEXECDIR)   : %s\n" $(PKGLIBEXECDIR)
+	@printf "\tpause bundle path (PAUSEROOTPATH) : %s\n" $(PAUSEROOTPATH)
 	@printf "\n"
