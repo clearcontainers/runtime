@@ -34,13 +34,20 @@ import (
 )
 
 const testProxyURL = "file:///proxyURL"
+const testProxyVersion = "proxy version 0.1"
+const testShimVersion = "shim version 0.1"
 
 func makeRuntimeConfig(prefixDir string) (configFile string, config oci.RuntimeConfig, err error) {
 	const logPath = "/log/path"
 	hypervisorPath := filepath.Join(prefixDir, "hypervisor")
 	kernelPath := filepath.Join(prefixDir, "kernel")
 	imagePath := filepath.Join(prefixDir, "image")
-	shimPath := filepath.Join(prefixDir, "shim")
+	shimPath := filepath.Join(prefixDir, "cc-shim")
+	proxyPath := filepath.Join(prefixDir, "cc-proxy")
+
+	// override
+	defaultProxyPath = proxyPath
+
 	agentPauseRoot := filepath.Join(prefixDir, "agentPauseRoot")
 	agentPauseRootBin := filepath.Join(agentPauseRoot, "bin")
 
@@ -55,7 +62,6 @@ func makeRuntimeConfig(prefixDir string) (configFile string, config oci.RuntimeC
 		hypervisorPath,
 		kernelPath,
 		imagePath,
-		shimPath,
 		pauseBinPath,
 	}
 
@@ -64,6 +70,30 @@ func makeRuntimeConfig(prefixDir string) (configFile string, config oci.RuntimeC
 		if err != nil {
 			return "", oci.RuntimeConfig{}, err
 		}
+	}
+
+	err = createFile(shimPath,
+		fmt.Sprintf(`#!/bin/sh
+	[ "$1" = "--version" ] && echo "%s"`, testShimVersion))
+	if err != nil {
+		return "", oci.RuntimeConfig{}, err
+	}
+
+	err = os.Chmod(shimPath, testExeFileMode)
+	if err != nil {
+		return "", oci.RuntimeConfig{}, err
+	}
+
+	err = createFile(proxyPath,
+		fmt.Sprintf(`#!/bin/sh
+	[ "$1" = "--version" ] && echo "%s"`, testProxyVersion))
+	if err != nil {
+		return "", oci.RuntimeConfig{}, err
+	}
+
+	err = os.Chmod(proxyPath, testExeFileMode)
+	if err != nil {
+		return "", oci.RuntimeConfig{}, err
 	}
 
 	runtimeConfig := makeRuntimeConfigFileData(
@@ -98,7 +128,7 @@ func getExpectedProxyDetails(config oci.RuntimeConfig) (ProxyInfo, error) {
 
 	return ProxyInfo{
 		Type:    string(config.ProxyType),
-		Version: unknown,
+		Version: testProxyVersion,
 		URL:     proxyConfig.URL,
 	}, nil
 }
@@ -113,7 +143,7 @@ func getExpectedShimDetails(config oci.RuntimeConfig) (ShimInfo, error) {
 
 	return ShimInfo{
 		Type:    string(config.ShimType),
-		Version: unknown,
+		Version: testShimVersion,
 		Location: PathInfo{
 			Path:     shimPath,
 			Resolved: shimPath,
@@ -659,6 +689,31 @@ func TestCCEnvGetProxyInfo(t *testing.T) {
 	assert.Equal(t, expectedProxy, ccProxy)
 }
 
+func TestCCEnvGetProxyInfoNoVersion(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "")
+	if err != nil {
+		panic(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	_, config, err := makeRuntimeConfig(tmpdir)
+	assert.NoError(t, err)
+
+	expectedProxy, err := getExpectedProxyDetails(config)
+	assert.NoError(t, err)
+
+	// remove the proxy ensuring its version cannot be queried
+	err = os.Remove(defaultProxyPath)
+	assert.NoError(t, err)
+
+	expectedProxy.Version = unknown
+
+	ccProxy, err := getProxyInfo(config)
+	assert.NoError(t, err)
+
+	assert.Equal(t, expectedProxy, ccProxy)
+}
+
 func TestCCEnvGetProxyInfoInvalidType(t *testing.T) {
 	tmpdir, err := ioutil.TempDir("", "")
 	if err != nil {
@@ -689,6 +744,56 @@ func TestCCEnvGetShimInfo(t *testing.T) {
 
 	expectedShim, err := getExpectedShimDetails(config)
 	assert.NoError(t, err)
+
+	ccShim, err := getShimInfo(config)
+	assert.NoError(t, err)
+
+	assert.Equal(t, expectedShim, ccShim)
+}
+
+func TestCCEnvGetShimInfoENOENT(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "")
+	if err != nil {
+		panic(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	_, config, err := makeRuntimeConfig(tmpdir)
+	assert.NoError(t, err)
+
+	expectedShim, err := getExpectedShimDetails(config)
+	assert.NoError(t, err)
+
+	// remove the shim ensuring its version cannot be queried
+	shim := expectedShim.Location.Resolved
+	err = os.Remove(shim)
+	assert.NoError(t, err)
+
+	_, err = getShimInfo(config)
+	assert.Error(t, err)
+}
+
+func TestCCEnvGetShimInfoNoVersion(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "")
+	if err != nil {
+		panic(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	_, config, err := makeRuntimeConfig(tmpdir)
+	assert.NoError(t, err)
+
+	expectedShim, err := getExpectedShimDetails(config)
+	assert.NoError(t, err)
+
+	shim := expectedShim.Location.Resolved
+
+	// ensure querying the shim version fails
+	err = createFile(shim, `#!/bin/sh
+	exit 1`)
+	assert.NoError(t, err)
+
+	expectedShim.Version = unknown
 
 	ccShim, err := getShimInfo(config)
 	assert.NoError(t, err)

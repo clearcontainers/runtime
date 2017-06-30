@@ -205,13 +205,22 @@ func getProxyInfo(config oci.RuntimeConfig) (ProxyInfo, error) {
 
 	proxyURL := proxyConfig.URL
 
+	version, err := getCommandVersion(defaultProxyPath)
+	if err != nil {
+		version = unknown
+	}
+
 	ccProxy := ProxyInfo{
 		Type:    string(config.ProxyType),
-		Version: unknown,
+		Version: version,
 		URL:     proxyURL,
 	}
 
 	return ccProxy, nil
+}
+
+func getCommandVersion(cmd string) (string, error) {
+	return runCommand([]string{cmd, "--version"})
 }
 
 func getShimInfo(config oci.RuntimeConfig) (ShimInfo, error) {
@@ -226,9 +235,14 @@ func getShimInfo(config oci.RuntimeConfig) (ShimInfo, error) {
 		return ShimInfo{}, err
 	}
 
+	version, err := getCommandVersion(shimPathResolved)
+	if err != nil {
+		version = unknown
+	}
+
 	ccShim := ShimInfo{
 		Type:    string(config.ShimType),
-		Version: unknown,
+		Version: version,
 		Location: PathInfo{
 			Path:     shimPath,
 			Resolved: shimPathResolved,
