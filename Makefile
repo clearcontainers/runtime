@@ -218,9 +218,9 @@ clean:
 show-usage: show-header
 	@printf "• Overview:\n"
 	@printf "\n"
-	@printf "  To build $(TARGET), just run, \"make\".\n"
+	@printf "\tTo build $(TARGET), just run, \"make\".\n"
 	@printf "\n"
-	@printf "  For a verbose build, run \"make V=1\".\n"
+	@printf "\tFor a verbose build, run \"make V=1\".\n"
 	@printf "\n"
 	@printf "• Additional targets:\n"
 	@printf "\n"
@@ -254,6 +254,6 @@ show-footer:
 show-summary: show-header
 	@printf "• Summary:\n"
 	@printf "\n"
-	@printf "  binary install path (DESTTARGET) : %s\n" $(DESTTARGET)
-	@printf "  config install path (DESTCONFIG) : %s\n" $(DESTCONFIG)
+	@printf "\tbinary install path (DESTTARGET) : %s\n" $(DESTTARGET)
+	@printf "\tconfig install path (DESTCONFIG) : %s\n" $(DESTCONFIG)
 	@printf "\n"
