@@ -79,7 +79,7 @@ go vet $go_packages
 
 cmd="gofmt -s -d -l"
 echo "Running gofmt..."
-diff=$(find . -not -wholename '*/vendor/*' -name '*.go' | \
+diff=$(find . -not -wholename '*/vendor/*' -name '*.go' -name './pause/*'| \
 	xargs $cmd)
 if [ -n "$diff" -a $(echo "$diff" | wc -l) -ne 0 ]
 then
