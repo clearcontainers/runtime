@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -153,4 +154,17 @@ func resolvePath(path string) (string, error) {
 	}
 
 	return resolved, nil
+}
+
+// runCommand returns the commands space-trimmed standard output on success
+func runCommand(args []string) (string, error) {
+	cmd := exec.Command(args[0], args[1:]...)
+	bytes, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+
+	trimmed := strings.TrimSpace(string(bytes))
+
+	return trimmed, nil
 }

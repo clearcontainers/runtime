@@ -357,3 +357,47 @@ func TestUtilsResolvePathENOENT(t *testing.T) {
 	_, err = resolvePath(filepath.Base(linkFile))
 	assert.Error(t, err)
 }
+
+func TestUtilsRunCommand(t *testing.T) {
+	output, err := runCommand([]string{"true"})
+	assert.NoError(t, err)
+	assert.Equal(t, "", output)
+}
+
+func TestUtilsRunCommandCaptureStdout(t *testing.T) {
+	output, err := runCommand([]string{"echo", "hello"})
+	assert.NoError(t, err)
+	assert.Equal(t, "hello", output)
+}
+
+func TestUtilsRunCommandIgnoreStderr(t *testing.T) {
+	args := []string{"/bin/sh", "-c", "echo foo >&2;exit 0"}
+
+	output, err := runCommand(args)
+	assert.NoError(t, err)
+	assert.Equal(t, "", output)
+}
+
+func TestUtilsRunCommandInvalidCmds(t *testing.T) {
+	invalidCommands := [][]string{
+		{""},
+		{"", ""},
+		{" "},
+		{" ", " "},
+		{" ", ""},
+		{"\\"},
+		{"/"},
+		{"/.."},
+		{"../"},
+		{"/tmp"},
+		{"\t"},
+		{"\n"},
+		{"false"},
+	}
+
+	for _, args := range invalidCommands {
+		output, err := runCommand(args)
+		assert.Error(t, err)
+		assert.Equal(t, "", output)
+	}
+}

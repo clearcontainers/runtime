@@ -155,19 +155,19 @@ func main() {
 	}
 
 	app.Commands = []cli.Command{
-		ccCheckCommand,
-		ccEnvCommand,
-		createCommand,
-		deleteCommand,
-		execCommand,
-		killCommand,
-		listCommand,
-		runCommand,
-		pauseCommand,
-		resumeCommand,
-		startCommand,
-		stateCommand,
-		versionCommand,
+		checkCLICommand,
+		envCLICommand,
+		createCLICommand,
+		deleteCLICommand,
+		execCLICommand,
+		killCLICommand,
+		listCLICommand,
+		runCLICommand,
+		pauseCLICommand,
+		resumeCLICommand,
+		startCLICommand,
+		stateCLICommand,
+		versionCLICommand,
 	}
 
 	app.Before = beforeSubcommands

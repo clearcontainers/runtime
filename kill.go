@@ -24,7 +24,7 @@ import (
 	"github.com/urfave/cli"
 )
 
-var killCommand = cli.Command{
+var killCLICommand = cli.Command{
 	Name:  "kill",
 	Usage: "Kill sends signals to the container's init process",
 	ArgsUsage: `<container-id> [signal]

@@ -36,7 +36,7 @@ type execParams struct {
 	noSubreaper  bool
 }
 
-var execCommand = cli.Command{
+var execCLICommand = cli.Command{
 	Name:  "exec",
 	Usage: "Execute new process inside the container",
 	ArgsUsage: `<container-id> <command> [command options]  || -p process.json <container-id>

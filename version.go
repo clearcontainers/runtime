@@ -18,7 +18,7 @@ import (
 	"github.com/urfave/cli"
 )
 
-var versionCommand = cli.Command{
+var versionCLICommand = cli.Command{
 	Name:  "version",
 	Usage: "display version details",
 	Action: func(context *cli.Context) error {

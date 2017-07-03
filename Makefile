@@ -54,7 +54,9 @@ QEMUPATH := $(QEMUBINDIR)/$(QEMUCMD)
 SHIMCMD := cc-shim
 SHIMPATH := $(PKGLIBEXECDIR)/$(SHIMCMD)
 
+PROXYCMD := cc-proxy
 PROXYURL := unix://$(PKGRUNDIR)/proxy.sock
+PROXYPATH := $(PKGLIBEXECDIR)/$(PROXYCMD)
 
 PAUSEROOTPATH := $(PKGLIBDIR)/runtime/bundles/pause_bundle
 PAUSEBINRELPATH := bin/pause
@@ -100,6 +102,7 @@ USER_VARS += PKGLIBDIR
 USER_VARS += PKGLIBEXECDIR
 USER_VARS += PKGRUNDIR
 USER_VARS += PREFIX
+USER_VARS += PROXYPATH
 USER_VARS += PROXYURL
 USER_VARS += QEMUBINDIR
 USER_VARS += QEMUCMD
@@ -146,6 +149,7 @@ const pauseBinRelativePath = "$(PAUSEBINRELPATH)"
 
 // Required to be modifiable (for the tests)
 var defaultRuntimeConfiguration = "$(DESTCONFIG)"
+var defaultProxyPath = "$(PROXYPATH)"
 endef
 
 export GENERATED_CODE

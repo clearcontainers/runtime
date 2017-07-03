@@ -23,7 +23,7 @@ import (
 	"github.com/urfave/cli"
 )
 
-var startCommand = cli.Command{
+var startCLICommand = cli.Command{
 	Name:  "start",
 	Usage: "executes the user defined process in a created container",
 	ArgsUsage: `<container-id> [container-id...]
