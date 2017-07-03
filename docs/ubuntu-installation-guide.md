@@ -29,7 +29,7 @@ For more information on installing Docker please refer to the
 $ sudo sh -c "echo 'deb http://download.opensuse.org/repositories/home:/clearcontainers:/clear-containers-3-staging/xUbuntu_16.04/ /' >> /etc/apt/sources.list.d/cc-runtime.list"
 $ curl -fsSL http://download.opensuse.org/repositories/home:/clearcontainers:/clear-containers-3-staging/xUbuntu_16.04/Release.key | sudo apt-key add -
 $ sudo apt-get update
-$ sudo apt-get install -y cc-runtime cc-proxy cc-shim virtcontainers-pause
+$ sudo apt-get install -y cc-runtime cc-proxy cc-shim
 ```
 
 3. Configure Docker to use Clear Containers as the default with the following commands:
