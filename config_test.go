@@ -21,6 +21,8 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	goruntime "runtime"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -49,6 +51,8 @@ func makeRuntimeConfigFileData(hypervisor, hypervisorPath, kernelPath, imagePath
 	path = "` + hypervisorPath + `"
 	kernel = "` + kernelPath + `"
 	image = "` + imagePath + `"
+	default_vcpus = ` + strconv.FormatUint(uint64(defaultVCPUCount), 10) + `
+	default_memory = ` + strconv.FormatUint(uint64(defaultMemSize), 10) + `
 
 	[proxy.cc]
 	url = "` + proxyURL + `"
@@ -131,6 +135,8 @@ func createAllRuntimeConfigFiles(dir, hypervisor string) (config testRuntimeConf
 		HypervisorPath: hypervisorPath,
 		KernelPath:     kernelPath,
 		ImagePath:      imagePath,
+		DefaultVCPUs:   defaultVCPUCount,
+		DefaultMemSz:   defaultMemSize,
 	}
 
 	agentConfig := vc.HyperConfig{
@@ -586,6 +592,8 @@ func TestMinimalRuntimeConfig(t *testing.T) {
 		HypervisorPath: defaultHypervisorPath,
 		KernelPath:     defaultKernelPath,
 		ImagePath:      defaultImagePath,
+		DefaultVCPUs:   defaultVCPUCount,
+		DefaultMemSz:   defaultMemSize,
 	}
 
 	expectedAgentConfig := vc.HyperConfig{
@@ -770,6 +778,8 @@ func TestHypervisorDefaults(t *testing.T) {
 	assert.Equal(t, h.path(), defaultHypervisorPath, "default hypervisor path wrong")
 	assert.Equal(t, h.kernel(), defaultKernelPath, "default hypervisor kernel wrong")
 	assert.Equal(t, h.image(), defaultImagePath, "default hypervisor image wrong")
+	assert.Equal(t, h.defaultVCPUs(), defaultVCPUCount, "default vCPU number is wrong")
+	assert.Equal(t, h.defaultMemSz(), defaultMemSize, "default memory size is wrong")
 
 	path := "/foo"
 	h.Path = path
@@ -782,6 +792,20 @@ func TestHypervisorDefaults(t *testing.T) {
 	image := "foo"
 	h.Image = image
 	assert.Equal(t, h.image(), image, "custom hypervisor image wrong")
+
+	// auto inferring
+	h.DefaultVCPUs = -1
+	assert.Equal(t, h.defaultVCPUs(), uint32(goruntime.NumCPU()), "default vCPU number is wrong")
+
+	h.DefaultVCPUs = 2
+	assert.Equal(t, h.defaultVCPUs(), uint32(2), "default vCPU number is wrong")
+
+	// qemu supports max 255
+	h.DefaultVCPUs = 8086
+	assert.Equal(t, h.defaultVCPUs(), uint32(255), "default vCPU number is wrong")
+
+	h.DefaultMemSz = 1024
+	assert.Equal(t, h.defaultMemSz(), uint32(1024), "default memory size is wrong")
 }
 
 func TestProxyDefaults(t *testing.T) {
