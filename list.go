@@ -104,8 +104,8 @@ To list containers created using a non-default value for "--root":
 			Usage: "display only container IDs",
 		},
 		cli.BoolFlag{
-			Name:  "all, a",
-			Usage: "display all available information",
+			Name:  "cc-all",
+			Usage: "display all available " + project + " information",
 		},
 	},
 	Action: func(context *cli.Context) error {
@@ -115,7 +115,7 @@ To list containers created using a non-default value for "--root":
 		}
 
 		file := os.Stdout
-		showAll := context.Bool("all")
+		showAll := context.Bool("cc-all")
 
 		if context.Bool("quiet") {
 			return (&formatIDList{}).Write(s, showAll, file)
