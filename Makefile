@@ -188,7 +188,7 @@ export GENERATED_CODE
 
 GENERATED_FILES += config-generated.go
 
-config-generated.go:
+config-generated.go: Makefile VERSION
 	$(QUIET_GENERATE)echo "$$GENERATED_CODE" >$@
 
 $(TARGET): $(SOURCES) $(GENERATED_FILES) Makefile | show-summary
