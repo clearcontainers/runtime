@@ -49,15 +49,17 @@ done
 go_packages=$args
 
 [ -z "$go_packages" ] && {
-	go_packages=$(go list ./... | grep -v vendor |\
-		    sed -e 's#.*/cc-oci-runtime/#./#')
+	go_packages=$(go list ./... | grep -v vendor)
 }
 
 function install_package {
 	url="$1"
 	name=${url##*/}
 
-	[ -n "$NONETWORK" ] && return
+	if [ -n "$NONETWORK" ]; then
+		echo "Skipping updating package $name, no network access allowed"
+		return
+	fi
 
 	echo Updating $name...
 	go get -u $url
