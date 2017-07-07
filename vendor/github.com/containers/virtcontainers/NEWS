@@ -1,3 +1,9 @@
+1.0.0-rc.3:
+	Added support for assigning the container rootfs underlying block device to the VM (when using devicemapper)
+	Changed qemu to use virtio-net vhost by default
+	Changed qemu parameters to not be Clear Containers specific
+	Fixed MTU passing to hyperstart
+
 1.0.0-rc.2:
 	Added support for transitioning from Ready to Stopped
 	Fixed pod container creation

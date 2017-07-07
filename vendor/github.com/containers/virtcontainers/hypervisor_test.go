@@ -162,6 +162,26 @@ func TestHypervisorConfigIsValid(t *testing.T) {
 	testHypervisorConfigValid(t, hypervisorConfig, true)
 }
 
+func TestHypervisorConfigDefaults(t *testing.T) {
+	hypervisorConfig := &HypervisorConfig{
+		KernelPath:     fmt.Sprintf("%s/%s", testDir, testKernel),
+		ImagePath:      fmt.Sprintf("%s/%s", testDir, testImage),
+		HypervisorPath: "",
+	}
+	testHypervisorConfigValid(t, hypervisorConfig, true)
+
+	hypervisorConfigDefaultsExpected := &HypervisorConfig{
+		KernelPath:     fmt.Sprintf("%s/%s", testDir, testKernel),
+		ImagePath:      fmt.Sprintf("%s/%s", testDir, testImage),
+		HypervisorPath: "",
+		DefaultVCPUs:   defaultVCPUs,
+		DefaultMemSz:   defaultMemSzMiB,
+	}
+	if reflect.DeepEqual(hypervisorConfig, hypervisorConfigDefaultsExpected) == false {
+		t.Fatal()
+	}
+}
+
 func TestAppendParams(t *testing.T) {
 	paramList := []Param{
 		{

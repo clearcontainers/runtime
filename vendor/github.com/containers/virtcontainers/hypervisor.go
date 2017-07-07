@@ -31,6 +31,12 @@ const (
 	MockHypervisor HypervisorType = "mock"
 )
 
+const (
+	defaultVCPUs = 1
+	// 2 GiB
+	defaultMemSzMiB = 2048
+)
+
 // deviceType describes a virtualized device type.
 type deviceType int
 
@@ -128,6 +134,14 @@ type HypervisorConfig struct {
 	// Debug changes the default hypervisor and kernel parameters to
 	// enable debug output where available.
 	Debug bool
+
+	// DefaultVCPUs specifies default number of vCPUs for the VM.
+	// Pod configuration VMConfig.VCPUs overwrites this.
+	DefaultVCPUs uint32
+
+	// DefaultMem specifies default memory size in MiB for the VM.
+	// Pod configuration VMConfig.Memory overwrites this.
+	DefaultMemSz uint32
 }
 
 func (conf *HypervisorConfig) valid() (bool, error) {
@@ -137,6 +151,14 @@ func (conf *HypervisorConfig) valid() (bool, error) {
 
 	if conf.ImagePath == "" {
 		return false, fmt.Errorf("Missing image path")
+	}
+
+	if conf.DefaultVCPUs == 0 {
+		conf.DefaultVCPUs = defaultVCPUs
+	}
+
+	if conf.DefaultMemSz == 0 {
+		conf.DefaultMemSz = defaultMemSzMiB
 	}
 
 	return true, nil
