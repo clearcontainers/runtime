@@ -2,3 +2,5 @@
 /coverage.html
 /config-generated.go
 /config/configuration.toml
+/pause/pause
+/pause/pause.o
