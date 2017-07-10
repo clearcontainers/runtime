@@ -81,19 +81,29 @@ For more details on the runtime's build system, run:
 $ make help
 ```
 
-4. Qemu lite
+4. Qemu-Lite
 
 In Fedora:
 ```bash
 $ source /etc/os-release
-$ sudo dnf config-manager --add-repo \
-http://download.opensuse.org/repositories/home:/clearlinux:/preview:/clear-containers-2.1/Fedora\_$VERSION_ID/home:clearlinux:preview:clear-containers-2.1.repo
-$ sudo dnf install qemu-lite
+$ sudo -E VERSION_ID=$VERSION_ID dnf config-manager --add-repo \
+http://download.opensuse.org/repositories/home:/clearcontainers:/clear-containers-3/Fedora\_$VERSION_ID/home:clearcontainers:clear-containers-3.repo
+$ sudo -E dnf install -y qemu-lite
 ```
 
-5. Rootfs and kernel images
+In Ubuntu:
+```bash
+$ sudo -E apt-get install -y apt-transport-https ca-certificates curl software-properties-common
+$ sudo sh -c "echo 'deb http://download.opensuse.org/repositories/home:/clearcontainers:/clear-containers-3/xUbuntu_$(lsb_release -rs)/ /' >> /etc/apt/sources.list.d/clear-containers.list"
+$ curl -fsSL http://download.opensuse.org/repositories/home:/clearcontainers:/clear-containers-3/xUbuntu_$(lsb_release -rs)/Release.key | sudo apt-key add -
+$ sudo -E apt-get update
+$ sudo -E apt-get install -y qemu-lite
 
-TODO: kernel version might be old here. Check the latest version in $GOPATH/src/github.com/clearcontainers/tests/.ci/setup_env_ubuntu.sh
+```
+
+5. Rootfs and Kernel images
+
+**TODO:** kernel version might be old here. Check the latest version in `$GOPATH/src/github.com/clearcontainers/tests/.ci/setup_env_ubuntu.sh`
 ```bash
 $ export clear_release=$(curl -sL https://download.clearlinux.org/latest)
 $ export cc_img_path="/usr/share/clear-containers"
@@ -107,7 +117,7 @@ $ $GOPATH/src/github.com/clearcontainers/tests/.ci/install_clear_kernel.sh $kern
 
 1. Clear Containers configuration file
 
-Edit $SYSCONFDIR/clear-containers/configuration.toml according to your needs.
+Edit `$SYSCONFDIR/clear-containers/configuration.toml` according to your needs.
 
 Refer to [https://github.com/clearcontainers/runtime#debugging](https://github.com/clearcontainers/runtime#debugging)
 for additional information how to debug the runtime.
@@ -116,7 +126,7 @@ for additional information how to debug the runtime.
 
 ```bash
 $ sudo mkdir -p /etc/systemd/system/docker.service.d/
-$ cat << EOF | sudo tee /etc/systemd/system/docker.service.d/clr-containers.conf
+$ cat << EOF | sudo tee /etc/systemd/system/docker.service.d/clear-containers.conf
 [Service]
 ExecStart=
 ExecStart=/usr/bin/dockerd -D --add-runtime clearcontainers=/usr/local/bin/cc-runtime --default-runtime=runc
