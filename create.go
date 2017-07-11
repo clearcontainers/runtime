@@ -53,6 +53,11 @@ var createCLICommand = cli.Command{
 			Usage: "path to a pseudo terminal",
 		},
 		cli.StringFlag{
+			Name:  "console-socket",
+			Value: "",
+			Usage: "path to an AF_UNIX socket which will receive a file descriptor referencing the master end of the console's pseudoterminal",
+		},
+		cli.StringFlag{
 			Name:  "pid-file",
 			Value: "",
 			Usage: "specify the file to write the process id to",
@@ -64,9 +69,14 @@ var createCLICommand = cli.Command{
 			return errors.New("invalid runtime config")
 		}
 
+		console, err := setupConsole(context.String("console"), context.String("console-socket"))
+		if err != nil {
+			return err
+		}
+
 		return create(context.Args().First(),
 			context.String("bundle"),
-			context.String("console"),
+			console,
 			context.String("pid-file"),
 			runtimeConfig,
 		)
