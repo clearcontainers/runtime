@@ -81,6 +81,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/opencontainers/runc"
+  packages = ["libcontainer/utils"]
+  revision = "a0159fddcd197a57790b6dd5654802b7dc8f80be"
+
+[[projects]]
+  branch = "master"
   name = "github.com/opencontainers/runtime-spec"
   packages = ["specs-go"]
   revision = "035da1dca3dfbb00d752eb58b0b158d6129f3776"
@@ -130,6 +136,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "3973113a570424c393905976a8660f2fadd54be00a28242f1f0ecf9178fa7bcf"
+  inputs-digest = "eac96e0a6b3544e901ea4489c1efbed0682feeae23dd941f5e1b495f6eb536ff"
   solver-name = "gps-cdcl"
   solver-version = 1
