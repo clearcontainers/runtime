@@ -31,6 +31,7 @@ type execParams struct {
 	cID          string
 	pidFile      string
 	console      string
+	consoleSock  string
 	detach       bool
 	processLabel string
 	noSubreaper  bool
@@ -54,6 +55,11 @@ EXAMPLE:
 		cli.StringFlag{
 			Name:  "console",
 			Usage: "path to a pseudo terminal",
+		},
+		cli.StringFlag{
+			Name:  "console-socket",
+			Value: "",
+			Usage: "path to an AF_UNIX socket which will receive a file descriptor referencing the master end of the console's pseudoterminal",
 		},
 		cli.StringFlag{
 			Name:  "cwd",
@@ -124,6 +130,7 @@ func generateExecParams(context *cli.Context) (execParams, error) {
 		cID:          ctxArgs.First(),
 		pidFile:      context.String("pid-file"),
 		console:      context.String("console"),
+		consoleSock:  context.String("console-socket"),
 		detach:       context.Bool("detach"),
 		processLabel: context.String("process-label"),
 		noSubreaper:  context.Bool("no-subreaper"),
@@ -189,13 +196,18 @@ func execute(params execParams) error {
 		return err
 	}
 
+	consolePath, err := setupConsole(params.console, params.consoleSock)
+	if err != nil {
+		return err
+	}
+
 	cmd := vc.Cmd{
 		Args:        params.ociProcess.Args,
 		Envs:        envVars,
 		WorkDir:     params.ociProcess.Cwd,
 		User:        params.ociProcess.User.Username,
 		Interactive: params.ociProcess.Terminal,
-		Console:     params.console,
+		Console:     consolePath,
 	}
 
 	_, _, process, err := vc.EnterContainer(podID, params.cID, cmd)

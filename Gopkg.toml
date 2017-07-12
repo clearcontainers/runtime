@@ -120,6 +120,10 @@
 
 [[constraint]]
   branch = "master"
+  name = "github.com/opencontainers/runc"
+
+[[constraint]]
+  branch = "master"
   name = "github.com/opencontainers/runtime-spec"
 
 [[constraint]]

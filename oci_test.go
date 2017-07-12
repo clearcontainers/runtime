@@ -15,7 +15,9 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -24,7 +26,13 @@ import (
 
 	vc "github.com/containers/virtcontainers"
 	"github.com/containers/virtcontainers/pkg/oci"
+	"github.com/opencontainers/runc/libcontainer/utils"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
+)
+
+var (
+	consolePathTest       = "console-test"
+	consoleSocketPathTest = "console-socket-test"
 )
 
 func TestGetContainerInfoContainerIDEmptyFailure(t *testing.T) {
@@ -215,4 +223,93 @@ func TestProcessCgroupsPathAbsoluteSuccessful(t *testing.T) {
 	}
 
 	testProcessCgroupsPath(t, ociSpec, []string{filepath.Join(resourceMountPath, absoluteCgroupsPath)})
+}
+
+func TestSetupConsoleExistingConsolePathSuccessful(t *testing.T) {
+	console, err := setupConsole(consolePathTest, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if console != consolePathTest {
+		t.Fatalf("Got %q, Expecting %q", console, consolePathTest)
+	}
+}
+
+func TestSetupConsoleExistingConsolePathAndConsoleSocketPathSuccessful(t *testing.T) {
+	console, err := setupConsole(consolePathTest, consoleSocketPathTest)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if console != consolePathTest {
+		t.Fatalf("Got %q, Expecting %q", console, consolePathTest)
+	}
+}
+
+func TestSetupConsoleEmptyPathsSuccessful(t *testing.T) {
+	console, err := setupConsole("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if console != "" {
+		t.Fatalf("Console path should be empty, got %q instead", console)
+	}
+}
+
+func TestSetupConsoleExistingConsoleSocketPath(t *testing.T) {
+	dir, err := ioutil.TempDir("", "test-socket")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	sockName := filepath.Join(dir, "console.sock")
+
+	l, err := net.Listen("unix", sockName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	console, err := setupConsole("", sockName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	waitCh := make(chan error)
+	go func() {
+		conn, err1 := l.Accept()
+		if err != nil {
+			waitCh <- err1
+		}
+
+		uConn, ok := conn.(*net.UnixConn)
+		if !ok {
+			waitCh <- fmt.Errorf("casting to *net.UnixConn failed")
+		}
+
+		f, err1 := uConn.File()
+		if err != nil {
+			waitCh <- err1
+		}
+
+		_, err1 = utils.RecvFd(f)
+		waitCh <- err1
+	}()
+
+	if console == "" {
+		t.Fatal("Console socket path should not be empty")
+	}
+
+	if err := <-waitCh; err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSetupConsoleNotExistingSocketPathFailure(t *testing.T) {
+	console, err := setupConsole("", "unknown-sock-path")
+	if err == nil && console != "" {
+		t.Fatalf("This test should fail because the console socket path does not exist")
+	}
 }
