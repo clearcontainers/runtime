@@ -78,12 +78,13 @@ var createCLICommand = cli.Command{
 			context.String("bundle"),
 			console,
 			context.String("pid-file"),
+			true,
 			runtimeConfig,
 		)
 	},
 }
 
-func create(containerID, bundlePath, console, pidFilePath string,
+func create(containerID, bundlePath, console, pidFilePath string, detach bool,
 	runtimeConfig oci.RuntimeConfig) error {
 	var err error
 
@@ -102,16 +103,18 @@ func create(containerID, bundlePath, console, pidFilePath string,
 		return err
 	}
 
+	disableOutput := noNeedForOutput(detach, ociSpec.Process.Terminal)
+
 	var process vc.Process
 
 	switch containerType {
 	case vc.PodSandbox:
-		process, err = createPod(ociSpec, runtimeConfig, containerID, bundlePath, console)
+		process, err = createPod(ociSpec, runtimeConfig, containerID, bundlePath, console, disableOutput)
 		if err != nil {
 			return err
 		}
 	case vc.PodContainer:
-		process, err = createContainer(ociSpec, containerID, bundlePath, console)
+		process, err = createContainer(ociSpec, containerID, bundlePath, console, disableOutput)
 		if err != nil {
 			return err
 		}
@@ -144,7 +147,7 @@ func create(containerID, bundlePath, console, pidFilePath string,
 }
 
 func createPod(ociSpec oci.CompatOCISpec, runtimeConfig oci.RuntimeConfig,
-	containerID, bundlePath, console string) (vc.Process, error) {
+	containerID, bundlePath, console string, disableOutput bool) (vc.Process, error) {
 
 	ccKernelParams := []vc.Param{
 		{
@@ -175,7 +178,7 @@ func createPod(ociSpec oci.CompatOCISpec, runtimeConfig oci.RuntimeConfig,
 		}
 	}
 
-	podConfig, err := oci.PodConfig(ociSpec, runtimeConfig, bundlePath, containerID, console, true)
+	podConfig, err := oci.PodConfig(ociSpec, runtimeConfig, bundlePath, containerID, console, disableOutput)
 	if err != nil {
 		return vc.Process{}, err
 	}
@@ -194,9 +197,9 @@ func createPod(ociSpec oci.CompatOCISpec, runtimeConfig oci.RuntimeConfig,
 }
 
 func createContainer(ociSpec oci.CompatOCISpec, containerID, bundlePath,
-	console string) (vc.Process, error) {
+	console string, disableOutput bool) (vc.Process, error) {
 
-	contConfig, err := oci.ContainerConfig(ociSpec, bundlePath, containerID, console, true)
+	contConfig, err := oci.ContainerConfig(ociSpec, bundlePath, containerID, console, disableOutput)
 	if err != nil {
 		return vc.Process{}, err
 	}

@@ -313,3 +313,26 @@ func TestSetupConsoleNotExistingSocketPathFailure(t *testing.T) {
 		t.Fatalf("This test should fail because the console socket path does not exist")
 	}
 }
+
+func testNoNeedForOutput(t *testing.T, detach bool, tty bool, expected bool) {
+	result := noNeedForOutput(detach, tty)
+	if result != expected {
+		t.Fatalf("Expecting %t, Got %t", expected, result)
+	}
+}
+
+func TestNoNeedForOutputDetachTrueTtyTrue(t *testing.T) {
+	testNoNeedForOutput(t, true, true, true)
+}
+
+func TestNoNeedForOutputDetachFalseTtyTrue(t *testing.T) {
+	testNoNeedForOutput(t, false, true, false)
+}
+
+func TestNoNeedForOutputDetachFalseTtyFalse(t *testing.T) {
+	testNoNeedForOutput(t, false, false, false)
+}
+
+func TestNoNeedForOutputDetachTrueTtyFalse(t *testing.T) {
+	testNoNeedForOutput(t, true, false, false)
+}

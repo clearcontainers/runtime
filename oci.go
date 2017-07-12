@@ -350,3 +350,15 @@ func setupConsole(consolePath, consoleSockPath string) (string, error) {
 
 	return console.slavePath, nil
 }
+
+func noNeedForOutput(detach bool, tty bool) bool {
+	if !detach {
+		return false
+	}
+
+	if !tty {
+		return false
+	}
+
+	return true
+}
