@@ -18,13 +18,10 @@ package main
 import (
 	"errors"
 	"fmt"
-	"io"
 	"os"
-	"sync"
 	"syscall"
 
 	"github.com/containers/virtcontainers/pkg/oci"
-	"github.com/docker/docker/pkg/term"
 	"github.com/urfave/cli"
 )
 
@@ -51,6 +48,11 @@ var runCLICommand = cli.Command{
 			Usage: "path to a pseudo terminal",
 		},
 		cli.StringFlag{
+			Name:  "console-socket",
+			Value: "",
+			Usage: "path to an AF_UNIX socket which will receive a file descriptor referencing the master end of the console's pseudoterminal",
+		},
+		cli.StringFlag{
 			Name:  "pid-file",
 			Value: "",
 			Usage: "specify the file to write the process id to",
@@ -61,64 +63,34 @@ var runCLICommand = cli.Command{
 		},
 	},
 	Action: func(context *cli.Context) error {
-		return run(context)
+		runtimeConfig, ok := context.App.Metadata["runtimeConfig"].(oci.RuntimeConfig)
+		if !ok {
+			return errors.New("invalid runtime config")
+		}
+
+		return run(context.Args().First(),
+			context.String("bundle"),
+			context.String("console"),
+			context.String("console-socket"),
+			context.String("pid-file"),
+			context.Bool("detach"),
+			runtimeConfig)
 	},
 }
 
-func run(context *cli.Context) error {
-	runtimeConfig, ok := context.App.Metadata["runtimeConfig"].(oci.RuntimeConfig)
-	if !ok {
-		return errors.New("invalid runtime config")
-	}
+func run(containerID, bundle, console, consoleSocket, pidFile string, detach bool,
+	runtimeConfig oci.RuntimeConfig) error {
 
-	consolePath := context.String("console")
-
-	var wg sync.WaitGroup
-	var console *Console
-	var err error
-	var consoleState *term.State
-
-	// if consolePath is /dev/ptmx or /dev/pts/ptmx
-	// means that we have to allocate a new pts
-	if consolePath == ptmxPath || consolePath == ptsPtmxPath {
-		console, err = newConsole()
-		if err != nil {
-			return err
-		}
-		// close and restore console
-		defer console.Close()
-
-		// now consolePath is the slave pts
-		consolePath = console.Path()
-	}
-
-	if err = create(context.Args().First(),
-		context.String("bundle"),
-		consolePath,
-		context.String("pid-file"),
-		runtimeConfig); err != nil {
+	consolePath, err := setupConsole(console, consoleSocket)
+	if err != nil {
 		return err
 	}
 
-	detach := context.Bool("detach")
-
-	if !detach && isTerminal(os.Stdout.Fd()) {
-		wg.Add(1)
-		go io.Copy(console, os.Stdin)
-		go func() {
-			defer wg.Done()
-			io.Copy(os.Stdout, console)
-		}()
-
-		// Save console state because it will be restored once container ends
-		consoleState, err = term.SetRawTerminal(os.Stdin.Fd())
-		if err != nil {
-			return err
-		}
-		defer term.RestoreTerminal(os.Stdin.Fd(), consoleState)
+	if err := create(containerID, bundle, consolePath, pidFile, runtimeConfig); err != nil {
+		return err
 	}
 
-	pod, err := start(context.Args().First())
+	pod, err := start(containerID)
 	if err != nil {
 		return err
 	}
@@ -140,12 +112,9 @@ func run(context *cli.Context) error {
 		}
 
 		// delete container's resources
-		if err = delete(containers[0].ID(), true); err != nil {
+		if err := delete(pod.ID(), true); err != nil {
 			return err
 		}
-
-		// wait for routines
-		wg.Wait()
 
 		//runtime should forward container exit code to the system
 		return cli.NewExitError("", ps.Sys().(syscall.WaitStatus).ExitStatus())
