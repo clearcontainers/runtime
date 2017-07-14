@@ -19,6 +19,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os"
+	"syscall"
 
 	vc "github.com/containers/virtcontainers"
 	"github.com/containers/virtcontainers/pkg/oci"
@@ -220,6 +222,22 @@ func execute(params execParams) error {
 	// after this file is created.
 	if err := createPIDFile(params.pidFile, process.Pid); err != nil {
 		return err
+	}
+
+	if !params.detach {
+		p, err := os.FindProcess(process.Pid)
+		if err != nil {
+			return err
+		}
+
+		ps, err := p.Wait()
+		if err != nil {
+			return fmt.Errorf("Process state %s, container info %+v: %v",
+				ps.String(), status, err)
+		}
+
+		// Exit code has to be forwarded in this case.
+		return cli.NewExitError("", ps.Sys().(syscall.WaitStatus).ExitStatus())
 	}
 
 	return nil
