@@ -116,16 +116,11 @@ EXAMPLE:
 		},
 	},
 	Action: func(context *cli.Context) error {
-		params, err := generateExecParams(context)
-		if err != nil {
-			return err
-		}
-
-		return execute(params)
+		return execute(context)
 	},
 }
 
-func generateExecParams(context *cli.Context) (execParams, error) {
+func generateExecParams(context *cli.Context, specProcess *oci.CompatOCIProcess) (execParams, error) {
 	ctxArgs := context.Args()
 
 	params := execParams{
@@ -152,23 +147,58 @@ func generateExecParams(context *cli.Context) (execParams, error) {
 
 		params.ociProcess = ociProcess
 	} else {
-		params.ociProcess = oci.CompatOCIProcess{}
-		params.ociProcess.Terminal = context.Bool("tty")
-		params.ociProcess.User = specs.User{
-			Username: context.String("user"),
+		params.ociProcess = *specProcess
+
+		// Override terminal
+		if context.IsSet("tty") {
+			params.ociProcess.Terminal = context.Bool("tty")
 		}
+
+		// Override user
+		if context.String("user") != "" {
+			params.ociProcess.User = specs.User{
+				Username: context.String("user"),
+			}
+		}
+
+		// Override env
+		params.ociProcess.Env = append(params.ociProcess.Env, context.StringSlice("env")...)
+
+		// Override cwd
+		if context.String("cwd") != "" {
+			params.ociProcess.Cwd = context.String("cwd")
+		}
+
+		// Override no-new-privs
+		if context.IsSet("no-new-privs") {
+			params.ociProcess.NoNewPrivileges = context.Bool("no-new-privs")
+		}
+
+		// Override apparmor
+		if context.String("apparmor") != "" {
+			params.ociProcess.ApparmorProfile = context.String("apparmor")
+		}
+
 		params.ociProcess.Args = ctxArgs.Tail()
-		params.ociProcess.Env = context.StringSlice("env")
-		params.ociProcess.Cwd = context.String("cwd")
-		params.ociProcess.NoNewPrivileges = context.Bool("no-new-privs")
-		params.ociProcess.ApparmorProfile = context.String("apparmor")
 	}
 
 	return params, nil
 }
 
-func execute(params execParams) error {
-	status, podID, err := getExistingContainerInfo(params.cID)
+func execute(context *cli.Context) error {
+	containerID := context.Args().First()
+	status, podID, err := getExistingContainerInfo(containerID)
+	if err != nil {
+		return err
+	}
+
+	// Retrieve OCI spec configuration.
+	ociSpec, err := oci.GetOCIConfig(status)
+	if err != nil {
+		return err
+	}
+
+	params, err := generateExecParams(context, ociSpec.Process)
 	if err != nil {
 		return err
 	}
