@@ -31,6 +31,8 @@ following format:
        for some more good advice, and the Linux Kernel document:
            https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/Documentation/SubmittingPatches
 
+       Fixes: #nnn
+
        Signed-off-by: <contributor@foo.com>
 ```
 
@@ -42,8 +44,12 @@ For example:
     The token and pid data will be hold by the new Process structure and
     they are related to a container.
 
+    Fixes: #123
+
     Signed-off-by: Sebastien Boeuf <sebastien.boeuf@intel.com>
 ```
+
+Correct formatting of the PR patches is verified using the [checkcommits](https://github.com/clearcontainers/tests/tree/master/cmd/checkcommits) tool.
 
 Note, that the body of the message should not just be a continuation of the
 subject line, and is not used to extend the subject line beyond its length
@@ -124,8 +130,7 @@ $ cc-runtime cc-env
 
 ## Closing issues
 
-You can either close issues manually by adding the fixing commit SHA1 to the
-issue comments or by adding the `Fixes` keyword to your commit message:
+The preferred way to close issues is by adding the `Fixes` keyword to your commit message.  Our tooling requires a `Fixes` line in at least one commit message per PR:
 
 ```
     pod: Remove token from Cmd structure
