@@ -11,7 +11,7 @@
   branch = "master"
   name = "github.com/BurntSushi/toml"
   packages = ["."]
-  revision = "e643e9ef00b049d75de26e61109c5ea01885cd21"
+  revision = "a368813c5e648fee92e5f6c30e3944ff9d5e8895"
 
 [[projects]]
   branch = "master"
