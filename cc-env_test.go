@@ -240,10 +240,13 @@ model name	: %s
 	return expectedHostDetails, nil
 }
 
-func getExpectedHypervisor(config oci.RuntimeConfig) PathInfo {
-	return PathInfo{
-		Path:     config.HypervisorConfig.HypervisorPath,
-		Resolved: config.HypervisorConfig.HypervisorPath,
+func getExpectedHypervisor(config oci.RuntimeConfig) HypervisorInfo {
+	return HypervisorInfo{
+		Location: PathInfo{
+			Path:     config.HypervisorConfig.HypervisorPath,
+			Resolved: config.HypervisorConfig.HypervisorPath,
+		},
+		MachineType: config.HypervisorConfig.HypervisorMachineType,
 	}
 }
 
@@ -505,7 +508,7 @@ func TestCCEnvGetEnvInfoNoHypervisor(t *testing.T) {
 	expected, err := getExpectedSettings(config, tmpdir, configFile, logFile)
 	assert.NoError(t, err)
 
-	err = os.Remove(expected.Hypervisor.Resolved)
+	err = os.Remove(expected.Hypervisor.Location.Resolved)
 	assert.NoError(t, err)
 
 	_, err = getEnvInfo(configFile, logFile, config)
@@ -890,9 +893,12 @@ func testCCEnvShowSettings(t *testing.T, tmpdir string, tmpfile *os.File) error 
 
 	ccRuntime := RuntimeInfo{}
 
-	ccHypervisor := PathInfo{
-		Path:     "/hypervisor/path",
-		Resolved: "/resolved/hypervisor/path",
+	ccHypervisor := HypervisorInfo{
+		Location: PathInfo{
+			Path:     "/hypervisor/path",
+			Resolved: "/resolved/hypervisor/path",
+		},
+		MachineType: "hypervisor-machine-type",
 	}
 
 	ccImage := PathInfo{
