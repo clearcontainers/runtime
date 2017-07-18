@@ -22,7 +22,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -88,8 +87,6 @@ const (
 )
 
 const (
-	defaultMemSize        = "2G"
-	defaultMemMax         = "3G"
 	defaultMemSlots uint8 = 2
 )
 
@@ -448,14 +445,14 @@ func (q *qemu) qmpMonitor(connectedCh chan struct{}) {
 }
 
 func (q *qemu) setCPUResources(podConfig PodConfig) ciaoQemu.SMP {
-	vcpus := uint(runtime.NumCPU())
+	vcpus := q.config.DefaultVCPUs
 	if podConfig.VMConfig.VCPUs > 0 {
-		vcpus = podConfig.VMConfig.VCPUs
+		vcpus = uint32(podConfig.VMConfig.VCPUs)
 	}
 
 	smp := ciaoQemu.SMP{
-		CPUs:    uint32(vcpus),
-		Cores:   uint32(vcpus),
+		CPUs:    vcpus,
+		Cores:   vcpus,
 		Sockets: defaultSockets,
 		Threads: defaultThreads,
 	}
@@ -464,8 +461,8 @@ func (q *qemu) setCPUResources(podConfig PodConfig) ciaoQemu.SMP {
 }
 
 func (q *qemu) setMemoryResources(podConfig PodConfig) ciaoQemu.Memory {
-	mem := defaultMemSize
-	memMax := defaultMemMax
+	mem := fmt.Sprintf("%dM", q.config.DefaultMemSz)
+	memMax := fmt.Sprintf("%dM", int(float64(q.config.DefaultMemSz)*1.5))
 	if podConfig.VMConfig.Memory > 0 {
 		mem = fmt.Sprintf("%dM", podConfig.VMConfig.Memory)
 		intMemMax := int(float64(podConfig.VMConfig.Memory) * 1.5)

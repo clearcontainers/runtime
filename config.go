@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	goruntime "runtime"
 
 	"github.com/BurntSushi/toml"
 	vc "github.com/containers/virtcontainers"
@@ -73,9 +74,11 @@ type tomlConfig struct {
 }
 
 type hypervisor struct {
-	Path   string
-	Kernel string
-	Image  string
+	Path         string
+	Kernel       string
+	Image        string
+	DefaultVCPUs int32  `toml:"default_vcpus"`
+	DefaultMemSz uint32 `toml:"default_memory"`
 }
 
 type proxy struct {
@@ -118,6 +121,28 @@ func (h hypervisor) image() string {
 	return h.Image
 }
 
+func (h hypervisor) defaultVCPUs() uint32 {
+	if h.DefaultVCPUs < 0 {
+		return uint32(goruntime.NumCPU())
+	}
+	if h.DefaultVCPUs == 0 { // or unspecified
+		return defaultVCPUCount
+	}
+	if h.DefaultVCPUs > 255 { // qemu supports max 255
+		return 255
+	}
+
+	return uint32(h.DefaultVCPUs)
+}
+
+func (h hypervisor) defaultMemSz() uint32 {
+	if h.DefaultMemSz < 8 {
+		return defaultMemSize // MiB
+	}
+
+	return h.DefaultMemSz
+}
+
 func (p proxy) url() string {
 	if p.URL == "" {
 		return defaultProxyURL
@@ -158,6 +183,8 @@ func newQemuHypervisorConfig(h hypervisor) (vc.HypervisorConfig, error) {
 		HypervisorPath: hypervisor,
 		KernelPath:     kernel,
 		ImagePath:      image,
+		DefaultVCPUs:   h.defaultVCPUs(),
+		DefaultMemSz:   h.defaultMemSz(),
 	}, nil
 }
 
@@ -264,6 +291,8 @@ func loadConfiguration(configPath string, ignoreLogging bool) (resolvedConfigPat
 		HypervisorPath: defaultHypervisorPath,
 		KernelPath:     defaultKernelPath,
 		ImagePath:      defaultImagePath,
+		DefaultVCPUs:   defaultVCPUCount,
+		DefaultMemSz:   defaultMemSize,
 	}
 
 	defaultAgentConfig := vc.HyperConfig{

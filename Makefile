@@ -92,6 +92,11 @@ PAUSEBINRELPATH := bin/pause
 
 GLOBALLOGPATH := $(PKGLIBDIR)/runtime/runtime.log
 
+# Default number of vCPUs
+DEFVCPUS := 1
+# Default memory size in MiB
+DEFMEMSZ := 2048
+
 SED = sed
 
 SOURCES := $(shell find . 2>&1 | grep -E '.*\.(c|h|go)$$')
@@ -139,6 +144,8 @@ USER_VARS += SHAREDIR
 USER_VARS += SHIMPATH
 USER_VARS += SYSCONFDIR
 USER_VARS += PAUSEDESTDIR
+USER_VARS += DEFVCPUS
+USER_VARS += DEFMEMSZ
 
 
 V              = @
@@ -177,6 +184,9 @@ const defaultRuntimeLib = "$(PKGLIBDIR)"
 const defaultRuntimeRun = "$(PKGRUNDIR)"
 const defaultShimPath = "$(SHIMPATH)"
 const pauseBinRelativePath = "$(PAUSEBINRELPATH)"
+
+const defaultVCPUCount uint32 = $(DEFVCPUS)
+const defaultMemSize uint32 = $(DEFMEMSZ) // MiB
 
 // Required to be modifiable (for the tests)
 var defaultRuntimeConfiguration = "$(DESTCONFIG)"
@@ -223,6 +233,8 @@ $(CONFIG): $(CONFIG_IN)
 		-e "s|@QEMUPATH@|$(QEMUPATH)|g" \
 		-e "s|@SHIMPATH@|$(SHIMPATH)|g" \
 		-e "s|@GLOBALLOGPATH@|$(GLOBALLOGPATH)|g" \
+		-e "s|@DEFVCPUS@|$(DEFVCPUS)|g" \
+		-e "s|@DEFMEMSZ@|$(DEFMEMSZ)|g" \
 		$< > $@
 
 generate-config: $(CONFIG)

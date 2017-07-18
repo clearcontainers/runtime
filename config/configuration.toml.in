@@ -4,6 +4,14 @@
 path = "@QEMUPATH@"
 kernel = "@KERNELPATH@"
 image = "@IMAGEPATH@"
+# Default number of vCPUs per POD/VM:
+# unspecified or 0 --> will be set to @DEFVCPUS@
+# < 0              --> will be set to the actual number of physical cores
+# > 255            --> will be set to 255.
+default_vcpus = -1
+# Default memory size in MiB for POD/VM.
+# If unspecified then it will be set @DEFMEMSZ@ MiB.
+#default_memory = @DEFMEMSZ@
 
 [proxy.cc]
 url = "@PROXYURL@"
