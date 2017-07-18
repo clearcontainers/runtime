@@ -47,6 +47,7 @@ const (
 // The currently supported types are listed below:
 const (
 	// supported hypervisor component types
+	q35HypervisorTableType      = "q35"
 	qemuLiteHypervisorTableType = "qemu-lite"
 	qemuHypervisorTableType     = "qemu"
 
@@ -77,6 +78,7 @@ type hypervisor struct {
 	Path         string
 	Kernel       string
 	Image        string
+	MachineType  string
 	DefaultVCPUs int32  `toml:"default_vcpus"`
 	DefaultMemSz uint32 `toml:"default_memory"`
 }
@@ -119,6 +121,14 @@ func (h hypervisor) image() string {
 	}
 
 	return h.Image
+}
+
+func (h hypervisor) machineType() string {
+	if h.MachineType == "" {
+		return vc.QemuQ35
+	}
+
+	return h.MachineType
 }
 
 func (h hypervisor) defaultVCPUs() uint32 {
@@ -171,6 +181,7 @@ func newQemuHypervisorConfig(h hypervisor) (vc.HypervisorConfig, error) {
 	hypervisor := h.path()
 	kernel := h.kernel()
 	image := h.image()
+	machineType := h.machineType()
 
 	for _, file := range []string{hypervisor, kernel, image} {
 		if !fileExists(file) {
@@ -180,11 +191,12 @@ func newQemuHypervisorConfig(h hypervisor) (vc.HypervisorConfig, error) {
 	}
 
 	return vc.HypervisorConfig{
-		HypervisorPath: hypervisor,
-		KernelPath:     kernel,
-		ImagePath:      image,
-		DefaultVCPUs:   h.defaultVCPUs(),
-		DefaultMemSz:   h.defaultMemSz(),
+		HypervisorPath:        hypervisor,
+		KernelPath:            kernel,
+		ImagePath:             image,
+		HypervisorMachineType: machineType,
+		DefaultVCPUs:          h.defaultVCPUs(),
+		DefaultMemSz:          h.defaultMemSz(),
 	}, nil
 }
 
@@ -218,21 +230,40 @@ func newCCShimConfig(s shim) (vc.CCShimConfig, error) {
 	}, nil
 }
 
-func updateRuntimeConfig(configPath string, tomlConf tomlConfig, config *oci.RuntimeConfig) error {
+func getHypervisorConfigFromTomlConf(tomlConf tomlConfig) (*vc.HypervisorConfig, error) {
 	for k, hypervisor := range tomlConf.Hypervisor {
 		switch k {
+		case q35HypervisorTableType:
+			hypervisor.MachineType = vc.QemuQ35
+			break
 		case qemuHypervisorTableType:
 			fallthrough
 		case qemuLiteHypervisorTableType:
-			hConfig, err := newQemuHypervisorConfig(hypervisor)
-			if err != nil {
-				return fmt.Errorf("%v: %v", configPath, err)
-			}
-
-			config.HypervisorConfig = hConfig
-
+			hypervisor.MachineType = vc.QemuPCLite
 			break
+		default:
+			return nil, fmt.Errorf("Unknown hypervisor type: %v", k)
 		}
+
+		hConfig, err := newQemuHypervisorConfig(hypervisor)
+		if err != nil {
+			return nil, err
+		}
+
+		return &hConfig, nil
+	}
+
+	return nil, nil
+}
+
+func updateRuntimeConfig(configPath string, tomlConf tomlConfig, config *oci.RuntimeConfig) error {
+	hConfig, err := getHypervisorConfigFromTomlConf(tomlConf)
+	if err != nil {
+		return err
+	}
+
+	if hConfig != nil {
+		config.HypervisorConfig = *hConfig
 	}
 
 	for k, proxy := range tomlConf.Proxy {
@@ -288,11 +319,12 @@ func updateRuntimeConfig(configPath string, tomlConf tomlConfig, config *oci.Run
 // will this function make any log calls.
 func loadConfiguration(configPath string, ignoreLogging bool) (resolvedConfigPath, logfilePath string, config oci.RuntimeConfig, err error) {
 	defaultHypervisorConfig := vc.HypervisorConfig{
-		HypervisorPath: defaultHypervisorPath,
-		KernelPath:     defaultKernelPath,
-		ImagePath:      defaultImagePath,
-		DefaultVCPUs:   defaultVCPUCount,
-		DefaultMemSz:   defaultMemSize,
+		HypervisorPath:        defaultHypervisorPath,
+		KernelPath:            defaultKernelPath,
+		ImagePath:             defaultImagePath,
+		HypervisorMachineType: vc.QemuQ35,
+		DefaultVCPUs:          defaultVCPUCount,
+		DefaultMemSz:          defaultMemSize,
 	}
 
 	defaultAgentConfig := vc.HyperConfig{

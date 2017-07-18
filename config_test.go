@@ -131,12 +131,28 @@ func createAllRuntimeConfigFiles(dir, hypervisor string) (config testRuntimeConf
 		}
 	}
 
+	var machineType string
+
+	switch hypervisor {
+	case q35HypervisorTableType:
+		machineType = vc.QemuQ35
+		break
+	case qemuHypervisorTableType:
+		fallthrough
+	case qemuLiteHypervisorTableType:
+		machineType = vc.QemuPCLite
+		break
+	default:
+		return config, err
+	}
+
 	hypervisorConfig := vc.HypervisorConfig{
-		HypervisorPath: hypervisorPath,
-		KernelPath:     kernelPath,
-		ImagePath:      imagePath,
-		DefaultVCPUs:   defaultVCPUCount,
-		DefaultMemSz:   defaultMemSize,
+		HypervisorPath:        hypervisorPath,
+		KernelPath:            kernelPath,
+		ImagePath:             imagePath,
+		HypervisorMachineType: machineType,
+		DefaultVCPUs:          defaultVCPUCount,
+		DefaultMemSz:          defaultMemSize,
 	}
 
 	agentConfig := vc.HyperConfig{
@@ -589,11 +605,12 @@ func TestMinimalRuntimeConfig(t *testing.T) {
 	}
 
 	expectedHypervisorConfig := vc.HypervisorConfig{
-		HypervisorPath: defaultHypervisorPath,
-		KernelPath:     defaultKernelPath,
-		ImagePath:      defaultImagePath,
-		DefaultVCPUs:   defaultVCPUCount,
-		DefaultMemSz:   defaultMemSize,
+		HypervisorPath:        defaultHypervisorPath,
+		KernelPath:            defaultKernelPath,
+		ImagePath:             defaultImagePath,
+		HypervisorMachineType: vc.QemuQ35,
+		DefaultVCPUs:          defaultVCPUCount,
+		DefaultMemSz:          defaultMemSize,
 	}
 
 	expectedAgentConfig := vc.HyperConfig{
@@ -778,6 +795,7 @@ func TestHypervisorDefaults(t *testing.T) {
 	assert.Equal(t, h.path(), defaultHypervisorPath, "default hypervisor path wrong")
 	assert.Equal(t, h.kernel(), defaultKernelPath, "default hypervisor kernel wrong")
 	assert.Equal(t, h.image(), defaultImagePath, "default hypervisor image wrong")
+	assert.Equal(t, h.machineType(), vc.QemuQ35, "default hypervisor machine type wrong")
 	assert.Equal(t, h.defaultVCPUs(), defaultVCPUCount, "default vCPU number is wrong")
 	assert.Equal(t, h.defaultMemSz(), defaultMemSize, "default memory size is wrong")
 
@@ -792,6 +810,10 @@ func TestHypervisorDefaults(t *testing.T) {
 	image := "foo"
 	h.Image = image
 	assert.Equal(t, h.image(), image, "custom hypervisor image wrong")
+
+	machineType := "foo"
+	h.MachineType = machineType
+	assert.Equal(t, h.machineType(), machineType, "custom hypervisor machine type wrong")
 
 	// auto inferring
 	h.DefaultVCPUs = -1
