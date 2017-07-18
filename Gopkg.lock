@@ -9,12 +9,6 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/Azure/go-ansiterm"
-  packages = [".","winterm"]
-  revision = "fa152c58bc15761d0200cb75fe958b89a9d4888e"
-
-[[projects]]
-  branch = "master"
   name = "github.com/BurntSushi/toml"
   packages = ["."]
   revision = "e643e9ef00b049d75de26e61109c5ea01885cd21"
@@ -60,12 +54,6 @@
   name = "github.com/dlespiau/covertool"
   packages = ["pkg/cover"]
   revision = "b82616d290e628437bc08b858b5ecb3d7fe9ea53"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/docker/docker"
-  packages = ["pkg/term","pkg/term/windows"]
-  revision = "3d31198cda7d1230415b37970172480b5190c1e3"
 
 [[projects]]
   branch = "master"
@@ -136,6 +124,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "eac96e0a6b3544e901ea4489c1efbed0682feeae23dd941f5e1b495f6eb536ff"
+  inputs-digest = "84e60ef1c85b62263b402e8d19caccfbd7e1a07e358880d541af5f6c6fd4e20d"
   solver-name = "gps-cdcl"
   solver-version = 1
