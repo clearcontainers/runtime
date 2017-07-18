@@ -79,6 +79,7 @@ QEMUCMD := qemu-lite-system-x86_64
 endif
 
 QEMUPATH := $(QEMUBINDIR)/$(QEMUCMD)
+MACHINETYPE := pc-lite
 
 SHIMCMD := cc-shim
 SHIMPATH := $(PKGLIBEXECDIR)/$(SHIMCMD)
@@ -126,6 +127,7 @@ USER_VARS += DESTDIR
 USER_VARS += DESTTARGET
 USER_VARS += GLOBALLOGPATH
 USER_VARS += IMAGEPATH
+USER_VARS += MACHINETYPE
 USER_VARS += KERNELPATH
 USER_VARS += LIBEXECDIR
 USER_VARS += LOCALSTATEDIR
@@ -179,6 +181,7 @@ const version = "$(VERSION)"
 const defaultHypervisorPath = "$(QEMUPATH)"
 const defaultImagePath = "$(IMAGEPATH)"
 const defaultKernelPath = "$(KERNELPATH)"
+const defaultMachineType = "$(MACHINETYPE)"
 const defaultPauseRootPath = "$(PAUSEROOTPATH)"
 const defaultProxyURL = "$(PROXYURL)"
 const defaultRootDirectory = "$(PKGRUNDIR)"
@@ -233,6 +236,7 @@ $(CONFIG): $(CONFIG_IN)
 		-e "s|@PKGLIBEXECDIR@|$(PKGLIBEXECDIR)|g" \
 		-e "s|@PROXYURL@|$(PROXYURL)|g" \
 		-e "s|@QEMUPATH@|$(QEMUPATH)|g" \
+		-e "s|@MACHINETYPE@|$(MACHINETYPE)|g" \
 		-e "s|@SHIMPATH@|$(SHIMPATH)|g" \
 		-e "s|@GLOBALLOGPATH@|$(GLOBALLOGPATH)|g" \
 		-e "s|@DEFVCPUS@|$(DEFVCPUS)|g" \

@@ -43,7 +43,7 @@ type testRuntimeConfig struct {
 	LogPath           string
 }
 
-func makeRuntimeConfigFileData(hypervisor, hypervisorPath, kernelPath, imagePath, shimPath, agentPauseRootPath, proxyURL, logPath string) string {
+func makeRuntimeConfigFileData(hypervisor, hypervisorPath, kernelPath, imagePath, machineType, shimPath, agentPauseRootPath, proxyURL, logPath string) string {
 	return `
 	# Clear Containers runtime configuration file
 
@@ -51,6 +51,7 @@ func makeRuntimeConfigFileData(hypervisor, hypervisorPath, kernelPath, imagePath
 	path = "` + hypervisorPath + `"
 	kernel = "` + kernelPath + `"
 	image = "` + imagePath + `"
+	machine_type = "` + machineType + `"
 	default_vcpus = ` + strconv.FormatUint(uint64(defaultVCPUCount), 10) + `
 	default_memory = ` + strconv.FormatUint(uint64(defaultMemSize), 10) + `
 
@@ -99,8 +100,9 @@ func createAllRuntimeConfigFiles(dir, hypervisor string) (config testRuntimeConf
 	pauseBinPath := path.Join(agentPauseRootBin, "pause")
 	logDir := path.Join(dir, "logs")
 	logPath := path.Join(logDir, "runtime.log")
+	machineType := "machineType"
 
-	runtimeConfigFileData := makeRuntimeConfigFileData(hypervisor, hypervisorPath, kernelPath, imagePath, shimPath, agentPauseRootPath, proxyURL, logPath)
+	runtimeConfigFileData := makeRuntimeConfigFileData(hypervisor, hypervisorPath, kernelPath, imagePath, machineType, shimPath, agentPauseRootPath, proxyURL, logPath)
 
 	configPath := path.Join(dir, "runtime.toml")
 	err = createConfig(configPath, runtimeConfigFileData)
@@ -132,11 +134,12 @@ func createAllRuntimeConfigFiles(dir, hypervisor string) (config testRuntimeConf
 	}
 
 	hypervisorConfig := vc.HypervisorConfig{
-		HypervisorPath: hypervisorPath,
-		KernelPath:     kernelPath,
-		ImagePath:      imagePath,
-		DefaultVCPUs:   defaultVCPUCount,
-		DefaultMemSz:   defaultMemSize,
+		HypervisorPath:        hypervisorPath,
+		KernelPath:            kernelPath,
+		ImagePath:             imagePath,
+		HypervisorMachineType: machineType,
+		DefaultVCPUs:          defaultVCPUCount,
+		DefaultMemSz:          defaultMemSize,
 	}
 
 	agentConfig := vc.HyperConfig{
@@ -186,7 +189,7 @@ func testLoadConfiguration(t *testing.T, dir string,
 	fn func(config testRuntimeConfig, configFile string, ignoreLogging bool) (bool, error)) {
 	subDir := path.Join(dir, "test")
 
-	for _, hypervisor := range []string{"qemu-lite", "qemu"} {
+	for _, hypervisor := range []string{"qemu"} {
 	Loop:
 		for _, ignoreLogging := range []bool{true, false} {
 			err := os.RemoveAll(subDir)
@@ -241,6 +244,9 @@ func testLoadConfiguration(t *testing.T, dir string,
 
 				assert.Equal(t, defaultRuntimeConfiguration, resolvedConfigPath)
 				result := reflect.DeepEqual(config, testConfig.RuntimeConfig)
+				if !result {
+					t.Fatalf("Expected\n%+v\nGot\n%+v", config, testConfig.RuntimeConfig)
+				}
 				assert.True(t, result)
 
 				err = os.RemoveAll(testConfig.LogDir)
@@ -589,11 +595,12 @@ func TestMinimalRuntimeConfig(t *testing.T) {
 	}
 
 	expectedHypervisorConfig := vc.HypervisorConfig{
-		HypervisorPath: defaultHypervisorPath,
-		KernelPath:     defaultKernelPath,
-		ImagePath:      defaultImagePath,
-		DefaultVCPUs:   defaultVCPUCount,
-		DefaultMemSz:   defaultMemSize,
+		HypervisorPath:        defaultHypervisorPath,
+		KernelPath:            defaultKernelPath,
+		ImagePath:             defaultImagePath,
+		HypervisorMachineType: defaultMachineType,
+		DefaultVCPUs:          defaultVCPUCount,
+		DefaultMemSz:          defaultMemSize,
 	}
 
 	expectedAgentConfig := vc.HyperConfig{
@@ -641,11 +648,13 @@ func TestNewQemuHypervisorConfig(t *testing.T) {
 	hypervisorPath := path.Join(dir, "hypervisor")
 	kernelPath := path.Join(dir, "kernel")
 	imagePath := path.Join(dir, "image")
+	machineType := "machineType"
 
 	hypervisor := hypervisor{
-		Path:   hypervisorPath,
-		Kernel: kernelPath,
-		Image:  imagePath,
+		Path:        hypervisorPath,
+		Kernel:      kernelPath,
+		Image:       imagePath,
+		MachineType: machineType,
 	}
 
 	files := []string{hypervisorPath, kernelPath, imagePath}
@@ -778,6 +787,7 @@ func TestHypervisorDefaults(t *testing.T) {
 	assert.Equal(t, h.path(), defaultHypervisorPath, "default hypervisor path wrong")
 	assert.Equal(t, h.kernel(), defaultKernelPath, "default hypervisor kernel wrong")
 	assert.Equal(t, h.image(), defaultImagePath, "default hypervisor image wrong")
+	assert.Equal(t, h.machineType(), defaultMachineType, "default hypervisor machine type wrong")
 	assert.Equal(t, h.defaultVCPUs(), defaultVCPUCount, "default vCPU number is wrong")
 	assert.Equal(t, h.defaultMemSz(), defaultMemSize, "default memory size is wrong")
 
@@ -792,6 +802,10 @@ func TestHypervisorDefaults(t *testing.T) {
 	image := "foo"
 	h.Image = image
 	assert.Equal(t, h.image(), image, "custom hypervisor image wrong")
+
+	machineType := "foo"
+	h.MachineType = machineType
+	assert.Equal(t, h.machineType(), machineType, "custom hypervisor machine type wrong")
 
 	// auto inferring
 	h.DefaultVCPUs = -1

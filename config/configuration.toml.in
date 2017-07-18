@@ -1,9 +1,10 @@
 # XXX: Warning: this file is auto-generated from file "@CONFIG_IN@".
 
-[hypervisor.qemu-lite]
+[hypervisor.qemu]
 path = "@QEMUPATH@"
 kernel = "@KERNELPATH@"
 image = "@IMAGEPATH@"
+machine_type = "@MACHINETYPE@"
 # Default number of vCPUs per POD/VM:
 # unspecified or 0 --> will be set to @DEFVCPUS@
 # < 0              --> will be set to the actual number of physical cores
