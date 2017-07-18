@@ -16,6 +16,8 @@ age = 250
 andrew = "gallant"
 kait = "brady"
 now = 1987-07-05T05:45:00Z
+nowEast = 2017-06-22T16:15:21+08:00
+nowWest = 2017-06-22T02:14:36-06:00
 yesOrNo = true
 pi = 3.14
 colors = [
@@ -38,6 +40,8 @@ cauchy = "cat 2"
 		Pi      float64
 		YesOrNo bool
 		Now     time.Time
+		NowEast time.Time
+		NowWest time.Time
 		Andrew  string
 		Kait    string
 		My      map[string]cats
@@ -53,11 +57,21 @@ cauchy = "cat 2"
 	if err != nil {
 		panic(err)
 	}
+	nowEast, err := time.Parse("2006-01-02T15:04:05-07:00", "2017-06-22T16:15:21+08:00")
+	if err != nil {
+		panic(err)
+	}
+	nowWest, err := time.Parse("2006-01-02T15:04:05-07:00", "2017-06-22T02:14:36-06:00")
+	if err != nil {
+		panic(err)
+	}
 	var answer = simple{
 		Age:     250,
 		Andrew:  "gallant",
 		Kait:    "brady",
 		Now:     now,
+		NowEast: nowEast,
+		NowWest: nowWest,
 		YesOrNo: true,
 		Pi:      3.14,
 		Colors: [][]string{
@@ -733,6 +747,33 @@ Locations = {NY = {Temp = "not cold", Rating = 4}, MI = {Temp = "freezing", Rati
 	}
 }
 
+func TestDecodeInlineTableArray(t *testing.T) {
+	type point struct {
+		X, Y, Z int
+	}
+	var got struct {
+		Points []point
+	}
+	// Example inline table array from the spec.
+	const in = `
+points = [ { x = 1, y = 2, z = 3 },
+           { x = 7, y = 8, z = 9 },
+           { x = 2, y = 4, z = 8 } ]
+
+`
+	if _, err := Decode(in, &got); err != nil {
+		t.Fatal(err)
+	}
+	want := []point{
+		{X: 1, Y: 2, Z: 3},
+		{X: 7, Y: 8, Z: 9},
+		{X: 2, Y: 4, Z: 8},
+	}
+	if !reflect.DeepEqual(got.Points, want) {
+		t.Errorf("got %#v; want %#v", got.Points, want)
+	}
+}
+
 func TestDecodeMalformedInlineTable(t *testing.T) {
 	for _, tt := range []struct {
 		s    string
@@ -906,6 +947,34 @@ func TestDecodeErrors(t *testing.T) {
 		_, err := Decode(s, &x)
 		if err == nil {
 			t.Errorf("Decode(%q): got nil error", s)
+		}
+	}
+}
+
+// Test for https://github.com/BurntSushi/toml/pull/166.
+func TestDecodeBoolArray(t *testing.T) {
+	for _, tt := range []struct {
+		s    string
+		got  interface{}
+		want interface{}
+	}{
+		{
+			"a = [true, false]",
+			&struct{ A []bool }{},
+			&struct{ A []bool }{[]bool{true, false}},
+		},
+		{
+			"a = {a = true, b = false}",
+			&struct{ A map[string]bool }{},
+			&struct{ A map[string]bool }{map[string]bool{"a": true, "b": false}},
+		},
+	} {
+		if _, err := Decode(tt.s, tt.got); err != nil {
+			t.Errorf("Decode(%q): %s", tt.s, err)
+			continue
+		}
+		if !reflect.DeepEqual(tt.got, tt.want) {
+			t.Errorf("Decode(%q): got %#v; want %#v", tt.s, tt.got, tt.want)
 		}
 	}
 }
