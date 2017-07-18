@@ -115,6 +115,7 @@ override CFLAGS += -Os -Wall -Wextra -static
 
 # list of variables the user may wish to override
 USER_VARS += BINDIR
+USER_VARS += CC_SYSTEM_BUILD
 USER_VARS += DESTCONFIG
 USER_VARS += DESTDIR
 USER_VARS += DESTTARGET
@@ -154,6 +155,7 @@ QUIET_TEST     = $(Q:@=@echo    '     TEST    '$@;)
 default: $(TARGET) $(CONFIG) pause
 .DEFAULT: default
 
+build: default
 build-cc-system: default
 install-cc-system: install
 
@@ -259,13 +261,15 @@ show-usage: show-header
 	@printf "\n"
 	@printf "• Additional targets:\n"
 	@printf "\n"
+	@printf "\tbuild             : standard build (equivalent to 'build-cc-system' if CC_SYSTEM_BUILD set)\n"
+	@printf "\tdefault           : same as 'build'\n"
 	@printf "\tbuild-cc-system   : build using standard Clear Containers system paths\n"
 	@printf "\tcheck             : run tests\n"
 	@printf "\tclean             : remove built files\n"
 	@printf "\tcoverage          : run coverage tests\n"
 	@printf "\tdefault           : same as just \"make\"\n"
 	@printf "\tgenerate-config   : create configuration file\n"
-	@printf "\tinstall           : install files\n"
+	@printf "\tinstall           : install files (equivalent to 'install-cc-system' if CC_SYSTEM_BUILD set)\n"
 	@printf "\tinstall-cc-system : install using standard Clear Containers system paths\n"
 	@printf "\tpause             : build pause binary\n"
 	@printf "\tshow-summary      : show install locations\n"
