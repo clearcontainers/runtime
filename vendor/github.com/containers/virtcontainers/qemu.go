@@ -583,6 +583,19 @@ func (q *qemu) startPod(startCh, stopCh chan struct{}) error {
 	return nil
 }
 
+// waitForVMStop will stop the Pod's VM.
+func (q *qemu) waitForVMStop(disconnectCh chan struct{}) error {
+	cfg := ciaoQemu.QMPConfig{Logger: qmpLogger{}}
+
+	_, _, err := ciaoQemu.QMPStart(q.qmpControlCh.ctx, q.qmpControlCh.path, cfg, disconnectCh)
+	if err != nil {
+		virtLog.Errorf("Failed to connect to QEMU instance %v", err)
+		return err
+	}
+
+	return nil
+}
+
 // stopPod will stop the Pod's VM.
 func (q *qemu) stopPod() error {
 	cfg := ciaoQemu.QMPConfig{Logger: qmpLogger{}}

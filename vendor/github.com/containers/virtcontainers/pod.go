@@ -871,7 +871,19 @@ func (p *Pod) resumeSetStates() error {
 
 // stopVM stops the agent inside the VM and shut down the VM itself.
 func (p *Pod) stopVM() error {
+	qemu := p.hypervisor.(*qemu)
+
+	disconnectCh := make(chan struct{})
+
+	if err := qemu.waitForVMStop(disconnectCh); err != nil {
+		return err
+	}
+
 	if _, _, err := p.proxy.connect(*p, false); err != nil {
+		return err
+	}
+
+	if err := p.agent.deletePod(); err != nil {
 		return err
 	}
 
@@ -883,8 +895,18 @@ func (p *Pod) stopVM() error {
 		return err
 	}
 
-	if err := p.hypervisor.stopPod(); err != nil {
-		return err
+//	if err := p.hypervisor.stopPod(); err != nil {
+//		return err
+//	}
+
+	time.Sleep(time.Second)
+
+	// Wait for the VM disconnection notification
+	select {
+	case <-disconnectCh:
+		break
+	case <-time.After(time.Duration(5) * time.Second):
+		return fmt.Errorf("Did not receive the VM disconnection notification")
 	}
 
 	return nil

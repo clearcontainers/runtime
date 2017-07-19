@@ -198,3 +198,7 @@ func (s *sshd) stopContainer(pod Pod, c Container) error {
 func (s *sshd) killContainer(pod Pod, c Container, signal syscall.Signal, all bool) error {
 	return nil
 }
+
+func (s *sshd) deletePod() error {
+	return nil
+}

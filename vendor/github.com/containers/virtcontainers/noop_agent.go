@@ -69,3 +69,7 @@ func (n *noopAgent) stopContainer(pod Pod, c Container) error {
 func (n *noopAgent) killContainer(pod Pod, c Container, signal syscall.Signal, all bool) error {
 	return nil
 }
+
+func (n *noopAgent) deletePod() error {
+	return nil
+}
