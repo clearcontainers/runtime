@@ -40,6 +40,7 @@ type ShimParams struct {
 	Token   string
 	URL     string
 	Console string
+	Detach  bool
 }
 
 // Set sets a shim type based on the input string.

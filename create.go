@@ -175,7 +175,7 @@ func createPod(ociSpec oci.CompatOCISpec, runtimeConfig oci.RuntimeConfig,
 		}
 	}
 
-	podConfig, err := oci.PodConfig(ociSpec, runtimeConfig, bundlePath, containerID, console)
+	podConfig, err := oci.PodConfig(ociSpec, runtimeConfig, bundlePath, containerID, console, true)
 	if err != nil {
 		return vc.Process{}, err
 	}
@@ -196,7 +196,7 @@ func createPod(ociSpec oci.CompatOCISpec, runtimeConfig oci.RuntimeConfig,
 func createContainer(ociSpec oci.CompatOCISpec, containerID, bundlePath,
 	console string) (vc.Process, error) {
 
-	contConfig, err := oci.ContainerConfig(ociSpec, bundlePath, containerID, console)
+	contConfig, err := oci.ContainerConfig(ociSpec, bundlePath, containerID, console, true)
 	if err != nil {
 		return vc.Process{}, err
 	}

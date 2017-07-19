@@ -18,9 +18,12 @@ package virtcontainers
 
 import (
 	"fmt"
+	"io"
 	"os"
+	"strings"
 	"syscall"
 	"testing"
+	"time"
 	"unsafe"
 
 	. "github.com/containers/virtcontainers/pkg/mock"
@@ -114,7 +117,15 @@ func TestCCShimStartParamsURLEmptyFailure(t *testing.T) {
 	testCCShimStart(t, pod, params, true)
 }
 
-func TestCCShimStartSuccessful(t *testing.T) {
+func startCCShimStartWithoutConsoleSuccessful(t *testing.T, detach bool) (*os.File, *os.File, *os.File, Pod, ShimParams, error) {
+	saveStdout := os.Stdout
+	rStdout, wStdout, err := os.Pipe()
+	if err != nil {
+		return nil, nil, nil, Pod{}, ShimParams{}, err
+	}
+
+	os.Stdout = wStdout
+
 	pod := Pod{
 		config: &PodConfig{
 			ShimType: CCShimType,
@@ -125,11 +136,77 @@ func TestCCShimStartSuccessful(t *testing.T) {
 	}
 
 	params := ShimParams{
-		Token: "testToken",
-		URL:   testProxyURL,
+		Token:  "testToken",
+		URL:    testProxyURL,
+		Detach: detach,
 	}
 
+	return rStdout, wStdout, saveStdout, pod, params, nil
+}
+
+func TestCCShimStartSuccessful(t *testing.T) {
+	rStdout, wStdout, saveStdout, pod, params, err := startCCShimStartWithoutConsoleSuccessful(t, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer func() {
+		os.Stdout = saveStdout
+		rStdout.Close()
+		wStdout.Close()
+	}()
+
 	testCCShimStart(t, pod, params, false)
+
+	bufStdout := make([]byte, 1024)
+	if _, err := rStdout.Read(bufStdout); err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(string(bufStdout), ShimStdoutOutput) {
+		t.Fatalf("Substring %q not found in %q", ShimStdoutOutput, string(bufStdout))
+	}
+}
+
+func TestCCShimStartDetachSuccessful(t *testing.T) {
+	rStdout, wStdout, saveStdout, pod, params, err := startCCShimStartWithoutConsoleSuccessful(t, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer func() {
+		os.Stdout = saveStdout
+		wStdout.Close()
+		rStdout.Close()
+	}()
+
+	testCCShimStart(t, pod, params, false)
+
+	readCh := make(chan error)
+	go func() {
+		bufStdout := make([]byte, 1024)
+		n, err := rStdout.Read(bufStdout)
+		if err != nil && err != io.EOF {
+			readCh <- err
+			return
+		}
+
+		if n > 0 {
+			readCh <- fmt.Errorf("Not expecting to read anything, Got %q", string(bufStdout))
+			return
+		}
+
+		readCh <- nil
+	}()
+
+	select {
+	case err := <-readCh:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(time.Duration(20) * time.Millisecond):
+		return
+	}
 }
 
 func TestCCShimStartWithConsoleNonExistingFailure(t *testing.T) {

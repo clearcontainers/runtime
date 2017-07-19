@@ -259,6 +259,7 @@ type Cmd struct {
 
 	Interactive bool
 	Console     string
+	Detach      bool
 }
 
 // Resources describes VM resources configuration.
@@ -730,6 +731,7 @@ func (p *Pod) startShims() error {
 			Token:   proxyInfos[idx].Token,
 			URL:     url,
 			Console: p.containers[idx].config.Cmd.Console,
+			Detach:  p.containers[idx].config.Cmd.Detach,
 		}
 
 		pid, err := p.shim.start(*p, shimParams)

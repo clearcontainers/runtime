@@ -41,7 +41,7 @@
   branch = "master"
   name = "github.com/containers/virtcontainers"
   packages = [".","pkg/cni","pkg/hyperstart","pkg/oci"]
-  revision = "e01ebd015f77b3e822b597088e6efc102a7e6d9a"
+  revision = "cfe8504aee2d22812dba5d8de17e545359c4a2fa"
 
 [[projects]]
   branch = "master"
