@@ -589,7 +589,20 @@ func (h *hyper) stopPauseContainer(podID string) error {
 	if err := h.killOneContainer(pauseContainerName, syscall.SIGKILL, true); err != nil {
 		return err
 	}
+/*
+	removeCommand := hyperstart.RemoveCommand{
+		Container: pauseContainerName,
+	}
 
+	proxyCmd := hyperstartProxyCmd{
+		cmd:     hyperstart.RemoveContainer,
+		message: removeCommand,
+	}
+
+	if _, err := h.proxy.sendCmd(proxyCmd); err != nil {
+		return err
+	}
+*/
 	if err := h.removePauseBinary(podID); err != nil {
 		return err
 	}
@@ -644,6 +657,18 @@ func (h *hyper) killOneContainer(cID string, signal syscall.Signal, all bool) er
 	proxyCmd := hyperstartProxyCmd{
 		cmd:     hyperstart.KillContainer,
 		message: killCmd,
+	}
+
+	if _, err := h.proxy.sendCmd(proxyCmd); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (h *hyper) deletePod() error {
+	proxyCmd := hyperstartProxyCmd{
+		cmd: hyperstart.DestroyPod,
 	}
 
 	if _, err := h.proxy.sendCmd(proxyCmd); err != nil {

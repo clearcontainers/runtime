@@ -1,6 +1,6 @@
 # XXX: Warning: this file is auto-generated from file "@CONFIG_IN@".
 
-[hypervisor.qemu-lite]
+[hypervisor.q35]
 path = "@QEMUPATH@"
 kernel = "@KERNELPATH@"
 image = "@IMAGEPATH@"

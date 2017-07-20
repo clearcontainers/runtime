@@ -75,7 +75,7 @@ IMAGEPATH := $(PKGDATADIR)/clear-containers.img
 ifeq (,$(filter-out centos rhel,$(distro)))
 QEMUCMD := qemu-system-x86_64
 else
-QEMUCMD := qemu-lite-system-x86_64
+QEMUCMD := qemu-q35-system-x86_64
 endif
 
 QEMUPATH := $(QEMUBINDIR)/$(QEMUCMD)

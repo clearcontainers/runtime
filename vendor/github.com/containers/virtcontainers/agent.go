@@ -143,4 +143,6 @@ type agent interface {
 	// container related to a Pod. If all is true, all processes in
 	// the container will be sent the signal.
 	killContainer(pod Pod, c Container, signal syscall.Signal, all bool) error
+
+	deletePod() error
 }
