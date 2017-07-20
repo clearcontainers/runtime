@@ -164,6 +164,8 @@ func (conf *HypervisorConfig) valid() (bool, error) {
 	return true, nil
 }
 
+// AddKernelParam allows the addition of new kernel parameters to an existing
+// hypervisor configuration.
 func (conf *HypervisorConfig) AddKernelParam(p Param) error {
 	if p.Key == "" {
 		return fmt.Errorf("Empty kernel parameter")

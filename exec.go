@@ -240,6 +240,7 @@ func execute(context *cli.Context) error {
 		User:        params.ociProcess.User.Username,
 		Interactive: params.ociProcess.Terminal,
 		Console:     consolePath,
+		Detach:      noNeedForOutput(params.detach, params.ociProcess.Terminal),
 	}
 
 	_, _, process, err := vc.EnterContainer(podID, params.cID, cmd)

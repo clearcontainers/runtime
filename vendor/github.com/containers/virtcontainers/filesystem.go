@@ -307,6 +307,72 @@ func (fs *filesystem) commonResourceChecks(podSpecific bool, podID, containerID 
 	return nil
 }
 
+func (fs *filesystem) storePodAndContainerConfigResource(podSpecific bool, podID, containerID string, resource podResource, file interface{}) error {
+	if resource != configFileType {
+		return errInvalidResource
+	}
+
+	configFile, _, err := fs.resourceURI(podSpecific, podID, containerID, configFileType)
+	if err != nil {
+		return err
+	}
+
+	return fs.storeFile(configFile, file)
+}
+
+func (fs *filesystem) storeStateResource(podSpecific bool, podID, containerID string, resource podResource, file interface{}) error {
+	if resource != stateFileType {
+		return errInvalidResource
+	}
+
+	stateFile, _, err := fs.resourceURI(podSpecific, podID, containerID, stateFileType)
+	if err != nil {
+		return err
+	}
+
+	return fs.storeFile(stateFile, file)
+}
+
+func (fs *filesystem) storeNetworkResource(podSpecific bool, podID, containerID string, resource podResource, file interface{}) error {
+	if resource != networkFileType {
+		return errInvalidResource
+	}
+
+	// pod only resource
+	networkFile, _, err := fs.resourceURI(true, podID, containerID, networkFileType)
+	if err != nil {
+		return err
+	}
+
+	return fs.storeFile(networkFile, file)
+}
+
+func (fs *filesystem) storeProcessResource(podSpecific bool, podID, containerID string, resource podResource, file interface{}) error {
+	if resource != processFileType {
+		return errInvalidResource
+	}
+
+	processFile, _, err := fs.resourceURI(podSpecific, podID, containerID, processFileType)
+	if err != nil {
+		return err
+	}
+
+	return fs.storeFile(processFile, file)
+}
+
+func (fs *filesystem) storeMountResource(podSpecific bool, podID, containerID string, resource podResource, file interface{}) error {
+	if resource != mountsFileType {
+		return errInvalidResource
+	}
+
+	mountsFile, _, err := fs.resourceURI(podSpecific, podID, containerID, mountsFileType)
+	if err != nil {
+		return err
+	}
+
+	return fs.storeFile(mountsFile, file)
+}
+
 func (fs *filesystem) storeResource(podSpecific bool, podID, containerID string, resource podResource, data interface{}) error {
 	if err := fs.commonResourceChecks(podSpecific, podID, containerID, resource); err != nil {
 		return err
@@ -314,64 +380,19 @@ func (fs *filesystem) storeResource(podSpecific bool, podID, containerID string,
 
 	switch file := data.(type) {
 	case PodConfig, ContainerConfig:
-		if resource != configFileType {
-			return errInvalidResource
-		}
-
-		configFile, _, err := fs.resourceURI(podSpecific, podID, containerID, configFileType)
-		if err != nil {
-			return err
-		}
-
-		return fs.storeFile(configFile, file)
+		return fs.storePodAndContainerConfigResource(podSpecific, podID, containerID, resource, file)
 
 	case State:
-		if resource != stateFileType {
-			return errInvalidResource
-		}
-
-		stateFile, _, err := fs.resourceURI(podSpecific, podID, containerID, stateFileType)
-		if err != nil {
-			return err
-		}
-
-		return fs.storeFile(stateFile, file)
+		return fs.storeStateResource(podSpecific, podID, containerID, resource, file)
 
 	case NetworkNamespace:
-		if resource != networkFileType {
-			return errInvalidResource
-		}
-
-		// pod only resource
-		networkFile, _, err := fs.resourceURI(true, podID, containerID, networkFileType)
-		if err != nil {
-			return err
-		}
-
-		return fs.storeFile(networkFile, file)
+		return fs.storeNetworkResource(podSpecific, podID, containerID, resource, file)
 
 	case Process:
-		if resource != processFileType {
-			return errInvalidResource
-		}
+		return fs.storeProcessResource(podSpecific, podID, containerID, resource, file)
 
-		processFile, _, err := fs.resourceURI(podSpecific, podID, containerID, processFileType)
-		if err != nil {
-			return err
-		}
-
-		return fs.storeFile(processFile, file)
 	case []Mount:
-		if resource != mountsFileType {
-			return errInvalidResource
-		}
-
-		mountsFile, _, err := fs.resourceURI(podSpecific, podID, containerID, mountsFileType)
-		if err != nil {
-			return err
-		}
-
-		return fs.storeFile(mountsFile, file)
+		return fs.storeMountResource(podSpecific, podID, containerID, resource, file)
 
 	default:
 		return fmt.Errorf("Invalid resource data type")

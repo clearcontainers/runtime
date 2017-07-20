@@ -86,7 +86,7 @@ func run(containerID, bundle, console, consoleSocket, pidFile string, detach boo
 		return err
 	}
 
-	if err := create(containerID, bundle, consolePath, pidFile, runtimeConfig); err != nil {
+	if err := create(containerID, bundle, consolePath, pidFile, detach, runtimeConfig); err != nil {
 		return err
 	}
 

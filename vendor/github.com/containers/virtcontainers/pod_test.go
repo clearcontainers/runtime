@@ -458,6 +458,88 @@ func TestPodEnterSuccessful(t *testing.T) {
 	}
 }
 
+func testCheckInitPodAndContainerStates(p *Pod, initialPodState State, c *Container, initialContainerState State) error {
+	if p.state.State != initialPodState.State {
+		return fmt.Errorf("Expected pod state %v, got %v", initialPodState.State, p.state.State)
+	}
+
+	if p.state.URL != initialPodState.URL {
+		return fmt.Errorf("Expected pod state URL %v, got %v", initialPodState.URL, p.state.URL)
+	}
+
+	if c.state.State != initialContainerState.State {
+		return fmt.Errorf("Expected container state %v, got %v", initialContainerState.State, c.state.State)
+	}
+
+	if c.state.URL != initialContainerState.URL {
+		return fmt.Errorf("Expected container state URL %v, got %v", initialContainerState.URL, c.state.URL)
+	}
+
+	return nil
+}
+
+func testForcePodStateChangeAndCheck(t *testing.T, p *Pod, newPodState State) error {
+	// force pod state change
+	if err := p.setPodState(newPodState); err != nil {
+		t.Fatalf("Unexpected error: %v (pod %+v)", err, p)
+	}
+
+	// check the in-memory state is correct
+	if p.state.State != newPodState.State {
+		return fmt.Errorf("Expected state %v, got %v", newPodState.State, p.state.State)
+	}
+
+	if p.state.URL != newPodState.URL {
+		return fmt.Errorf("Expected state URL %v, got %v", newPodState.URL, p.state.URL)
+	}
+
+	return nil
+}
+
+func testForceContainerStateChangeAndCheck(t *testing.T, p *Pod, c *Container, newContainerState State) error {
+	// force container state change
+	if err := p.setContainerState(c.id, newContainerState.State); err != nil {
+		t.Fatalf("Unexpected error: %v (pod %+v)", err, p)
+	}
+
+	// check the in-memory state is correct
+	if c.state.State != newContainerState.State {
+		return fmt.Errorf("Expected state %v, got %v", newContainerState.State, c.state.State)
+	}
+
+	if c.state.URL != newContainerState.URL {
+		return fmt.Errorf("Expected state URL %v, got %v", newContainerState.URL, c.state.URL)
+	}
+
+	return nil
+}
+
+func testCheckPodOnDiskState(p *Pod, podState State) error {
+	// check on-disk state is correct
+	if p.state.State != podState.State {
+		return fmt.Errorf("Expected state %v, got %v", podState.State, p.state.State)
+	}
+
+	if p.state.URL != podState.URL {
+		return fmt.Errorf("Expected state URL %v, got %v", podState.URL, p.state.URL)
+	}
+
+	return nil
+}
+
+func testCheckContainerOnDiskState(c *Container, containerState State) error {
+	// check on-disk state is correct
+	if c.state.State != containerState.State {
+		return fmt.Errorf("Expected state %v, got %v", containerState.State, c.state.State)
+	}
+
+	if c.state.URL != containerState.URL {
+		return fmt.Errorf("Expected state URL %v, got %v", containerState.URL, c.state.URL)
+	}
+
+	return nil
+}
+
 func TestPodSetPodAndContainerState(t *testing.T) {
 	contID := "505"
 	contConfig := newTestContainerConfigNoop(contID)
@@ -485,25 +567,14 @@ func TestPodSetPodAndContainerState(t *testing.T) {
 		URL:   "",
 	}
 
-	if p.state.State != initialPodState.State {
-		t.Errorf("Expected pod state %v, got %v", initialPodState.State, p.state.State)
-	}
-
-	if p.state.URL != initialPodState.URL {
-		t.Errorf("Expected pod state URL %v, got %v", initialPodState.URL, p.state.URL)
-	}
-
 	c, err := p.getContainer(contID)
 	if err != nil {
 		t.Fatalf("Failed to retrieve container %v: %v", contID, err)
 	}
 
-	if c.state.State != initialContainerState.State {
-		t.Errorf("Expected container state %v, got %v", initialContainerState.State, c.state.State)
-	}
-
-	if c.state.URL != initialContainerState.URL {
-		t.Errorf("Expected container state URL %v, got %v", initialContainerState.URL, c.state.URL)
+	// check initial pod and container states
+	if err := testCheckInitPodAndContainerStates(p, initialPodState, c, initialContainerState); err != nil {
+		t.Error(err)
 	}
 
 	// persist to disk
@@ -517,39 +588,17 @@ func TestPodSetPodAndContainerState(t *testing.T) {
 		URL:   "http://pod/url",
 	}
 
+	if err := testForcePodStateChangeAndCheck(t, p, newPodState); err != nil {
+		t.Error(err)
+	}
+
 	newContainerState := State{
 		State: StateStopped,
 		URL:   "",
 	}
 
-	// force pod state change
-	err = p.setPodState(newPodState)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v (pod %+v)", err, p)
-	}
-
-	// check the in-memory state is correct
-	if p.state.State != newPodState.State {
-		t.Errorf("Expected state %v, got %v", newPodState.State, p.state.State)
-	}
-
-	if p.state.URL != newPodState.URL {
-		t.Errorf("Expected state URL %v, got %v", newPodState.URL, p.state.URL)
-	}
-
-	// force container state change
-	err = p.setContainerState(contID, newContainerState.State)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v (pod %+v)", err, p)
-	}
-
-	// check the in-memory state is correct
-	if c.state.State != newContainerState.State {
-		t.Errorf("Expected state %v, got %v", newContainerState.State, c.state.State)
-	}
-
-	if c.state.URL != newContainerState.URL {
-		t.Errorf("Expected state URL %v, got %v", newContainerState.URL, c.state.URL)
+	if err := testForceContainerStateChangeAndCheck(t, p, c, newContainerState); err != nil {
+		t.Error(err)
 	}
 
 	// force state to be read from disk
@@ -558,13 +607,8 @@ func TestPodSetPodAndContainerState(t *testing.T) {
 		t.Fatalf("Failed to fetch pod %v: %v", p.ID(), err)
 	}
 
-	// check on-disk state is correct
-	if p2.state.State != newPodState.State {
-		t.Errorf("Expected state %v, got %v", newPodState.State, p2.state.State)
-	}
-
-	if p2.state.URL != newPodState.URL {
-		t.Errorf("Expected state URL %v, got %v", newPodState.URL, p2.state.URL)
+	if err := testCheckPodOnDiskState(p2, newPodState); err != nil {
+		t.Error(err)
 	}
 
 	c2, err := p2.getContainer(contID)
@@ -572,13 +616,8 @@ func TestPodSetPodAndContainerState(t *testing.T) {
 		t.Fatalf("Failed to find container %v: %v", contID, err)
 	}
 
-	// check on-disk state is correct
-	if c2.state.State != newContainerState.State {
-		t.Errorf("Expected state %v, got %v", newContainerState.State, c2.state.State)
-	}
-
-	if c2.state.URL != newContainerState.URL {
-		t.Errorf("Expected state URL %v, got %v", newContainerState.URL, c2.state.URL)
+	if err := testCheckContainerOnDiskState(c2, newContainerState); err != nil {
+		t.Error(err)
 	}
 
 	// revert pod state to allow it to be deleted

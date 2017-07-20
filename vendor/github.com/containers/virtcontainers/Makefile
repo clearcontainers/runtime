@@ -49,10 +49,10 @@ binaries: virtc pause hook shim
 check: check-go-static check-go-test
 
 check-go-static:
-	.ci/go-lint.sh
+	bash .ci/go-lint.sh
 
 check-go-test:
-	.ci/go-test.sh \
+	bash .ci/go-test.sh \
 		$(TEST_BIN_DIR)/$(SHIM_BIN) \
 		$(TEST_BIN_DIR)/$(HOOK_BIN)
 

@@ -147,7 +147,7 @@ func TestMinimalPodConfig(t *testing.T) {
 		t.Fatalf("Could not parse config.json: %v", err)
 	}
 
-	podConfig, err := PodConfig(ociSpec, runtimeConfig, tempBundlePath, containerID, consolePath)
+	podConfig, err := PodConfig(ociSpec, runtimeConfig, tempBundlePath, containerID, consolePath, false)
 	if err != nil {
 		t.Fatalf("Could not create Pod configuration %v", err)
 	}

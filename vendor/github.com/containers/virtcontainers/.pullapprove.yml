@@ -39,10 +39,14 @@ groups:
   approvers:
     required: 1
     users:
+      - dlespiau
       - sameo
       - sboeuf
+      - amshinde
 
   reviewers:
     required: 1
     teams:
       - virtcontainers-maintainers
+    users:
+      - amshinde

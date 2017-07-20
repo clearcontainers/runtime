@@ -61,9 +61,11 @@ func (s *ccShim) start(pod Pod, params ShimParams) (int, error) {
 	cmd := exec.Command(config.Path, "-t", params.Token, "-u", params.URL)
 	cmd.Env = os.Environ()
 
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	if !params.Detach {
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
 
 	var f *os.File
 	var err error
