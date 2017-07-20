@@ -156,7 +156,7 @@ func createPod(ociSpec oci.CompatOCISpec, runtimeConfig oci.RuntimeConfig,
 		},
 		{
 			Key:   "systemd.unit",
-			Value: "cc-agent.target",
+			Value: "clear-containers.target",
 		},
 		{
 			Key:   "systemd.mask",
