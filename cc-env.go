@@ -30,7 +30,7 @@ import (
 //
 // XXX: Increment for every change to the output format
 // (meaning any change to the EnvInfo type).
-const formatVersion = "1.0.0"
+const formatVersion = "1.0.1"
 
 // defaultOutputFile is the default output file to write the gathered
 // information to.
@@ -72,6 +72,12 @@ type RuntimeVersionInfo struct {
 	Semver string
 	Commit string
 	OCI    string
+}
+
+// HypervisorInfo stores hypervisor details
+type HypervisorInfo struct {
+	Location    PathInfo
+	MachineType string
 }
 
 // ProxyInfo stores proxy details
@@ -116,7 +122,7 @@ type HostInfo struct {
 type EnvInfo struct {
 	Meta       MetaInfo
 	Runtime    RuntimeInfo
-	Hypervisor PathInfo
+	Hypervisor HypervisorInfo
 	Image      PathInfo
 	Kernel     PathInfo
 	Proxy      ProxyInfo
@@ -306,9 +312,12 @@ func getEnvInfo(configFile, logfilePath string, config oci.RuntimeConfig) (env E
 		return EnvInfo{}, err
 	}
 
-	hypervisor := PathInfo{
-		Path:     config.HypervisorConfig.HypervisorPath,
-		Resolved: resolvedHypervisor.HypervisorPath,
+	hypervisor := HypervisorInfo{
+		Location: PathInfo{
+			Path:     config.HypervisorConfig.HypervisorPath,
+			Resolved: resolvedHypervisor.HypervisorPath,
+		},
+		MachineType: config.HypervisorConfig.HypervisorMachineType,
 	}
 
 	image := PathInfo{
