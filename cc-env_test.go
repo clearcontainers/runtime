@@ -42,6 +42,7 @@ func makeRuntimeConfig(prefixDir string) (configFile string, config oci.RuntimeC
 	hypervisorPath := filepath.Join(prefixDir, "hypervisor")
 	kernelPath := filepath.Join(prefixDir, "kernel")
 	imagePath := filepath.Join(prefixDir, "image")
+	machineType := "machineType"
 	shimPath := filepath.Join(prefixDir, "cc-shim")
 	proxyPath := filepath.Join(prefixDir, "cc-proxy")
 
@@ -97,10 +98,11 @@ func makeRuntimeConfig(prefixDir string) (configFile string, config oci.RuntimeC
 	}
 
 	runtimeConfig := makeRuntimeConfigFileData(
-		"qemu-lite",
+		"qemu",
 		hypervisorPath,
 		kernelPath,
 		imagePath,
+		machineType,
 		shimPath,
 		agentPauseRoot,
 		testProxyURL,
