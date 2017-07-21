@@ -497,9 +497,11 @@ func TestQemuMachineTypes(t *testing.T) {
 
 	data := []testData{
 		{"pc-lite", true},
+		{"pc", true},
 		{"q35", true},
 
 		{"PC-LITE", false},
+		{"PC", false},
 		{"Q35", false},
 		{"", false},
 		{" ", false},

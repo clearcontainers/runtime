@@ -17,7 +17,9 @@
 package virtcontainers
 
 import (
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -69,13 +71,23 @@ func createWrongHook() *Hook {
 	}
 }
 
-func testRunHook(t *testing.T, timeout int) {
+func testRunHookFull(t *testing.T, timeout int, expectFail bool) {
 	hook := createHook(timeout)
 
 	err := hook.runHook()
-	if err != nil {
-		t.Fatal()
+	if expectFail {
+		if err == nil {
+			t.Fatal("unexpected success")
+		}
+	} else {
+		if err != nil {
+			t.Fatalf("unexpected failure: %v", err)
+		}
 	}
+}
+
+func testRunHook(t *testing.T, timeout int) {
+	testRunHookFull(t, timeout, false)
 }
 
 func TestRunHook(t *testing.T) {
@@ -106,6 +118,47 @@ func TestRunHookTimeoutFailure(t *testing.T) {
 	if err == nil {
 		t.Fatal()
 	}
+}
+
+func TestRunHookWaitFailure(t *testing.T) {
+	hook := createHook(60)
+
+	hook.Args = append(hook.Args, "1", "panic")
+
+	err := hook.runHook()
+	if err == nil {
+		t.Fatal()
+	}
+}
+
+func testRunHookInvalidCommand(t *testing.T, timeout int) {
+	cleanUp()
+
+	dir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer os.RemoveAll(dir)
+
+	cmd := filepath.Join(dir, "does-not-exist")
+
+	savedDefaultMockHookBinPath := DefaultMockHookBinPath
+	DefaultMockHookBinPath = cmd
+
+	defer func() {
+		DefaultMockHookBinPath = savedDefaultMockHookBinPath
+	}()
+
+	testRunHookFull(t, timeout, true)
+}
+
+func TestRunHookInvalidCommand(t *testing.T) {
+	testRunHookInvalidCommand(t, 0)
+}
+
+func TestRunHookTimeoutInvalidCommand(t *testing.T) {
+	testRunHookInvalidCommand(t, 1)
 }
 
 func testHooks(t *testing.T, hook *Hook) {
