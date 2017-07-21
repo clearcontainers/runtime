@@ -508,6 +508,11 @@ func (c *Container) stop() error {
 		return err
 	}
 
+	// Wait for the end of container
+	if err := waitForShim(c.process.Pid); err != nil {
+		return err
+	}
+
 	err = c.pod.agent.stopContainer(*(c.pod), *c)
 	if err != nil {
 		return err

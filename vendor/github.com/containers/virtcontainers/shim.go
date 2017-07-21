@@ -18,7 +18,9 @@ package virtcontainers
 
 import (
 	"fmt"
+	"os"
 	"syscall"
+	"time"
 
 	"github.com/mitchellh/mapstructure"
 )
@@ -33,6 +35,8 @@ const (
 	// NoopShimType is the noopShim.
 	NoopShimType ShimType = "noopShim"
 )
+
+var waitForShimTimeout = 5.0
 
 // ShimParams is the structure providing specific parameters needed
 // for the execution of the shim binary.
@@ -107,6 +111,48 @@ func stopShim(pid int) error {
 
 	if err := syscall.Kill(pid, syscall.SIGKILL); err != nil && err != syscall.ESRCH {
 		return err
+	}
+
+	return nil
+}
+
+func isShimRunning(pid int) (bool, error) {
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		return false, err
+	}
+
+	if err := process.Signal(syscall.Signal(0)); err != nil {
+		return false, nil
+	}
+
+	return true, nil
+}
+
+// waitForShim waits for the end of the shim unless it reaches the timeout
+// first, returning an error in that case.
+func waitForShim(pid int) error {
+	if pid <= 0 {
+		return nil
+	}
+
+	tInit := time.Now()
+	for {
+		running, err := isShimRunning(pid)
+		if err != nil {
+			return err
+		}
+
+		if !running {
+			break
+		}
+
+		if time.Since(tInit).Seconds() >= waitForShimTimeout {
+			return fmt.Errorf("Shim still running, timeout %f s has been reached", waitForShimTimeout)
+		}
+
+		// Let's avoid to run a too busy loop
+		time.Sleep(time.Duration(100) * time.Millisecond)
 	}
 
 	return nil

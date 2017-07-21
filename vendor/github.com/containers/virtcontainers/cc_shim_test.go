@@ -19,7 +19,9 @@ package virtcontainers
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"testing"
@@ -87,6 +89,17 @@ func TestCCShimStartShimPathEmptyFailure(t *testing.T) {
 	testCCShimStart(t, pod, ShimParams{}, true)
 }
 
+func TestCCShimStartShimTypeInvalid(t *testing.T) {
+	pod := Pod{
+		config: &PodConfig{
+			ShimType:   "foo",
+			ShimConfig: CCShimConfig{},
+		},
+	}
+
+	testCCShimStart(t, pod, ShimParams{}, true)
+}
+
 func TestCCShimStartParamsTokenEmptyFailure(t *testing.T) {
 	pod := Pod{
 		config: &PodConfig{
@@ -112,6 +125,32 @@ func TestCCShimStartParamsURLEmptyFailure(t *testing.T) {
 
 	params := ShimParams{
 		Token: "testToken",
+	}
+
+	testCCShimStart(t, pod, params, true)
+}
+
+func TestCCShimStartParamsInvalidCommand(t *testing.T) {
+	dir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	cmd := filepath.Join(dir, "does-not-exist")
+
+	pod := Pod{
+		config: &PodConfig{
+			ShimType: CCShimType,
+			ShimConfig: CCShimConfig{
+				Path: cmd,
+			},
+		},
+	}
+
+	params := ShimParams{
+		Token: "testToken",
+		URL:   "http://foo",
 	}
 
 	testCCShimStart(t, pod, params, true)

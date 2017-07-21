@@ -458,25 +458,6 @@ func (h *hyper) startPod(pod Pod) error {
 
 // stopPod is the agent Pod stopping implementation for hyperstart.
 func (h *hyper) stopPod(pod Pod) error {
-	for _, c := range pod.containers {
-		state, err := pod.storage.fetchContainerState(pod.id, c.id)
-		if err != nil {
-			return err
-		}
-
-		if state.State != StateRunning {
-			continue
-		}
-
-		if err := h.killOneContainer(c.id, syscall.SIGKILL, true); err != nil {
-			return err
-		}
-
-		if err := h.stopOneContainer(pod.id, *c); err != nil {
-			return err
-		}
-	}
-
 	if err := h.stopPauseContainer(pod.id); err != nil {
 		return err
 	}

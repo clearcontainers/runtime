@@ -60,6 +60,9 @@ const (
 	// QemuPCLite is the QEMU pc-lite machine type
 	QemuPCLite = defaultQemuMachineType
 
+	// QemuPC is the QEMU pc machine type
+	QemuPC = "pc"
+
 	// QemuQ35 is the QEMU Q35 machine type
 	QemuQ35 = "q35"
 )
@@ -67,12 +70,17 @@ const (
 // Mapping between machine types and QEMU binary paths.
 var qemuPaths = map[string]string{
 	QemuPCLite: "/usr/bin/qemu-lite-system-x86_64",
-	QemuQ35:    defaultQemuPath,
+	QemuPC:     defaultQemuPath,
+	QemuQ35:    "/usr/bin/qemu-35-system-x86_64",
 }
 
 var supportedQemuMachines = []ciaoQemu.Machine{
 	{
 		Type:         QemuPCLite,
+		Acceleration: "kvm,kernel_irqchip,nvdimm",
+	},
+	{
+		Type:         QemuPC,
 		Acceleration: "kvm,kernel_irqchip,nvdimm",
 	},
 	{
