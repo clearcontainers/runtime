@@ -45,6 +45,7 @@ func makeRuntimeConfig(prefixDir string) (configFile string, config oci.RuntimeC
 	machineType := "machineType"
 	shimPath := filepath.Join(prefixDir, "cc-shim")
 	proxyPath := filepath.Join(prefixDir, "cc-proxy")
+	disableBlock := true
 
 	// override
 	defaultProxyPath = proxyPath
@@ -106,7 +107,8 @@ func makeRuntimeConfig(prefixDir string) (configFile string, config oci.RuntimeC
 		shimPath,
 		agentPauseRoot,
 		testProxyURL,
-		logPath)
+		logPath,
+		disableBlock)
 
 	configFile = path.Join(prefixDir, "runtime.toml")
 	err = createConfig(configFile, runtimeConfig)

@@ -43,7 +43,7 @@ type testRuntimeConfig struct {
 	LogPath           string
 }
 
-func makeRuntimeConfigFileData(hypervisor, hypervisorPath, kernelPath, imagePath, machineType, shimPath, agentPauseRootPath, proxyURL, logPath string) string {
+func makeRuntimeConfigFileData(hypervisor, hypervisorPath, kernelPath, imagePath, machineType, shimPath, agentPauseRootPath, proxyURL, logPath string, disableBlock bool) string {
 	return `
 	# Clear Containers runtime configuration file
 
@@ -54,6 +54,7 @@ func makeRuntimeConfigFileData(hypervisor, hypervisorPath, kernelPath, imagePath
 	machine_type = "` + machineType + `"
 	default_vcpus = ` + strconv.FormatUint(uint64(defaultVCPUCount), 10) + `
 	default_memory = ` + strconv.FormatUint(uint64(defaultMemSize), 10) + `
+	disable_block_device_use =  ` + strconv.FormatBool(disableBlock) + `
 
 	[proxy.cc]
 	url = "` + proxyURL + `"
@@ -101,8 +102,9 @@ func createAllRuntimeConfigFiles(dir, hypervisor string) (config testRuntimeConf
 	logDir := path.Join(dir, "logs")
 	logPath := path.Join(logDir, "runtime.log")
 	machineType := "machineType"
+	disableBlockDevice := true
 
-	runtimeConfigFileData := makeRuntimeConfigFileData(hypervisor, hypervisorPath, kernelPath, imagePath, machineType, shimPath, agentPauseRootPath, proxyURL, logPath)
+	runtimeConfigFileData := makeRuntimeConfigFileData(hypervisor, hypervisorPath, kernelPath, imagePath, machineType, shimPath, agentPauseRootPath, proxyURL, logPath, disableBlockDevice)
 
 	configPath := path.Join(dir, "runtime.toml")
 	err = createConfig(configPath, runtimeConfigFileData)
@@ -140,6 +142,7 @@ func createAllRuntimeConfigFiles(dir, hypervisor string) (config testRuntimeConf
 		HypervisorMachineType: machineType,
 		DefaultVCPUs:          defaultVCPUCount,
 		DefaultMemSz:          defaultMemSize,
+		DisableBlockDeviceUse: disableBlockDevice,
 	}
 
 	agentConfig := vc.HyperConfig{
@@ -601,6 +604,7 @@ func TestMinimalRuntimeConfig(t *testing.T) {
 		HypervisorMachineType: defaultMachineType,
 		DefaultVCPUs:          defaultVCPUCount,
 		DefaultMemSz:          defaultMemSize,
+		DisableBlockDeviceUse: defaultDisableBlockDeviceUse,
 	}
 
 	expectedAgentConfig := vc.HyperConfig{
@@ -649,12 +653,14 @@ func TestNewQemuHypervisorConfig(t *testing.T) {
 	kernelPath := path.Join(dir, "kernel")
 	imagePath := path.Join(dir, "image")
 	machineType := "machineType"
+	disableBlock := true
 
 	hypervisor := hypervisor{
-		Path:        hypervisorPath,
-		Kernel:      kernelPath,
-		Image:       imagePath,
-		MachineType: machineType,
+		Path:                  hypervisorPath,
+		Kernel:                kernelPath,
+		Image:                 imagePath,
+		MachineType:           machineType,
+		DisableBlockDeviceUse: disableBlock,
 	}
 
 	files := []string{hypervisorPath, kernelPath, imagePath}
@@ -691,6 +697,11 @@ func TestNewQemuHypervisorConfig(t *testing.T) {
 	if config.ImagePath != hypervisor.Image {
 		t.Errorf("Expected image path %v, got %v", hypervisor.Image, config.ImagePath)
 	}
+
+	if config.DisableBlockDeviceUse != disableBlock {
+		t.Errorf("Expected value for disable block usage %v, got %v", disableBlock, config.DisableBlockDeviceUse)
+	}
+
 }
 
 func TestNewHyperstartAgentConfig(t *testing.T) {

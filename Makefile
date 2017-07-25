@@ -98,6 +98,8 @@ DEFVCPUS := 1
 # Default memory size in MiB
 DEFMEMSZ := 2048
 
+DEFDISABLEBLOCK := false
+
 SED = sed
 
 SOURCES := $(shell find . 2>&1 | grep -E '.*\.(c|h|go)$$')
@@ -149,6 +151,7 @@ USER_VARS += SYSCONFDIR
 USER_VARS += PAUSEDESTDIR
 USER_VARS += DEFVCPUS
 USER_VARS += DEFMEMSZ
+USER_VARS += DEFDISABLEBLOCK
 
 
 V              = @
@@ -192,6 +195,7 @@ const pauseBinRelativePath = "$(PAUSEBINRELPATH)"
 
 const defaultVCPUCount uint32 = $(DEFVCPUS)
 const defaultMemSize uint32 = $(DEFMEMSZ) // MiB
+const defaultDisableBlockDeviceUse bool = $(DEFDISABLEBLOCK)
 
 // Required to be modifiable (for the tests)
 var defaultRuntimeConfiguration = "$(DESTCONFIG)"
@@ -241,6 +245,7 @@ $(CONFIG): $(CONFIG_IN)
 		-e "s|@GLOBALLOGPATH@|$(GLOBALLOGPATH)|g" \
 		-e "s|@DEFVCPUS@|$(DEFVCPUS)|g" \
 		-e "s|@DEFMEMSZ@|$(DEFMEMSZ)|g" \
+		-e "s|@DEFDISABLEBLOCK@|$(DEFDISABLEBLOCK)|g" \
 		$< > $@
 
 generate-config: $(CONFIG)
