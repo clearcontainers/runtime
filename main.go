@@ -94,6 +94,7 @@ func beforeSubcommands(context *cli.Context) error {
 	}
 
 	ccLog.Infof("%v (version %v, commit %v) called as: %v", name, version, commit, context.Args())
+	ccLog.Infof("Using configuration file %q", configFile)
 
 	// make the data accessible to the sub-commands.
 	context.App.Metadata = map[string]interface{}{
