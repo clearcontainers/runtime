@@ -107,6 +107,14 @@ comment line:
  - +1
  - Approve
 
+## Contact
+
+The Clear Containers community can be reached through its IRC channel and a
+dedicated mailing list:
+
+* IRC: `#clearcontainers @ freenode.net`.
+* Mailing list: [Subscribe](https://lists.01.org/mailman/listinfo/cc-devel).
+
 ### Project maintainers
 
 The Clear Containers runtime maintainers will be the ones accepting or rejecting any pull request. They are listed in the OWNERS files, and there can be one OWNERS file per directory.
