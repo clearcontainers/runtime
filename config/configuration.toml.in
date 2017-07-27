@@ -13,6 +13,7 @@ default_vcpus = -1
 # Default memory size in MiB for POD/VM.
 # If unspecified then it will be set @DEFMEMSZ@ MiB.
 #default_memory = @DEFMEMSZ@
+disable_block_device_use = @DEFDISABLEBLOCK@
 
 [proxy.cc]
 url = "@PROXYURL@"

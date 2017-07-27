@@ -73,12 +73,13 @@ type tomlConfig struct {
 }
 
 type hypervisor struct {
-	Path         string `toml:"path"`
-	Kernel       string `toml:"kernel"`
-	Image        string `toml:"image"`
-	MachineType  string `toml:"machine_type"`
-	DefaultVCPUs int32  `toml:"default_vcpus"`
-	DefaultMemSz uint32 `toml:"default_memory"`
+	Path                  string `toml:"path"`
+	Kernel                string `toml:"kernel"`
+	Image                 string `toml:"image"`
+	MachineType           string `toml:"machine_type"`
+	DefaultVCPUs          int32  `toml:"default_vcpus"`
+	DefaultMemSz          uint32 `toml:"default_memory"`
+	DisableBlockDeviceUse bool   `toml:"disable_block_device_use"`
 }
 
 type proxy struct {
@@ -195,6 +196,7 @@ func newQemuHypervisorConfig(h hypervisor) (vc.HypervisorConfig, error) {
 		HypervisorMachineType: machineType,
 		DefaultVCPUs:          h.defaultVCPUs(),
 		DefaultMemSz:          h.defaultMemSz(),
+		DisableBlockDeviceUse: h.DisableBlockDeviceUse,
 	}, nil
 }
 
