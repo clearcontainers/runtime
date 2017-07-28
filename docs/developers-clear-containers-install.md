@@ -66,13 +66,8 @@ $ sudo make install
 
 ```bash
 $ cd $GOPATH/src/github.com/clearcontainers/runtime
-$ export QEMUBINDIR=/usr/bin
-$ export SYSCONFDIR=/etc
-$ export SHAREDIR=/usr/share
-$ export PKGLIBEXECDIR=/usr/libexec/clear-containers
-$ export LOCALSTATEDIR=/var
-$ make -e
-$ sudo -E make -e install
+$ make build-cc-system
+$ sudo -E PATH=$PATH make install-cc-system
 ```
 
 For more details on the runtime's build system, run:
