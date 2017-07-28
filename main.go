@@ -22,7 +22,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	vc "github.com/containers/virtcontainers"
+	"github.com/clearcontainers/runtime/pkg/rvc"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/urfave/cli"
 )
@@ -49,6 +49,14 @@ NOTES:
 `
 
 var ccLog = logrus.New()
+
+// concrete virtcontainer implementation
+var virtcontainersImpl = &vcImpl{}
+
+// vci is used to access a particular virtcontainers implementation.
+// Normally, it refers to the official package, but is re-assigned in
+// the tests to allow virtcontainers to be mocked.
+var vci rvc.RVC = virtcontainersImpl
 
 func beforeSubcommands(context *cli.Context) error {
 	if userWantsUsage(context) || (context.NArg() == 1 && (context.Args()[0] == "cc-check")) {
@@ -80,7 +88,7 @@ func beforeSubcommands(context *cli.Context) error {
 	}
 
 	// Set virtcontainers logger.
-	vc.SetLogger(ccLog)
+	vci.SetLogger(ccLog)
 
 	ignoreLogging := false
 	if context.NArg() == 1 && context.Args()[0] == "cc-env" {
