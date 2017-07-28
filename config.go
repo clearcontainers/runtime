@@ -21,6 +21,7 @@ import (
 	"os"
 	"path/filepath"
 	goruntime "runtime"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 	vc "github.com/containers/virtcontainers"
@@ -76,6 +77,7 @@ type hypervisor struct {
 	Path                  string `toml:"path"`
 	Kernel                string `toml:"kernel"`
 	Image                 string `toml:"image"`
+	KernelParams          string `toml:"kernel_params"`
 	MachineType           string `toml:"machine_type"`
 	DefaultVCPUs          int32  `toml:"default_vcpus"`
 	DefaultMemSz          uint32 `toml:"default_memory"`
@@ -120,6 +122,14 @@ func (h hypervisor) image() string {
 	}
 
 	return h.Image
+}
+
+func (h hypervisor) kernelParams() string {
+	if h.KernelParams == "" {
+		return defaultKernelParams
+	}
+
+	return h.KernelParams
 }
 
 func (h hypervisor) machineType() string {
@@ -180,6 +190,7 @@ func newQemuHypervisorConfig(h hypervisor) (vc.HypervisorConfig, error) {
 	hypervisor := h.path()
 	kernel := h.kernel()
 	image := h.image()
+	kernelParams := h.kernelParams()
 	machineType := h.machineType()
 
 	for _, file := range []string{hypervisor, kernel, image} {
@@ -188,11 +199,11 @@ func newQemuHypervisorConfig(h hypervisor) (vc.HypervisorConfig, error) {
 				fmt.Errorf("File does not exist: %v", file)
 		}
 	}
-
 	return vc.HypervisorConfig{
 		HypervisorPath:        hypervisor,
 		KernelPath:            kernel,
 		ImagePath:             image,
+		KernelParams:          vc.DeserializeParams(strings.Fields(kernelParams)),
 		HypervisorMachineType: machineType,
 		DefaultVCPUs:          h.defaultVCPUs(),
 		DefaultMemSz:          h.defaultMemSz(),

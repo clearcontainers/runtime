@@ -42,6 +42,7 @@ func makeRuntimeConfig(prefixDir string) (configFile string, config oci.RuntimeC
 	hypervisorPath := filepath.Join(prefixDir, "hypervisor")
 	kernelPath := filepath.Join(prefixDir, "kernel")
 	imagePath := filepath.Join(prefixDir, "image")
+	kernelParams := "foo=bar xyz"
 	machineType := "machineType"
 	shimPath := filepath.Join(prefixDir, "cc-shim")
 	proxyPath := filepath.Join(prefixDir, "cc-proxy")
@@ -103,6 +104,7 @@ func makeRuntimeConfig(prefixDir string) (configFile string, config oci.RuntimeC
 		hypervisorPath,
 		kernelPath,
 		imagePath,
+		kernelParams,
 		machineType,
 		shimPath,
 		agentPauseRoot,
@@ -261,10 +263,13 @@ func getExpectedImage(config oci.RuntimeConfig) PathInfo {
 	}
 }
 
-func getExpectedKernel(config oci.RuntimeConfig) PathInfo {
-	return PathInfo{
-		Path:     config.HypervisorConfig.KernelPath,
-		Resolved: config.HypervisorConfig.KernelPath,
+func getExpectedKernel(config oci.RuntimeConfig) KernelInfo {
+	return KernelInfo{
+		Location: PathInfo{
+			Path:     config.HypervisorConfig.KernelPath,
+			Resolved: config.HypervisorConfig.KernelPath,
+		},
+		Parameters: strings.Join(vc.SerializeParams(config.HypervisorConfig.KernelParams, "="), " "),
 	}
 }
 
@@ -556,7 +561,7 @@ func TestCCEnvGetEnvInfoNoKernel(t *testing.T) {
 	expected, err := getExpectedSettings(config, tmpdir, configFile, logFile)
 	assert.NoError(t, err)
 
-	err = os.Remove(expected.Kernel.Resolved)
+	err = os.Remove(expected.Kernel.Location.Resolved)
 	assert.NoError(t, err)
 
 	_, err = getEnvInfo(configFile, logFile, config)
@@ -910,9 +915,12 @@ func testCCEnvShowSettings(t *testing.T, tmpdir string, tmpfile *os.File) error 
 		Resolved: "/resolved/image/path",
 	}
 
-	ccKernel := PathInfo{
-		Path:     "/kernel/path",
-		Resolved: "/resolved/kernel/path",
+	ccKernel := KernelInfo{
+		Location: PathInfo{
+			Path:     "/kernel/path",
+			Resolved: "/resolved/kernel/path",
+		},
+		Parameters: "foo=bar xyz",
 	}
 
 	ccProxy := ProxyInfo{

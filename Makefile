@@ -71,6 +71,8 @@ PKGLIBEXECDIR := $(LIBEXECDIR)/$(CCDIR)
 KERNELPATH := $(PKGDATADIR)/vmlinux.container
 IMAGEPATH := $(PKGDATADIR)/clear-containers.img
 
+KERNELPARAMS :=
+
 # The CentOS/RHEL hypervisor binary is not called qemu-lite
 ifeq (,$(filter-out centos rhel,$(distro)))
 QEMUCMD := qemu-system-x86_64
@@ -131,6 +133,7 @@ USER_VARS += GLOBALLOGPATH
 USER_VARS += IMAGEPATH
 USER_VARS += MACHINETYPE
 USER_VARS += KERNELPATH
+USER_VARS += KERNELPARAMS
 USER_VARS += LIBEXECDIR
 USER_VARS += LOCALSTATEDIR
 USER_VARS += PAUSEBINRELPATH
@@ -184,6 +187,7 @@ const version = "$(VERSION)"
 const defaultHypervisorPath = "$(QEMUPATH)"
 const defaultImagePath = "$(IMAGEPATH)"
 const defaultKernelPath = "$(KERNELPATH)"
+const defaultKernelParams = "$(KERNELPARAMS)"
 const defaultMachineType = "$(MACHINETYPE)"
 const defaultPauseRootPath = "$(PAUSEROOTPATH)"
 const defaultProxyURL = "$(PROXYURL)"
@@ -235,6 +239,7 @@ $(CONFIG): $(CONFIG_IN)
 		-e "s|@CONFIG_IN@|$(CONFIG_IN)|g" \
 		-e "s|@IMAGEPATH@|$(IMAGEPATH)|g" \
 		-e "s|@KERNELPATH@|$(KERNELPATH)|g" \
+		-e "s|@KERNELPARAMS@|$(KERNELPARAMS)|g" \
 		-e "s|@LOCALSTATEDIR@|$(LOCALSTATEDIR)|g" \
 		-e "s|@PAUSEROOTPATH@|$(PAUSEROOTPATH)|g" \
 		-e "s|@PKGLIBEXECDIR@|$(PKGLIBEXECDIR)|g" \
