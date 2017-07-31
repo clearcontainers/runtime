@@ -91,7 +91,7 @@ func delete(containerID string, force bool) error {
 
 	switch containerType {
 	case vc.PodSandbox:
-		if err := deletePod(podID, forceStop); err != nil {
+		if err := deletePod(podID); err != nil {
 			return err
 		}
 	case vc.PodContainer:
@@ -113,11 +113,9 @@ func delete(containerID string, force bool) error {
 	return removeCgroupsPath(cgroupsPathList)
 }
 
-func deletePod(podID string, forceStop bool) error {
-	if forceStop {
-		if _, err := vc.StopPod(podID); err != nil {
-			return err
-		}
+func deletePod(podID string) error {
+	if _, err := vc.StopPod(podID); err != nil {
+		return err
 	}
 
 	if _, err := vc.DeletePod(podID); err != nil {
