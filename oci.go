@@ -145,34 +145,6 @@ func validCreateParams(containerID, bundlePath string) (string, error) {
 	return resolved, nil
 }
 
-func stopContainer(podID string, status vc.ContainerStatus) error {
-	containerType, err := oci.GetContainerType(status.Annotations)
-	if err != nil {
-		return err
-	}
-
-	switch containerType {
-	case vc.PodSandbox:
-		// Calling StopPod allows to make sure the pod is properly
-		// stopped. That way, containers/pod states are updated to
-		// the expected "stopped" state.
-		if _, err := vc.StopPod(podID); err != nil {
-			return err
-		}
-	case vc.PodContainer:
-		// Calling StopContainer allows to make sure the container is
-		// properly stopped and removed from the pod. That way, the
-		// container's state is updated to the expected "stopped" state.
-		if _, err := vc.StopContainer(podID, status.ID); err != nil {
-			return err
-		}
-	default:
-		return fmt.Errorf("Invalid container type found")
-	}
-
-	return nil
-}
-
 // processCgroupsPath process the cgroups path as expected from the
 // OCI runtime specification. It returns a list of complete paths
 // that should be created and used for every specified resource.
