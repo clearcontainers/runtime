@@ -230,7 +230,7 @@ pause: pause/pause.o
 $(TARGET).coverage: $(SOURCES) $(GENERATED_FILES) Makefile
 	$(QUIET_TEST)go test -o $@ -covermode count
 
-$(CONFIG): $(CONFIG_IN)
+$(CONFIG): $(CONFIG_IN) $(GENERATED_FILES)
 	$(QUIET_CONFIG)$(SED) \
 		-e "s|@CONFIG_IN@|$(CONFIG_IN)|g" \
 		-e "s|@IMAGEPATH@|$(IMAGEPATH)|g" \
