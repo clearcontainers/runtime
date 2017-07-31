@@ -145,19 +145,6 @@ func validCreateParams(containerID, bundlePath string) (string, error) {
 	return resolved, nil
 }
 
-func processRunning(pid int) (bool, error) {
-	process, err := os.FindProcess(pid)
-	if err != nil {
-		return false, err
-	}
-
-	if err := process.Signal(syscall.Signal(0)); err != nil {
-		return false, nil
-	}
-
-	return true, nil
-}
-
 func stopContainer(podID string, status vc.ContainerStatus) error {
 	containerType, err := oci.GetContainerType(status.Annotations)
 	if err != nil {

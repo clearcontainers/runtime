@@ -80,19 +80,13 @@ func delete(containerID string, force bool) error {
 		return err
 	}
 
-	running, err := processRunning(status.PID)
-	if err != nil {
-		return err
-	}
-
-	if !force && running {
-		return fmt.Errorf("Container still running, should be stopped")
-	}
-
 	forceStop := false
 	if oci.StateToOCIState(status.State) == oci.StateRunning {
+		if !force {
+			return fmt.Errorf("Container still running, should be stopped")
+		}
+
 		forceStop = true
-		ccLog.Info("Force stopping the pod/container before deleting")
 	}
 
 	switch containerType {

@@ -65,26 +65,6 @@ func TestGetExistingContainerInfoContainerIDEmptyFailure(t *testing.T) {
 	}
 }
 
-func testProcessRunning(t *testing.T, pid int, expected bool) {
-	running, err := processRunning(pid)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if running != expected {
-		t.Fatalf("Expecting PID %d to be 'running == %v'", pid, expected)
-	}
-}
-
-func TestProcessRunningFailure(t *testing.T) {
-	testProcessRunning(t, 99999, false)
-}
-
-func TestProcessRunningSuccessful(t *testing.T) {
-	pid := os.Getpid()
-	testProcessRunning(t, pid, true)
-}
-
 func TestStopContainerPodStatusEmptyFailure(t *testing.T) {
 	if err := stopContainer("", vc.ContainerStatus{}); err == nil {
 		t.Fatalf("This test should fail because PodStatus is empty")

@@ -127,19 +127,6 @@ func kill(containerID, signal string, all bool) error {
 		return fmt.Errorf("Container %s is not running", containerID)
 	}
 
-	// Check status of process
-	running, err := processRunning(status.PID)
-	if err != nil {
-		return err
-	}
-	if running == false {
-		if err := stopContainer(podID, status); err != nil {
-			return err
-		}
-
-		return fmt.Errorf("Process not running inside container %s", containerID)
-	}
-
 	if err := vc.KillContainer(podID, containerID, signum, all); err != nil {
 		return err
 	}
