@@ -66,13 +66,8 @@ $ sudo make install
 
 ```bash
 $ cd $GOPATH/src/github.com/clearcontainers/runtime
-$ export QEMUBINDIR=/usr/bin
-$ export SYSCONFDIR=/etc
-$ export SHAREDIR=/usr/share
-$ export PKGLIBEXECDIR=/usr/libexec/clear-containers
-$ export LOCALSTATEDIR=/var
-$ make -e
-$ sudo -E make -e install
+$ make build-cc-system
+$ sudo -E PATH=$PATH make install-cc-system
 ```
 
 For more details on the runtime's build system, run:
@@ -129,7 +124,7 @@ $ sudo mkdir -p /etc/systemd/system/docker.service.d/
 $ cat << EOF | sudo tee /etc/systemd/system/docker.service.d/clear-containers.conf
 [Service]
 ExecStart=
-ExecStart=/usr/bin/dockerd -D --add-runtime clearcontainers=/usr/local/bin/cc-runtime --default-runtime=runc
+ExecStart=/usr/bin/dockerd -D --add-runtime cc-runtime=/usr/local/bin/cc-runtime --default-runtime=cc-runtime
 
 [Service]
 # Allow maximum number of containers to run.
@@ -150,6 +145,6 @@ $ sudo systemctl start cc-proxy.socket
 ## Run Clear Containers 3.0
 
 ```bash
-$ docker run --runtime clearcontainers -it ubuntu bash
+$ docker run -it ubuntu bash
 root@6adfa8386497732d78468a19da6365602e96e95c401bec2c74ea1af14c672635:/#
 ```

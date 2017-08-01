@@ -31,7 +31,7 @@ $ sudo mkdir -p /etc/systemd/system/docker.service.d/
 $ cat << EOF | sudo tee /etc/systemd/system/docker.service.d/clear-containers.conf
 [Service]
 ExecStart=
-ExecStart=/usr/bin/dockerd -D --add-runtime clearcontainers=/usr/bin/cc-runtime --default-runtime=clearcontainers
+ExecStart=/usr/bin/dockerd -D --add-runtime cc-runtime=/usr/bin/cc-runtime --default-runtime=cc-runtime
 EOF
 ```
 
