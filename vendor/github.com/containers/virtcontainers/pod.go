@@ -492,6 +492,40 @@ func (p *Pod) createSetStates() error {
 // to physically create that pod i.e. starts a VM for that pod to eventually
 // be started.
 func createPod(podConfig PodConfig) (*Pod, error) {
+	p, err := doFetchPod(podConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	state, err := p.storage.fetchPodState(p.id)
+	if err == nil && state.State != "" {
+		p.state = state
+		return p, nil
+	}
+
+	// Below code path is called only during create, because of earlier check.
+	if err := p.agent.createPod(p); err != nil {
+		return nil, err
+	}
+
+	// fetch agent capabilities and call addDrives if the agent has support
+	// for block devices.
+	caps := p.agent.capabilities()
+	if caps.isBlockDeviceSupported() {
+		if err := p.addDrives(); err != nil {
+			return nil, err
+		}
+	}
+
+	if err := p.createSetStates(); err != nil {
+		p.storage.deletePodResources(p.id, nil)
+		return nil, err
+	}
+
+	return p, nil
+}
+
+func doFetchPod(podConfig PodConfig) (*Pod, error) {
 	if podConfig.valid() == false {
 		return nil, fmt.Errorf("Invalid pod configuration")
 	}
@@ -553,26 +587,6 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 
 	agentConfig := newAgentConfig(podConfig)
 	if err := p.agent.init(p, agentConfig); err != nil {
-		p.storage.deletePodResources(p.id, nil)
-		return nil, err
-	}
-
-	state, err := p.storage.fetchPodState(p.id)
-	if err == nil && state.State != "" {
-		p.state = state
-		return p, nil
-	}
-
-	// fetch agent capabilities and call addDrives if the agent has support
-	// for block devices.
-	caps := p.agent.capabilities()
-	if caps.isBlockDeviceSupported() {
-		if err := p.addDrives(); err != nil {
-			return nil, err
-		}
-	}
-
-	if err := p.createSetStates(); err != nil {
 		p.storage.deletePodResources(p.id, nil)
 		return nil, err
 	}
@@ -780,20 +794,6 @@ func (p *Pod) start() error {
 	return nil
 }
 
-func (p *Pod) stopCheckStates() error {
-	state, err := p.storage.fetchPodState(p.id)
-	if err != nil {
-		return err
-	}
-
-	err = state.validTransition(StateRunning, StateStopped)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (p *Pod) stopSetStates() error {
 	podState := State{
 		State: StateStopped,
@@ -895,38 +895,32 @@ func (p *Pod) stopVM() error {
 // stop stops a pod. The containers that are making the pod
 // will be destroyed.
 func (p *Pod) stop() error {
-	if err := p.stopCheckStates(); err != nil {
+	state, err := p.storage.fetchPodState(p.id)
+	if err != nil {
 		return err
+	}
+
+	if err := state.validTransition(state.State, StateStopped); err != nil {
+		return err
+	}
+
+	// This handles the special case of stopping a pod in ready state.
+	if state.State == StateReady {
+		return p.stopSetStates()
+	}
+
+	for _, c := range p.containers {
+		if c.state.State == StateRunning || c.state.State == StatePaused {
+			if err := c.stop(); err != nil {
+				return err
+			}
+		}
 	}
 
 	if _, _, err := p.proxy.connect(*p, false); err != nil {
 		return err
 	}
 	defer p.proxy.disconnect()
-
-	for _, c := range p.containers {
-		state, err := p.storage.fetchContainerState(p.id, c.id)
-		if err != nil {
-			return err
-		}
-
-		if state.State != StateRunning {
-			continue
-		}
-
-		if err := p.agent.killContainer(*p, *c, syscall.SIGKILL, true); err != nil {
-			return err
-		}
-
-		// Wait for the end of container
-		if err := waitForShim(c.process.Pid); err != nil {
-			return err
-		}
-
-		if err := p.agent.stopContainer(*p, *c); err != nil {
-			return err
-		}
-	}
 
 	if err := p.agent.stopPod(*p); err != nil {
 		return err

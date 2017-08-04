@@ -105,6 +105,11 @@ func (s *sshd) init(pod *Pod, config interface{}) error {
 	return nil
 }
 
+// createPod is the agent pod creation implementation for sshd.
+func (s *sshd) createPod(pod *Pod) error {
+	return nil
+}
+
 func (s *sshd) capabilities() capabilities {
 	return capabilities{}
 }

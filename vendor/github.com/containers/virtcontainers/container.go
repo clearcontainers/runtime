@@ -478,15 +478,13 @@ func (c *Container) stop() error {
 		return err
 	}
 
-	// In case our container is "ready", there is no point in trying to
-	// stop it because nothing has been started. However, this is a valid
-	// case and we handle this by updating the container state only.
-	if state.State == StateReady {
-		if err := state.validTransition(StateReady, StateStopped); err != nil {
-			return err
-		}
-
-		return c.setContainerState(StateStopped)
+	// In case the container status has been updated implicitly because
+	// the container process has terminated, it might be possible that
+	// someone try to stop the container, and we don't want to issue an
+	// error in that case. This should be a no-op.
+	if state.State == StateStopped {
+		virtLog.Info("Container already stopped, nothing to do")
+		return nil
 	}
 
 	if state.State != StateRunning {
@@ -555,9 +553,41 @@ func (c *Container) enter(cmd Cmd) (*Process, error) {
 }
 
 func (c *Container) kill(signal syscall.Signal, all bool) error {
-	state, err := c.fetchState("signal")
+	podState, err := c.pod.storage.fetchPodState(c.pod.id)
 	if err != nil {
 		return err
+	}
+
+	if podState.State != StateReady && podState.State != StateRunning {
+		return fmt.Errorf("Pod not ready or running, impossible to signal the container")
+	}
+
+	state, err := c.pod.storage.fetchContainerState(c.podID, c.id)
+	if err != nil {
+		return err
+	}
+
+	// In case our container is "ready", there is no point in trying to
+	// send any signal because nothing has been started. However, this is
+	// a valid case that we handle by doing nothing or by killing the shim
+	// and updating the container state, according to the signal.
+	if state.State == StateReady {
+		if signal != syscall.SIGTERM && signal != syscall.SIGKILL {
+			virtLog.Infof("Container ready, sending signal %s is a no-op", signal)
+			return nil
+		}
+
+		// Calling into stopShim() will send a SIGKILL to the shim.
+		// This signal will be forwarded to the proxy and it will be
+		// handled by the proxy itself. Indeed, because there is no
+		// process running inside the VM, there is no point in sending
+		// this signal to our agent. Instead, the proxy will take care
+		// of that signal by killing the shim (sending an exit code).
+		if err := stopShim(c.process.Pid); err != nil {
+			return err
+		}
+
+		return c.setContainerState(StateStopped)
 	}
 
 	if state.State != StateRunning {

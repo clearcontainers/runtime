@@ -24,7 +24,7 @@ func TestNoopShimStart(t *testing.T) {
 	s := &noopShim{}
 	pod := Pod{}
 	params := ShimParams{}
-	expected := 0
+	expected := 1000
 
 	pid, err := s.start(pod, params)
 	if err != nil {

@@ -18,6 +18,7 @@ package virtcontainers
 
 import (
 	"fmt"
+	"strings"
 )
 
 // HypervisorType describes an hypervisor type.
@@ -180,7 +181,8 @@ func appendParam(params []Param, parameter string, value string) []Param {
 	return append(params, Param{parameter, value})
 }
 
-func serializeParams(params []Param, delim string) []string {
+// SerializeParams converts []Param to []string
+func SerializeParams(params []Param, delim string) []string {
 	var parameters []string
 
 	for _, p := range params {
@@ -199,6 +201,25 @@ func serializeParams(params []Param, delim string) []string {
 	}
 
 	return parameters
+}
+
+// DeserializeParams converts []string to []Param
+func DeserializeParams(parameters []string) []Param {
+	var params []Param
+
+	for _, param := range parameters {
+		if param == "" {
+			continue
+		}
+		p := strings.SplitN(param, "=", 2)
+		if len(p) == 2 {
+			params = append(params, Param{Key: p[0], Value: p[1]})
+		} else {
+			params = append(params, Param{Key: p[0], Value: ""})
+		}
+	}
+
+	return params
 }
 
 // hypervisor is the virtcontainers hypervisor interface.

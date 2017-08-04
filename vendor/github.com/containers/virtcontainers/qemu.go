@@ -177,7 +177,7 @@ func (q *qemu) buildKernelParams(config HypervisorConfig) error {
 
 	params = append(params, config.KernelParams...)
 
-	q.kernelParams = serializeParams(params, "=")
+	q.kernelParams = SerializeParams(params, "=")
 
 	return nil
 }

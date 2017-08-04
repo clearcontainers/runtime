@@ -30,6 +30,11 @@ func (n *noopAgent) init(pod *Pod, config interface{}) error {
 	return nil
 }
 
+// createPod is the Noop agent pod creation implementation. It does nothing.
+func (n *noopAgent) createPod(pod *Pod) error {
+	return nil
+}
+
 // capabilities returns empty capabilities, i.e no capabilties are supported.
 func (n *noopAgent) capabilities() capabilities {
 	return capabilities{}
