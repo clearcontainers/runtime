@@ -346,6 +346,12 @@ func (h *hyper) init(pod *Pod, config interface{}) (err error) {
 	// Override pod agent configuration
 	pod.config.AgentConfig = h.config
 
+	h.proxy = pod.proxy
+
+	return nil
+}
+
+func (h *hyper) createPod(pod *Pod) (err error) {
 	for _, volume := range h.config.Volumes {
 		err := pod.hypervisor.addDevice(volume, fsDev)
 		if err != nil {
@@ -374,8 +380,6 @@ func (h *hyper) init(pod *Pod, config interface{}) (err error) {
 	if err := pod.hypervisor.addDevice(sharedVolume, fsDev); err != nil {
 		return err
 	}
-
-	h.proxy = pod.proxy
 
 	return nil
 }

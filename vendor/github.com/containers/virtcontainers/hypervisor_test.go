@@ -208,7 +208,7 @@ func TestAppendParams(t *testing.T) {
 }
 
 func testSerializeParams(t *testing.T, params []Param, delim string, expected []string) {
-	result := serializeParams(params, delim)
+	result := SerializeParams(params, delim)
 	if reflect.DeepEqual(result, expected) == false {
 		t.Fatal()
 	}
@@ -274,6 +274,58 @@ func TestSerializeParams(t *testing.T) {
 	expected := []string{"param1=value1"}
 
 	testSerializeParams(t, params, "=", expected)
+}
+
+func testDeserializeParams(t *testing.T, parameters []string, expected []Param) {
+	result := DeserializeParams(parameters)
+	if reflect.DeepEqual(result, expected) == false {
+		t.Fatal()
+	}
+}
+
+func TestDeserializeParamsNil(t *testing.T) {
+	var parameters []string
+	var expected []Param
+
+	testDeserializeParams(t, parameters, expected)
+}
+
+func TestDeserializeParamsNoParamNoValue(t *testing.T) {
+	parameters := []string{
+		"",
+	}
+
+	var expected []Param
+
+	testDeserializeParams(t, parameters, expected)
+}
+
+func TestDeserializeParamsNoValue(t *testing.T) {
+	parameters := []string{
+		"param1",
+	}
+	expected := []Param{
+		{
+			Key: "param1",
+		},
+	}
+
+	testDeserializeParams(t, parameters, expected)
+}
+
+func TestDeserializeParams(t *testing.T) {
+	parameters := []string{
+		"param1=value1",
+	}
+
+	expected := []Param{
+		{
+			Key:   "param1",
+			Value: "value1",
+		},
+	}
+
+	testDeserializeParams(t, parameters, expected)
 }
 
 func TestAddKernelParamValid(t *testing.T) {

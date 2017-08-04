@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -606,7 +607,7 @@ func TestListPodNoPodDirectory(t *testing.T) {
 	}
 }
 
-func TestStatusPodSuccessful(t *testing.T) {
+func TestStatusPodSuccessfulStateReady(t *testing.T) {
 	cleanUp()
 
 	config := newTestPodConfigNoop()
@@ -633,7 +634,7 @@ func TestStatusPodSuccessful(t *testing.T) {
 					State: StateReady,
 					URL:   "",
 				},
-				PID:         0,
+				PID:         1000,
 				RootFs:      filepath.Join(testDir, testBundle),
 				Annotations: containerAnnotations,
 			},
@@ -641,6 +642,64 @@ func TestStatusPodSuccessful(t *testing.T) {
 	}
 
 	p, err := CreatePod(config)
+	if p == nil || err != nil {
+		t.Fatal(err)
+	}
+
+	status, err := StatusPod(p.id)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Copy the start time as we can't pretend we know what that
+	// value will be.
+	expectedStatus.ContainersStatus[0].StartTime = status.ContainersStatus[0].StartTime
+
+	if reflect.DeepEqual(status, expectedStatus) == false {
+		t.Fatalf("Got pod status %v\n expecting %v", status, expectedStatus)
+	}
+}
+
+func TestStatusPodSuccessfulStateRunning(t *testing.T) {
+	cleanUp()
+
+	config := newTestPodConfigNoop()
+	hypervisorConfig := HypervisorConfig{
+		KernelPath:     filepath.Join(testDir, testKernel),
+		ImagePath:      filepath.Join(testDir, testImage),
+		HypervisorPath: filepath.Join(testDir, testHypervisor),
+	}
+
+	expectedStatus := PodStatus{
+		ID: testPodID,
+		State: State{
+			State: StateRunning,
+			URL:   "noopProxyURL",
+		},
+		Hypervisor:       MockHypervisor,
+		HypervisorConfig: hypervisorConfig,
+		Agent:            NoopAgentType,
+		Annotations:      podAnnotations,
+		ContainersStatus: []ContainerStatus{
+			{
+				ID: containerID,
+				State: State{
+					State: StateStopped,
+					URL:   "",
+				},
+				PID:         1000,
+				RootFs:      filepath.Join(testDir, testBundle),
+				Annotations: containerAnnotations,
+			},
+		},
+	}
+
+	p, err := CreatePod(config)
+	if p == nil || err != nil {
+		t.Fatal(err)
+	}
+
+	p, err = StartPod(p.id)
 	if p == nil || err != nil {
 		t.Fatal(err)
 	}
@@ -1152,7 +1211,7 @@ func TestStopContainerFailingNoContainer(t *testing.T) {
 	}
 }
 
-func TestStopContainerFromContReadySuccessful(t *testing.T) {
+func testKillContainerFromContReadySuccessful(t *testing.T, signal syscall.Signal) {
 	cleanUp()
 
 	contID := "100"
@@ -1176,10 +1235,20 @@ func TestStopContainerFromContReadySuccessful(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c, err = StopContainer(p.id, contID)
-	if err != nil {
+	if err := KillContainer(p.id, contID, signal, false); err != nil {
 		t.Fatal()
 	}
+}
+
+func TestKillContainerFromContReadySuccessful(t *testing.T) {
+	// SIGUSR1
+	testKillContainerFromContReadySuccessful(t, syscall.SIGUSR1)
+	// SIGUSR2
+	testKillContainerFromContReadySuccessful(t, syscall.SIGUSR2)
+	// SIGKILL
+	testKillContainerFromContReadySuccessful(t, syscall.SIGKILL)
+	// SIGTERM
+	testKillContainerFromContReadySuccessful(t, syscall.SIGTERM)
 }
 
 func TestEnterContainerNoopAgentSuccessful(t *testing.T) {
@@ -1398,7 +1467,7 @@ func TestStatusContainerSuccessful(t *testing.T) {
 	}
 }
 
-func TestStatusContainer(t *testing.T) {
+func TestStatusContainerStateReady(t *testing.T) {
 	cleanUp()
 
 	// (homage to a great album! ;)
@@ -1441,7 +1510,79 @@ func TestStatusContainer(t *testing.T) {
 			State: StateReady,
 			URL:   "",
 		},
-		PID:         0,
+		PID:         1000,
+		RootFs:      filepath.Join(testDir, testBundle),
+		Annotations: containerAnnotations,
+	}
+
+	status, err := statusContainer(p2, contID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Copy the start time as we can't pretend we know what that
+	// value will be.
+	expectedStatus.StartTime = status.StartTime
+
+	if reflect.DeepEqual(status, expectedStatus) == false {
+		t.Fatalf("Got container status %v, expected %v", status, expectedStatus)
+	}
+}
+
+func TestStatusContainerStateRunning(t *testing.T) {
+	cleanUp()
+
+	// (homage to a great album! ;)
+	contID := "101"
+	config := newTestPodConfigNoop()
+
+	p, err := CreatePod(config)
+	if p == nil || err != nil {
+		t.Fatal(err)
+	}
+
+	p, err = StartPod(p.id)
+	if p == nil || err != nil {
+		t.Fatal(err)
+	}
+
+	podDir := filepath.Join(configStoragePath, p.id)
+	_, err = os.Stat(podDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	contConfig := newTestContainerConfigNoop(contID)
+
+	_, c, err := CreateContainer(p.id, contConfig)
+	if c == nil || err != nil {
+		t.Fatal(err)
+	}
+
+	c, err = StartContainer(p.id, c.id)
+	if c == nil || err != nil {
+		t.Fatal(err)
+	}
+
+	contDir := filepath.Join(podDir, contID)
+	_, err = os.Stat(contDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// fresh lookup
+	p2, err := fetchPod(p.id)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectedStatus := ContainerStatus{
+		ID: contID,
+		State: State{
+			State: StateStopped,
+			URL:   "",
+		},
+		PID:         1000,
 		RootFs:      filepath.Join(testDir, testBundle),
 		Annotations: containerAnnotations,
 	}

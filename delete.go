@@ -80,24 +80,18 @@ func delete(containerID string, force bool) error {
 		return err
 	}
 
-	running, err := processRunning(status.PID)
-	if err != nil {
-		return err
-	}
-
-	if !force && running {
-		return fmt.Errorf("Container still running, should be stopped")
-	}
-
 	forceStop := false
 	if oci.StateToOCIState(status.State) == oci.StateRunning {
+		if !force {
+			return fmt.Errorf("Container still running, should be stopped")
+		}
+
 		forceStop = true
-		ccLog.Info("Force stopping the pod/container before deleting")
 	}
 
 	switch containerType {
 	case vc.PodSandbox:
-		if err := deletePod(podID, forceStop); err != nil {
+		if err := deletePod(podID); err != nil {
 			return err
 		}
 	case vc.PodContainer:
@@ -119,11 +113,9 @@ func delete(containerID string, force bool) error {
 	return removeCgroupsPath(cgroupsPathList)
 }
 
-func deletePod(podID string, forceStop bool) error {
-	if forceStop {
-		if _, err := vc.StopPod(podID); err != nil {
-			return err
-		}
+func deletePod(podID string) error {
+	if _, err := vc.StopPod(podID); err != nil {
+		return err
 	}
 
 	if _, err := vc.DeletePod(podID); err != nil {

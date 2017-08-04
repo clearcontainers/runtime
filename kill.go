@@ -112,32 +112,8 @@ func kill(containerID, signal string, all bool) error {
 	}
 
 	// container MUST be created or running
-	if status.State.State == vc.StateReady {
-		ccLog.Infof("Container %s state 'created', nothing to do", containerID)
-
-		// force state to be stopped
-		if signum == syscall.SIGKILL || signum == syscall.SIGTERM {
-			if err := stopContainer(podID, status); err != nil {
-				return err
-			}
-		}
-
-		return nil
-	} else if status.State.State != vc.StateRunning {
-		return fmt.Errorf("Container %s is not running", containerID)
-	}
-
-	// Check status of process
-	running, err := processRunning(status.PID)
-	if err != nil {
-		return err
-	}
-	if running == false {
-		if err := stopContainer(podID, status); err != nil {
-			return err
-		}
-
-		return fmt.Errorf("Process not running inside container %s", containerID)
+	if status.State.State != vc.StateReady && status.State.State != vc.StateRunning {
+		return fmt.Errorf("Container %s not ready or running, cannot send a signal", containerID)
 	}
 
 	if err := vc.KillContainer(podID, containerID, signum, all); err != nil {

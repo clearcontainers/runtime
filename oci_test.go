@@ -24,7 +24,6 @@ import (
 	"syscall"
 	"testing"
 
-	vc "github.com/containers/virtcontainers"
 	"github.com/containers/virtcontainers/pkg/oci"
 	"github.com/opencontainers/runc/libcontainer/utils"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
@@ -62,44 +61,6 @@ func TestGetExistingContainerInfoContainerIDEmptyFailure(t *testing.T) {
 
 	if status.ID != "" {
 		t.Fatalf("Expected blank fullID, but got %v", status.ID)
-	}
-}
-
-func testProcessRunning(t *testing.T, pid int, expected bool) {
-	running, err := processRunning(pid)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if running != expected {
-		t.Fatalf("Expecting PID %d to be 'running == %v'", pid, expected)
-	}
-}
-
-func TestProcessRunningFailure(t *testing.T) {
-	testProcessRunning(t, 99999, false)
-}
-
-func TestProcessRunningSuccessful(t *testing.T) {
-	pid := os.Getpid()
-	testProcessRunning(t, pid, true)
-}
-
-func TestStopContainerPodStatusEmptyFailure(t *testing.T) {
-	if err := stopContainer("", vc.ContainerStatus{}); err == nil {
-		t.Fatalf("This test should fail because PodStatus is empty")
-	}
-}
-
-func TestStopContainerTooManyContainerStatusesFailure(t *testing.T) {
-	podStatus := vc.PodStatus{}
-
-	for i := 0; i < 2; i++ {
-		podStatus.ContainersStatus = append(podStatus.ContainersStatus, vc.ContainerStatus{})
-	}
-
-	if err := stopContainer("", vc.ContainerStatus{}); err == nil {
-		t.Fatalf("This test should fail because PodStatus has too many container statuses")
 	}
 }
 

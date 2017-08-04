@@ -578,6 +578,24 @@ func StatusContainer(podID, containerID string) (ContainerStatus, error) {
 func statusContainer(pod *Pod, containerID string) (ContainerStatus, error) {
 	for _, container := range pod.containers {
 		if container.id == containerID {
+			// We have to check for the process state to make sure
+			// we update the status in case the process is supposed
+			// to be running but has been killed or terminated.
+			if (container.state.State == StateRunning ||
+				container.state.State == StatePaused) &&
+				container.process.Pid > 0 {
+				running, err := isShimRunning(container.process.Pid)
+				if err != nil {
+					return ContainerStatus{}, err
+				}
+
+				if !running {
+					if err := container.stop(); err != nil {
+						return ContainerStatus{}, err
+					}
+				}
+			}
+
 			return ContainerStatus{
 				ID:          container.id,
 				State:       container.state,

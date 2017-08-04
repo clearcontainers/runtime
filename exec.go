@@ -210,19 +210,6 @@ func execute(context *cli.Context) error {
 		return fmt.Errorf("Container %s is not running", params.cID)
 	}
 
-	// Check status of process running inside the container
-	running, err := processRunning(status.PID)
-	if err != nil {
-		return err
-	}
-	if running == false {
-		if err := stopContainer(podID, status); err != nil {
-			return err
-		}
-
-		return fmt.Errorf("Process not running inside container %s", params.cID)
-	}
-
 	envVars, err := oci.EnvVars(params.ociProcess.Env)
 	if err != nil {
 		return err

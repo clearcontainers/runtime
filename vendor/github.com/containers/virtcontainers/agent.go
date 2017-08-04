@@ -121,6 +121,9 @@ type agent interface {
 	// supported by the agent.
 	capabilities() capabilities
 
+	// createPod will tell the agent to perform necessary setup for a Pod.
+	createPod(pod *Pod) error
+
 	// exec will tell the agent to run a command in an already running container.
 	exec(pod *Pod, c Container, process Process, cmd Cmd) error
 

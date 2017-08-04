@@ -21,5 +21,5 @@ type noopShim struct{}
 // start is the noopShim start implementation for testing purpose.
 // It does nothing.
 func (s *noopShim) start(pod Pod, params ShimParams) (int, error) {
-	return 0, nil
+	return 1000, nil
 }
