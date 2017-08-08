@@ -43,13 +43,14 @@ type testRuntimeConfig struct {
 	LogPath           string
 }
 
-func makeRuntimeConfigFileData(hypervisor, hypervisorPath, kernelPath, imagePath, machineType, shimPath, agentPauseRootPath, proxyURL, logPath string, disableBlock bool) string {
+func makeRuntimeConfigFileData(hypervisor, hypervisorPath, kernelPath, imagePath, kernelParams, machineType, shimPath, agentPauseRootPath, proxyURL, logPath string, disableBlock bool) string {
 	return `
 	# Clear Containers runtime configuration file
 
 	[hypervisor.` + hypervisor + `]
 	path = "` + hypervisorPath + `"
 	kernel = "` + kernelPath + `"
+	kernel_params = "` + kernelParams + `"
 	image = "` + imagePath + `"
 	machine_type = "` + machineType + `"
 	default_vcpus = ` + strconv.FormatUint(uint64(defaultVCPUCount), 10) + `
@@ -94,6 +95,7 @@ func createAllRuntimeConfigFiles(dir, hypervisor string) (config testRuntimeConf
 
 	hypervisorPath := path.Join(dir, "hypervisor")
 	kernelPath := path.Join(dir, "kernel")
+	kernelParams := "foo=bar xyz"
 	imagePath := path.Join(dir, "image")
 	shimPath := path.Join(dir, "shim")
 	agentPauseRootPath := path.Join(dir, "agentPauseRoot")
@@ -104,7 +106,7 @@ func createAllRuntimeConfigFiles(dir, hypervisor string) (config testRuntimeConf
 	machineType := "machineType"
 	disableBlockDevice := true
 
-	runtimeConfigFileData := makeRuntimeConfigFileData(hypervisor, hypervisorPath, kernelPath, imagePath, machineType, shimPath, agentPauseRootPath, proxyURL, logPath, disableBlockDevice)
+	runtimeConfigFileData := makeRuntimeConfigFileData(hypervisor, hypervisorPath, kernelPath, imagePath, kernelParams, machineType, shimPath, agentPauseRootPath, proxyURL, logPath, disableBlockDevice)
 
 	configPath := path.Join(dir, "runtime.toml")
 	err = createConfig(configPath, runtimeConfigFileData)
@@ -139,6 +141,7 @@ func createAllRuntimeConfigFiles(dir, hypervisor string) (config testRuntimeConf
 		HypervisorPath:        hypervisorPath,
 		KernelPath:            kernelPath,
 		ImagePath:             imagePath,
+		KernelParams:          vc.DeserializeParams(strings.Fields(kernelParams)),
 		HypervisorMachineType: machineType,
 		DefaultVCPUs:          defaultVCPUCount,
 		DefaultMemSz:          defaultMemSize,
@@ -798,6 +801,7 @@ func TestHypervisorDefaults(t *testing.T) {
 	assert.Equal(t, h.path(), defaultHypervisorPath, "default hypervisor path wrong")
 	assert.Equal(t, h.kernel(), defaultKernelPath, "default hypervisor kernel wrong")
 	assert.Equal(t, h.image(), defaultImagePath, "default hypervisor image wrong")
+	assert.Equal(t, h.kernelParams(), defaultKernelParams, "default hypervisor image wrong")
 	assert.Equal(t, h.machineType(), defaultMachineType, "default hypervisor machine type wrong")
 	assert.Equal(t, h.defaultVCPUs(), defaultVCPUCount, "default vCPU number is wrong")
 	assert.Equal(t, h.defaultMemSz(), defaultMemSize, "default memory size is wrong")
@@ -809,6 +813,10 @@ func TestHypervisorDefaults(t *testing.T) {
 	kernel := "wibble"
 	h.Kernel = kernel
 	assert.Equal(t, h.kernel(), kernel, "custom hypervisor kernel wrong")
+
+	kernelParams := "foo=bar xyz"
+	h.KernelParams = kernelParams
+	assert.Equal(t, h.kernelParams(), kernelParams, "custom hypervisor kernel parameterms wrong")
 
 	image := "foo"
 	h.Image = image

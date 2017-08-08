@@ -5,6 +5,10 @@ path = "@QEMUPATH@"
 kernel = "@KERNELPATH@"
 image = "@IMAGEPATH@"
 machine_type = "@MACHINETYPE@"
+# Optional space-separated list of options to pass to the guest kernel.
+# For example, use `kernel_params = "vsyscall=emulate"` if you are having
+# trouble running pre-2.15 glibc
+kernel_params = "@KERNELPARAMS@"
 # Default number of vCPUs per POD/VM:
 # unspecified or 0 --> will be set to @DEFVCPUS@
 # < 0              --> will be set to the actual number of physical cores

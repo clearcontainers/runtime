@@ -18,6 +18,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 	vc "github.com/containers/virtcontainers"
@@ -30,7 +31,7 @@ import (
 //
 // XXX: Increment for every change to the output format
 // (meaning any change to the EnvInfo type).
-const formatVersion = "1.0.1"
+const formatVersion = "1.0.2"
 
 // defaultOutputFile is the default output file to write the gathered
 // information to.
@@ -46,6 +47,12 @@ type MetaInfo struct {
 type PathInfo struct {
 	Path     string
 	Resolved string
+}
+
+// KernelInfo stores kernel details
+type KernelInfo struct {
+	Location   PathInfo
+	Parameters string
 }
 
 // CPUInfo stores host CPU details
@@ -124,7 +131,7 @@ type EnvInfo struct {
 	Runtime    RuntimeInfo
 	Hypervisor HypervisorInfo
 	Image      PathInfo
-	Kernel     PathInfo
+	Kernel     KernelInfo
 	Proxy      ProxyInfo
 	Shim       ShimInfo
 	Agent      AgentInfo
@@ -325,9 +332,12 @@ func getEnvInfo(configFile, logfilePath string, config oci.RuntimeConfig) (env E
 		Resolved: resolvedHypervisor.ImagePath,
 	}
 
-	kernel := PathInfo{
-		Path:     config.HypervisorConfig.KernelPath,
-		Resolved: resolvedHypervisor.KernelPath,
+	kernel := KernelInfo{
+		Location: PathInfo{
+			Path:     config.HypervisorConfig.KernelPath,
+			Resolved: resolvedHypervisor.KernelPath,
+		},
+		Parameters: strings.Join(vc.SerializeParams(config.HypervisorConfig.KernelParams, "="), " "),
 	}
 
 	env = EnvInfo{
