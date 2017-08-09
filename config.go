@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"os"
 	"path/filepath"
 	goruntime "runtime"
@@ -375,4 +376,32 @@ func loadConfiguration(configPath string, ignoreLogging bool) (resolvedConfigPat
 	}
 
 	return resolved, logfilePath, config, nil
+}
+
+func ociResourceUpdateRuntimeConfig(ocispec oci.CompatOCISpec, config *oci.RuntimeConfig) error {
+	if ocispec.Linux == nil {
+		return nil
+	}
+
+	if ocispec.Linux.Resources == nil {
+		return nil
+	}
+
+	if ocispec.Linux.Resources.Memory == nil {
+		return nil
+	}
+
+	if ocispec.Linux.Resources.Memory.Limit == nil {
+		return nil
+	}
+
+	memBytes := *ocispec.Linux.Resources.Memory.Limit
+
+	mem := int(math.Ceil(float64(memBytes) / 1024 / 1024))
+	if mem <= 0 {
+		return fmt.Errorf("Invalid OCI memory limit %d", memBytes)
+	}
+	config.VMConfig.Memory = uint(mem)
+
+	return nil
 }
