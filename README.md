@@ -86,6 +86,10 @@ attempt to create it.
 It is the Administrator's responsibility to ensure there is sufficient
 space for the global log.
 
+## Limitations
+
+See [the limitations file](docs/limitations.md) for further details.
+
 ## Home Page
 
 The canonical home page for the project is: https://github.com/clearcontainers
