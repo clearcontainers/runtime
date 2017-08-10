@@ -68,7 +68,7 @@ PKGLIBDIR := $(LOCALSTATEDIR)/lib/$(CCDIR)
 PKGRUNDIR := $(LOCALSTATEDIR)/run/$(CCDIR)
 PKGLIBEXECDIR := $(LIBEXECDIR)/$(CCDIR)
 
-KERNELPATH := $(PKGDATADIR)/vmlinux.container
+KERNELPATH := $(PKGDATADIR)/vmlinuz.container
 IMAGEPATH := $(PKGDATADIR)/clear-containers.img
 
 KERNELPARAMS :=
@@ -81,7 +81,7 @@ QEMUCMD := qemu-lite-system-x86_64
 endif
 
 QEMUPATH := $(QEMUBINDIR)/$(QEMUCMD)
-MACHINETYPE := pc-lite
+MACHINETYPE := pc
 
 SHIMCMD := cc-shim
 SHIMPATH := $(PKGLIBEXECDIR)/$(SHIMCMD)
