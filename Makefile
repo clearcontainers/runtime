@@ -73,11 +73,11 @@ IMAGEPATH := $(PKGDATADIR)/clear-containers.img
 
 KERNELPARAMS :=
 
-# The CentOS/RHEL hypervisor binary is not called qemu-lite
-ifeq (,$(filter-out centos rhel,$(distro)))
+# The RHEL hypervisor binary is not called qemu-cc
+ifeq (,$(filter-out rhel,$(distro)))
 QEMUCMD := qemu-system-x86_64
 else
-QEMUCMD := qemu-lite-system-x86_64
+QEMUCMD := qemu-cc-system-x86_64
 endif
 
 QEMUPATH := $(QEMUBINDIR)/$(QEMUCMD)
