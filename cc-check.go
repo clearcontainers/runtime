@@ -86,7 +86,11 @@ var requiredKernelModules = map[string]kernelModule{
 	"kvm_intel": {
 		desc: "Intel KVM",
 		parameters: map[string]string{
-			"nested":             "Y",
+			"nested": "Y",
+			// "VMX Unrestricted mode support". This is used
+			// as a heuristic to determine if the system is
+			// "new enough" to run a Clear Container
+			// (atleast a Westmere).
 			"unrestricted_guest": "Y",
 		},
 	},
