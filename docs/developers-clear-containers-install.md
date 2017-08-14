@@ -76,36 +76,24 @@ For more details on the runtime's build system, run:
 $ make help
 ```
 
-4. Qemu-Lite
+4. Qemu-Lite, Clear Containers image and kernel
 
 In Fedora:
 ```bash
 $ source /etc/os-release
 $ sudo -E VERSION_ID=$VERSION_ID dnf config-manager --add-repo \
 http://download.opensuse.org/repositories/home:/clearcontainers:/clear-containers-3/Fedora\_$VERSION_ID/home:clearcontainers:clear-containers-3.repo
-$ sudo -E dnf install -y qemu-lite
+$ sudo -E dnf install -y qemu-lite clear-containers-image linux-container
 ```
 
-In Ubuntu:
+In Ubuntu 16.04 or newer:
 ```bash
 $ sudo -E apt-get install -y apt-transport-https ca-certificates curl software-properties-common
 $ sudo sh -c "echo 'deb http://download.opensuse.org/repositories/home:/clearcontainers:/clear-containers-3/xUbuntu_$(lsb_release -rs)/ /' >> /etc/apt/sources.list.d/clear-containers.list"
 $ curl -fsSL http://download.opensuse.org/repositories/home:/clearcontainers:/clear-containers-3/xUbuntu_$(lsb_release -rs)/Release.key | sudo apt-key add -
 $ sudo -E apt-get update
-$ sudo -E apt-get install -y qemu-lite
+$ sudo -E apt-get install -y qemu-lite clear-containers-image linux-container
 
-```
-
-5. Rootfs and Kernel images
-
-**TODO:** kernel version might be old here. Check the latest version in `$GOPATH/src/github.com/clearcontainers/tests/.ci/setup_env_ubuntu.sh`
-```bash
-$ export clear_release=$(curl -sL https://download.clearlinux.org/latest)
-$ export cc_img_path="/usr/share/clear-containers"
-$ export kernel_clear_release=12760
-$ export kernel_version="4.5-50"
-$ $GOPATH/src/github.com/clearcontainers/tests/.ci/install_clear_image.sh $clear_release $cc_img_path
-$ $GOPATH/src/github.com/clearcontainers/tests/.ci/install_clear_kernel.sh $kernel_clear_release $kernel_version $cc_img_path
 ```
 
 ## Enable Clear Containers 3.0 for Docker
