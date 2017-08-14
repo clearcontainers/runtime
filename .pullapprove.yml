@@ -34,7 +34,6 @@ groups:
     required: 1
     users:
       - devimc
-      - dlespiau
       - grahamwhaley
       - jodh-intel
       - mcastelino
