@@ -98,6 +98,10 @@ func create(containerID, bundlePath, console, pidFilePath string, detach bool,
 		return err
 	}
 
+	if err := ociResourceUpdateRuntimeConfig(ociSpec, &runtimeConfig); err != nil {
+		return err
+	}
+
 	containerType, err := ociSpec.ContainerType()
 	if err != nil {
 		return err
