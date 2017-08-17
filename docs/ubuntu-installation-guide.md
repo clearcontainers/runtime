@@ -1,6 +1,6 @@
-# Installing Clear Containers 3.0 Alpha on Ubuntu
+# Installing Clear Containers 3.0 on Ubuntu
 
-Clear Containers **3.0-alpha** is available for Ubuntu\* **16.04**.
+Clear Containers **3.0** is available for Ubuntu\* **16.04**.
 
 This step is only required in case Docker is not installed on the system.
 1. Install the latest version of Docker with the following commands:

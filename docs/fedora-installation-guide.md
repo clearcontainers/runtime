@@ -1,6 +1,6 @@
-# Installing Clear Containers 3.0 Alpha on Fedora
+# Installing Clear Containers 3.0 on Fedora
 
-Clear Containers **3.0-alpha** is available for Fedora\* versions **24** and **25**.
+Clear Containers **3.0** is available for Fedora\* versions **24** and **25**.
 
 This step is only required in case Docker is not installed on the system.
 1. Install the latest version of Docker with the following commands:
