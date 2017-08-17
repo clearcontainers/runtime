@@ -4,3 +4,4 @@
 /config/configuration.toml
 /pause/pause
 /pause/pause.o
+/error-run-make-not-go-build.go
