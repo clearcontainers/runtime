@@ -120,9 +120,6 @@ DESTCONFIG := $(abspath $(DESTCONFDIR)/$(CONFIG_FILE))
 
 PAUSEDESTDIR := $(abspath $(DESTDIR)/$(PAUSEROOTPATH)/$(PAUSEBINRELPATH))
 
-override LIBS +=
-override CFLAGS += -Os -Wall -Wextra -static
-
 # list of variables the user may wish to override
 USER_VARS += BINDIR
 USER_VARS += CC_SYSTEM_BUILD
@@ -217,8 +214,8 @@ config-generated.go: Makefile VERSION
 $(TARGET): $(SOURCES) $(GENERATED_FILES) Makefile | show-summary
 	$(QUIET_BUILD)go build -i -o $@ .
 
-pause: pause/pause.o
-	$(QUIET_BUILD)$(CC) -o pause/pause pause/*.o $(CFLAGS) $(LIBS)
+pause: pause/pause.go
+	$(QUIET_BUILD)go build -o pause/pause $<
 
 .PHONY: \
 	check \
@@ -227,6 +224,7 @@ pause: pause/pause.o
 	coverage \
 	default \
 	install \
+	pause \
 	show-header \
 	show-summary \
 	show-variables
@@ -276,7 +274,7 @@ install: default
 
 clean:
 	$(QUIET_CLEAN)rm -f $(TARGET) $(CONFIG) $(GENERATED_FILES)
-	$(QUIET_CLEAN)rm -f pause/*.o pause/pause
+	$(QUIET_CLEAN)rm -f pause/pause
 
 show-usage: show-header
 	@printf "• Overview:\n"

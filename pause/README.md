@@ -1,6 +1,7 @@
-## Virtcontainers' pause binary
+## pause binary
 
-This directory provides the ``pause`` binary included in [https://github.com/containers/virtcontainers](https://github.com/containers/virtcontainers)
+This directory provides a ``pause`` binary with the same semantics as
+the one included in [https://github.com/containers/virtcontainers](https://github.com/containers/virtcontainers).
 
 The ``pause`` binary is required to allow the creation of an "empty" pod.
 The pod does not contain any containers; it simply provides the environment
