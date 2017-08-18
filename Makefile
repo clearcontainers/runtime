@@ -164,7 +164,7 @@ QUIET_GENERATE = $(Q:@=@echo    '     GENERATE '$@;)
 QUIET_INST     = $(Q:@=@echo    '     INSTALL '$@;)
 QUIET_TEST     = $(Q:@=@echo    '     TEST    '$@;)
 
-default: $(TARGET) $(CONFIG) pause
+default: $(TARGET) $(CONFIG) pause install-git-hooks
 .DEFAULT: default
 
 build: default
@@ -224,6 +224,7 @@ pause: pause/pause.go
 	coverage \
 	default \
 	install \
+	install-git-hooks \
 	pause \
 	show-header \
 	show-summary \
@@ -328,3 +329,43 @@ show-summary: show-header
 	@printf "\tproxy+shim path (PKGLIBEXECDIR)   : %s\n" $(PKGLIBEXECDIR)
 	@printf "\tpause bundle path (PAUSEROOTPATH) : %s\n" $(PAUSEROOTPATH)
 	@printf "\n"
+
+
+# The following git hooks handle HEAD changes:
+# post-checkout <prev_head> <new_head> <file_or_branch_checkout>
+# post-commit # no parameters
+# post-merge <squash_or_not>
+# post-rewrite <amend_or_rebase>
+#
+define GIT_HOOK_POST_CHECKOUT
+#!/usr/bin/env bash
+prev_head=$$1
+new_head=$$2
+[[ "$$prev_head" == "$$new_head" ]] && exit
+printf "\nexecuting post-checkout git hook\n\n"
+rm -f config-generated.go
+endef
+export GIT_HOOK_POST_CHECKOUT
+
+define GIT_HOOK_POST_GENERIC
+#!/usr/bin/env bash
+printf "\n executing $$0 git hook\n\n"
+rm -f config-generated.go
+endef
+export GIT_HOOK_POST_GENERIC
+
+# This git-hook is executed after every checkout git operation
+.git/hooks/post-checkout: Makefile
+	@ mkdir -p .git/hooks/
+	$(QUIET_INST)echo "$$GIT_HOOK_POST_CHECKOUT" >$@
+	@ chmod +x $@
+
+# This git-hook is executed after every commit, merge, amend or rebase git
+# operation
+.git/hooks/post-commit .git/hooks/post-merge .git/hooks/post-rewrite: Makefile
+	@ mkdir -p .git/hooks/
+	$(QUIET_INST)echo "$$GIT_HOOK_POST_GENERIC" >$@
+	@ chmod +x $@
+
+install-git-hooks: .git/hooks/post-checkout .git/hooks/post-commit \
+    .git/hooks/post-merge .git/hooks/post-rewrite
