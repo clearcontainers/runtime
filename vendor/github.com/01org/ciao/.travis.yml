@@ -5,8 +5,8 @@ services:
   - docker
 
 go:
-    - 1.7
     - 1.8
+    - go1.9beta2
     - tip
 
 env:
@@ -14,6 +14,7 @@ env:
 matrix:
   allow_failures:
   - go: tip
+  - go: go1.9beta2
 
 go_import_path: github.com/01org/ciao
 
@@ -24,8 +25,8 @@ before_install:
   - go get golang.org/x/tools/cmd/cover
   - go get github.com/pierrre/gotestcover
   - go get github.com/google/gofuzz github.com/stretchr/testify
-  - go get -u github.com/alecthomas/gometalinter
-  - gometalinter --install
+  - go get -u gopkg.in/alecthomas/gometalinter.v1
+  - gometalinter.v1 --install
   - pip install ansible
 
 # We need to create and install SSNTP certs for the SSNTP and controller tests
@@ -54,9 +55,9 @@ script:
    - sudo docker pull debian
    - sudo ip link add testdummy type dummy
    - sudo ip addr add 198.51.100.1/24 dev testdummy
-   - gometalinter --tests --vendor --disable-all --enable=misspell --enable=vet --enable=ineffassign --enable=gofmt --enable=gocyclo --cyclo-over=15 --enable=golint --enable=deadcode ./...
+   - gometalinter.v1 --deadline=5m --tests --vendor --disable-all --enable=misspell --enable=vet --enable=ineffassign --enable=gofmt --enable=gocyclo --cyclo-over=15 --enable=golint --enable=deadcode --enable=varcheck --enable=structcheck ./...
    - cd _release/bat
-   - gometalinter --tests --vendor --disable-all --enable=misspell --enable=vet --enable=ineffassign --enable=gofmt --enable=gocyclo --cyclo-over=15 --enable=golint --enable=deadcode ./...
+   - gometalinter.v1 --deadline=5m --tests --vendor --disable-all --enable=misspell --enable=vet --enable=ineffassign --enable=gofmt --enable=gocyclo --cyclo-over=15 --enable=golint --enable=deadcode --enable=varcheck --enable=structcheck ./...
    - cd ../..
    - sudo mkdir -p /var/lib/ciao/instances
    - sudo mkdir -p /var/lib/ciao/data/controller/workloads
@@ -65,12 +66,6 @@ script:
    - test-cases -v -timeout 9 -coverprofile /tmp/cover.out -append-profile -short github.com/01org/ciao/ciao-launcher github.com/01org/ciao/ciao-scheduler github.com/01org/ciao/payloads github.com/01org/ciao/configuration github.com/01org/ciao/testutil github.com/01org/ciao/ssntp/uuid github.com/01org/ciao/qemu github.com/01org/ciao/openstack/... github.com/01org/ciao/bat  github.com/01org/ciao/ciao-image/... github.com/01org/ciao/database/... github.com/01org/ciao/ciao-storage/... github.com/01org/ciao/deviceinfo github.com/01org/ciao/osprepare github.com/01org/ciao/templateutils
    - export GOROOT=`go env GOROOT` && sudo -E PATH=$PATH:$GOROOT/bin $GOPATH/bin/test-cases -v -timeout 9 -coverprofile /tmp/cover.out -append-profile github.com/01org/ciao/ssntp
    - export GOROOT=`go env GOROOT` && export SNNET_ENV=198.51.100.0/24 && sudo -E PATH=$PATH:$GOROOT/bin $GOPATH/bin/test-cases -v -timeout 9 -short -tags travis -coverprofile /tmp/cover.out -append-profile github.com/01org/ciao/networking/libsnnet
-   # API Documentation is automated by swagger, every PR will verify the documentation can be generated
-   # verify ciao-controller api documentation can be generated with swagger
-   - go get golang.org/x/sys/unix
-   - go get github.com/gorilla/context
-   - go get github.com/yvasiyarov/swagger
-   - $GOPATH/bin/swagger  -apiPackage=github.com/01org/ciao/ciao-controller -mainApiFile=github.com/01org/ciao/ciao-controller/main.go -format=markdown -contentsTable=false -models=false -vendoringPath $HOME/gopath/src/github.com/01org/ciao/vendor
    # Test ansible playbooks
    - ansible-playbook -i _DeploymentAndDistroPackaging/ansible/tests/hosts _DeploymentAndDistroPackaging/ansible/ciao.yml --syntax-check
 

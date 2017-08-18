@@ -5,7 +5,7 @@
   branch = "master"
   name = "github.com/01org/ciao"
   packages = ["qemu","ssntp/uuid"]
-  revision = "8aeee1901c7bb4988c53db9dc56dfb60b011f46e"
+  revision = "add4d7434b13ea7fc5f1c8d43e4864a67cf329a8"
 
 [[projects]]
   branch = "master"

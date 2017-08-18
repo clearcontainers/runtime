@@ -286,6 +286,48 @@ func (spec *CompatOCISpec) PodID() (string, error) {
 	return "", fmt.Errorf("Could not find pod ID")
 }
 
+func vmConfig(ocispec CompatOCISpec, config RuntimeConfig) (vc.Resources, error) {
+	resources := config.VMConfig
+
+	if ocispec.Linux == nil ||
+		ocispec.Linux.Resources == nil ||
+		ocispec.Linux.Resources.Memory == nil ||
+		ocispec.Linux.Resources.Memory.Limit == nil {
+		return resources, nil
+	}
+
+	memBytes := *ocispec.Linux.Resources.Memory.Limit
+
+	if memBytes <= 0 {
+		return vc.Resources{}, fmt.Errorf("Invalid OCI memory limit %d", memBytes)
+	}
+
+	// round up memory to 1MB
+	resources.Memory = uint((memBytes + (1024*1024 - 1)) / (1024 * 1024))
+
+	if ocispec.Linux.Resources.CPU == nil ||
+		ocispec.Linux.Resources.CPU.Quota == nil ||
+		ocispec.Linux.Resources.CPU.Period == nil {
+		return resources, nil
+	}
+
+	quota := *ocispec.Linux.Resources.CPU.Quota
+	period := *ocispec.Linux.Resources.CPU.Period
+
+	if quota <= 0 {
+		return vc.Resources{}, fmt.Errorf("Invalid OCI cpu quota %d", quota)
+	}
+
+	if period == 0 {
+		return vc.Resources{}, fmt.Errorf("Invalid OCI cpu period %d", period)
+	}
+
+	// round up to 1 CPU
+	resources.VCPUs = uint((uint64(quota) + (period - 1)) / period)
+
+	return resources, nil
+}
+
 // PodConfig converts an OCI compatible runtime configuration file
 // to a virtcontainers pod configuration structure.
 func PodConfig(ocispec CompatOCISpec, runtime RuntimeConfig, bundlePath, cid, console string, detach bool) (vc.PodConfig, error) {
@@ -301,12 +343,17 @@ func PodConfig(ocispec CompatOCISpec, runtime RuntimeConfig, bundlePath, cid, co
 		return vc.PodConfig{}, err
 	}
 
+	resources, err := vmConfig(ocispec, runtime)
+	if err != nil {
+		return vc.PodConfig{}, err
+	}
+
 	podConfig := vc.PodConfig{
 		ID: cid,
 
 		Hooks: containerHooks(ocispec),
 
-		VMConfig: runtime.VMConfig,
+		VMConfig: resources,
 
 		HypervisorType:   runtime.HypervisorType,
 		HypervisorConfig: runtime.HypervisorConfig,

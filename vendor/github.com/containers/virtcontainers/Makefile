@@ -32,7 +32,7 @@ virtc:
 	$(QUIET_GOBUILD)go build -o $(VIRTC_DIR)/$@ $(VIRTC_DIR)/*.go
 
 pause:
-	make -C $@
+	$(QUIET_GOBUILD)go build -o $(PAUSE_DIR)/$(PAUSE_BIN) pause/*.go
 
 hook:
 	$(QUIET_GOBUILD)go build -o $(HOOK_DIR)/$@ $(HOOK_DIR)/*.go
@@ -100,7 +100,7 @@ uninstall:
 
 clean:
 	rm -f $(VIRTC_DIR)/$(VIRTC_BIN)
-	make -C $(PAUSE_BIN) clean
+	rm -f $(PAUSE_DIR)/$(PAUSE_BIN)
 	rm -f $(HOOK_DIR)/$(HOOK_BIN)
 	rm -f $(SHIM_DIR)/$(SHIM_BIN)
 

@@ -74,6 +74,16 @@
 		"version": "248dadf",
 		"license": "BSD (2-clause)"
 	},
+	"github.com/spf13/cobra": {
+		"url": "https://github.com/spf13/cobra.git",
+		"version": "b26b538",
+		"license": "Apache v2.0"
+	},
+	"github.com/spf13/pflag": {
+		"url": "https://github.com/spf13/pflag.git",
+		"version": "e57e3ee",
+		"license": "BSD (3 clause)"
+	},
 	"github.com/vishvananda/netlink": {
 		"url": "https://github.com/vishvananda/netlink.git",
 		"version": "1890b34",
@@ -83,6 +93,11 @@
 		"url": "https://github.com/vishvananda/netns.git",
 		"version": "2c9454e",
 		"license": "Apache v2.0"
+	},
+	"golang.org/x/crypto": {
+		"url": "https://github.com/golang/crypto",
+		"version": "558b687",
+		"license": "BSD 3-clause"
 	},
 	"golang.org/x/net": {
 		"url": "https://go.googlesource.com/net",

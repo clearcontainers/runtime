@@ -32,17 +32,15 @@ import (
 )
 
 const (
-	microStr   = "50"
-	minorStr   = "6"
-	majorStr   = "2"
-	micro      = 50
-	minor      = 6
-	major      = 2
-	cap1       = "one"
-	cap2       = "two"
-	qmpHello   = `{ "QMP": { "version": { "qemu": { "micro": ` + microStr + `, "minor": ` + minorStr + `, "major": ` + majorStr + ` }, "package": ""}, "capabilities": ["` + cap1 + `","` + cap2 + `"]}}` + "\n"
-	qmpSuccess = `{ "return": {}}` + "\n"
-	qmpFailure = `{ "error": {}}` + "\n"
+	microStr = "50"
+	minorStr = "6"
+	majorStr = "2"
+	micro    = 50
+	minor    = 6
+	major    = 2
+	cap1     = "one"
+	cap2     = "two"
+	qmpHello = `{ "QMP": { "version": { "qemu": { "micro": ` + microStr + `, "minor": ` + minorStr + `, "major": ` + majorStr + ` }, "package": ""}, "capabilities": ["` + cap1 + `","` + cap2 + `"]}}` + "\n"
 )
 
 type qmpTestLogger struct{}
@@ -214,7 +212,7 @@ func (b *qmpTestCommandBuffer) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func checkVersion(t *testing.T, connectedCh <-chan *QMPVersion) {
+func checkVersion(t *testing.T, connectedCh <-chan *QMPVersion) *QMPVersion {
 	var version *QMPVersion
 	select {
 	case <-time.After(time.Second):
@@ -235,6 +233,8 @@ func checkVersion(t *testing.T, connectedCh <-chan *QMPVersion) {
 			t.Fatal("Invalid capabilities")
 		}
 	}
+
+	return version
 }
 
 // Checks that a QMP Loop can be started and shutdown.
@@ -358,7 +358,7 @@ func TestQMPBlockdevAdd(t *testing.T) {
 	buf.AddCommand("blockdev-add", nil, "return", nil)
 	cfg := QMPConfig{Logger: qmpTestLogger{}}
 	q := startQMPLoop(buf, cfg, connectedCh, disconnectedCh)
-	checkVersion(t, connectedCh)
+	q.version = checkVersion(t, connectedCh)
 	err := q.ExecuteBlockdevAdd(context.Background(), "/dev/rbd0",
 		fmt.Sprintf("drive_%s", testutil.VolumeUUID))
 	if err != nil {
@@ -491,13 +491,6 @@ func TestQMPDeviceDel(t *testing.T) {
 // The device_del command should timeout after 1 second and the QMP loop
 // should exit gracefully.
 func TestQMPDeviceDelTimeout(t *testing.T) {
-	const (
-		seconds         = 1352167040730
-		microsecondsEv1 = 123456
-		device          = "device_" + testutil.VolumeUUID
-		path            = "/dev/rbd0"
-	)
-
 	var wg sync.WaitGroup
 	connectedCh := make(chan *QMPVersion)
 	disconnectedCh := make(chan struct{})

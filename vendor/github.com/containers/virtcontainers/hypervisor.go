@@ -17,7 +17,10 @@
 package virtcontainers
 
 import (
+	"bufio"
 	"fmt"
+	"os"
+	"strconv"
 	"strings"
 )
 
@@ -30,6 +33,11 @@ const (
 
 	// MockHypervisor is a mock hypervisor for testing purposes
 	MockHypervisor HypervisorType = "mock"
+)
+
+const (
+	procMemInfo = "/proc/meminfo"
+	procCPUInfo = "/proc/cpuinfo"
 )
 
 const (
@@ -220,6 +228,81 @@ func DeserializeParams(parameters []string) []Param {
 	}
 
 	return params
+}
+
+func getHostMemorySizeKb(memInfoPath string) (uint64, error) {
+	f, err := os.Open(memInfoPath)
+	if err != nil {
+		return 0, err
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		// Expected format: ["MemTotal:", "1234", "kB"]
+		parts := strings.Fields(scanner.Text())
+
+		// Sanity checks: Skip malformed entries.
+		if len(parts) < 3 || parts[0] != "MemTotal:" || parts[2] != "kB" {
+			continue
+		}
+
+		sizeKb, err := strconv.ParseUint(parts[1], 0, 64)
+		if err != nil {
+			continue
+		}
+
+		return sizeKb, nil
+	}
+
+	// Handle errors that may have occurred during the reading of the file.
+	if err := scanner.Err(); err != nil {
+		return 0, err
+	}
+
+	return 0, fmt.Errorf("unable get MemTotal from %s", memInfoPath)
+}
+
+// RunningOnVMM checks if the system is running inside a VM.
+func RunningOnVMM(cpuInfoPath string) (bool, error) {
+	flagsField := "flags"
+
+	f, err := os.Open(cpuInfoPath)
+	if err != nil {
+		return false, err
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		// Expected format: ["flags", ":", ...] or ["flags:", ...]
+		fields := strings.Fields(scanner.Text())
+		if len(fields) < 2 {
+			continue
+		}
+
+		if !strings.HasPrefix(fields[0], flagsField) {
+			continue
+		}
+
+		for _, field := range fields[1:] {
+			if field == "hypervisor" {
+				return true, nil
+			}
+		}
+
+		// As long as we have been able to analyze the fields from
+		// "flags", there is no reason to check what comes next from
+		// /proc/cpuinfo, because we already know we are not running
+		// on a VMM.
+		return false, nil
+	}
+
+	if err := scanner.Err(); err != nil {
+		return false, err
+	}
+
+	return false, fmt.Errorf("Couldn't find %q from %q output", flagsField, cpuInfoPath)
 }
 
 // hypervisor is the virtcontainers hypervisor interface.

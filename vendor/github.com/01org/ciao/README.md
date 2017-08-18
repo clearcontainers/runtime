@@ -43,14 +43,12 @@ set of [payloads](https://github.com/01org/ciao/blob/master/payloads).
 
 This GitHub repository contains documentation on the
 various sub-components of ciao in their respective
-subdirectories.  A comprehensive [ciao cluster setup
-document](https://clearlinux.org/documentation/ciao-cluster-setup.html)
-is also available.
+subdirectories.
 
 If you would like to contribute to ciao, check our [Contributing
 guide](https://github.com/01org/ciao/blob/master/CONTRIBUTING.md).
-The [wiki](https://github.com/01org/ciao/wiki/Single-Machine-Development-Environment)
-page ilustrates how to easily setup a development environment without
+There's a [wiki page](https://github.com/01org/ciao/blob/master/DeveloperQuickStart.md)
+that illustrates how to easily setup a development environment without
 needing a cluster. We also recommend taking a look at the ['janitorial'
 bugs](https://github.com/01org/ciao/issues?q=is%3Aopen+is%3Aissue+label%3AJanitorial)
 in our list of open issues as these bugs can be solved without an

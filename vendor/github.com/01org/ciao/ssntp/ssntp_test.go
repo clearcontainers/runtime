@@ -189,9 +189,6 @@ type ssntpClient struct {
 	cmdTracedChannel   chan string
 	cmdDurationChannel chan time.Duration
 	cmdDumpChannel     chan struct{}
-	staTracedChannel   chan string
-	evtTracedChannel   chan string
-	errTracedChannel   chan string
 }
 
 func (client *ssntpClient) ConnectNotify() {
