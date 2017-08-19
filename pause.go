@@ -16,7 +16,6 @@
 package main
 
 import (
-	vc "github.com/containers/virtcontainers"
 	"github.com/urfave/cli"
 )
 
@@ -58,9 +57,9 @@ func toggleContainerPause(containerID string, pause bool) (err error) {
 	}
 
 	if pause {
-		_, err = vc.PausePod(podID)
+		_, err = vci.PausePod(podID)
 	} else {
-		_, err = vc.ResumePod(podID)
+		_, err = vci.ResumePod(podID)
 	}
 
 	return err

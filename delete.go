@@ -114,11 +114,11 @@ func delete(containerID string, force bool) error {
 }
 
 func deletePod(podID string) error {
-	if _, err := vc.StopPod(podID); err != nil {
+	if _, err := vci.StopPod(podID); err != nil {
 		return err
 	}
 
-	if _, err := vc.DeletePod(podID); err != nil {
+	if _, err := vci.DeletePod(podID); err != nil {
 		return err
 	}
 
@@ -127,12 +127,12 @@ func deletePod(podID string) error {
 
 func deleteContainer(podID, containerID string, forceStop bool) error {
 	if forceStop {
-		if _, err := vc.StopContainer(podID, containerID); err != nil {
+		if _, err := vci.StopContainer(podID, containerID); err != nil {
 			return err
 		}
 	}
 
-	if _, err := vc.DeleteContainer(podID, containerID); err != nil {
+	if _, err := vci.DeleteContainer(podID, containerID); err != nil {
 		return err
 	}
 

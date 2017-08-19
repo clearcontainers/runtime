@@ -20,6 +20,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 var testPID = 100
@@ -94,4 +96,43 @@ func TestCreatePIDFileEmptyPathSuccessful(t *testing.T) {
 	if err := createPIDFile(file, testPID); err != nil {
 		t.Fatalf("This test should not fail (pidFilePath %q, pid %d)", file, testPID)
 	}
+}
+
+func TestCreate(t *testing.T) {
+	// change behaviour
+	testingImpl.listPodFunc = listPodNoPods
+	testingImpl.forceFailure = true
+
+	defer func() {
+		// reset
+		testingImpl.listPodFunc = nil
+		testingImpl.forceFailure = false
+	}()
+
+	tmpdir, err := ioutil.TempDir("", "")
+	if err != nil {
+		panic(err)
+	}
+
+	defer os.RemoveAll(tmpdir)
+
+	containerID := "foo"
+	bundlePath := filepath.Join(tmpdir, "bundle")
+
+	err = os.MkdirAll(bundlePath, testDirMode)
+	assert.NoError(t, err)
+
+	err = makeOCIBundle(bundlePath)
+	assert.NoError(t, err)
+
+	console := "/dev/pts/999"
+	pidFilePath := filepath.Join(tmpdir, "pidfile.txt")
+	detach := false
+	runtimeConfig, err := newRuntimeConfig(tmpdir, console)
+	assert.NoError(t, err)
+
+	err = create(containerID, bundlePath, console, pidFilePath, detach, runtimeConfig)
+
+	assert.Error(t, err)
+	assert.True(t, isMockError(err))
 }
