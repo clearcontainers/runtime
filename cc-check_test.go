@@ -15,11 +15,14 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -373,6 +376,97 @@ func TestCheckCheckKernelModules(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestCheckCheckKernelModulesNoUnrestrictedGuest(t *testing.T) {
+	dir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	savedSysModuleDir := sysModuleDir
+	savedProcCPUInfo := procCPUInfo
+
+	cpuInfoFile := filepath.Join(dir, "cpuinfo")
+
+	// XXX: override
+	sysModuleDir = filepath.Join(dir, "sys/module")
+	procCPUInfo = cpuInfoFile
+
+	defer func() {
+		sysModuleDir = savedSysModuleDir
+		procCPUInfo = savedProcCPUInfo
+	}()
+
+	err = os.MkdirAll(sysModuleDir, testDirMode)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	requiredModules := map[string]kernelModule{
+		"kvm_intel": {
+			desc: "Intel KVM",
+			parameters: map[string]string{
+				"nested":             "Y",
+				"unrestricted_guest": "Y",
+			},
+		},
+	}
+
+	actualModuleData := []testModuleData{
+		{filepath.Join(sysModuleDir, "kvm"), true, ""},
+		{filepath.Join(sysModuleDir, "kvm_intel"), true, ""},
+		{filepath.Join(sysModuleDir, "kvm_intel/parameters/nested"), false, "Y"},
+
+		// XXX: force a failure on non-VMM systems
+		{filepath.Join(sysModuleDir, "kvm_intel/parameters/unrestricted_guest"), false, "N"},
+	}
+
+	vendor := "GenuineIntel"
+	flags := "vmx lm sse4_1"
+
+	err = checkKernelModules(requiredModules)
+	// no cpuInfoFile yet
+	assert.Error(t, err)
+
+	err = makeCPUInfoFile(cpuInfoFile, vendor, flags)
+	assert.NoError(t, err)
+
+	createModules(t, cpuInfoFile, actualModuleData)
+
+	err = checkKernelModules(requiredModules)
+
+	// fails due to unrestricted_guest not being available
+	assert.Error(t, err)
+	assert.True(t, strings.Contains(err.Error(), "unrestricted_guest"))
+
+	// pretend test is running under a hypervisor
+	flags += " hypervisor"
+
+	// recreate
+	err = makeCPUInfoFile(cpuInfoFile, vendor, flags)
+	assert.NoError(t, err)
+
+	// create buffer to save logger output
+	buf := &bytes.Buffer{}
+
+	savedLogOutput := ccLog.Out
+
+	defer func() {
+		ccLog.Out = savedLogOutput
+	}()
+
+	ccLog.Out = buf
+
+	err = checkKernelModules(requiredModules)
+
+	// no error now because running under a hypervisor
+	assert.NoError(t, err)
+
+	re := regexp.MustCompile(`\bwarning\b.*\bunrestricted_guest\b`)
+	matches := re.FindAllStringSubmatch(buf.String(), -1)
+	assert.NotEmpty(t, matches)
+}
+
 func TestCheckCheckKernelModulesUnreadableFile(t *testing.T) {
 	if os.Geteuid() == 0 {
 		t.Skip(testDisabledNeedNonRoot)
@@ -463,7 +557,7 @@ func TestCheckCheckKernelModulesInvalidFileContents(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func setupCheckHostIsClearContainersCapable(t *testing.T, cpuInfoFile string, cpuData []testCPUData, moduleData []testModuleData) {
+func createModules(t *testing.T, cpuInfoFile string, moduleData []testModuleData) {
 	for _, d := range moduleData {
 		var dir string
 
@@ -488,6 +582,10 @@ func setupCheckHostIsClearContainersCapable(t *testing.T, cpuInfoFile string, cp
 		// cpuInfoFile doesn't exist
 		assert.Error(t, err)
 	}
+}
+
+func setupCheckHostIsClearContainersCapable(t *testing.T, cpuInfoFile string, cpuData []testCPUData, moduleData []testModuleData) {
+	createModules(t, cpuInfoFile, moduleData)
 
 	// all the modules files have now been created, so deal with the
 	// cpuinfo data.

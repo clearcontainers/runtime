@@ -15,12 +15,14 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
 
+	vc "github.com/containers/virtcontainers"
 	"github.com/urfave/cli"
 )
 
@@ -170,6 +172,11 @@ func checkCPUAttribs(cpuinfo string, attribs map[string]string) error {
 }
 
 func checkKernelModules(modules map[string]kernelModule) error {
+	onVMM, err := vc.RunningOnVMM(procCPUInfo)
+	if err != nil {
+		return err
+	}
+
 	for module, details := range modules {
 		if !haveKernelModule(module) {
 			return fmt.Errorf("kernel module %q (%s) not found", module, details.desc)
@@ -189,7 +196,16 @@ func checkKernelModules(modules map[string]kernelModule) error {
 			if value == expected {
 				ccLog.Infof("Kernel module %q parameter %q has correct value", details.desc, param)
 			} else {
-				return fmt.Errorf("kernel module %q parameter %q has value %q (expected %q)", details.desc, param, value, expected)
+				msg := fmt.Sprintf("kernel module %q parameter %q has value %q (expected %q)", details.desc, param, value, expected)
+
+				// this option is not required when
+				// already running under a hypervisor.
+				if param == "unrestricted_guest" && onVMM {
+					ccLog.Warn(msg)
+					continue
+				}
+
+				return errors.New(msg)
 			}
 		}
 	}
