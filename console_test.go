@@ -17,46 +17,40 @@ package main
 import (
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestConsoleFromFile(t *testing.T) {
+	assert := assert.New(t)
+
 	console := ConsoleFromFile(os.Stdout)
 
-	if console.File() == nil {
-		t.Fatalf("console file is nil")
-	}
+	assert.NotNil(console.File(), "console file is nil")
 }
 
 func TestNewConsole(t *testing.T) {
+	assert := assert.New(t)
+
 	console, err := newConsole()
-	if err != nil {
-		t.Fatalf("failed to create a new console: %s", err)
-	}
+	assert.NoError(err, "failed to create a new console: %s", err)
 	defer console.Close()
 
-	if console.Path() == "" {
-		t.Fatalf("console path is empty")
-	}
+	assert.NotEmpty(console.Path(), "console path is empty")
 
-	if console.File() == nil {
-		t.Fatalf("console file is nil")
-	}
+	assert.NotNil(console.File(), "console file is nil")
 }
 
 func TestIsTerminal(t *testing.T) {
+	assert := assert.New(t)
+
 	var fd uintptr = 4
-	if isTerminal(fd) {
-		t.Fatalf("Fd %d is not a terminal", fd)
-	}
+	assert.False(isTerminal(fd), "Fd %d is not a terminal", fd)
 
 	console, err := newConsole()
-	if err != nil {
-		t.Fatalf("failed to create a new console: %s", err)
-	}
+	assert.NoError(err, "failed to create a new console: %s", err)
 	defer console.Close()
 
 	fd = console.File().Fd()
-	if !isTerminal(fd) {
-		t.Fatalf("Fd %d is a terminal", fd)
-	}
+	assert.True(isTerminal(fd), "Fd %d is a terminal", fd)
 }
