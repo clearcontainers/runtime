@@ -17,12 +17,14 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"net"
 	"os"
 	"path/filepath"
 	"reflect"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/containers/virtcontainers/pkg/oci"
 	"github.com/opencontainers/runc/libcontainer/utils"
@@ -271,4 +273,22 @@ func TestNoNeedForOutputDetachFalseTtyFalse(t *testing.T) {
 
 func TestNoNeedForOutputDetachTrueTtyFalse(t *testing.T) {
 	testNoNeedForOutput(t, true, false, false)
+}
+
+func TestIsCgroupMounted(t *testing.T) {
+	assert := assert.New(t)
+
+	r := rand.New(rand.NewSource(time.Now().Unix()))
+	randPath := fmt.Sprintf("/path/to/random/%d", r.Int63())
+
+	assert.False(isCgroupMounted(randPath), "%s does not exist", randPath)
+
+	assert.False(isCgroupMounted(os.TempDir()), "%s is not a cgroup", os.TempDir())
+
+	memoryCgroupPath := "/sys/fs/cgroup/memory"
+	if _, err := os.Stat(memoryCgroupPath); os.IsNotExist(err) {
+		t.Skip("memory cgroup does not exist: %s", memoryCgroupPath)
+	}
+
+	assert.True(isCgroupMounted(memoryCgroupPath), "%s is a cgroup", memoryCgroupPath)
 }
