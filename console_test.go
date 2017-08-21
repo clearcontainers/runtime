@@ -15,6 +15,7 @@
 package main
 
 import (
+	"io/ioutil"
 	"os"
 	"testing"
 
@@ -53,4 +54,32 @@ func TestIsTerminal(t *testing.T) {
 
 	fd = console.File().Fd()
 	assert.True(isTerminal(fd), "Fd %d is a terminal", fd)
+}
+
+func TestReadWrite(t *testing.T) {
+	assert := assert.New(t)
+
+	// write operation
+	f, err := ioutil.TempFile(os.TempDir(), ".tty")
+	assert.NoError(err, "failed to create a temporal file")
+	defer os.Remove(f.Name())
+
+	console := ConsoleFromFile(f)
+	assert.NotNil(console)
+	defer console.Close()
+
+	msgWrite := "hello"
+	l, err := console.Write([]byte(msgWrite))
+	assert.NoError(err, "failed to write message: %s", msgWrite)
+	assert.Equal(len(msgWrite), l)
+
+	console.master.Sync()
+	console.master.Seek(0, 0)
+
+	// Read operation
+	msgRead := make([]byte, len(msgWrite))
+	l, err = console.Read(msgRead)
+	assert.NoError(err, "failed to read message: %s", msgWrite)
+	assert.Equal(len(msgWrite), l)
+	assert.Equal(msgWrite, string(msgRead))
 }
