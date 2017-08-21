@@ -16,10 +16,12 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"syscall"
@@ -28,7 +30,9 @@ import (
 
 	vc "github.com/containers/virtcontainers"
 	"github.com/containers/virtcontainers/pkg/oci"
+	"github.com/containers/virtcontainers/pkg/vcMock"
 	"github.com/stretchr/testify/assert"
+	"github.com/urfave/cli"
 )
 
 type TestFileWriter struct {
@@ -95,23 +99,7 @@ func (w *TestFileWriter) Write(bytes []byte) (n int, err error) {
 	return w.File.Write(bytes)
 }
 
-func NewTestFileWriter(name string) (w *TestFileWriter, err error) {
-	flags := os.O_CREATE | os.O_WRONLY | os.O_APPEND | os.O_SYNC
-
-	file, err := os.OpenFile(name, flags, testFileMode)
-	if err != nil {
-		return nil, err
-	}
-
-	w = &TestFileWriter{
-		Name: name,
-		File: file,
-	}
-
-	return w, nil
-}
-
-func TestGetHypervisorDetails(t *testing.T) {
+func TestListGetHypervisorDetailsWithSymLinks(t *testing.T) {
 	tmpDir, err := ioutil.TempDir(testDir, "hypervisor-details-")
 	if err != nil {
 		t.Error(err)
@@ -395,4 +383,425 @@ func TestStateToJSON(t *testing.T) {
 
 		assert.Equal(t, states, testStatuses, "states + testStatuses")
 	}
+}
+
+func TestListCLIFunctionNoContainers(t *testing.T) {
+	app := cli.NewApp()
+	ctx := cli.NewContext(app, nil, nil)
+	app.Name = "foo"
+	ctx.App.Metadata = map[string]interface{}{
+		"foo": "bar",
+	}
+
+	fn, ok := listCLICommand.Action.(func(context *cli.Context) error)
+	assert.True(t, ok)
+
+	err := fn(ctx)
+
+	// no config in the Metadata
+	assert.Error(t, err)
+}
+
+func TestListGetContainersListPodFail(t *testing.T) {
+	assert := assert.New(t)
+
+	tmpdir, err := ioutil.TempDir(testDir, "")
+	assert.NoError(err)
+	defer os.RemoveAll(tmpdir)
+
+	app := cli.NewApp()
+	ctx := cli.NewContext(app, nil, nil)
+	app.Name = "foo"
+
+	runtimeConfig, err := newTestRuntimeConfig(tmpdir, testConsole, true)
+	assert.NoError(err)
+
+	ctx.App.Metadata = map[string]interface{}{
+		"runtimeConfig": runtimeConfig,
+	}
+
+	_, err = getContainers(ctx)
+	assert.Error(err)
+	assert.True(vcMock.IsMockError(err))
+}
+
+func TestListGetContainersNoHypervisorDetails(t *testing.T) {
+	assert := assert.New(t)
+
+	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
+		// No pre-existing pods
+		return []vc.PodStatus{}, nil
+	}
+
+	defer func() {
+		testingImpl.ListPodFunc = nil
+	}()
+
+	tmpdir, err := ioutil.TempDir(testDir, "")
+	assert.NoError(err)
+	defer os.RemoveAll(tmpdir)
+
+	app := cli.NewApp()
+	ctx := cli.NewContext(app, nil, nil)
+	app.Name = "foo"
+
+	runtimeConfig, err := newTestRuntimeConfig(tmpdir, testConsole, true)
+	assert.NoError(err)
+
+	invalidRuntimeConfig := runtimeConfig
+
+	// remove required element
+	invalidRuntimeConfig.HypervisorConfig = vc.HypervisorConfig{}
+
+	ctx.App.Metadata = map[string]interface{}{
+		"runtimeConfig": invalidRuntimeConfig,
+	}
+
+	_, err = getContainers(ctx)
+	// invalid config provided
+	assert.Error(err)
+	assert.False(vcMock.IsMockError(err))
+
+	// valid config
+	ctx.App.Metadata["runtimeConfig"] = runtimeConfig
+
+	_, err = getContainers(ctx)
+	assert.NoError(err)
+}
+
+func TestListGetHypervisorDetailsMissingDetails(t *testing.T) {
+	assert := assert.New(t)
+
+	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
+		// No pre-existing pods
+		return []vc.PodStatus{}, nil
+	}
+
+	defer func() {
+		testingImpl.ListPodFunc = nil
+	}()
+
+	tmpdir, err := ioutil.TempDir(testDir, "")
+	assert.NoError(err)
+	defer os.RemoveAll(tmpdir)
+
+	app := cli.NewApp()
+	ctx := cli.NewContext(app, nil, nil)
+	app.Name = "foo"
+
+	runtimeConfig, err := newTestRuntimeConfig(tmpdir, testConsole, true)
+	assert.NoError(err)
+
+	ctx.App.Metadata = map[string]interface{}{}
+
+	invalidRuntimeConfig := runtimeConfig
+
+	// remove required element
+	invalidRuntimeConfig.HypervisorConfig.HypervisorPath = ""
+	ctx.App.Metadata["runtimeConfig"] = invalidRuntimeConfig
+
+	_, err = getContainers(ctx)
+	assert.Error(err)
+	assert.False(vcMock.IsMockError(err))
+
+	invalidRuntimeConfig = runtimeConfig
+
+	// remove required element
+	invalidRuntimeConfig.HypervisorConfig.ImagePath = ""
+	ctx.App.Metadata["runtimeConfig"] = invalidRuntimeConfig
+
+	_, err = getContainers(ctx)
+	assert.Error(err)
+	assert.False(vcMock.IsMockError(err))
+
+	invalidRuntimeConfig = runtimeConfig
+
+	// remove required element
+	invalidRuntimeConfig.HypervisorConfig.KernelPath = ""
+	ctx.App.Metadata["runtimeConfig"] = invalidRuntimeConfig
+
+	_, err = getContainers(ctx)
+	assert.Error(err)
+	assert.False(vcMock.IsMockError(err))
+}
+
+func TestListGetContainers(t *testing.T) {
+	assert := assert.New(t)
+
+	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
+		// No pre-existing pods
+		return []vc.PodStatus{}, nil
+	}
+
+	defer func() {
+		testingImpl.ListPodFunc = nil
+	}()
+
+	tmpdir, err := ioutil.TempDir(testDir, "")
+	assert.NoError(err)
+	defer os.RemoveAll(tmpdir)
+
+	app := cli.NewApp()
+	ctx := cli.NewContext(app, nil, nil)
+	app.Name = "foo"
+
+	runtimeConfig, err := newTestRuntimeConfig(tmpdir, testConsole, true)
+	assert.NoError(err)
+
+	ctx.App.Metadata = map[string]interface{}{
+		"runtimeConfig": runtimeConfig,
+	}
+
+	state, err := getContainers(ctx)
+	assert.NoError(err)
+	assert.Equal(state, []fullContainerState(nil))
+}
+
+func TestListGetContainersPodWithoutContainers(t *testing.T) {
+	assert := assert.New(t)
+
+	pod := &vcMock.Pod{
+		MockID: testPodID,
+	}
+
+	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
+		return []vc.PodStatus{
+			{
+				ID:               pod.ID(),
+				ContainersStatus: []vc.ContainerStatus(nil),
+			},
+		}, nil
+	}
+
+	defer func() {
+		testingImpl.ListPodFunc = nil
+	}()
+
+	tmpdir, err := ioutil.TempDir(testDir, "")
+	assert.NoError(err)
+	defer os.RemoveAll(tmpdir)
+
+	app := cli.NewApp()
+	ctx := cli.NewContext(app, nil, nil)
+	app.Name = "foo"
+
+	runtimeConfig, err := newTestRuntimeConfig(tmpdir, testConsole, true)
+	assert.NoError(err)
+
+	ctx.App.Metadata = map[string]interface{}{
+		"runtimeConfig": runtimeConfig,
+	}
+
+	state, err := getContainers(ctx)
+	assert.NoError(err)
+	assert.Equal(state, []fullContainerState(nil))
+}
+
+func TestListGetContainersPodWithContainer(t *testing.T) {
+	assert := assert.New(t)
+
+	pod := &vcMock.Pod{
+		MockID: testPodID,
+	}
+
+	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
+		return []vc.PodStatus{
+			{
+				ID: pod.ID(),
+				ContainersStatus: []vc.ContainerStatus{
+					{
+						ID:          pod.ID(),
+						Annotations: map[string]string{},
+					},
+				},
+			},
+		}, nil
+	}
+
+	defer func() {
+		testingImpl.ListPodFunc = nil
+	}()
+
+	tmpdir, err := ioutil.TempDir(testDir, "")
+	assert.NoError(err)
+	defer os.RemoveAll(tmpdir)
+
+	app := cli.NewApp()
+	ctx := cli.NewContext(app, nil, nil)
+	app.Name = "foo"
+
+	runtimeConfig, err := newTestRuntimeConfig(tmpdir, testConsole, true)
+	assert.NoError(err)
+
+	ctx.App.Metadata = map[string]interface{}{
+		"runtimeConfig": runtimeConfig,
+	}
+
+	_, err = getContainers(ctx)
+	assert.NoError(err)
+}
+
+func TestListCLIFunctionFormatFail(t *testing.T) {
+	assert := assert.New(t)
+
+	tmpdir, err := ioutil.TempDir(testDir, "")
+	assert.NoError(err)
+	defer os.RemoveAll(tmpdir)
+
+	quietFlags := flag.NewFlagSet("test", 0)
+	quietFlags.Bool("quiet", true, "")
+
+	tableFlags := flag.NewFlagSet("test", 0)
+	tableFlags.String("format", "table", "")
+
+	jsonFlags := flag.NewFlagSet("test", 0)
+	jsonFlags.String("format", "json", "")
+
+	invalidFlags := flag.NewFlagSet("test", 0)
+	invalidFlags.String("format", "not-a-valid-format", "")
+
+	type testData struct {
+		format string
+		flags  *flag.FlagSet
+	}
+
+	data := []testData{
+		{"quiet", quietFlags},
+		{"table", tableFlags},
+		{"json", jsonFlags},
+		{"invalid", invalidFlags},
+	}
+
+	pod := &vcMock.Pod{
+		MockID: testPodID,
+	}
+
+	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
+		return []vc.PodStatus{
+			{
+				ID: pod.ID(),
+				ContainersStatus: []vc.ContainerStatus{
+					{
+						ID: pod.ID(),
+						Annotations: map[string]string{
+							oci.ContainerTypeKey: string(vc.PodSandbox),
+						},
+					},
+				},
+			},
+		}, nil
+	}
+
+	defer func() {
+		testingImpl.ListPodFunc = nil
+	}()
+
+	savedOutputFile := defaultOutputFile
+	defer func() {
+		defaultOutputFile = savedOutputFile
+	}()
+
+	// purposely invalid
+	var invalidFile *os.File
+
+	defaultOutputFile = invalidFile
+
+	for _, d := range data {
+		app := cli.NewApp()
+		ctx := cli.NewContext(app, d.flags, nil)
+		app.Name = "foo"
+		ctx.App.Metadata = map[string]interface{}{
+			"foo": "bar",
+		}
+
+		fn, ok := listCLICommand.Action.(func(context *cli.Context) error)
+		assert.True(ok, d)
+
+		err = fn(ctx)
+
+		// no config in the Metadata
+		assert.Error(err, d)
+
+		runtimeConfig, err := newTestRuntimeConfig(tmpdir, testConsole, true)
+		assert.NoError(err, d)
+
+		ctx.App.Metadata["runtimeConfig"] = runtimeConfig
+
+		err = fn(ctx)
+
+		// invalid file
+		assert.Error(err, d)
+		assert.False(vcMock.IsMockError(err), d)
+	}
+
+}
+
+func TestListCLIFunctionQuiet(t *testing.T) {
+	assert := assert.New(t)
+
+	tmpdir, err := ioutil.TempDir(testDir, "")
+	assert.NoError(err)
+	defer os.RemoveAll(tmpdir)
+
+	runtimeConfig, err := newTestRuntimeConfig(tmpdir, testConsole, true)
+	assert.NoError(err)
+
+	pod := &vcMock.Pod{
+		MockID: testPodID,
+	}
+
+	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
+		return []vc.PodStatus{
+			{
+				ID: pod.ID(),
+				ContainersStatus: []vc.ContainerStatus{
+					{
+						ID: pod.ID(),
+						Annotations: map[string]string{
+							oci.ContainerTypeKey: string(vc.PodSandbox),
+						},
+					},
+				},
+			},
+		}, nil
+	}
+
+	defer func() {
+		testingImpl.ListPodFunc = nil
+	}()
+
+	set := flag.NewFlagSet("test", 0)
+	set.Bool("quiet", true, "")
+
+	app := cli.NewApp()
+	ctx := cli.NewContext(app, set, nil)
+	app.Name = "foo"
+	ctx.App.Metadata = map[string]interface{}{
+		"runtimeConfig": runtimeConfig,
+	}
+
+	savedOutputFile := defaultOutputFile
+	defer func() {
+		defaultOutputFile = savedOutputFile
+	}()
+
+	output := filepath.Join(tmpdir, "output")
+	f, err := os.OpenFile(output, os.O_CREATE|os.O_WRONLY|os.O_SYNC, testFileMode)
+	assert.NoError(err)
+	defer f.Close()
+
+	defaultOutputFile = f
+
+	fn, ok := listCLICommand.Action.(func(context *cli.Context) error)
+	assert.True(ok)
+
+	err = fn(ctx)
+	assert.NoError(err)
+	f.Close()
+
+	text, err := getFileContents(output)
+	assert.NoError(err)
+
+	trimmed := strings.TrimSpace(text)
+	assert.Equal(testPodID, trimmed)
 }

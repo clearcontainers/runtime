@@ -58,6 +58,10 @@ var virtcontainersImpl = &vc.VCImpl{}
 // the tests to allow virtcontainers to be mocked.
 var vci vc.VC = virtcontainersImpl
 
+// defaultOutputFile is the default output file to write the gathered
+// information to.
+var defaultOutputFile = os.Stdout
+
 func beforeSubcommands(context *cli.Context) error {
 	if userWantsUsage(context) || (context.NArg() == 1 && (context.Args()[0] == "cc-check")) {
 		// No setup required if the user just
