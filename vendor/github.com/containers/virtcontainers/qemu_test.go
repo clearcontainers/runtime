@@ -98,9 +98,11 @@ func TestQemuBuildKernelParamsFoo(t *testing.T) {
 	}
 }
 
-func testQemuAppend(t *testing.T, structure interface{}, expected []ciaoQemu.Device, devType deviceType) {
+func testQemuAppend(t *testing.T, structure interface{}, expected []ciaoQemu.Device, devType deviceType, nestedVM bool) {
 	var devices []ciaoQemu.Device
-	q := &qemu{}
+	q := &qemu{
+		nestedRun: nestedVM,
+	}
 
 	switch s := structure.(type) {
 	case Volume:
@@ -126,6 +128,7 @@ func testQemuAppend(t *testing.T, structure interface{}, expected []ciaoQemu.Dev
 func TestQemuAppendVolume(t *testing.T) {
 	mountTag := "testMountTag"
 	hostPath := "testHostPath"
+	nestedVM := true
 
 	expectedOut := []ciaoQemu.Device{
 		ciaoQemu.FSDevice{
@@ -135,6 +138,7 @@ func TestQemuAppendVolume(t *testing.T) {
 			Path:          hostPath,
 			MountTag:      mountTag,
 			SecurityModel: ciaoQemu.None,
+			DisableModern: nestedVM,
 		},
 	}
 
@@ -143,7 +147,7 @@ func TestQemuAppendVolume(t *testing.T) {
 		HostPath: hostPath,
 	}
 
-	testQemuAppend(t, volume, expectedOut, -1)
+	testQemuAppend(t, volume, expectedOut, -1, nestedVM)
 }
 
 func TestQemuAppendSocket(t *testing.T) {
@@ -151,6 +155,7 @@ func TestQemuAppendSocket(t *testing.T) {
 	id := "charchTest"
 	hostPath := "/tmp/hyper_test.sock"
 	name := "sh.hyper.channel.test"
+	nestedVM := true
 
 	expectedOut := []ciaoQemu.Device{
 		ciaoQemu.CharDevice{
@@ -170,22 +175,24 @@ func TestQemuAppendSocket(t *testing.T) {
 		Name:     name,
 	}
 
-	testQemuAppend(t, socket, expectedOut, -1)
+	testQemuAppend(t, socket, expectedOut, -1, nestedVM)
 }
 
 func TestQemuAppendBlockDevice(t *testing.T) {
 	id := "blockDevTest"
 	file := "/root"
 	format := "raw"
+	nestedVM := true
 
 	expectedOut := []ciaoQemu.Device{
 		ciaoQemu.BlockDevice{
-			Driver:    ciaoQemu.VirtioBlock,
-			ID:        id,
-			File:      "/root",
-			AIO:       ciaoQemu.Threads,
-			Format:    ciaoQemu.BlockDeviceFormat(format),
-			Interface: "none",
+			Driver:        ciaoQemu.VirtioBlock,
+			ID:            id,
+			File:          "/root",
+			AIO:           ciaoQemu.Threads,
+			Format:        ciaoQemu.BlockDeviceFormat(format),
+			Interface:     "none",
+			DisableModern: nestedVM,
 		},
 	}
 
@@ -195,7 +202,7 @@ func TestQemuAppendBlockDevice(t *testing.T) {
 		ID:     id,
 	}
 
-	testQemuAppend(t, drive, expectedOut, -1)
+	testQemuAppend(t, drive, expectedOut, -1, nestedVM)
 }
 
 func TestQemuAppendFSDevices(t *testing.T) {
@@ -204,6 +211,7 @@ func TestQemuAppendFSDevices(t *testing.T) {
 	contRootFs := "testContRootFs"
 	volMountTag := "testVolMountTag"
 	volHostPath := "testVolHostPath"
+	nestedVM := true
 
 	expectedOut := []ciaoQemu.Device{
 		ciaoQemu.FSDevice{
@@ -213,6 +221,7 @@ func TestQemuAppendFSDevices(t *testing.T) {
 			Path:          fmt.Sprintf("%s.1", contRootFs),
 			MountTag:      "ctr-rootfs-0",
 			SecurityModel: ciaoQemu.None,
+			DisableModern: nestedVM,
 		},
 		ciaoQemu.FSDevice{
 			Driver:        ciaoQemu.Virtio9P,
@@ -221,6 +230,7 @@ func TestQemuAppendFSDevices(t *testing.T) {
 			Path:          fmt.Sprintf("%s.2", contRootFs),
 			MountTag:      "ctr-rootfs-1",
 			SecurityModel: ciaoQemu.None,
+			DisableModern: nestedVM,
 		},
 		ciaoQemu.FSDevice{
 			Driver:        ciaoQemu.Virtio9P,
@@ -229,6 +239,7 @@ func TestQemuAppendFSDevices(t *testing.T) {
 			Path:          fmt.Sprintf("%s.1", volHostPath),
 			MountTag:      fmt.Sprintf("%s.1", volMountTag),
 			SecurityModel: ciaoQemu.None,
+			DisableModern: nestedVM,
 		},
 		ciaoQemu.FSDevice{
 			Driver:        ciaoQemu.Virtio9P,
@@ -237,6 +248,7 @@ func TestQemuAppendFSDevices(t *testing.T) {
 			Path:          fmt.Sprintf("%s.2", volHostPath),
 			MountTag:      fmt.Sprintf("%s.2", volMountTag),
 			SecurityModel: ciaoQemu.None,
+			DisableModern: nestedVM,
 		},
 	}
 
@@ -268,16 +280,18 @@ func TestQemuAppendFSDevices(t *testing.T) {
 		Containers: containers,
 	}
 
-	testQemuAppend(t, podConfig, expectedOut, fsDev)
+	testQemuAppend(t, podConfig, expectedOut, fsDev, nestedVM)
 }
 
 func TestQemuAppendConsoles(t *testing.T) {
 	podID := "testPodID"
+	nestedVM := true
 
 	expectedOut := []ciaoQemu.Device{
 		ciaoQemu.SerialDevice{
-			Driver: ciaoQemu.VirtioSerial,
-			ID:     "serial0",
+			Driver:        ciaoQemu.VirtioSerial,
+			ID:            "serial0",
+			DisableModern: nestedVM,
 		},
 		ciaoQemu.CharDevice{
 			Driver:   ciaoQemu.Console,
@@ -293,7 +307,7 @@ func TestQemuAppendConsoles(t *testing.T) {
 		Containers: []ContainerConfig{},
 	}
 
-	testQemuAppend(t, podConfig, expectedOut, consoleDev)
+	testQemuAppend(t, podConfig, expectedOut, consoleDev, nestedVM)
 }
 
 func TestQemuAppendImage(t *testing.T) {
@@ -395,10 +409,16 @@ func TestQemuSetMemoryResources(t *testing.T) {
 
 	q := &qemu{}
 
+	hostMemKb, err := getHostMemorySizeKb(procMemInfo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	memMax := fmt.Sprintf("%dM", int(float64(hostMemKb)/1024)+maxMemoryOffset)
+
 	expectedOut := ciaoQemu.Memory{
 		Size:   "1000M",
 		Slots:  uint8(2),
-		MaxMem: "1500M",
+		MaxMem: memMax,
 	}
 
 	vmConfig := Resources{
@@ -409,15 +429,20 @@ func TestQemuSetMemoryResources(t *testing.T) {
 		VMConfig: vmConfig,
 	}
 
-	memory := q.setMemoryResources(podConfig)
+	memory, err := q.setMemoryResources(podConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if reflect.DeepEqual(memory, expectedOut) == false {
 		t.Fatalf("Got %v\nExpecting %v", memory, expectedOut)
 	}
 }
 
-func testQemuAddDevice(t *testing.T, devInfo interface{}, devType deviceType, expected []ciaoQemu.Device) {
-	q := &qemu{}
+func testQemuAddDevice(t *testing.T, devInfo interface{}, devType deviceType, expected []ciaoQemu.Device, nestedVM bool) {
+	q := &qemu{
+		nestedRun: nestedVM,
+	}
 
 	err := q.addDevice(devInfo, devType)
 	if err != nil {
@@ -432,6 +457,7 @@ func testQemuAddDevice(t *testing.T, devInfo interface{}, devType deviceType, ex
 func TestQemuAddDeviceFsDev(t *testing.T) {
 	mountTag := "testMountTag"
 	hostPath := "testHostPath"
+	nestedVM := true
 
 	expectedOut := []ciaoQemu.Device{
 		ciaoQemu.FSDevice{
@@ -441,6 +467,7 @@ func TestQemuAddDeviceFsDev(t *testing.T) {
 			Path:          hostPath,
 			MountTag:      mountTag,
 			SecurityModel: ciaoQemu.None,
+			DisableModern: nestedVM,
 		},
 	}
 
@@ -449,7 +476,7 @@ func TestQemuAddDeviceFsDev(t *testing.T) {
 		HostPath: hostPath,
 	}
 
-	testQemuAddDevice(t, volume, fsDev, expectedOut)
+	testQemuAddDevice(t, volume, fsDev, expectedOut, nestedVM)
 }
 
 func TestQemuAddDeviceSerialPordDev(t *testing.T) {
@@ -457,6 +484,7 @@ func TestQemuAddDeviceSerialPordDev(t *testing.T) {
 	id := "charchTest"
 	hostPath := "/tmp/hyper_test.sock"
 	name := "sh.hyper.channel.test"
+	nestedVM := true
 
 	expectedOut := []ciaoQemu.Device{
 		ciaoQemu.CharDevice{
@@ -476,7 +504,7 @@ func TestQemuAddDeviceSerialPordDev(t *testing.T) {
 		Name:     name,
 	}
 
-	testQemuAddDevice(t, socket, serialPortDev, expectedOut)
+	testQemuAddDevice(t, socket, serialPortDev, expectedOut, nestedVM)
 }
 
 func TestQemuGetPodConsole(t *testing.T) {

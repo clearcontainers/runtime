@@ -72,7 +72,6 @@ type Server struct {
 	stopped       boolFlag
 	stoppedChan   chan struct{}
 	role          Role
-	roleVerify    bool
 	clientWg      sync.WaitGroup
 
 	forwardRules frameForward

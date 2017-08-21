@@ -50,6 +50,8 @@ type qemu struct {
 	qmpControlCh qmpChannel
 
 	qemuConfig ciaoQemu.Config
+
+	nestedRun bool
 }
 
 const defaultQemuPath = "/usr/bin/qemu-system-x86_64"
@@ -104,6 +106,12 @@ const (
 
 const (
 	maxDevIDSize = 31
+)
+
+const (
+	// NVDIMM device needs memory space 1024MB
+	// See https://github.com/clearcontainers/runtime/issues/380
+	maxMemoryOffset = 1024
 )
 
 type qmpLogger struct{}
@@ -200,6 +208,7 @@ func (q *qemu) appendVolume(devices []ciaoQemu.Device, volume Volume) []ciaoQemu
 			Path:          volume.HostPath,
 			MountTag:      volume.MountTag,
 			SecurityModel: ciaoQemu.None,
+			DisableModern: q.nestedRun,
 		},
 	)
 
@@ -217,12 +226,13 @@ func (q *qemu) appendBlockDevice(devices []ciaoQemu.Device, drive Drive) []ciaoQ
 
 	devices = append(devices,
 		ciaoQemu.BlockDevice{
-			Driver:    ciaoQemu.VirtioBlock,
-			ID:        drive.ID,
-			File:      drive.File,
-			AIO:       ciaoQemu.Threads,
-			Format:    ciaoQemu.BlockDeviceFormat(drive.Format),
-			Interface: "none",
+			Driver:        ciaoQemu.VirtioBlock,
+			ID:            drive.ID,
+			File:          drive.File,
+			AIO:           ciaoQemu.Threads,
+			Format:        ciaoQemu.BlockDeviceFormat(drive.Format),
+			Interface:     "none",
+			DisableModern: q.nestedRun,
 		},
 	)
 
@@ -253,14 +263,15 @@ func (q *qemu) appendNetworks(devices []ciaoQemu.Device, endpoints []Endpoint) [
 	for idx, endpoint := range endpoints {
 		devices = append(devices,
 			ciaoQemu.NetDevice{
-				Type:       ciaoQemu.TAP,
-				Driver:     ciaoQemu.VirtioNetPCI,
-				ID:         fmt.Sprintf("network-%d", idx),
-				IFName:     endpoint.NetPair.TAPIface.Name,
-				MACAddress: endpoint.NetPair.TAPIface.HardAddr,
-				DownScript: "no",
-				Script:     "no",
-				VHost:      true,
+				Type:          ciaoQemu.TAP,
+				Driver:        ciaoQemu.VirtioNetPCI,
+				ID:            fmt.Sprintf("network-%d", idx),
+				IFName:        endpoint.NetPair.TAPIface.Name,
+				MACAddress:    endpoint.NetPair.TAPIface.HardAddr,
+				DownScript:    "no",
+				Script:        "no",
+				VHost:         true,
+				DisableModern: q.nestedRun,
 			},
 		)
 	}
@@ -283,6 +294,7 @@ func (q *qemu) appendFSDevices(devices []ciaoQemu.Device, podConfig PodConfig) [
 				Path:          c.RootFs,
 				MountTag:      fmt.Sprintf("ctr-rootfs-%d", idx),
 				SecurityModel: ciaoQemu.None,
+				DisableModern: q.nestedRun,
 			},
 		)
 	}
@@ -297,8 +309,9 @@ func (q *qemu) appendFSDevices(devices []ciaoQemu.Device, podConfig PodConfig) [
 
 func (q *qemu) appendConsoles(devices []ciaoQemu.Device, podConfig PodConfig) []ciaoQemu.Device {
 	serial := ciaoQemu.SerialDevice{
-		Driver: ciaoQemu.VirtioSerial,
-		ID:     "serial0",
+		Driver:        ciaoQemu.VirtioSerial,
+		ID:            "serial0",
+		DisableModern: q.nestedRun,
 	}
 
 	devices = append(devices, serial)
@@ -419,6 +432,14 @@ func (q *qemu) init(config HypervisorConfig) error {
 		return err
 	}
 
+	nested, err := RunningOnVMM(procCPUInfo)
+	if err != nil {
+		return err
+	}
+
+	virtLog.Info("Running inside a VM = %t", nested)
+	q.nestedRun = nested
+
 	return nil
 }
 
@@ -468,13 +489,20 @@ func (q *qemu) setCPUResources(podConfig PodConfig) ciaoQemu.SMP {
 	return smp
 }
 
-func (q *qemu) setMemoryResources(podConfig PodConfig) ciaoQemu.Memory {
+func (q *qemu) setMemoryResources(podConfig PodConfig) (ciaoQemu.Memory, error) {
+	hostMemKb, err := getHostMemorySizeKb(procMemInfo)
+	if err != nil {
+		return ciaoQemu.Memory{}, fmt.Errorf("Unable to read memory info: %s", err)
+	}
+	if hostMemKb == 0 {
+		return ciaoQemu.Memory{}, fmt.Errorf("Error host memory size 0")
+	}
+
+	// add 1G memory space for nvdimm device (vm guest image)
+	memMax := fmt.Sprintf("%dM", int(float64(hostMemKb)/1024)+maxMemoryOffset)
 	mem := fmt.Sprintf("%dM", q.config.DefaultMemSz)
-	memMax := fmt.Sprintf("%dM", int(float64(q.config.DefaultMemSz)*1.5))
 	if podConfig.VMConfig.Memory > 0 {
 		mem = fmt.Sprintf("%dM", podConfig.VMConfig.Memory)
-		intMemMax := int(float64(podConfig.VMConfig.Memory) * 1.5)
-		memMax = fmt.Sprintf("%dM", intMemMax)
 	}
 
 	memory := ciaoQemu.Memory{
@@ -483,7 +511,7 @@ func (q *qemu) setMemoryResources(podConfig PodConfig) ciaoQemu.Memory {
 		MaxMem: memMax,
 	}
 
-	return memory
+	return memory, nil
 }
 
 // createPod is the Hypervisor pod creation implementation for ciaoQemu.
@@ -502,7 +530,10 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 
 	smp := q.setCPUResources(podConfig)
 
-	memory := q.setMemoryResources(podConfig)
+	memory, err := q.setMemoryResources(podConfig)
+	if err != nil {
+		return err
+	}
 
 	knobs := ciaoQemu.Knobs{
 		NoUserConfig: true,
@@ -553,6 +584,11 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 		return err
 	}
 
+	cpuModel := "host"
+	if q.nestedRun {
+		cpuModel += ",pmu=off"
+	}
+
 	qemuConfig := ciaoQemu.Config{
 		Name:        fmt.Sprintf("pod-%s", podConfig.ID),
 		UUID:        q.forceUUIDFormat(podConfig.ID),
@@ -562,7 +598,7 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 		SMP:         smp,
 		Memory:      memory,
 		Devices:     devices,
-		CPUModel:    "host",
+		CPUModel:    cpuModel,
 		Kernel:      kernel,
 		RTC:         rtc,
 		QMPSockets:  qmpSockets,

@@ -105,9 +105,9 @@ completely self contained.
 On the host install the latest release of go for your distribution
 [Installing Go](https://golang.org/doc/install).
 
-> NOTE: Go version 1.7 or later is required for Ciao. Ciao will not work with 
+> NOTE: Go version 1.8 or later is required for Ciao. Ciao will not work with 
 older version of Go. Hence it is best you download and install the latest 
-version of Go if you distro is not on Go 1.7.
+version of Go if you distro is not on Go 1.8.
 
 You should also ensure that your GOPATH environment variable is set.
 
@@ -117,20 +117,20 @@ ciao-down is a small utility for setting up a VM that contains
 everything you need to run ciao's Single VM. All you need to have
 installed on your machine is:
 
-- Go 1.7 or greater
+- Go 1.8 or greater
 
 Once Go is installed you simply need to type
 
 ```
 go get github.com/01org/ciao/testutil/ciao-down
-$GOPATH/bin/ciao-down prepare
+$GOPATH/bin/ciao-down create ciao
 ```
 
 ciao-down will install some needed dependencies on your local PC such
 as qemu and xorriso. It will then download an Ubuntu Cloud Image and
 create a VM based on this image. It will boot the VM and install in that
 VM everything you need to run ciao Single VM, including docker, ceph,
-go, gcc, etc. When ciao-down prepare has finished you can connect to the
+go, gcc, etc. When ciao-down create has finished you can connect to the
 newly created VM with
 
 ```
@@ -144,7 +144,7 @@ the ciao code on your host machine and test in Single VM.
 ## Proxies
 
 One of the nice things about using ciao-down is that it is proxy aware.
-When you run ciao-down prepare, ciao-down looks in its environment for
+When you run ciao-down create, ciao-down looks in its environment for
 proxy variables such as http_proxy, https_proxy and no_proxy.  If it
 finds them it ensures that these proxies are correctly configured for
 all the software that it installs and uses inside the VM, e.g., apt, docker,
@@ -155,17 +155,17 @@ before running ciao-down.
 ## Ciao-webui
 
 Ciao has a webui called ciao-webui (https://github.com/01org/ciao-webui).
-When ciao-down prepare is run, ciao-down downloads the source code for
+When ciao-down create is run, ciao-down downloads the source code for
 the ciao-webui and all the development tools needed to build it.  By
 default, ciao-down stores the code for the web-ui in ~/ciao-webui.
 
 If you wish to actively work on the sources of ciao-webui you can ask
-ciao-down prepare to mount a host directory containing the webui sources
-into the VM.  This is done using the -ui-path option of ciao-down prepare.
+ciao-down create to mount a host directory containing the webui sources
+into the VM.  This is done using the -ui-path option of ciao-down create.
 For example
 
 ```
-ciao-down prepare --ui-path $HOME/src/ciao-webui
+ciao-down create --ui-path $HOME/src/ciao-webui ciao
 ```
 
 would mount the $HOME/src/ciao-webui directory inside the VM at the

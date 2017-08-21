@@ -1,3 +1,10 @@
+1.0.0-rc.4:
+	Added new project approvers
+	Fixed gometalinter
+	Increased unit test coverage
+	Added "pc" machine type for Qemu hypervisor
+	Fixed "kill" and "stop" container
+
 1.0.0-rc.3:
 	Added support for assigning the container rootfs underlying block device to the VM (when using devicemapper)
 	Changed qemu to use virtio-net vhost by default
