@@ -230,7 +230,7 @@ func execute(context *cli.Context) error {
 		Detach:      noNeedForOutput(params.detach, params.ociProcess.Terminal),
 	}
 
-	_, _, process, err := vc.EnterContainer(podID, params.cID, cmd)
+	_, _, process, err := vci.EnterContainer(podID, params.cID, cmd)
 	if err != nil {
 		return err
 	}

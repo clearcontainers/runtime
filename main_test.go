@@ -23,6 +23,7 @@ import (
 	"path"
 	"testing"
 
+	"github.com/containers/virtcontainers/pkg/vcMock"
 	"github.com/dlespiau/covertool/pkg/cover"
 )
 
@@ -36,6 +37,14 @@ const (
 
 // package variables set in TestMain
 var testDir = ""
+
+// testingImpl is a concrete mock RVC implementation used for testing
+var testingImpl = &vcMock.VCMock{}
+
+func init() {
+	fmt.Printf("INFO: switching to fake virtcontainers implementation for testing\n")
+	vci = testingImpl
+}
 
 func runUnitTests(m *testing.M) {
 	var err error
