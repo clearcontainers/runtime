@@ -15,11 +15,14 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -43,6 +46,8 @@ func createFile(file, contents string) error {
 }
 
 func TestCheckGetCPUInfo(t *testing.T) {
+	assert := assert.New(t)
+
 	type testData struct {
 		contents       string
 		expectedResult string
@@ -69,7 +74,7 @@ func TestCheckGetCPUInfo(t *testing.T) {
 	file := filepath.Join(dir, "cpuinfo")
 	// file doesn't exist
 	_, err = getCPUInfo(file)
-	assert.Error(t, err)
+	assert.Error(err)
 
 	for _, d := range data {
 		err = ioutil.WriteFile(file, []byte(d.contents), testFileMode)
@@ -80,16 +85,18 @@ func TestCheckGetCPUInfo(t *testing.T) {
 
 		contents, err := getCPUInfo(file)
 		if d.expectError {
-			assert.Error(t, err, fmt.Sprintf("got %q, test data: %+v", contents, d))
+			assert.Error(err, fmt.Sprintf("got %q, test data: %+v", contents, d))
 		} else {
-			assert.NoError(t, err, fmt.Sprintf("got %q, test data: %+v", contents, d))
+			assert.NoError(err, fmt.Sprintf("got %q, test data: %+v", contents, d))
 		}
 
-		assert.Equal(t, d.expectedResult, contents)
+		assert.Equal(d.expectedResult, contents)
 	}
 }
 
 func TestCheckFindAnchoredString(t *testing.T) {
+	assert := assert.New(t)
+
 	type testData struct {
 		haystack      string
 		needle        string
@@ -110,14 +117,16 @@ func TestCheckFindAnchoredString(t *testing.T) {
 		result := findAnchoredString(d.haystack, d.needle)
 
 		if d.expectSuccess {
-			assert.True(t, result)
+			assert.True(result)
 		} else {
-			assert.False(t, result)
+			assert.False(result)
 		}
 	}
 }
 
 func TestCheckGetCPUFlags(t *testing.T) {
+	assert := assert.New(t)
+
 	type testData struct {
 		cpuinfo       string
 		expectedFlags string
@@ -136,11 +145,13 @@ func TestCheckGetCPUFlags(t *testing.T) {
 
 	for _, d := range data {
 		result := getCPUFlags(d.cpuinfo)
-		assert.Equal(t, d.expectedFlags, result)
+		assert.Equal(d.expectedFlags, result)
 	}
 }
 
 func TestCheckCheckCPUFlags(t *testing.T) {
+	assert := assert.New(t)
+
 	type testData struct {
 		cpuflags    string
 		required    map[string]string
@@ -180,14 +191,16 @@ func TestCheckCheckCPUFlags(t *testing.T) {
 	for _, d := range data {
 		err := checkCPUFlags(d.cpuflags, d.required)
 		if d.expectError {
-			assert.Error(t, err)
+			assert.Error(err)
 		} else {
-			assert.NoError(t, err)
+			assert.NoError(err)
 		}
 	}
 }
 
 func TestCheckCheckCPUAttribs(t *testing.T) {
+	assert := assert.New(t)
+
 	type testData struct {
 		cpuinfo     string
 		required    map[string]string
@@ -244,14 +257,16 @@ func TestCheckCheckCPUAttribs(t *testing.T) {
 	for _, d := range data {
 		err := checkCPUAttribs(d.cpuinfo, d.required)
 		if d.expectError {
-			assert.Error(t, err)
+			assert.Error(err)
 		} else {
-			assert.NoError(t, err)
+			assert.NoError(err)
 		}
 	}
 }
 
 func TestCheckHaveKernelModule(t *testing.T) {
+	assert := assert.New(t)
+
 	dir, err := ioutil.TempDir("", "")
 	if err != nil {
 		t.Fatal(err)
@@ -278,13 +293,13 @@ func TestCheckHaveKernelModule(t *testing.T) {
 	module := "foo"
 
 	result := haveKernelModule(module)
-	assert.False(t, result)
+	assert.False(result)
 
 	// XXX: override - make our fake "modprobe" succeed
 	modInfoCmd = "true"
 
 	result = haveKernelModule(module)
-	assert.True(t, result)
+	assert.True(result)
 
 	// disable "modprobe" again
 	modInfoCmd = "false"
@@ -296,10 +311,12 @@ func TestCheckHaveKernelModule(t *testing.T) {
 	}
 
 	result = haveKernelModule(module)
-	assert.True(t, result)
+	assert.True(result)
 }
 
 func TestCheckCheckKernelModules(t *testing.T) {
+	assert := assert.New(t)
+
 	dir, err := ioutil.TempDir("", "")
 	if err != nil {
 		t.Fatal(err)
@@ -341,11 +358,11 @@ func TestCheckCheckKernelModules(t *testing.T) {
 
 	err = checkKernelModules(map[string]kernelModule{})
 	// No required modules means no error
-	assert.NoError(t, err)
+	assert.NoError(err)
 
 	err = checkKernelModules(testData)
 	// No modules exist
-	assert.Error(t, err)
+	assert.Error(err)
 
 	for module, details := range testData {
 		path := filepath.Join(sysModuleDir, module)
@@ -370,10 +387,105 @@ func TestCheckCheckKernelModules(t *testing.T) {
 	}
 
 	err = checkKernelModules(testData)
-	assert.NoError(t, err)
+	assert.NoError(err)
+}
+
+func TestCheckCheckKernelModulesNoUnrestrictedGuest(t *testing.T) {
+	assert := assert.New(t)
+
+	dir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	savedSysModuleDir := sysModuleDir
+	savedProcCPUInfo := procCPUInfo
+
+	cpuInfoFile := filepath.Join(dir, "cpuinfo")
+
+	// XXX: override
+	sysModuleDir = filepath.Join(dir, "sys/module")
+	procCPUInfo = cpuInfoFile
+
+	defer func() {
+		sysModuleDir = savedSysModuleDir
+		procCPUInfo = savedProcCPUInfo
+	}()
+
+	err = os.MkdirAll(sysModuleDir, testDirMode)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	requiredModules := map[string]kernelModule{
+		"kvm_intel": {
+			desc: "Intel KVM",
+			parameters: map[string]string{
+				"nested":             "Y",
+				"unrestricted_guest": "Y",
+			},
+		},
+	}
+
+	actualModuleData := []testModuleData{
+		{filepath.Join(sysModuleDir, "kvm"), true, ""},
+		{filepath.Join(sysModuleDir, "kvm_intel"), true, ""},
+		{filepath.Join(sysModuleDir, "kvm_intel/parameters/nested"), false, "Y"},
+
+		// XXX: force a failure on non-VMM systems
+		{filepath.Join(sysModuleDir, "kvm_intel/parameters/unrestricted_guest"), false, "N"},
+	}
+
+	vendor := "GenuineIntel"
+	flags := "vmx lm sse4_1"
+
+	err = checkKernelModules(requiredModules)
+	// no cpuInfoFile yet
+	assert.Error(err)
+
+	err = makeCPUInfoFile(cpuInfoFile, vendor, flags)
+	assert.NoError(err)
+
+	createModules(assert, cpuInfoFile, actualModuleData)
+
+	err = checkKernelModules(requiredModules)
+
+	// fails due to unrestricted_guest not being available
+	assert.Error(err)
+	assert.True(strings.Contains(err.Error(), "unrestricted_guest"))
+
+	// pretend test is running under a hypervisor
+	flags += " hypervisor"
+
+	// recreate
+	err = makeCPUInfoFile(cpuInfoFile, vendor, flags)
+	assert.NoError(err)
+
+	// create buffer to save logger output
+	buf := &bytes.Buffer{}
+
+	savedLogOutput := ccLog.Out
+
+	defer func() {
+		ccLog.Out = savedLogOutput
+	}()
+
+	ccLog.Out = buf
+
+	err = checkKernelModules(requiredModules)
+
+	// no error now because running under a hypervisor
+	assert.NoError(err)
+
+	re := regexp.MustCompile(`\bwarning\b.*\bunrestricted_guest\b`)
+	matches := re.FindAllStringSubmatch(buf.String(), -1)
+	assert.NotEmpty(matches)
 }
 
 func TestCheckCheckKernelModulesUnreadableFile(t *testing.T) {
+	assert := assert.New(t)
+
 	if os.Geteuid() == 0 {
 		t.Skip(testDisabledNeedNonRoot)
 	}
@@ -407,22 +519,24 @@ func TestCheckCheckKernelModulesUnreadableFile(t *testing.T) {
 
 	modPath := filepath.Join(sysModuleDir, "foo/parameters")
 	err = os.MkdirAll(modPath, testDirMode)
-	assert.NoError(t, err)
+	assert.NoError(err)
 
 	modParamFile := filepath.Join(modPath, "param1")
 
 	err = createEmptyFile(modParamFile)
-	assert.NoError(t, err)
+	assert.NoError(err)
 
 	// make file unreadable by non-root user
 	err = os.Chmod(modParamFile, 0000)
-	assert.NoError(t, err)
+	assert.NoError(err)
 
 	err = checkKernelModules(testData)
-	assert.Error(t, err)
+	assert.Error(err)
 }
 
 func TestCheckCheckKernelModulesInvalidFileContents(t *testing.T) {
+	assert := assert.New(t)
+
 	dir, err := ioutil.TempDir("", "")
 	if err != nil {
 		t.Fatal(err)
@@ -452,18 +566,18 @@ func TestCheckCheckKernelModulesInvalidFileContents(t *testing.T) {
 
 	modPath := filepath.Join(sysModuleDir, "foo/parameters")
 	err = os.MkdirAll(modPath, testDirMode)
-	assert.NoError(t, err)
+	assert.NoError(err)
 
 	modParamFile := filepath.Join(modPath, "param1")
 
 	err = createFile(modParamFile, "burp")
-	assert.NoError(t, err)
+	assert.NoError(err)
 
 	err = checkKernelModules(testData)
-	assert.Error(t, err)
+	assert.Error(err)
 }
 
-func setupCheckHostIsClearContainersCapable(t *testing.T, cpuInfoFile string, cpuData []testCPUData, moduleData []testModuleData) {
+func createModules(assert *assert.Assertions, cpuInfoFile string, moduleData []testModuleData) {
 	for _, d := range moduleData {
 		var dir string
 
@@ -474,37 +588,40 @@ func setupCheckHostIsClearContainersCapable(t *testing.T, cpuInfoFile string, cp
 		}
 
 		err := os.MkdirAll(dir, testDirMode)
-
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.NoError(err)
 
 		if !d.isDir {
 			err = createFile(d.path, d.contents)
-			assert.NoError(t, err)
+			assert.NoError(err)
 		}
 
 		err = hostIsClearContainersCapable(cpuInfoFile)
 		// cpuInfoFile doesn't exist
-		assert.Error(t, err)
+		assert.Error(err)
 	}
+}
+
+func setupCheckHostIsClearContainersCapable(assert *assert.Assertions, cpuInfoFile string, cpuData []testCPUData, moduleData []testModuleData) {
+	createModules(assert, cpuInfoFile, moduleData)
 
 	// all the modules files have now been created, so deal with the
 	// cpuinfo data.
 	for _, d := range cpuData {
 		err := makeCPUInfoFile(cpuInfoFile, d.vendorID, d.flags)
-		assert.NoError(t, err)
+		assert.NoError(err)
 
 		err = hostIsClearContainersCapable(cpuInfoFile)
 		if d.expectError {
-			assert.Error(t, err)
+			assert.Error(err)
 		} else {
-			assert.NoError(t, err)
+			assert.NoError(err)
 		}
 	}
 }
 
 func TestCheckHostIsClearContainersCapable(t *testing.T) {
+	assert := assert.New(t)
+
 	dir, err := ioutil.TempDir("", "")
 	if err != nil {
 		t.Fatal(err)
@@ -546,17 +663,19 @@ func TestCheckHostIsClearContainersCapable(t *testing.T) {
 		{filepath.Join(sysModuleDir, "kvm_intel/parameters/unrestricted_guest"), false, "Y"},
 	}
 
-	setupCheckHostIsClearContainersCapable(t, cpuInfoFile, cpuData, moduleData)
+	setupCheckHostIsClearContainersCapable(assert, cpuInfoFile, cpuData, moduleData)
 
 	// remove the modules to force a failure
 	err = os.RemoveAll(sysModuleDir)
-	assert.NoError(t, err)
+	assert.NoError(err)
 
 	err = hostIsClearContainersCapable(cpuInfoFile)
-	assert.Error(t, err)
+	assert.Error(err)
 }
 
 func TestCCCheckCLIFunction(t *testing.T) {
+	assert := assert.New(t)
+
 	dir, err := ioutil.TempDir("", "")
 	if err != nil {
 		t.Fatal(err)
@@ -594,7 +713,7 @@ func TestCCCheckCLIFunction(t *testing.T) {
 	}
 
 	devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0666)
-	assert.NoError(t, err)
+	assert.NoError(err)
 
 	savedLogOutput := ccLog.Out
 
@@ -605,30 +724,32 @@ func TestCCCheckCLIFunction(t *testing.T) {
 		ccLog.Out = savedLogOutput
 	}()
 
-	assert.False(t, fileExists(logfile))
+	assert.False(fileExists(logfile))
 
 	err = handleGlobalLog(logfile)
-	assert.NoError(t, err)
+	assert.NoError(err)
 
-	setupCheckHostIsClearContainersCapable(t, cpuInfoFile, cpuData, moduleData)
+	setupCheckHostIsClearContainersCapable(assert, cpuInfoFile, cpuData, moduleData)
 
-	assert.True(t, fileExists(logfile))
+	assert.True(fileExists(logfile))
 
 	app := cli.NewApp()
 	ctx := cli.NewContext(app, nil, nil)
 	app.Name = "foo"
 
 	fn, ok := checkCLICommand.Action.(func(context *cli.Context) error)
-	assert.True(t, ok)
+	assert.True(ok)
 
 	err = fn(ctx)
-	assert.NoError(t, err)
+	assert.NoError(err)
 
 	err = grep(successMessage, logfile)
-	assert.NoError(t, err)
+	assert.NoError(err)
 }
 
 func TestCCCheckCLIFunctionFail(t *testing.T) {
+	assert := assert.New(t)
+
 	dir, err := ioutil.TempDir("", "")
 	if err != nil {
 		t.Fatal(err)
@@ -649,8 +770,8 @@ func TestCCCheckCLIFunctionFail(t *testing.T) {
 	app.Name = "foo"
 
 	fn, ok := checkCLICommand.Action.(func(context *cli.Context) error)
-	assert.True(t, ok)
+	assert.True(ok)
 
 	err = fn(ctx)
-	assert.Error(t, err)
+	assert.Error(err)
 }
