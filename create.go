@@ -118,8 +118,6 @@ func create(containerID, bundlePath, console, pidFilePath string, detach bool,
 		if err != nil {
 			return err
 		}
-	default:
-		return fmt.Errorf("Invalid container type %q found", string(containerType))
 	}
 
 	// config.json provides a cgroups path that has to be used to create "tasks"
