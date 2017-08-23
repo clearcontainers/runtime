@@ -37,7 +37,7 @@ func SetLogger(logger logrus.FieldLogger) {
 
 // CreatePod is the virtcontainers pod creation entry point.
 // CreatePod creates a pod and its containers. It does not start them.
-func CreatePod(podConfig PodConfig) (*Pod, error) {
+func CreatePod(podConfig PodConfig) (VCPod, error) {
 	// Create the pod.
 	p, err := createPod(podConfig)
 	if err != nil {
@@ -92,7 +92,7 @@ func CreatePod(podConfig PodConfig) (*Pod, error) {
 
 // DeletePod is the virtcontainers pod deletion entry point.
 // DeletePod will stop an already running container and then delete it.
-func DeletePod(podID string) (*Pod, error) {
+func DeletePod(podID string) (VCPod, error) {
 	if podID == "" {
 		return nil, errNeedPodID
 	}
@@ -151,7 +151,7 @@ func DeletePod(podID string) (*Pod, error) {
 // StartPod will talk to the given hypervisor to start an existing
 // pod and all its containers.
 // It returns the pod ID.
-func StartPod(podID string) (*Pod, error) {
+func StartPod(podID string) (VCPod, error) {
 	if podID == "" {
 		return nil, errNeedPodID
 	}
@@ -184,7 +184,7 @@ func StartPod(podID string) (*Pod, error) {
 
 // StopPod is the virtcontainers pod stopping entry point.
 // StopPod will talk to the given agent to stop an existing pod and destroy all containers within that pod.
-func StopPod(podID string) (*Pod, error) {
+func StopPod(podID string) (VCPod, error) {
 	if podID == "" {
 		return nil, errNeedPod
 	}
@@ -213,7 +213,7 @@ func StopPod(podID string) (*Pod, error) {
 
 // RunPod is the virtcontainers pod running entry point.
 // RunPod creates a pod and its containers and then it starts them.
-func RunPod(podConfig PodConfig) (*Pod, error) {
+func RunPod(podConfig PodConfig) (VCPod, error) {
 	// Create the pod.
 	p, err := createPod(podConfig)
 	if err != nil {
@@ -355,7 +355,7 @@ func StatusPod(podID string) (PodStatus, error) {
 
 // CreateContainer is the virtcontainers container creation entry point.
 // CreateContainer creates a container on a given pod.
-func CreateContainer(podID string, containerConfig ContainerConfig) (*Pod, *Container, error) {
+func CreateContainer(podID string, containerConfig ContainerConfig) (VCPod, VCContainer, error) {
 	if podID == "" {
 		return nil, nil, errNeedPodID
 	}
@@ -396,7 +396,7 @@ func CreateContainer(podID string, containerConfig ContainerConfig) (*Pod, *Cont
 // DeleteContainer is the virtcontainers container deletion entry point.
 // DeleteContainer deletes a Container from a Pod. If the container is running,
 // it needs to be stopped first.
-func DeleteContainer(podID, containerID string) (*Container, error) {
+func DeleteContainer(podID, containerID string) (VCContainer, error) {
 	if podID == "" {
 		return nil, errNeedPodID
 	}
@@ -445,7 +445,7 @@ func DeleteContainer(podID, containerID string) (*Container, error) {
 
 // StartContainer is the virtcontainers container starting entry point.
 // StartContainer starts an already created container.
-func StartContainer(podID, containerID string) (*Container, error) {
+func StartContainer(podID, containerID string) (VCContainer, error) {
 	if podID == "" {
 		return nil, errNeedPodID
 	}
@@ -483,7 +483,7 @@ func StartContainer(podID, containerID string) (*Container, error) {
 
 // StopContainer is the virtcontainers container stopping entry point.
 // StopContainer stops an already running container.
-func StopContainer(podID, containerID string) (*Container, error) {
+func StopContainer(podID, containerID string) (VCContainer, error) {
 	if podID == "" {
 		return nil, errNeedPodID
 	}
@@ -521,7 +521,7 @@ func StopContainer(podID, containerID string) (*Container, error) {
 
 // EnterContainer is the virtcontainers container command execution entry point.
 // EnterContainer enters an already running container and runs a given command.
-func EnterContainer(podID, containerID string, cmd Cmd) (*Pod, *Container, *Process, error) {
+func EnterContainer(podID, containerID string, cmd Cmd) (VCPod, VCContainer, *Process, error) {
 	if podID == "" {
 		return nil, nil, nil, errNeedPodID
 	}
@@ -651,12 +651,12 @@ func KillContainer(podID, containerID string, signal syscall.Signal, all bool) e
 
 // PausePod is the virtcontainers pausing entry point which pauses an
 // already running pod.
-func PausePod(podID string) (*Pod, error) {
+func PausePod(podID string) (VCPod, error) {
 	return togglePausePod(podID, true)
 }
 
 // ResumePod is the virtcontainers resuming entry point which resumes
 // (or unpauses) and already paused pod.
-func ResumePod(podID string) (*Pod, error) {
+func ResumePod(podID string) (VCPod, error) {
 	return togglePausePod(podID, false)
 }

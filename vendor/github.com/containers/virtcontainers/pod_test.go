@@ -25,6 +25,8 @@ import (
 	"reflect"
 	"sync"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func newHypervisorConfig(kernelParams []Param, hParams []Param) HypervisorConfig {
@@ -938,7 +940,7 @@ func TestGetAllContainers(t *testing.T) {
 	list := pod.GetAllContainers()
 
 	for i, c := range list {
-		if c.id != containerIDs[i] {
+		if c.ID() != containerIDs[i] {
 			t.Fatal()
 		}
 	}
@@ -1060,7 +1062,7 @@ func TestContainerSetStateBlockIndex(t *testing.T) {
 		t.Fatal()
 	}
 
-	path := filepath.Join(runStoragePath, testPodID, c.id)
+	path := filepath.Join(runStoragePath, testPodID, c.ID())
 	err = os.MkdirAll(path, dirMode)
 	if err != nil {
 		t.Fatal(err)
@@ -1079,7 +1081,11 @@ func TestContainerSetStateBlockIndex(t *testing.T) {
 		State:  "stopped",
 		Fstype: "vfs",
 	}
-	c.state = state
+
+	cImpl, ok := c.(*Container)
+	assert.True(t, ok)
+
+	cImpl.state = state
 
 	stateData := `{
 		"state":"stopped",
@@ -1099,11 +1105,11 @@ func TestContainerSetStateBlockIndex(t *testing.T) {
 	}
 
 	newIndex := 20
-	if err := c.setStateBlockIndex(newIndex); err != nil {
+	if err := cImpl.setStateBlockIndex(newIndex); err != nil {
 		t.Fatal(err)
 	}
 
-	if c.state.BlockIndex != newIndex {
+	if cImpl.state.BlockIndex != newIndex {
 		t.Fatal()
 	}
 
@@ -1154,7 +1160,7 @@ func TestContainerStateSetFstype(t *testing.T) {
 		t.Fatal()
 	}
 
-	path := filepath.Join(runStoragePath, testPodID, c.id)
+	path := filepath.Join(runStoragePath, testPodID, c.ID())
 	err = os.MkdirAll(path, dirMode)
 	if err != nil {
 		t.Fatal(err)
@@ -1173,7 +1179,11 @@ func TestContainerStateSetFstype(t *testing.T) {
 		Fstype:     "vfs",
 		BlockIndex: 3,
 	}
-	c.state = state
+
+	cImpl, ok := c.(*Container)
+	assert.True(t, ok)
+
+	cImpl.state = state
 
 	stateData := `{
 		"state":"ready",
@@ -1194,11 +1204,11 @@ func TestContainerStateSetFstype(t *testing.T) {
 	}
 
 	newFstype := "ext4"
-	if err := c.setStateFstype(newFstype); err != nil {
+	if err := cImpl.setStateFstype(newFstype); err != nil {
 		t.Fatal(err)
 	}
 
-	if c.state.Fstype != newFstype {
+	if cImpl.state.Fstype != newFstype {
 		t.Fatal()
 	}
 

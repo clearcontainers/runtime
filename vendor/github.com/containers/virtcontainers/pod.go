@@ -452,12 +452,18 @@ func (p *Pod) URL() string {
 }
 
 // GetAllContainers returns all containers.
-func (p *Pod) GetAllContainers() []*Container {
-	return p.containers
+func (p *Pod) GetAllContainers() []VCContainer {
+	ifa := make([]VCContainer, len(p.containers))
+
+	for i, v := range p.containers {
+		ifa[i] = v
+	}
+
+	return ifa
 }
 
 // GetContainer returns the container named by the containerID.
-func (p *Pod) GetContainer(containerID string) *Container {
+func (p *Pod) GetContainer(containerID string) VCContainer {
 	for _, c := range p.containers {
 		if c.id == containerID {
 			return c
@@ -1025,7 +1031,8 @@ func (p *Pod) setContainerState(containerID string, state stateString) error {
 	}
 
 	// Let container handle its state update
-	if err := c.setContainerState(state); err != nil {
+	cImpl := c.(*Container)
+	if err := cImpl.setContainerState(state); err != nil {
 		return err
 	}
 

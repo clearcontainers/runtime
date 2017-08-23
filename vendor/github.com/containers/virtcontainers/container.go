@@ -123,7 +123,7 @@ func (c *Container) ID() string {
 }
 
 // Pod returns the pod handler related to this container.
-func (c *Container) Pod() *Pod {
+func (c *Container) Pod() VCPod {
 	return c.pod
 }
 
