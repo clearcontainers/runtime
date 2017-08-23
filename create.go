@@ -84,6 +84,9 @@ var createCLICommand = cli.Command{
 	},
 }
 
+// Use a variable to allow tests to modify its value
+var getKernelParamsFunc = getKernelParams
+
 func create(containerID, bundlePath, console, pidFilePath string, detach bool,
 	runtimeConfig oci.RuntimeConfig) error {
 	var err error
@@ -144,10 +147,8 @@ func create(containerID, bundlePath, console, pidFilePath string, detach bool,
 	return nil
 }
 
-func createPod(ociSpec oci.CompatOCISpec, runtimeConfig oci.RuntimeConfig,
-	containerID, bundlePath, console string, disableOutput bool) (vc.Process, error) {
-
-	ccKernelParams := []vc.Param{
+func getKernelParams(containerID string) []vc.Param {
+	return []vc.Param{
 		{
 			Key:   "init",
 			Value: "/usr/lib/systemd/systemd",
@@ -169,6 +170,11 @@ func createPod(ociSpec oci.CompatOCISpec, runtimeConfig oci.RuntimeConfig,
 			Value: fmt.Sprintf("::::::%s::off::", containerID),
 		},
 	}
+}
+
+func createPod(ociSpec oci.CompatOCISpec, runtimeConfig oci.RuntimeConfig,
+	containerID, bundlePath, console string, disableOutput bool) (vc.Process, error) {
+	ccKernelParams := getKernelParamsFunc(containerID)
 
 	for _, p := range ccKernelParams {
 		if err := (&runtimeConfig).AddKernelParam(p); err != nil {
