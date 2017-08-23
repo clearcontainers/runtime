@@ -63,10 +63,10 @@ func start(containerID string) (vc.VCPod, error) {
 	}
 
 	if containerType.IsPod() {
-		return vc.StartPod(podID)
+		return vci.StartPod(podID)
 	}
 
-	c, err := vc.StartContainer(podID, containerID)
+	c, err := vci.StartContainer(podID, containerID)
 	if err != nil {
 		return nil, err
 	}

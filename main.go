@@ -50,6 +50,14 @@ NOTES:
 
 var ccLog = logrus.New()
 
+// concrete virtcontainer implementation
+var virtcontainersImpl = &vc.VCImpl{}
+
+// vci is used to access a particular virtcontainers implementation.
+// Normally, it refers to the official package, but is re-assigned in
+// the tests to allow virtcontainers to be mocked.
+var vci vc.VC = virtcontainersImpl
+
 func beforeSubcommands(context *cli.Context) error {
 	if userWantsUsage(context) || (context.NArg() == 1 && (context.Args()[0] == "cc-check")) {
 		// No setup required if the user just
@@ -80,7 +88,7 @@ func beforeSubcommands(context *cli.Context) error {
 	}
 
 	// Set virtcontainers logger.
-	vc.SetLogger(ccLog)
+	vci.SetLogger(ccLog)
 
 	ignoreLogging := false
 	if context.NArg() == 1 && context.Args()[0] == "cc-env" {

@@ -62,7 +62,7 @@ func getContainerInfo(containerID string) (vc.ContainerStatus, string, error) {
 		return vc.ContainerStatus{}, "", fmt.Errorf("Missing container ID")
 	}
 
-	podStatusList, err := vc.ListPod()
+	podStatusList, err := vci.ListPod()
 	if err != nil {
 		return vc.ContainerStatus{}, "", err
 	}

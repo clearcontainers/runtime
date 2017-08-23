@@ -26,7 +26,6 @@ import (
 
 	"github.com/urfave/cli"
 
-	vc "github.com/containers/virtcontainers"
 	oci "github.com/containers/virtcontainers/pkg/oci"
 )
 
@@ -200,7 +199,7 @@ func getContainers(context *cli.Context) ([]fullContainerState, error) {
 		return nil, err
 	}
 
-	podList, err := vc.ListPod()
+	podList, err := vci.ListPod()
 	if err != nil {
 		return nil, err
 	}
