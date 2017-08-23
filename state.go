@@ -55,7 +55,7 @@ func state(containerID string) error {
 		return err
 	}
 
-	stateJSON, err := json.Marshal(state)
+	stateJSON, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
 		return err
 	}
