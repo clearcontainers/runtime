@@ -94,6 +94,24 @@ func runUnitTests(m *testing.M) {
 	os.Exit(ret)
 }
 
+var atexitFuncs []func()
+
+// atexit registers a function f that will be run when exit is called. The
+// handlers so registered will be called the in reverse order of their
+// registration.
+func atexit(f func()) {
+	atexitFuncs = append(atexitFuncs, f)
+}
+
+// exit calls all atexit handlers before exiting the process with status.
+func exit(status int) {
+	for i := len(atexitFuncs) - 1; i >= 0; i-- {
+		f := atexitFuncs[i]
+		f()
+	}
+	os.Exit(status)
+}
+
 // TestMain is the common main function used by ALL the test functions
 // for this package.
 func TestMain(m *testing.M) {
