@@ -17,16 +17,19 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"net"
 	"os"
 	"path/filepath"
 	"reflect"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/containers/virtcontainers/pkg/oci"
 	"github.com/opencontainers/runc/libcontainer/utils"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -35,43 +38,36 @@ var (
 )
 
 func TestGetContainerInfoContainerIDEmptyFailure(t *testing.T) {
+	assert := assert.New(t)
 	status, _, err := getContainerInfo("")
-	if err == nil {
-		t.Fatalf("This test should fail because containerID is empty")
-	}
 
-	if status.ID != "" {
-		t.Fatalf("Expected blank fullID, but got %v", status.ID)
-	}
+	assert.Error(err, "This test should fail because containerID is empty")
+	assert.Empty(status.ID, "Expected blank fullID, but got %v", status.ID)
 }
 
 func TestValidCreateParamsContainerIDEmptyFailure(t *testing.T) {
+	assert := assert.New(t)
 	_, err := validCreateParams("", "")
-	if err == nil {
-		t.Fatalf("This test should fail because containerID is empty")
-	}
+
+	assert.Error(err, "This test should fail because containerID is empty")
 }
 
 func TestGetExistingContainerInfoContainerIDEmptyFailure(t *testing.T) {
+	assert := assert.New(t)
 	status, _, err := getExistingContainerInfo("")
 
-	if err == nil {
-		t.Fatalf("This test should fail because containerID is empty")
-	}
-
-	if status.ID != "" {
-		t.Fatalf("Expected blank fullID, but got %v", status.ID)
-	}
+	assert.Error(err, "This test should fail because containerID is empty")
+	assert.Empty(status.ID, "Expected blank fullID, but got %v", status.ID)
 }
 
 func testProcessCgroupsPath(t *testing.T, ociSpec oci.CompatOCISpec, expected []string) {
+	assert := assert.New(t)
 	result, err := processCgroupsPath(ociSpec, true)
-	if err != nil {
-		t.Fatal(err)
-	}
+
+	assert.NoError(err)
 
 	if reflect.DeepEqual(result, expected) == false {
-		t.Fatalf("Result path %q should match the expected one %q", result, expected)
+		assert.FailNow("DeepEqual failed", "Result path %q should match the expected one %q", result, expected)
 	}
 }
 
@@ -102,6 +98,7 @@ func TestProcessCgroupsPathRelativePathSuccessful(t *testing.T) {
 }
 
 func TestProcessCgroupsPathAbsoluteNoCgroupMountFailure(t *testing.T) {
+	assert := assert.New(t)
 	absoluteCgroupsPath := "/absolute/cgroups/path"
 
 	ociSpec := oci.CompatOCISpec{}
@@ -114,12 +111,11 @@ func TestProcessCgroupsPathAbsoluteNoCgroupMountFailure(t *testing.T) {
 	}
 
 	_, err := processCgroupsPath(ociSpec, true)
-	if err == nil {
-		t.Fatalf("This test should fail because no cgroup mount provided")
-	}
+	assert.Error(err, "This test should fail because no cgroup mount provided")
 }
 
 func TestProcessCgroupsPathAbsoluteNoCgroupMountDestinationFailure(t *testing.T) {
+	assert := assert.New(t)
 	absoluteCgroupsPath := "/absolute/cgroups/path"
 
 	ociSpec := oci.CompatOCISpec{}
@@ -138,12 +134,12 @@ func TestProcessCgroupsPathAbsoluteNoCgroupMountDestinationFailure(t *testing.T)
 	}
 
 	_, err := processCgroupsPath(ociSpec, true)
-	if err == nil {
-		t.Fatalf("This test should fail because no cgroup mount destination provided")
-	}
+	assert.Error(err, "This test should fail because no cgroup mount destination provided")
 }
 
 func TestProcessCgroupsPathAbsoluteSuccessful(t *testing.T) {
+	assert := assert.New(t)
+
 	if os.Geteuid() != 0 {
 		t.Skip(testDisabledNeedRoot)
 	}
@@ -152,19 +148,15 @@ func TestProcessCgroupsPathAbsoluteSuccessful(t *testing.T) {
 	absoluteCgroupsPath := "/cgroup/mount/destination"
 
 	cgroupMountDest, err := ioutil.TempDir("", "cgroup-memory-")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(err)
 	defer os.RemoveAll(cgroupMountDest)
 
 	resourceMountPath := filepath.Join(cgroupMountDest, memoryResource)
-	if err := os.MkdirAll(resourceMountPath, cgroupsDirMode); err != nil {
-		t.Fatal(err)
-	}
+	err = os.MkdirAll(resourceMountPath, cgroupsDirMode)
+	assert.NoError(err)
 
-	if err := syscall.Mount("go-test", resourceMountPath, "cgroup", 0, memoryResource); err != nil {
-		t.Fatal(err)
-	}
+	err = syscall.Mount("go-test", resourceMountPath, "cgroup", 0, memoryResource)
+	assert.NoError(err)
 	defer syscall.Unmount(resourceMountPath, 0)
 
 	ociSpec := oci.CompatOCISpec{}
@@ -187,56 +179,43 @@ func TestProcessCgroupsPathAbsoluteSuccessful(t *testing.T) {
 }
 
 func TestSetupConsoleExistingConsolePathSuccessful(t *testing.T) {
+	assert := assert.New(t)
 	console, err := setupConsole(consolePathTest, "")
-	if err != nil {
-		t.Fatal(err)
-	}
 
-	if console != consolePathTest {
-		t.Fatalf("Got %q, Expecting %q", console, consolePathTest)
-	}
+	assert.NoError(err)
+	assert.Equal(console, consolePathTest, "Got %q, Expecting %q", console, consolePathTest)
 }
 
 func TestSetupConsoleExistingConsolePathAndConsoleSocketPathSuccessful(t *testing.T) {
+	assert := assert.New(t)
 	console, err := setupConsole(consolePathTest, consoleSocketPathTest)
-	if err != nil {
-		t.Fatal(err)
-	}
 
-	if console != consolePathTest {
-		t.Fatalf("Got %q, Expecting %q", console, consolePathTest)
-	}
+	assert.NoError(err)
+	assert.Equal(console, consolePathTest, "Got %q, Expecting %q", console, consolePathTest)
 }
 
 func TestSetupConsoleEmptyPathsSuccessful(t *testing.T) {
-	console, err := setupConsole("", "")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert := assert.New(t)
 
-	if console != "" {
-		t.Fatalf("Console path should be empty, got %q instead", console)
-	}
+	console, err := setupConsole("", "")
+	assert.NoError(err)
+	assert.Empty(console, "Console path should be empty, got %q instead", console)
 }
 
 func TestSetupConsoleExistingConsoleSocketPath(t *testing.T) {
+	assert := assert.New(t)
+
 	dir, err := ioutil.TempDir("", "test-socket")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(err)
 	defer os.RemoveAll(dir)
 
 	sockName := filepath.Join(dir, "console.sock")
 
 	l, err := net.Listen("unix", sockName)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(err)
 
 	console, err := setupConsole("", sockName)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(err)
 
 	waitCh := make(chan error)
 	go func() {
@@ -259,27 +238,25 @@ func TestSetupConsoleExistingConsoleSocketPath(t *testing.T) {
 		waitCh <- err1
 	}()
 
-	if console == "" {
-		t.Fatal("Console socket path should not be empty")
-	}
+	assert.NotEmpty(console, "Console socket path should not be empty")
 
-	if err := <-waitCh; err != nil {
-		t.Fatal(err)
-	}
+	err = <-waitCh
+	assert.NoError(err)
 }
 
 func TestSetupConsoleNotExistingSocketPathFailure(t *testing.T) {
+	assert := assert.New(t)
+
 	console, err := setupConsole("", "unknown-sock-path")
-	if err == nil && console != "" {
-		t.Fatalf("This test should fail because the console socket path does not exist")
-	}
+	assert.Error(err, "This test should fail because the console socket path does not exist")
+	assert.Empty(console, "This test should fail because the console socket path does not exist")
 }
 
 func testNoNeedForOutput(t *testing.T, detach bool, tty bool, expected bool) {
+	assert := assert.New(t)
 	result := noNeedForOutput(detach, tty)
-	if result != expected {
-		t.Fatalf("Expecting %t, Got %t", expected, result)
-	}
+
+	assert.Equal(result, expected)
 }
 
 func TestNoNeedForOutputDetachTrueTtyTrue(t *testing.T) {
@@ -296,4 +273,22 @@ func TestNoNeedForOutputDetachFalseTtyFalse(t *testing.T) {
 
 func TestNoNeedForOutputDetachTrueTtyFalse(t *testing.T) {
 	testNoNeedForOutput(t, true, false, false)
+}
+
+func TestIsCgroupMounted(t *testing.T) {
+	assert := assert.New(t)
+
+	r := rand.New(rand.NewSource(time.Now().Unix()))
+	randPath := fmt.Sprintf("/path/to/random/%d", r.Int63())
+
+	assert.False(isCgroupMounted(randPath), "%s does not exist", randPath)
+
+	assert.False(isCgroupMounted(os.TempDir()), "%s is not a cgroup", os.TempDir())
+
+	memoryCgroupPath := "/sys/fs/cgroup/memory"
+	if _, err := os.Stat(memoryCgroupPath); os.IsNotExist(err) {
+		t.Skip("memory cgroup does not exist: %s", memoryCgroupPath)
+	}
+
+	assert.True(isCgroupMounted(memoryCgroupPath), "%s is a cgroup", memoryCgroupPath)
 }
