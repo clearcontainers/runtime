@@ -156,10 +156,19 @@ func resolvePath(path string) (string, error) {
 	return resolved, nil
 }
 
-// runCommand returns the commands space-trimmed standard output on success
-func runCommand(args []string) (string, error) {
+// runCommandFull returns the commands space-trimmed standard output and
+// error on success
+func runCommandFull(args []string, includeStderr bool) (string, error) {
 	cmd := exec.Command(args[0], args[1:]...)
-	bytes, err := cmd.Output()
+	var err error
+	var bytes []byte
+
+	if includeStderr {
+		bytes, err = cmd.CombinedOutput()
+	} else {
+		bytes, err = cmd.Output()
+	}
+
 	if err != nil {
 		return "", err
 	}
@@ -167,4 +176,9 @@ func runCommand(args []string) (string, error) {
 	trimmed := strings.TrimSpace(string(bytes))
 
 	return trimmed, nil
+}
+
+// runCommand returns the commands space-trimmed standard output on success
+func runCommand(args []string) (string, error) {
+	return runCommandFull(args, false)
 }
