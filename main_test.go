@@ -32,6 +32,7 @@ import (
 	"github.com/containers/virtcontainers/pkg/oci"
 	"github.com/containers/virtcontainers/pkg/vcMock"
 	"github.com/dlespiau/covertool/pkg/cover"
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -40,6 +41,9 @@ const (
 	testDirMode             = os.FileMode(0750)
 	testFileMode            = os.FileMode(0640)
 	testExeFileMode         = os.FileMode(0750)
+
+	// small docker image used to create root filesystems from
+	testDockerImage = "busybox"
 
 	testPodID       = "99999999-9999-9999-99999999999999999"
 	testContainerID = "1"
@@ -61,6 +65,14 @@ var testingImpl = &vcMock.VCMock{}
 func init() {
 	fmt.Printf("INFO: switching to fake virtcontainers implementation for testing\n")
 	vci = testingImpl
+
+	// Do this now to avoid hitting the test timeout value due to
+	// slow network response.
+	fmt.Printf("INFO: ensuring required docker image (%v) is available\n", testDockerImage)
+	_, err := runCommand([]string{"docker", "pull", testDockerImage})
+	if err != nil {
+		panic(err)
+	}
 }
 
 var testPodAnnotations = map[string]string{
@@ -231,11 +243,11 @@ func newTestRuntimeConfig(dir, consolePath string, create bool) (oci.RuntimeConf
 // the bundle directory specified (which must exist).
 func createOCIConfig(bundleDir string) error {
 	if bundleDir == "" {
-		return fmt.Errorf("BUG: Need bundle directory")
+		return errors.New("BUG: Need bundle directory")
 	}
 
 	if !fileExists(bundleDir) {
-		return fmt.Errorf("Bundle directory %s does not exist", bundleDir)
+		return fmt.Errorf("BUG: Bundle directory %s does not exist", bundleDir)
 	}
 
 	var configCmd string
@@ -251,31 +263,64 @@ func createOCIConfig(bundleDir string) error {
 	}
 
 	if configCmd == "" {
-		return fmt.Errorf("Cannot find command to generate OCI config file")
+		return errors.New("Cannot find command to generate OCI config file")
 	}
 
-	cwd, err := os.Getwd()
+	_, err := runCommand([]string{configCmd, "spec", "--bundle", bundleDir})
 	if err != nil {
 		return err
 	}
 
-	err = os.Chdir(bundleDir)
-	if err != nil {
-		return err
-	}
-
-	defer func() {
-		err = os.Chdir(cwd)
-	}()
-
-	_, err = runCommand([]string{configCmd, "spec"})
-	if err != nil {
-		return err
-	}
-
-	specFile := filepath.Join(bundleDir, "config.json")
+	specFile := filepath.Join(bundleDir, specConfig)
 	if !fileExists(specFile) {
 		return fmt.Errorf("generated OCI config file does not exist: %v", specFile)
+	}
+
+	return nil
+}
+
+// createRootfs creates a minimal root filesystem below the specified
+// directory.
+func createRootfs(dir string) error {
+	err := os.MkdirAll(dir, testDirMode)
+	if err != nil {
+		return err
+	}
+
+	container, err := runCommand([]string{"docker", "create", testDockerImage})
+	if err != nil {
+		return err
+	}
+
+	cmd1 := exec.Command("docker", "export", container)
+	cmd2 := exec.Command("tar", "-C", dir, "-xvf", "-")
+
+	cmd1Stdout, err := cmd1.StdoutPipe()
+	if err != nil {
+		return err
+	}
+
+	cmd2.Stdin = cmd1Stdout
+
+	err = cmd2.Start()
+	if err != nil {
+		return err
+	}
+
+	err = cmd1.Run()
+	if err != nil {
+		return err
+	}
+
+	err = cmd2.Wait()
+	if err != nil {
+		return err
+	}
+
+	// Clean up
+	_, err = runCommand([]string{"docker", "rm", container})
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -288,43 +333,35 @@ func makeOCIBundle(bundleDir string) error {
 		return errors.New("BUG: Need bundle directory")
 	}
 
-	if defaultPauseRootPath == "" {
-		return errors.New("BUG: defaultPauseRootPath unset")
+	if !fileExists(bundleDir) {
+		return fmt.Errorf("BUG: Bundle directory %v does not exist", bundleDir)
 	}
 
-	// make use of the existing pause bundle
-	from := defaultPauseRootPath
-	to := bundleDir
-	output, err := runCommandFull([]string{"cp", "-a", from, to}, true)
-	if err != nil {
-		return fmt.Errorf("failed to copy pause bundle from %v to %v: %v (output: %v)", from, to, err, output)
-	}
-
-	err = createOCIConfig(bundleDir)
+	err := createOCIConfig(bundleDir)
 	if err != nil {
 		return err
 	}
 
-	// Note the unusual parameter!
+	// Note the unusual parameter (a directory, not the config
+	// file to parse!)
 	spec, err := oci.ParseConfigJSON(bundleDir)
 	if err != nil {
 		return err
 	}
 
 	// Determine the rootfs directory name the OCI config refers to
-	rootDir := spec.Root.Path
+	ociRootPath := spec.Root.Path
 
-	base := filepath.Base(defaultPauseRootPath)
-	from = filepath.Join(bundleDir, base)
-	to = rootDir
+	rootfsDir := filepath.Join(bundleDir, ociRootPath)
 
-	if !strings.HasPrefix(rootDir, "/") {
-		to = filepath.Join(bundleDir, rootDir)
+	if strings.HasPrefix(ociRootPath, "/") {
+		// Absolute path
+		rootfsDir = ociRootPath
 	}
 
-	output, err = runCommandFull([]string{"mv", from, to}, true)
+	err = createRootfs(rootfsDir)
 	if err != nil {
-		return fmt.Errorf("failed to rename bundle root from %v to %v: %v (output: %v)", from, to, err, output)
+		return err
 	}
 
 	return nil
@@ -360,4 +397,74 @@ func writeOCIConfigFile(spec oci.CompatOCISpec, configPath string) error {
 	}
 
 	return ioutil.WriteFile(configPath, bytes, testFileMode)
+}
+
+func TestMakeOCIBundle(t *testing.T) {
+	assert := assert.New(t)
+
+	tmpdir, err := ioutil.TempDir(testDir, "")
+	assert.NoError(err)
+	defer os.RemoveAll(tmpdir)
+
+	bundleDir := filepath.Join(tmpdir, "bundle")
+
+	err = makeOCIBundle(bundleDir)
+	// ENOENT
+	assert.Error(err)
+
+	err = os.MkdirAll(bundleDir, testDirMode)
+	assert.NoError(err)
+
+	err = makeOCIBundle(bundleDir)
+	assert.NoError(err)
+
+	specFile := filepath.Join(bundleDir, specConfig)
+	assert.True(fileExists(specFile))
+}
+
+func TestCreateOCIConfig(t *testing.T) {
+	assert := assert.New(t)
+
+	tmpdir, err := ioutil.TempDir(testDir, "")
+	assert.NoError(err)
+	defer os.RemoveAll(tmpdir)
+
+	bundleDir := filepath.Join(tmpdir, "bundle")
+
+	err = createOCIConfig(bundleDir)
+	// ENOENT
+	assert.Error(err)
+
+	err = os.MkdirAll(bundleDir, testDirMode)
+	assert.NoError(err)
+
+	err = createOCIConfig(bundleDir)
+	assert.NoError(err)
+
+	specFile := filepath.Join(bundleDir, specConfig)
+	assert.True(fileExists(specFile))
+}
+
+func TestCreateRootfs(t *testing.T) {
+	assert := assert.New(t)
+
+	tmpdir, err := ioutil.TempDir(testDir, "")
+	assert.NoError(err)
+	defer os.RemoveAll(tmpdir)
+
+	rootfsDir := filepath.Join(tmpdir, "rootfs")
+	assert.False(fileExists(rootfsDir))
+
+	err = createRootfs(rootfsDir)
+	assert.NoError(err)
+
+	// non-comprehensive list of expected directories
+	expectedDirs := []string{"bin", "dev", "etc", "usr", "var"}
+
+	assert.True(fileExists(rootfsDir))
+
+	for _, dir := range expectedDirs {
+		dirPath := filepath.Join(rootfsDir, dir)
+		assert.True(fileExists(dirPath))
+	}
 }
