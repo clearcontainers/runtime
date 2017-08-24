@@ -47,4 +47,4 @@ fi
 
 # Setup environment and build components.
 cd "${test_repo_dir}"
-sudo -E PATH=$PATH bash .ci/setup.sh
+sudo -E PATH=$PATH bash -c ".ci/setup.sh"

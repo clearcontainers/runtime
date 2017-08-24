@@ -61,4 +61,4 @@ sudo docker ps -a
 # Execute the tests under `clearcontainers/tests` repository.
 test_repo="github.com/clearcontainers/tests"
 cd "${GOPATH}/src/${test_repo}"
-sudo -E PATH=$PATH make check
+sudo -E PATH=$PATH bash -c "make check"
