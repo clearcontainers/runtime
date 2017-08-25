@@ -113,7 +113,7 @@ To list containers created using a non-default value for "--root":
 			return err
 		}
 
-		file := os.Stdout
+		file := defaultOutputFile
 		showAll := context.Bool("cc-all")
 
 		if context.Bool("quiet") {
@@ -244,17 +244,33 @@ func getContainers(context *cli.Context) ([]fullContainerState, error) {
 //
 // It ensures all paths are fully expanded.
 func getHypervisorDetails(runtimeConfig oci.RuntimeConfig) (hypervisorDetails, error) {
-	hypervisorPath, err := filepath.EvalSymlinks(runtimeConfig.HypervisorConfig.HypervisorPath)
+	initialHypervisorPath := runtimeConfig.HypervisorConfig.HypervisorPath
+	initialKernelPath := runtimeConfig.HypervisorConfig.KernelPath
+	initialImagePath := runtimeConfig.HypervisorConfig.ImagePath
+
+	if initialHypervisorPath == "" {
+		return hypervisorDetails{}, fmt.Errorf("Need hypervisor path")
+	}
+
+	if initialKernelPath == "" {
+		return hypervisorDetails{}, fmt.Errorf("Need kernel path")
+	}
+
+	if initialImagePath == "" {
+		return hypervisorDetails{}, fmt.Errorf("Need image path")
+	}
+
+	hypervisorPath, err := filepath.EvalSymlinks(initialHypervisorPath)
 	if err != nil {
 		return hypervisorDetails{}, err
 	}
 
-	kernelPath, err := filepath.EvalSymlinks(runtimeConfig.HypervisorConfig.KernelPath)
+	kernelPath, err := filepath.EvalSymlinks(initialKernelPath)
 	if err != nil {
 		return hypervisorDetails{}, err
 	}
 
-	imagePath, err := filepath.EvalSymlinks(runtimeConfig.HypervisorConfig.ImagePath)
+	imagePath, err := filepath.EvalSymlinks(initialImagePath)
 	if err != nil {
 		return hypervisorDetails{}, err
 	}

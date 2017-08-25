@@ -33,10 +33,6 @@ import (
 // (meaning any change to the EnvInfo type).
 const formatVersion = "1.0.2"
 
-// defaultOutputFile is the default output file to write the gathered
-// information to.
-var defaultOutputFile = os.Stdout
-
 // MetaInfo stores information on the format of the output itself
 type MetaInfo struct {
 	// output format version
