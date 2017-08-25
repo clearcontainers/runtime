@@ -277,9 +277,6 @@ func TestCreateInvalidArgs(t *testing.T) {
 
 	bundlePath := filepath.Join(tmpdir, "bundle")
 
-	err = os.MkdirAll(bundlePath, testDirMode)
-	assert.NoError(err)
-
 	err = makeOCIBundle(bundlePath)
 	assert.NoError(err)
 
@@ -329,9 +326,6 @@ func TestCreateInvalidConfigJSON(t *testing.T) {
 
 	bundlePath := filepath.Join(tmpdir, "bundle")
 
-	err = os.MkdirAll(bundlePath, testDirMode)
-	assert.NoError(err)
-
 	err = makeOCIBundle(bundlePath)
 	assert.NoError(err)
 
@@ -375,9 +369,6 @@ func TestCreateInvalidContainerType(t *testing.T) {
 	assert.NoError(err)
 
 	bundlePath := filepath.Join(tmpdir, "bundle")
-
-	err = os.MkdirAll(bundlePath, testDirMode)
-	assert.NoError(err)
 
 	err = makeOCIBundle(bundlePath)
 	assert.NoError(err)
@@ -425,9 +416,6 @@ func TestCreateContainerInvalid(t *testing.T) {
 	assert.NoError(err)
 
 	bundlePath := filepath.Join(tmpdir, "bundle")
-
-	err = os.MkdirAll(bundlePath, testDirMode)
-	assert.NoError(err)
 
 	err = makeOCIBundle(bundlePath)
 	assert.NoError(err)
@@ -488,9 +476,6 @@ func TestCreateProcessCgroupsPathFail(t *testing.T) {
 	assert.NoError(err)
 
 	bundlePath := filepath.Join(tmpdir, "bundle")
-
-	err = os.MkdirAll(bundlePath, testDirMode)
-	assert.NoError(err)
 
 	err = makeOCIBundle(bundlePath)
 	assert.NoError(err)
@@ -582,9 +567,6 @@ func TestCreateCreateCgroupsFilesFail(t *testing.T) {
 
 	bundlePath := filepath.Join(tmpdir, "bundle")
 
-	err = os.MkdirAll(bundlePath, testDirMode)
-	assert.NoError(err)
-
 	err = makeOCIBundle(bundlePath)
 	assert.NoError(err)
 
@@ -670,9 +652,6 @@ func TestCreateCreateCreatePidFileFail(t *testing.T) {
 
 	bundlePath := filepath.Join(tmpdir, "bundle")
 
-	err = os.MkdirAll(bundlePath, testDirMode)
-	assert.NoError(err)
-
 	err = makeOCIBundle(bundlePath)
 	assert.NoError(err)
 
@@ -744,9 +723,6 @@ func TestCreate(t *testing.T) {
 
 	bundlePath := filepath.Join(tmpdir, "bundle")
 
-	err = os.MkdirAll(bundlePath, testDirMode)
-	assert.NoError(err)
-
 	err = makeOCIBundle(bundlePath)
 	assert.NoError(err)
 
@@ -799,9 +775,6 @@ func TestCreateInvalidKernelParams(t *testing.T) {
 	assert.NoError(err)
 
 	bundlePath := filepath.Join(tmpdir, "bundle")
-
-	err = os.MkdirAll(bundlePath, testDirMode)
-	assert.NoError(err)
 
 	err = makeOCIBundle(bundlePath)
 	assert.NoError(err)
@@ -864,9 +837,6 @@ func TestCreateCreatePodPodConfigFail(t *testing.T) {
 
 	bundlePath := filepath.Join(tmpdir, "bundle")
 
-	err = os.MkdirAll(bundlePath, testDirMode)
-	assert.NoError(err)
-
 	err = makeOCIBundle(bundlePath)
 	assert.NoError(err)
 
@@ -914,9 +884,6 @@ func TestCreateCreatePodFail(t *testing.T) {
 
 	bundlePath := filepath.Join(tmpdir, "bundle")
 
-	err = os.MkdirAll(bundlePath, testDirMode)
-	assert.NoError(err)
-
 	err = makeOCIBundle(bundlePath)
 	assert.NoError(err)
 
@@ -948,9 +915,6 @@ func TestCreateCreateContainerContainerConfigFail(t *testing.T) {
 	defer os.RemoveAll(tmpdir)
 
 	bundlePath := filepath.Join(tmpdir, "bundle")
-
-	err = os.MkdirAll(bundlePath, testDirMode)
-	assert.NoError(err)
 
 	err = makeOCIBundle(bundlePath)
 	assert.NoError(err)
@@ -995,9 +959,6 @@ func TestCreateCreateContainerFail(t *testing.T) {
 	defer os.RemoveAll(tmpdir)
 
 	bundlePath := filepath.Join(tmpdir, "bundle")
-
-	err = os.MkdirAll(bundlePath, testDirMode)
-	assert.NoError(err)
 
 	err = makeOCIBundle(bundlePath)
 	assert.NoError(err)
@@ -1046,9 +1007,6 @@ func TestCreateCreateContainer(t *testing.T) {
 	defer os.RemoveAll(tmpdir)
 
 	bundlePath := filepath.Join(tmpdir, "bundle")
-
-	err = os.MkdirAll(bundlePath, testDirMode)
-	assert.NoError(err)
 
 	err = makeOCIBundle(bundlePath)
 	assert.NoError(err)
