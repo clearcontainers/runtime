@@ -15,8 +15,19 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"syscall"
 	"testing"
+
+	vc "github.com/containers/virtcontainers"
+	"github.com/stretchr/testify/assert"
+)
+
+var (
+	testKillContainerFuncReturnNil = func(podID, containerID string, signal syscall.Signal, all bool) error {
+		return nil
+	}
 )
 
 func TestProcessSignal(t *testing.T) {
@@ -45,4 +56,189 @@ func TestProcessSignal(t *testing.T) {
 			t.Fatalf("signal %s is not a valid signal and no error was reported\n", test.signal)
 		}
 	}
+}
+
+func TestKillCLIFunctionSuccessful(t *testing.T) {
+	assert := assert.New(t)
+
+	state := vc.State{
+		State: vc.StateRunning,
+	}
+
+	testingImpl.KillContainerFunc = testKillContainerFuncReturnNil
+	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
+		return newSingleContainerPodStatusList(testPodID, testContainerID, state, state), nil
+	}
+	defer func() {
+		testingImpl.KillContainerFunc = nil
+		testingImpl.ListPodFunc = nil
+	}()
+
+	set := flag.NewFlagSet("", 0)
+	set.Parse([]string{testContainerID, "SIGKILL"})
+
+	execCLICommandFunc(assert, killCLICommand, set, false)
+}
+
+func TestKillCLIFunctionNoSignalSuccessful(t *testing.T) {
+	assert := assert.New(t)
+
+	state := vc.State{
+		State: vc.StateRunning,
+	}
+
+	testingImpl.KillContainerFunc = testKillContainerFuncReturnNil
+	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
+		return newSingleContainerPodStatusList(testPodID, testContainerID, state, state), nil
+	}
+	defer func() {
+		testingImpl.KillContainerFunc = nil
+		testingImpl.ListPodFunc = nil
+	}()
+
+	set := flag.NewFlagSet("", 0)
+	set.Parse([]string{testContainerID})
+
+	execCLICommandFunc(assert, killCLICommand, set, false)
+}
+
+func TestKillCLIFunctionEnableAllSuccessful(t *testing.T) {
+	assert := assert.New(t)
+
+	state := vc.State{
+		State: vc.StateRunning,
+	}
+
+	testingImpl.KillContainerFunc = func(podID, containerID string, signal syscall.Signal, all bool) error {
+		if !all {
+			return fmt.Errorf("Expecting -all flag = true, Got false")
+		}
+
+		return nil
+	}
+	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
+		return newSingleContainerPodStatusList(testPodID, testContainerID, state, state), nil
+	}
+	defer func() {
+		testingImpl.KillContainerFunc = nil
+		testingImpl.ListPodFunc = nil
+	}()
+
+	set := flag.NewFlagSet("", 0)
+	set.Bool("all", true, "")
+	set.Parse([]string{testContainerID})
+
+	execCLICommandFunc(assert, killCLICommand, set, false)
+}
+
+func TestKillCLIFunctionNoContainerIDFailure(t *testing.T) {
+	assert := assert.New(t)
+
+	set := flag.NewFlagSet("", 0)
+
+	execCLICommandFunc(assert, killCLICommand, set, true)
+}
+
+func TestKillCLIFunctionContainerNotExistFailure(t *testing.T) {
+	assert := assert.New(t)
+
+	testingImpl.KillContainerFunc = testKillContainerFuncReturnNil
+	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
+		return []vc.PodStatus{}, nil
+	}
+	defer func() {
+		testingImpl.KillContainerFunc = nil
+		testingImpl.ListPodFunc = nil
+	}()
+
+	set := flag.NewFlagSet("", 0)
+	set.Parse([]string{testContainerID})
+
+	execCLICommandFunc(assert, killCLICommand, set, true)
+}
+
+func TestKillCLIFunctionInvalidSignalFailure(t *testing.T) {
+	assert := assert.New(t)
+
+	state := vc.State{
+		State: vc.StateRunning,
+	}
+
+	testingImpl.KillContainerFunc = testKillContainerFuncReturnNil
+	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
+		return newSingleContainerPodStatusList(testPodID, testContainerID, state, state), nil
+	}
+	defer func() {
+		testingImpl.KillContainerFunc = nil
+		testingImpl.ListPodFunc = nil
+	}()
+
+	set := flag.NewFlagSet("", 0)
+	set.Parse([]string{testContainerID, "SIGINVALID"})
+
+	execCLICommandFunc(assert, killCLICommand, set, true)
+}
+
+func TestKillCLIFunctionInvalidStatePausedFailure(t *testing.T) {
+	assert := assert.New(t)
+
+	state := vc.State{
+		State: vc.StatePaused,
+	}
+
+	testingImpl.KillContainerFunc = testKillContainerFuncReturnNil
+	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
+		return newSingleContainerPodStatusList(testPodID, testContainerID, state, state), nil
+	}
+	defer func() {
+		testingImpl.KillContainerFunc = nil
+		testingImpl.ListPodFunc = nil
+	}()
+
+	set := flag.NewFlagSet("", 0)
+	set.Parse([]string{testContainerID})
+
+	execCLICommandFunc(assert, killCLICommand, set, true)
+}
+
+func TestKillCLIFunctionInvalidStateStoppedFailure(t *testing.T) {
+	assert := assert.New(t)
+
+	state := vc.State{
+		State: vc.StateStopped,
+	}
+
+	testingImpl.KillContainerFunc = testKillContainerFuncReturnNil
+	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
+		return newSingleContainerPodStatusList(testPodID, testContainerID, state, state), nil
+	}
+	defer func() {
+		testingImpl.KillContainerFunc = nil
+		testingImpl.ListPodFunc = nil
+	}()
+
+	set := flag.NewFlagSet("", 0)
+	set.Parse([]string{testContainerID})
+
+	execCLICommandFunc(assert, killCLICommand, set, true)
+}
+
+func TestKillCLIFunctionKillContainerFailure(t *testing.T) {
+	assert := assert.New(t)
+
+	state := vc.State{
+		State: vc.StateRunning,
+	}
+
+	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
+		return newSingleContainerPodStatusList(testPodID, testContainerID, state, state), nil
+	}
+	defer func() {
+		testingImpl.ListPodFunc = nil
+	}()
+
+	set := flag.NewFlagSet("", 0)
+	set.Parse([]string{testContainerID})
+
+	execCLICommandFunc(assert, killCLICommand, set, true)
 }
