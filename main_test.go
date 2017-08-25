@@ -56,8 +56,11 @@ const (
 	NoopAgentType  vc.AgentType      = "noop"
 )
 
-// package variables set in TestMain
-var testDir = ""
+var (
+	// package variables set by calling TestMain()
+	testDir       = ""
+	testBundleDir = ""
+)
 
 // testingImpl is a concrete mock RVC implementation used for testing
 var testingImpl = &vcMock.VCMock{}
@@ -66,10 +69,32 @@ func init() {
 	fmt.Printf("INFO: switching to fake virtcontainers implementation for testing\n")
 	vci = testingImpl
 
+	var err error
+
+	fmt.Printf("INFO: creating test directory\n")
+	testDir, err = ioutil.TempDir("", fmt.Sprintf("%s-", name))
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("INFO: test directory is %v\n", testDir)
+
 	// Do this now to avoid hitting the test timeout value due to
 	// slow network response.
 	fmt.Printf("INFO: ensuring required docker image (%v) is available\n", testDockerImage)
-	_, err := runCommand([]string{"docker", "pull", testDockerImage})
+	_, err = runCommand([]string{"docker", "pull", testDockerImage})
+	if err != nil {
+		panic(err)
+	}
+
+	testBundleDir = filepath.Join(testDir, testBundle)
+	err = os.MkdirAll(testBundleDir, testDirMode)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("INFO: creating OCI bundle in %v for tests to use\n", testBundleDir)
+	err = realMakeOCIBundle(testBundleDir)
 	if err != nil {
 		panic(err)
 	}
@@ -86,19 +111,6 @@ var testContainerAnnotations = map[string]string{
 }
 
 func runUnitTests(m *testing.M) {
-	var err error
-
-	testDir, err = ioutil.TempDir("", fmt.Sprintf("%s-", name))
-	if err != nil {
-		panic(err)
-	}
-
-	err = os.MkdirAll(testDir, testDirMode)
-	if err != nil {
-		fmt.Printf("Could not create test directory %s: %s\n", testDir, err)
-		os.Exit(1)
-	}
-
 	ret := m.Run()
 
 	os.RemoveAll(testDir)
@@ -328,7 +340,7 @@ func createRootfs(dir string) error {
 
 // makeOCIBundle will create an OCI bundle (including the "config.json"
 // config file) in the directory specified (which must already exist).
-func makeOCIBundle(bundleDir string) error {
+func realMakeOCIBundle(bundleDir string) error {
 	if bundleDir == "" {
 		return errors.New("BUG: Need bundle directory")
 	}
@@ -355,13 +367,42 @@ func makeOCIBundle(bundleDir string) error {
 	rootfsDir := filepath.Join(bundleDir, ociRootPath)
 
 	if strings.HasPrefix(ociRootPath, "/") {
-		// Absolute path
-		rootfsDir = ociRootPath
+		return fmt.Errorf("Cannot handle absolute rootfs as bundle must be unique to each test")
 	}
 
 	err = createRootfs(rootfsDir)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// Create an OCI bundle in the specified directory.
+//
+// Note that the directory will be created, but it's parent is expected to exist.
+//
+// This function works by copying the already-created test bundle. Ideally,
+// the bundle would be recreated for each test, but createRootfs() uses
+// docker which on some systems is too slow, resulting in the tests timing
+// out.
+func makeOCIBundle(bundleDir string) error {
+	from := testBundleDir
+	to := bundleDir
+
+	// only the basename of bundleDir needs to exist as bundleDir
+	// will get created by cp(1).
+	base := filepath.Dir(bundleDir)
+
+	for _, dir := range []string{from, base} {
+		if !fileExists(dir) {
+			return fmt.Errorf("BUG: directory %v should exist", dir)
+		}
+	}
+
+	output, err := runCommandFull([]string{"cp", "-a", from, to}, true)
+	if err != nil {
+		return fmt.Errorf("failed to copy test OCI bundle from %v to %v: %v (output: %v)", from, to, err, output)
 	}
 
 	return nil
@@ -407,13 +448,6 @@ func TestMakeOCIBundle(t *testing.T) {
 	defer os.RemoveAll(tmpdir)
 
 	bundleDir := filepath.Join(tmpdir, "bundle")
-
-	err = makeOCIBundle(bundleDir)
-	// ENOENT
-	assert.Error(err)
-
-	err = os.MkdirAll(bundleDir, testDirMode)
-	assert.NoError(err)
 
 	err = makeOCIBundle(bundleDir)
 	assert.NoError(err)
