@@ -7,3 +7,12 @@ clear_container_kernel=v4.9.35-76.container
 docker_version=v17.06-ce
 #Supported OCI spec: https://github.com/opencontainers/runtime-spec/releases
 oci_spec_version=v1.0.0-rc5
+
+# Package versions required for CentOS 7 installation.
+gcc_version=6.2.0
+glib_version=2.46.2
+gmp_version=6.1.0
+json_glib_version=1.2.2
+mpc_version=1.0.3
+mpfr_version=3.1.4
+qemu_lite_version=741f430a960b5b67745670e8270db91aeb083c5f
