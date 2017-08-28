@@ -19,6 +19,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -33,6 +34,7 @@ import (
 	"github.com/containers/virtcontainers/pkg/vcMock"
 	"github.com/dlespiau/covertool/pkg/cover"
 	"github.com/stretchr/testify/assert"
+	"github.com/urfave/cli"
 )
 
 const (
@@ -438,6 +440,38 @@ func writeOCIConfigFile(spec oci.CompatOCISpec, configPath string) error {
 	}
 
 	return ioutil.WriteFile(configPath, bytes, testFileMode)
+}
+
+func newSingleContainerPodStatusList(podID, containerID string, podState, containerState vc.State) []vc.PodStatus {
+	return []vc.PodStatus{
+		{
+			ID:    podID,
+			State: podState,
+			ContainersStatus: []vc.ContainerStatus{
+				{
+					ID:    containerID,
+					State: containerState,
+				},
+			},
+		},
+	}
+}
+
+func execCLICommandFunc(assertHandler *assert.Assertions, cliCommand cli.Command, set *flag.FlagSet, expectedErr bool) {
+	app := cli.NewApp()
+	ctx := cli.NewContext(app, set, nil)
+	app.Name = "foo"
+
+	fn, ok := cliCommand.Action.(func(context *cli.Context) error)
+	assertHandler.True(ok)
+
+	err := fn(ctx)
+
+	if expectedErr {
+		assertHandler.Error(err)
+	} else {
+		assertHandler.Nil(err)
+	}
 }
 
 func TestMakeOCIBundle(t *testing.T) {
