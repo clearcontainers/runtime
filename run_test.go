@@ -195,7 +195,7 @@ func testRunContainerSetup(t *testing.T) runContainerData {
 	assert.NoError(err)
 
 	// config json path
-	configPath := filepath.Join(bundlePath, "config.json")
+	configPath := filepath.Join(bundlePath, specConfig)
 
 	// pod id and container id must be the same otherwise delete will not works
 	pod := &vcMock.Pod{
