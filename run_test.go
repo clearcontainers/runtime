@@ -188,14 +188,11 @@ func testRunContainerSetup(t *testing.T) runContainerData {
 	// create a new bundle
 	bundlePath := filepath.Join(tmpdir, "bundle")
 
-	err = os.MkdirAll(bundlePath, testDirMode)
-	assert.NoError(err)
-
-	err = realMakeOCIBundle(bundlePath)
+	err = makeOCIBundle(bundlePath)
 	assert.NoError(err)
 
 	// config json path
-	configPath := filepath.Join(bundlePath, "config.json")
+	configPath := filepath.Join(bundlePath, specConfig)
 
 	// pod id and container id must be the same otherwise delete will not works
 	pod := &vcMock.Pod{

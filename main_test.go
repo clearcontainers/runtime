@@ -340,8 +340,11 @@ func createRootfs(dir string) error {
 	return nil
 }
 
-// makeOCIBundle will create an OCI bundle (including the "config.json"
+// realMakeOCIBundle will create an OCI bundle (including the "config.json"
 // config file) in the directory specified (which must already exist).
+//
+// XXX: Note that tests should *NOT* call this function - they should
+// XXX: instead call makeOCIBundle().
 func realMakeOCIBundle(bundleDir string) error {
 	if bundleDir == "" {
 		return errors.New("BUG: Need bundle directory")
