@@ -188,10 +188,7 @@ func testRunContainerSetup(t *testing.T) runContainerData {
 	// create a new bundle
 	bundlePath := filepath.Join(tmpdir, "bundle")
 
-	err = os.MkdirAll(bundlePath, testDirMode)
-	assert.NoError(err)
-
-	err = realMakeOCIBundle(bundlePath)
+	err = makeOCIBundle(bundlePath)
 	assert.NoError(err)
 
 	// config json path
