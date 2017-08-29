@@ -230,10 +230,7 @@ func TestVmConfig(t *testing.T) {
 }
 
 func testStatusToOCIStateSuccessful(t *testing.T, cStatus vc.ContainerStatus, expected specs.State) {
-	ociState, err := StatusToOCIState(cStatus)
-	if err != nil {
-		t.Fatal(err)
-	}
+	ociState := StatusToOCIState(cStatus)
 
 	if reflect.DeepEqual(ociState, expected) == false {
 		t.Fatalf("Got %v\n expecting %v", ociState, expected)

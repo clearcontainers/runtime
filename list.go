@@ -213,10 +213,7 @@ func getContainers(context *cli.Context) ([]fullContainerState, error) {
 		}
 
 		for _, container := range pod.ContainersStatus {
-			ociState, err := oci.StatusToOCIState(container)
-			if err != nil {
-				return nil, err
-			}
+			ociState := oci.StatusToOCIState(container)
 
 			s = append(s, fullContainerState{
 				containerState: containerState{

@@ -431,8 +431,8 @@ func ContainerConfig(ocispec CompatOCISpec, bundlePath, cid, console string, det
 }
 
 // StatusToOCIState translates a virtcontainers container status into an OCI state.
-func StatusToOCIState(status vc.ContainerStatus) (spec.State, error) {
-	state := spec.State{
+func StatusToOCIState(status vc.ContainerStatus) spec.State {
+	return spec.State{
 		Version:     spec.Version,
 		ID:          status.ID,
 		Status:      StateToOCIState(status.State),
@@ -440,8 +440,6 @@ func StatusToOCIState(status vc.ContainerStatus) (spec.State, error) {
 		Bundle:      status.Annotations[BundlePathKey],
 		Annotations: status.Annotations,
 	}
-
-	return state, nil
 }
 
 // StateToOCIState translates a virtcontainers container state into an OCI one.
