@@ -26,7 +26,9 @@ import (
 	"testing"
 	"time"
 
+	vc "github.com/containers/virtcontainers"
 	"github.com/containers/virtcontainers/pkg/oci"
+	"github.com/containers/virtcontainers/pkg/vcMock"
 	"github.com/opencontainers/runc/libcontainer/utils"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/stretchr/testify/assert"
@@ -37,6 +39,38 @@ var (
 	consoleSocketPathTest = "console-socket-test"
 )
 
+type cgroupTestDataType struct {
+	resource  string
+	linuxSpec *specs.LinuxResources
+}
+
+var cgroupTestData = []cgroupTestDataType{
+	{
+		"memory",
+		&specs.LinuxResources{
+			Memory: &specs.LinuxMemory{},
+		},
+	},
+	{
+		"cpu",
+		&specs.LinuxResources{
+			CPU: &specs.LinuxCPU{},
+		},
+	},
+	{
+		"pids",
+		&specs.LinuxResources{
+			Pids: &specs.LinuxPids{},
+		},
+	},
+	{
+		"blkio",
+		&specs.LinuxResources{
+			BlockIO: &specs.LinuxBlockIO{},
+		},
+	},
+}
+
 func TestGetContainerInfoContainerIDEmptyFailure(t *testing.T) {
 	assert := assert.New(t)
 	status, _, err := getContainerInfo("")
@@ -45,11 +79,87 @@ func TestGetContainerInfoContainerIDEmptyFailure(t *testing.T) {
 	assert.Empty(status.ID, "Expected blank fullID, but got %v", status.ID)
 }
 
+func TestGetContainerInfoDuplicateContainerID(t *testing.T) {
+	assert := assert.New(t)
+
+	pod := &vcMock.Pod{
+		MockID: testPodID,
+	}
+
+	containerID := testContainerID + testContainerID
+
+	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
+		return []vc.PodStatus{
+			{
+				ID: pod.ID(),
+				ContainersStatus: []vc.ContainerStatus{
+					// 2 containers with same ID
+					{
+						ID: containerID,
+						Annotations: map[string]string{
+							oci.ContainerTypeKey: string(vc.PodSandbox),
+						},
+					},
+					{
+						ID: containerID,
+						Annotations: map[string]string{
+							oci.ContainerTypeKey: string(vc.PodSandbox),
+						},
+					},
+				},
+			},
+		}, nil
+	}
+
+	defer func() {
+		testingImpl.ListPodFunc = nil
+	}()
+
+	_, _, err := getContainerInfo(testContainerID)
+	assert.Error(err)
+	assert.Equal(err, errPrefixContIDNotUnique)
+}
+
+func TestGetContainerInfo(t *testing.T) {
+	assert := assert.New(t)
+
+	pod := &vcMock.Pod{
+		MockID: testPodID,
+	}
+
+	containerID := testContainerID + testContainerID
+
+	containerStatus := vc.ContainerStatus{
+		ID: containerID,
+		Annotations: map[string]string{
+			oci.ContainerTypeKey: string(vc.PodSandbox),
+		},
+	}
+
+	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
+		return []vc.PodStatus{
+			{
+				ID:               pod.ID(),
+				ContainersStatus: []vc.ContainerStatus{containerStatus},
+			},
+		}, nil
+	}
+
+	defer func() {
+		testingImpl.ListPodFunc = nil
+	}()
+
+	status, podID, err := getContainerInfo(testContainerID)
+	assert.NoError(err)
+	assert.Equal(podID, pod.ID())
+	assert.Equal(status, containerStatus)
+}
 func TestValidCreateParamsContainerIDEmptyFailure(t *testing.T) {
 	assert := assert.New(t)
 	_, err := validCreateParams("", "")
 
 	assert.Error(err, "This test should fail because containerID is empty")
+	assert.False(vcMock.IsMockError(err))
 }
 
 func TestGetExistingContainerInfoContainerIDEmptyFailure(t *testing.T) {
@@ -58,6 +168,130 @@ func TestGetExistingContainerInfoContainerIDEmptyFailure(t *testing.T) {
 
 	assert.Error(err, "This test should fail because containerID is empty")
 	assert.Empty(status.ID, "Expected blank fullID, but got %v", status.ID)
+}
+
+func TestValidCreateParamsContainerIDNotUnique(t *testing.T) {
+	assert := assert.New(t)
+
+	containerID := testContainerID + testContainerID
+
+	pod := &vcMock.Pod{
+		MockID: testPodID,
+	}
+
+	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
+		return []vc.PodStatus{
+			{
+				ID: pod.ID(),
+				ContainersStatus: []vc.ContainerStatus{
+					// 2 containers with same ID
+					{
+						ID: containerID,
+						Annotations: map[string]string{
+							oci.ContainerTypeKey: string(vc.PodSandbox),
+						},
+					},
+					{
+						ID: containerID,
+						Annotations: map[string]string{
+							oci.ContainerTypeKey: string(vc.PodSandbox),
+						},
+					},
+				},
+			},
+		}, nil
+	}
+
+	defer func() {
+		testingImpl.ListPodFunc = nil
+	}()
+
+	_, err := validCreateParams(testContainerID, "")
+
+	assert.Error(err)
+	assert.False(vcMock.IsMockError(err))
+}
+
+func TestValidCreateParamsContainerIDNotUnique2(t *testing.T) {
+	assert := assert.New(t)
+
+	containerID := testContainerID + testContainerID
+
+	pod := &vcMock.Pod{
+		MockID: testPodID,
+	}
+
+	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
+		return []vc.PodStatus{
+			{
+				ID: pod.ID(),
+				ContainersStatus: []vc.ContainerStatus{
+					{
+						ID: containerID,
+						Annotations: map[string]string{
+							oci.ContainerTypeKey: string(vc.PodSandbox),
+						},
+					},
+				},
+			},
+		}, nil
+	}
+
+	defer func() {
+		testingImpl.ListPodFunc = nil
+	}()
+
+	_, err := validCreateParams(testContainerID, "")
+	assert.Error(err)
+	assert.False(vcMock.IsMockError(err))
+}
+
+func TestValidCreateParamsInvalidBundle(t *testing.T) {
+	assert := assert.New(t)
+
+	tmpdir, err := ioutil.TempDir("", "")
+	assert.NoError(err)
+	defer os.RemoveAll(tmpdir)
+
+	bundlePath := filepath.Join(tmpdir, "bundle")
+
+	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
+		return []vc.PodStatus{}, nil
+	}
+
+	defer func() {
+		testingImpl.ListPodFunc = nil
+	}()
+
+	_, err = validCreateParams(testContainerID, bundlePath)
+	// bundle is ENOENT
+	assert.Error(err)
+	assert.False(vcMock.IsMockError(err))
+}
+
+func TestValidCreateParamsBundleIsAFile(t *testing.T) {
+	assert := assert.New(t)
+
+	tmpdir, err := ioutil.TempDir("", "")
+	assert.NoError(err)
+	defer os.RemoveAll(tmpdir)
+
+	bundlePath := filepath.Join(tmpdir, "bundle")
+	err = createEmptyFile(bundlePath)
+	assert.NoError(err)
+
+	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
+		return []vc.PodStatus{}, nil
+	}
+
+	defer func() {
+		testingImpl.ListPodFunc = nil
+	}()
+
+	_, err = validCreateParams(testContainerID, bundlePath)
+	// bundle exists as a file, not a directory
+	assert.Error(err)
+	assert.False(vcMock.IsMockError(err))
 }
 
 func testProcessCgroupsPath(t *testing.T, ociSpec oci.CompatOCISpec, expected []string) {
@@ -81,6 +315,16 @@ func TestProcessCgroupsPathEmptyPathSuccessful(t *testing.T) {
 	testProcessCgroupsPath(t, ociSpec, []string{})
 }
 
+func TestProcessCgroupsPathEmptyResources(t *testing.T) {
+	ociSpec := oci.CompatOCISpec{}
+
+	ociSpec.Linux = &specs.Linux{
+		CgroupsPath: "foo",
+	}
+
+	testProcessCgroupsPath(t, ociSpec, []string{})
+}
+
 func TestProcessCgroupsPathRelativePathSuccessful(t *testing.T) {
 	relativeCgroupsPath := "relative/cgroups/path"
 	cgroupsDirPath = "/foo/runtime/base"
@@ -88,13 +332,16 @@ func TestProcessCgroupsPathRelativePathSuccessful(t *testing.T) {
 	ociSpec := oci.CompatOCISpec{}
 
 	ociSpec.Linux = &specs.Linux{
-		Resources: &specs.LinuxResources{
-			Memory: &specs.LinuxMemory{},
-		},
 		CgroupsPath: relativeCgroupsPath,
 	}
 
-	testProcessCgroupsPath(t, ociSpec, []string{filepath.Join(cgroupsDirPath, "memory", relativeCgroupsPath)})
+	for _, d := range cgroupTestData {
+		ociSpec.Linux.Resources = d.linuxSpec
+
+		p := filepath.Join(cgroupsDirPath, d.resource, relativeCgroupsPath)
+
+		testProcessCgroupsPath(t, ociSpec, []string{p})
+	}
 }
 
 func TestProcessCgroupsPathAbsoluteNoCgroupMountFailure(t *testing.T) {
@@ -104,14 +351,16 @@ func TestProcessCgroupsPathAbsoluteNoCgroupMountFailure(t *testing.T) {
 	ociSpec := oci.CompatOCISpec{}
 
 	ociSpec.Linux = &specs.Linux{
-		Resources: &specs.LinuxResources{
-			Memory: &specs.LinuxMemory{},
-		},
 		CgroupsPath: absoluteCgroupsPath,
 	}
 
-	_, err := processCgroupsPath(ociSpec, true)
-	assert.Error(err, "This test should fail because no cgroup mount provided")
+	for _, d := range cgroupTestData {
+		ociSpec.Linux.Resources = d.linuxSpec
+
+		_, err := processCgroupsPath(ociSpec, true)
+		assert.Error(err, "This test should fail because no cgroup mount provided (%+v)", d)
+		assert.False(vcMock.IsMockError(err))
+	}
 }
 
 func TestProcessCgroupsPathAbsoluteNoCgroupMountDestinationFailure(t *testing.T) {
@@ -291,4 +540,29 @@ func TestIsCgroupMounted(t *testing.T) {
 	}
 
 	assert.True(isCgroupMounted(memoryCgroupPath), "%s is a cgroup", memoryCgroupPath)
+}
+
+func TestProcessCgroupsPathForResource(t *testing.T) {
+	assert := assert.New(t)
+
+	tmpdir, err := ioutil.TempDir("", "")
+	assert.NoError(err)
+	defer os.RemoveAll(tmpdir)
+
+	bundlePath := filepath.Join(tmpdir, "bundle")
+
+	err = makeOCIBundle(bundlePath)
+	assert.NoError(err)
+
+	ociConfigFile := filepath.Join(bundlePath, specConfig)
+	assert.True(fileExists(ociConfigFile))
+
+	spec, err := readOCIConfigFile(ociConfigFile)
+	assert.NoError(err)
+
+	for _, isPod := range []bool{true, false} {
+		_, err := processCgroupsPathForResource(spec, "", isPod)
+		assert.Error(err)
+		assert.False(vcMock.IsMockError(err))
+	}
 }
