@@ -25,9 +25,9 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-const ptmxPath = "/dev/ptmx"
+var ptmxPath = "/dev/ptmx"
 
-const ptsPtmxPath = "/dev/pts/ptmx"
+var ptsPtmxPath = "/dev/pts/ptmx"
 
 // Console represents a pseudo TTY.
 type Console struct {

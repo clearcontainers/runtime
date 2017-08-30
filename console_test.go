@@ -83,3 +83,49 @@ func TestReadWrite(t *testing.T) {
 	assert.Equal(len(msgWrite), l)
 	assert.Equal(msgWrite, string(msgRead))
 }
+
+func TestNewConsoleFail(t *testing.T) {
+	assert := assert.New(t)
+
+	orgPtmxPath := ptmxPath
+	defer func() { ptmxPath = orgPtmxPath }()
+
+	// OpenFile failure
+	ptmxPath = "/this/file/does/not/exist"
+	c, err := newConsole()
+	assert.Error(err)
+	assert.Nil(c)
+
+	// saneTerminal failure
+	f, err := ioutil.TempFile("", "")
+	assert.NoError(err)
+	assert.NoError(f.Close())
+	defer os.Remove(f.Name())
+	ptmxPath = f.Name()
+	c, err = newConsole()
+	assert.Error(err)
+	assert.Nil(c)
+}
+
+func TestConsoleClose(t *testing.T) {
+	assert := assert.New(t)
+
+	// nil master
+	c := &Console{}
+	assert.NoError(c.Close())
+
+	f, err := ioutil.TempFile("", "")
+	assert.NoError(err)
+	defer os.Remove(f.Name())
+
+	c.master = f
+	assert.NoError(c.Close())
+}
+
+func TestConsolePtsnameFail(t *testing.T) {
+	assert := assert.New(t)
+
+	pts, err := ptsname(nil)
+	assert.Error(err)
+	assert.Empty(pts)
+}
