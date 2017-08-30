@@ -52,6 +52,29 @@ func TestCgroupsFilesEmptyCgroupsPathSuccessful(t *testing.T) {
 	testCreateCgroupsFilesSuccessful(t, []string{}, testPID)
 }
 
+func TestCreateCgroupsFilesFailToWriteFile(t *testing.T) {
+	if os.Geteuid() == 0 {
+		// The os.FileMode(0000) trick doesn't work for root.
+		t.Skip(testDisabledNeedNonRoot)
+	}
+
+	assert := assert.New(t)
+
+	tmpdir, err := ioutil.TempDir("", "")
+	assert.NoError(err)
+	defer os.RemoveAll(tmpdir)
+
+	// create the file as a directory to force an error
+	file := filepath.Join(tmpdir, "cgroups-file")
+	err = os.MkdirAll(file, os.FileMode(0000))
+	assert.NoError(err)
+
+	files := []string{file}
+
+	err = createCgroupsFiles(files, testPID)
+	assert.Error(err)
+}
+
 func TestCgroupsFilesNonEmptyCgroupsPathSuccessful(t *testing.T) {
 	cgroupsPath, err := ioutil.TempDir(testDir, "cgroups-path-")
 	if err != nil {
