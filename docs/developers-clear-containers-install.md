@@ -8,7 +8,6 @@ process.
 ## Requirements
 
   * [go 1.8.3](https://golang.org/)
-  * [glibc-static](https://www.gnu.org/software/libc/libc.html)
   * [gcc](https://gcc.gnu.org/)
 
 ## Clear Containers 3.0 components
