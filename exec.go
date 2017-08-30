@@ -133,7 +133,7 @@ func generateExecParams(context *cli.Context, specProcess *oci.CompatOCIProcess)
 		noSubreaper:  context.Bool("no-subreaper"),
 	}
 
-	if context.IsSet("process") == true {
+	if context.String("process") != "" {
 		var ociProcess oci.CompatOCIProcess
 
 		fileContent, err := ioutil.ReadFile(context.String("process"))
