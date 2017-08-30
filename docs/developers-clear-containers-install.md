@@ -8,8 +8,9 @@ process.
 ## Requirements
 
   * [go 1.8.3](https://golang.org/)
-  * [glibc-static](https://www.gnu.org/software/libc/libc.html)
-  * [gcc](https://gcc.gnu.org/)
+  * [gcc](https://gcc.gnu.org/) and associated C language build tooling
+    such as `make`, `autoconf` and `libtool` which are required
+    to build `cc-shim`
 
 ## Clear Containers 3.0 components
 
