@@ -67,7 +67,7 @@ func TestKillCLIFunctionSuccessful(t *testing.T) {
 
 	testingImpl.KillContainerFunc = testKillContainerFuncReturnNil
 	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
-		return newSingleContainerPodStatusList(testPodID, testContainerID, state, state), nil
+		return newSingleContainerPodStatusList(testPodID, testContainerID, state, state, map[string]string{}), nil
 	}
 	defer func() {
 		testingImpl.KillContainerFunc = nil
@@ -89,7 +89,7 @@ func TestKillCLIFunctionNoSignalSuccessful(t *testing.T) {
 
 	testingImpl.KillContainerFunc = testKillContainerFuncReturnNil
 	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
-		return newSingleContainerPodStatusList(testPodID, testContainerID, state, state), nil
+		return newSingleContainerPodStatusList(testPodID, testContainerID, state, state, map[string]string{}), nil
 	}
 	defer func() {
 		testingImpl.KillContainerFunc = nil
@@ -117,7 +117,7 @@ func TestKillCLIFunctionEnableAllSuccessful(t *testing.T) {
 		return nil
 	}
 	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
-		return newSingleContainerPodStatusList(testPodID, testContainerID, state, state), nil
+		return newSingleContainerPodStatusList(testPodID, testContainerID, state, state, map[string]string{}), nil
 	}
 	defer func() {
 		testingImpl.KillContainerFunc = nil
@@ -166,7 +166,7 @@ func TestKillCLIFunctionInvalidSignalFailure(t *testing.T) {
 
 	testingImpl.KillContainerFunc = testKillContainerFuncReturnNil
 	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
-		return newSingleContainerPodStatusList(testPodID, testContainerID, state, state), nil
+		return newSingleContainerPodStatusList(testPodID, testContainerID, state, state, map[string]string{}), nil
 	}
 	defer func() {
 		testingImpl.KillContainerFunc = nil
@@ -188,7 +188,7 @@ func TestKillCLIFunctionInvalidStatePausedFailure(t *testing.T) {
 
 	testingImpl.KillContainerFunc = testKillContainerFuncReturnNil
 	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
-		return newSingleContainerPodStatusList(testPodID, testContainerID, state, state), nil
+		return newSingleContainerPodStatusList(testPodID, testContainerID, state, state, map[string]string{}), nil
 	}
 	defer func() {
 		testingImpl.KillContainerFunc = nil
@@ -210,7 +210,7 @@ func TestKillCLIFunctionInvalidStateStoppedFailure(t *testing.T) {
 
 	testingImpl.KillContainerFunc = testKillContainerFuncReturnNil
 	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
-		return newSingleContainerPodStatusList(testPodID, testContainerID, state, state), nil
+		return newSingleContainerPodStatusList(testPodID, testContainerID, state, state, map[string]string{}), nil
 	}
 	defer func() {
 		testingImpl.KillContainerFunc = nil
@@ -231,7 +231,7 @@ func TestKillCLIFunctionKillContainerFailure(t *testing.T) {
 	}
 
 	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
-		return newSingleContainerPodStatusList(testPodID, testContainerID, state, state), nil
+		return newSingleContainerPodStatusList(testPodID, testContainerID, state, state, map[string]string{}), nil
 	}
 	defer func() {
 		testingImpl.ListPodFunc = nil

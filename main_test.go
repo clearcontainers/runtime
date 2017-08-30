@@ -442,15 +442,16 @@ func writeOCIConfigFile(spec oci.CompatOCISpec, configPath string) error {
 	return ioutil.WriteFile(configPath, bytes, testFileMode)
 }
 
-func newSingleContainerPodStatusList(podID, containerID string, podState, containerState vc.State) []vc.PodStatus {
+func newSingleContainerPodStatusList(podID, containerID string, podState, containerState vc.State, annotations map[string]string) []vc.PodStatus {
 	return []vc.PodStatus{
 		{
 			ID:    podID,
 			State: podState,
 			ContainersStatus: []vc.ContainerStatus{
 				{
-					ID:    containerID,
-					State: containerState,
+					ID:          containerID,
+					State:       containerState,
+					Annotations: annotations,
 				},
 			},
 		},

@@ -42,7 +42,7 @@ func TestPauseCLIFunctionSuccessful(t *testing.T) {
 
 	testingImpl.PausePodFunc = testPausePodFuncReturnNil
 	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
-		return newSingleContainerPodStatusList(testPodID, testContainerID, state, state), nil
+		return newSingleContainerPodStatusList(testPodID, testContainerID, state, state, map[string]string{}), nil
 	}
 	defer func() {
 		testingImpl.PausePodFunc = nil
@@ -81,7 +81,7 @@ func TestPauseCLIFunctionPausePodFailure(t *testing.T) {
 	}
 
 	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
-		return newSingleContainerPodStatusList(testPodID, testContainerID, state, state), nil
+		return newSingleContainerPodStatusList(testPodID, testContainerID, state, state, map[string]string{}), nil
 	}
 	defer func() {
 		testingImpl.ListPodFunc = nil
@@ -102,7 +102,7 @@ func TestResumeCLIFunctionSuccessful(t *testing.T) {
 
 	testingImpl.ResumePodFunc = testResumePodFuncReturnNil
 	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
-		return newSingleContainerPodStatusList(testPodID, testContainerID, state, state), nil
+		return newSingleContainerPodStatusList(testPodID, testContainerID, state, state, map[string]string{}), nil
 	}
 	defer func() {
 		testingImpl.ResumePodFunc = nil
@@ -141,7 +141,7 @@ func TestResumeCLIFunctionPausePodFailure(t *testing.T) {
 	}
 
 	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
-		return newSingleContainerPodStatusList(testPodID, testContainerID, state, state), nil
+		return newSingleContainerPodStatusList(testPodID, testContainerID, state, state, map[string]string{}), nil
 	}
 	defer func() {
 		testingImpl.ListPodFunc = nil
