@@ -15,7 +15,7 @@ before_script:
 
 script:
 - make
-- sudo env "PATH=$PATH" make check
+- make check
 
 after_success:
 - sudo env "PATH=$PATH" go get github.com/mattn/goveralls
