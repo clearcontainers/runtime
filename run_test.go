@@ -526,3 +526,63 @@ func TestRunContainerWaitFail(t *testing.T) {
 	err, ok := err.(*cli.ExitError)
 	assert.False(ok, "error should not be a cli.ExitError: %s", err)
 }
+
+func TestRunContainerStartFail(t *testing.T) {
+	assert := assert.New(t)
+
+	d := testRunContainerSetup(t)
+	defer os.RemoveAll(d.tmpDir)
+
+	// now we can kill the fake container workload
+	err := d.process.Kill()
+	assert.NoError(err)
+
+	// this flags is used to detect if createPodFunc was called
+	flagCreate := false
+
+	// fake functions used to run containers
+	testingImpl.CreatePodFunc = func(podConfig vc.PodConfig) (vc.VCPod, error) {
+		flagCreate = true
+		return d.pod, nil
+	}
+
+	testingImpl.StartPodFunc = func(podID string) (vc.VCPod, error) {
+		// start fails
+		return nil, fmt.Errorf("StartPod")
+	}
+
+	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
+		// return an empty list on create
+		if !flagCreate {
+			return []vc.PodStatus{}, nil
+		}
+
+		// return a podStatus with the container status
+		return []vc.PodStatus{
+			{
+				ID: d.pod.ID(),
+				ContainersStatus: []vc.ContainerStatus{
+					{
+						ID: d.pod.ID(),
+						Annotations: map[string]string{
+							oci.ContainerTypeKey: string(vc.PodContainer),
+							oci.ConfigPathKey:    d.configJSONPath,
+						},
+					},
+				},
+			},
+		}, nil
+	}
+
+	defer func() {
+		testingImpl.CreatePodFunc = nil
+		testingImpl.StartPodFunc = nil
+		testingImpl.ListPodFunc = nil
+	}()
+
+	err = run(d.pod.ID(), d.bundlePath, d.consolePath, "", d.pidFilePath, false, d.runtimeConfig)
+
+	// should not return ExitError
+	err, ok := err.(*cli.ExitError)
+	assert.False(ok, "error should not be a cli.ExitError: %s", err)
+}
