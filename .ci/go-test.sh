@@ -5,8 +5,10 @@ root_dir=`dirname $script_dir`
 
 test_packages="."
 go_test_flags="-v -race -timeout 5s"
+cov_file="profile.cov"
+tmp_cov_file="profile_tmp.cov"
 
-# Run a command as either root or non-root (current user).
+# Run a command as either root or the current user (which might still be root).
 #
 # If the first argument is "root", run using sudo, else run as normal.
 # All arguments after the first will be treated as the command to run.
@@ -27,24 +29,35 @@ function run_as_user
 
 function test_html_coverage
 {
+	html_report="coverage.html"
+
 	test_coverage
-	go tool cover -html=profile.cov -o coverage.html
-	rm -f profile.cov
+
+	go tool cover -html="${cov_file}" -o "${html_report}"
+	rm -f "${cov_file}"
+
+	run_as_user "current" chmod 644 "${html_report}"
 }
 
 function test_coverage
 {
-	cov_file="profile.cov"
-	tmp_cov_file="profile_tmp.cov"
-
 	echo "mode: atomic" > "$cov_file"
 
-	for pkg in $test_packages; do
-
+	if [ $(id -u) -eq 0 ]
+	then
+		echo >&2 "WARNING: Already running as root so will not re-run tests as non-root user."
+		echo >&2 "WARNING: As a result, only a subset of tests will be run"
+		echo >&2 "WARNING: (run this script as a non-privileged to ensure all tests are run)."
+		users="current"
+	else
 		# Run the unit-tests *twice* (since some must run as root and
 		# others must run as non-root), combining the resulting test
 		# coverage files.
-		for user in non-root root; do
+		users="current root"
+	fi
+
+	for pkg in $test_packages; do
+		for user in $users; do
 			printf "INFO: Running 'go test' as %s user on packages '%s' with flags '%s'\n" "$user" "$test_packages" "$go_test_flags"
 
 			run_as_user "$user" go test $go_test_flags -covermode=atomic -coverprofile="$tmp_cov_file" $pkg
