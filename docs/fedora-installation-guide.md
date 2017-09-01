@@ -9,7 +9,8 @@ This step is only required in case Docker is not installed on the system.
 $ sudo dnf -y install dnf-plugins-core
 $ sudo dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
 $ sudo dnf makecache fast
-$ sudo dnf install docker-ce
+$ sudo groupadd docker
+$ sudo dnf -y install docker-ce
 ```
 
 For more information on installing Docker please refer to the
@@ -21,7 +22,7 @@ For more information on installing Docker please refer to the
 $ source /etc/os-release
 $ sudo -E VERSION_ID=$VERSION_ID dnf config-manager --add-repo \
 http://download.opensuse.org/repositories/home:/clearcontainers:/clear-containers-3/Fedora\_$VERSION_ID/home:clearcontainers:clear-containers-3.repo
-$ sudo -E dnf install -y cc-runtime cc-proxy cc-shim
+$ sudo -E dnf -y install cc-runtime cc-proxy cc-shim
 ```
 
 3.  Configure Docker to use Clear Containers by default with the following commands:
@@ -39,6 +40,7 @@ EOF
 
 ```
 $ sudo systemctl daemon-reload
+$ sudo systemctl enable docker.service
 $ sudo systemctl restart docker
 $ sudo systemctl enable cc-proxy.socket
 $ sudo systemctl start cc-proxy.socket
