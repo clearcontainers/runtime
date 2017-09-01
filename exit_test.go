@@ -14,24 +14,38 @@
 
 package main
 
-import "os"
+import (
+	"os"
+	"testing"
 
-var atexitFuncs []func()
+	"github.com/stretchr/testify/assert"
+)
 
-var exitFunc = os.Exit
+var testFoo string
 
-// atexit registers a function f that will be run when exit is called. The
-// handlers so registered will be called the in reverse order of their
-// registration.
-func atexit(f func()) {
-	atexitFuncs = append(atexitFuncs, f)
+func testFunc() {
+	testFoo = "bar"
 }
 
-// exit calls all atexit handlers before exiting the process with status.
-func exit(status int) {
-	for i := len(atexitFuncs) - 1; i >= 0; i-- {
-		f := atexitFuncs[i]
-		f()
+func TestExit(t *testing.T) {
+	assert := assert.New(t)
+
+	var testExitStatus int
+	exitFunc = func(status int) {
+		testExitStatus = status
 	}
-	exitFunc(status)
+
+	defer func() {
+		exitFunc = os.Exit
+	}()
+
+	// test with no atexit functions added.
+	exit(1)
+	assert.Equal(testExitStatus, 1)
+
+	// test with a function added to the atexit list.
+	atexit(testFunc)
+	exit(0)
+	assert.Equal(testFoo, "bar")
+	assert.Equal(testExitStatus, 0)
 }
