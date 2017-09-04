@@ -42,51 +42,51 @@ Both projects ship ``cc-proxy`` and they are not compatible with each other.
 
 1. Define GOPATH
 
-```bash
-$ export GOPATH=$HOME/go
-```
+   ```bash
+   $ export GOPATH=$HOME/go
+   ```
 
 2. Create GOPATH Directory
 
-```bash
-$ mkdir -p $GOPATH
-```
+   ```bash
+   $ mkdir -p $GOPATH
+   ```
 
 3. Get the code
 
-```bash
-$ go get -d github.com/clearcontainers/runtime
-$ go get -d github.com/clearcontainers/proxy
-$ git clone https://github.com/clearcontainers/shim $GOPATH/src/github.com/clearcontainers/shim
-$ go get -d github.com/clearcontainers/tests
-```
+   ```bash
+   $ go get -d github.com/clearcontainers/runtime
+   $ go get -d github.com/clearcontainers/proxy
+   $ git clone https://github.com/clearcontainers/shim $GOPATH/src/github.com/clearcontainers/shim
+   $ go get -d github.com/clearcontainers/tests
+   ```
 
 ### Build and install components
 
 1. Proxy
 
-```bash
-$ cd $GOPATH/src/github.com/clearcontainers/proxy
-$ make
-$ sudo make install
-```
+   ```bash
+   $ cd $GOPATH/src/github.com/clearcontainers/proxy
+   $ make
+   $ sudo make install
+   ```
 
 2. Shim
 
-```bash
-$ cd $GOPATH/src/github.com/clearcontainers/shim
-$ ./autogen.sh
-$ make
-$ sudo make install
-```
+   ```bash
+   $ cd $GOPATH/src/github.com/clearcontainers/shim
+   $ ./autogen.sh
+   $ make
+   $ sudo make install
+   ```
 
 3. Runtime
 
-```bash
-$ cd $GOPATH/src/github.com/clearcontainers/runtime
-$ make build-cc-system
-$ sudo -E PATH=$PATH make install-cc-system
-```
+   ```bash
+   $ cd $GOPATH/src/github.com/clearcontainers/runtime
+   $ make build-cc-system
+   $ sudo -E PATH=$PATH make install-cc-system
+   ```
 
 For more details on the runtime's build system, run:
 
