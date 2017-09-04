@@ -38,7 +38,7 @@ the component(s) you wish to develop with.
 **IMPORTANT:** Do not combine [Clear Containers 2.1](https://github.com/01org/cc-oci-runtime) and [Clear Containers 3.0](https://github.com/clearcontainers).
 Both projects ship ``cc-proxy`` and they are not compatible with each other.
 
-## Setup the environment
+### Setup the environment
 
 1. Define GOPATH
 
@@ -61,7 +61,7 @@ $ git clone https://github.com/clearcontainers/shim $GOPATH/src/github.com/clear
 $ go get -d github.com/clearcontainers/tests
 ```
 
-## Build and install components
+### Build and install components
 
 1. Proxy
 
