@@ -9,7 +9,6 @@ This step is only required in case Docker is not installed on the system.
 $ sudo dnf -y install dnf-plugins-core
 $ sudo dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
 $ sudo dnf makecache fast
-$ sudo groupadd docker
 $ sudo dnf -y install docker-ce
 ```
 
