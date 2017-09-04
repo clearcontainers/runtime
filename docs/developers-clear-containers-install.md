@@ -30,6 +30,7 @@ and kernel.
   * [Runtime](https://github.com/clearcontainers/runtime)
   * [Proxy](https://github.com/clearcontainers/proxy)
   * [Shim](https://github.com/clearcontainers/shim)
+  * [Agent](https://github.com/clearcontainers/agent)
 
 Since the installation guide will have installed packaged versions of
 all required components, it is only necessary to install the source for
@@ -58,7 +59,9 @@ Both projects ship ``cc-proxy`` and they are not compatible with each other.
    $ go get -d github.com/clearcontainers/runtime
    $ go get -d github.com/clearcontainers/proxy
    $ git clone https://github.com/clearcontainers/shim $GOPATH/src/github.com/clearcontainers/shim
+   $ go get -d github.com/clearcontainers/agent
    $ go get -d github.com/clearcontainers/tests
+   $ go get -d github.com/clearcontainers/osbuilder
    ```
 
 ### Build and install components
@@ -88,6 +91,39 @@ Both projects ship ``cc-proxy`` and they are not compatible with each other.
    $ sudo -E PATH=$PATH make install-cc-system
    ```
 
+4. Agent
+
+   ```bash
+   $ cd $GOPATH/src/github.com/clearcontainers/agent
+   $ make
+   ```
+
+   The agent is installed inside the root filesystem image
+   used by the hypervisor, hence to test a new agent version it is
+   necessary to create a custom rootfs image. The example below
+   demonstrates how to do this using the osbuilder tooling.
+
+   ```bash
+   $ cd $GOPATH/src/github.com/clearcontainers/osbuilder
+
+   $ # Create a rootfs image
+   $ sudo -E make rootfs USE_DOCKER=true
+
+   $ # Overwrite the default cc-agent binary with a custom built version
+   $ sudo cp $GOPATH/src/github.com/clearcontainers/agent/cc-agent ./workdir/rootfs/usr/bin/cc-agent
+
+   $ # Generate a container.img file
+   $ sudo -E make image USE_DOCKER=true
+
+   $ # Install the custom image
+   $ sudo install --owner root --group root --mode 0755 workdir/container.img /usr/share/clear-containers/
+
+   $ # Update the runtime configuration
+   $ # (note that this is only an example using default paths).
+   $ sudo sed -i.bak -e 's!^\(image = ".*"\)!# \1 \
+   image = "/usr/share/clear-containers/container.img"!g' \
+   /etc/clear-containers/configuration.toml
+   
 For more details on the runtime's build system, run:
 
 ```bash
