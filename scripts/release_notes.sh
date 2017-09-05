@@ -65,7 +65,7 @@ changes(){
 }
 
 limitations(){
-	 grep -P '^###\s|^####\s|See issue' "${script_dir}/limitations.md"
+	 grep -P '^###\s|^####\s|See issue' "${script_dir}/../docs/limitations.md"
 }
 
 cat << EOT
