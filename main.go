@@ -115,6 +115,9 @@ var runtimeCommands = []cli.Command{
 // parsing occurs.
 var runtimeBeforeSubcommands = beforeSubcommands
 
+// runtimeCommandNotFound is the function to handle an invalid sub-command.
+var runtimeCommandNotFound = commandNotFound
+
 // beforeSubcommands is the function to perform preliminary checks
 // before command-line parsing occurs.
 func beforeSubcommands(context *cli.Context) error {
@@ -173,10 +176,18 @@ func beforeSubcommands(context *cli.Context) error {
 	return nil
 }
 
+// function called when an invalid command is specified which causes the
+// runtime to error.
+func commandNotFound(c *cli.Context, command string) {
+	err := fmt.Errorf("Invalid command %q", command)
+	fatal(err)
+}
+
 func main() {
 	app := cli.NewApp()
 	app.Name = name
 	app.Usage = usage
+	app.CommandNotFound = runtimeCommandNotFound
 
 	cli.AppHelpTemplate = fmt.Sprintf(`%s%s`, cli.AppHelpTemplate, notes)
 
