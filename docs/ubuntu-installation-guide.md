@@ -6,16 +6,9 @@ This step is only required in case Docker is not installed on the system.
 1. Install the latest version of Docker with the following commands:
 
 ```
-$ sudo -E apt-get install \
-	apt-transport-https \
-	ca-certificates \
-	curl \
-	software-properties-common
+$ sudo -E apt-get install apt-transport-https ca-certificates curl software-properties-common
 $ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-$ sudo -E add-apt-repository \
-	"deb [arch=amd64] https://download.docker.com/linux/ubuntu \
-	$(lsb_release -cs) \
-	stable"
+$ sudo -E add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
 $ sudo -E apt-get update
 $ sudo -E apt-get install docker-ce
 ```
