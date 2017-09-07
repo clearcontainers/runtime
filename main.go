@@ -66,6 +66,57 @@ var defaultOutputFile = os.Stdout
 // messages to.
 var defaultErrorFile = os.Stderr
 
+// runtimeFlags is the list of supported global command-line flags
+var runtimeFlags = []cli.Flag{
+	cli.StringFlag{
+		Name:  "cc-config",
+		Usage: project + " config file path",
+	},
+	cli.BoolFlag{
+		Name:  "debug",
+		Usage: "enable debug output for logging",
+	},
+	cli.StringFlag{
+		Name:  "log",
+		Value: "/dev/null",
+		Usage: "set the log file path where internal debug information is written",
+	},
+	cli.StringFlag{
+		Name:  "log-format",
+		Value: "text",
+		Usage: "set the format used by logs ('text' (default), or 'json')",
+	},
+	cli.StringFlag{
+		Name:  "root",
+		Value: defaultRootDirectory,
+		Usage: "root directory for storage of container state (this should be located in tmpfs)",
+	},
+}
+
+// runtimeCommands is the list of supported command-line (sub-)
+// commands.
+var runtimeCommands = []cli.Command{
+	checkCLICommand,
+	envCLICommand,
+	createCLICommand,
+	deleteCLICommand,
+	execCLICommand,
+	killCLICommand,
+	listCLICommand,
+	runCLICommand,
+	pauseCLICommand,
+	resumeCLICommand,
+	startCLICommand,
+	stateCLICommand,
+	versionCLICommand,
+}
+
+// runtimeBeforeSubcommands is the function to run before command-line
+// parsing occurs.
+var runtimeBeforeSubcommands = beforeSubcommands
+
+// beforeSubcommands is the function to perform preliminary checks
+// before command-line parsing occurs.
 func beforeSubcommands(context *cli.Context) error {
 	if userWantsUsage(context) || (context.NArg() == 1 && (context.Args()[0] == "cc-check")) {
 		// No setup required if the user just
@@ -145,49 +196,10 @@ func main() {
 		fmt.Println(c.App.Version)
 	}
 
-	app.Flags = []cli.Flag{
-		cli.StringFlag{
-			Name:  "cc-config",
-			Usage: project + " config file path",
-		},
-		cli.BoolFlag{
-			Name:  "debug",
-			Usage: "enable debug output for logging",
-		},
-		cli.StringFlag{
-			Name:  "log",
-			Value: "/dev/null",
-			Usage: "set the log file path where internal debug information is written",
-		},
-		cli.StringFlag{
-			Name:  "log-format",
-			Value: "text",
-			Usage: "set the format used by logs ('text' (default), or 'json')",
-		},
-		cli.StringFlag{
-			Name:  "root",
-			Value: defaultRootDirectory,
-			Usage: "root directory for storage of container state (this should be located in tmpfs)",
-		},
-	}
+	app.Flags = runtimeFlags
+	app.Commands = runtimeCommands
+	app.Before = runtimeBeforeSubcommands
 
-	app.Commands = []cli.Command{
-		checkCLICommand,
-		envCLICommand,
-		createCLICommand,
-		deleteCLICommand,
-		execCLICommand,
-		killCLICommand,
-		listCLICommand,
-		runCLICommand,
-		pauseCLICommand,
-		resumeCLICommand,
-		startCLICommand,
-		stateCLICommand,
-		versionCLICommand,
-	}
-
-	app.Before = beforeSubcommands
 	// If the command returns an error, cli takes upon itself to print
 	// the error on cli.ErrWriter and exit.
 	// Use our own writer here to ensure the log gets sent to the right
