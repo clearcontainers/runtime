@@ -27,8 +27,8 @@ import (
 	"github.com/urfave/cli"
 )
 
-// name holds the name of this program
 const (
+	// name holds the name of this program
 	name    = "cc-runtime"
 	project = "Intel® Clear Containers"
 )
@@ -225,6 +225,7 @@ type fatalWriter struct {
 }
 
 func (f *fatalWriter) Write(p []byte) (n int, err error) {
+	// Ensure error is logged before displaying to the user
 	ccLog.Error(string(p))
 	return f.cliErrWriter.Write(p)
 }
