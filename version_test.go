@@ -30,10 +30,22 @@ func TestVersion(t *testing.T) {
 	const testAppName = "foo"
 	const testAppVersion = "0.1.0"
 
+	resetCLIGlobals()
+
+	savedRuntimeVersionFunc := runtimeVersion
+
+	defer func() {
+		runtimeVersion = savedRuntimeVersionFunc
+	}()
+
+	runtimeVersion := func() string {
+		return testAppVersion
+	}
+
 	app := cli.NewApp()
 	ctx := cli.NewContext(app, nil, nil)
 	app.Name = testAppName
-	app.Version = testAppVersion
+	app.Version = runtimeVersion()
 
 	fn, ok := versionCLICommand.Action.(func(context *cli.Context) error)
 	assert.True(t, ok)

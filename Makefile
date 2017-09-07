@@ -173,13 +173,16 @@ install-cc-system: install
 
 define GENERATED_CODE
 // WARNING: This file is auto-generated - DO NOT EDIT!
+//
+// Note that some variables are "var" to allow them to be modified
+// by the tests.
 package main
 
 // commit is the git commit the runtime is compiled from.
-const commit = "$(COMMIT)"
+var commit = "$(COMMIT)"
 
 // version is the runtime version.
-const version = "$(VERSION)"
+var version = "$(VERSION)"
 
 const defaultHypervisorPath = "$(QEMUPATH)"
 const defaultImagePath = "$(IMAGEPATH)"
@@ -198,7 +201,6 @@ const defaultVCPUCount uint32 = $(DEFVCPUS)
 const defaultMemSize uint32 = $(DEFMEMSZ) // MiB
 const defaultDisableBlockDeviceUse bool = $(DEFDISABLEBLOCK)
 
-// Required to be modifiable (for the tests)
 var defaultRuntimeConfiguration = "$(DESTCONFIG)"
 var defaultProxyPath = "$(PROXYPATH)"
 endef

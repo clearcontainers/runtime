@@ -17,6 +17,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -26,13 +27,16 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
+	"github.com/Sirupsen/logrus"
 	vc "github.com/containers/virtcontainers"
 	"github.com/containers/virtcontainers/pkg/oci"
 	"github.com/containers/virtcontainers/pkg/vcMock"
 	"github.com/dlespiau/covertool/pkg/cover"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/urfave/cli"
 )
@@ -68,6 +72,14 @@ var (
 var testingImpl = &vcMock.VCMock{}
 
 func init() {
+	if version == "" {
+		panic("ERROR: invalid build: version not set")
+	}
+
+	if commit == "" {
+		panic("ERROR: invalid build: commit not set")
+	}
+
 	fmt.Printf("INFO: switching to fake virtcontainers implementation for testing\n")
 	vci = testingImpl
 
@@ -110,6 +122,13 @@ var testPodAnnotations = map[string]string{
 var testContainerAnnotations = map[string]string{
 	"container.foo":   "container.bar",
 	"container.hello": "container.world",
+}
+
+// resetCLIGlobals undoes the effects of setCLIGlobals(), restoring the original values
+func resetCLIGlobals() {
+	cli.AppHelpTemplate = savedCLIAppHelpTemplate
+	cli.VersionPrinter = savedCLIVersionPrinter
+	cli.ErrWriter = savedCLIErrWriter
 }
 
 func runUnitTests(m *testing.M) {
@@ -539,4 +558,517 @@ func TestCreateRootfs(t *testing.T) {
 		dirPath := filepath.Join(rootfsDir, dir)
 		assert.True(fileExists(dirPath))
 	}
+}
+
+func TestMainUserWantsUsage(t *testing.T) {
+	assert := assert.New(t)
+	app := cli.NewApp()
+
+	type testData struct {
+		arguments  []string
+		expectTrue bool
+	}
+
+	data := []testData{
+		{[]string{}, true},
+		{[]string{"help"}, true},
+		{[]string{"version"}, true},
+		{[]string{"sub-command", "-h"}, true},
+		{[]string{"sub-command", "--help"}, true},
+
+		{[]string{""}, false},
+		{[]string{"sub-command", "--foo"}, false},
+		{[]string{"cc-check"}, false},
+		{[]string{"haaaalp"}, false},
+		{[]string{"wibble"}, false},
+		{[]string{"versioned"}, false},
+	}
+
+	for i, d := range data {
+		set := flag.NewFlagSet("", 0)
+		set.Parse(d.arguments)
+
+		ctx := cli.NewContext(app, set, nil)
+		result := userWantsUsage(ctx)
+
+		if d.expectTrue {
+			assert.True(result, "test %d (%+v)", i, d)
+		} else {
+			assert.False(result, "test %d (%+v)", i, d)
+		}
+	}
+}
+
+func TestMainBeforeSubCommands(t *testing.T) {
+	assert := assert.New(t)
+	app := cli.NewApp()
+
+	type testData struct {
+		arguments   []string
+		expectError bool
+	}
+
+	data := []testData{
+		{[]string{}, false},
+		{[]string{"help"}, false},
+		{[]string{"version"}, false},
+		{[]string{"sub-command", "-h"}, false},
+		{[]string{"sub-command", "--help"}, false},
+		{[]string{"cc-check"}, false},
+	}
+
+	for i, d := range data {
+		set := flag.NewFlagSet("", 0)
+		set.Parse(d.arguments)
+
+		ctx := cli.NewContext(app, set, nil)
+		err := beforeSubcommands(ctx)
+
+		if d.expectError {
+			assert.Error(err, "test %d (%+v)", i, d)
+		} else {
+			assert.NoError(err, "test %d (%+v)", i, d)
+		}
+	}
+}
+
+func TestMainBeforeSubCommandsInvalidLogFile(t *testing.T) {
+	assert := assert.New(t)
+
+	tmpdir, err := ioutil.TempDir(testDir, "")
+	assert.NoError(err)
+	defer os.RemoveAll(tmpdir)
+
+	logFile := filepath.Join(tmpdir, "log")
+
+	// create the file as the wrong type to force a failure
+	err = os.MkdirAll(logFile, testDirMode)
+	assert.NoError(err)
+
+	app := cli.NewApp()
+
+	set := flag.NewFlagSet("", 0)
+	set.Bool("debug", true, "")
+	set.String("log", logFile, "")
+	set.Parse([]string{"create"})
+
+	logLevel := ccLog.Level
+	ccLog.Level = logrus.PanicLevel
+
+	defer func() {
+		ccLog.Level = logLevel
+	}()
+
+	ctx := cli.NewContext(app, set, nil)
+
+	err = beforeSubcommands(ctx)
+	assert.Error(err)
+	assert.Equal(ccLog.Level, logrus.DebugLevel)
+}
+
+func TestMainBeforeSubCommandsInvalidLogFormat(t *testing.T) {
+	assert := assert.New(t)
+
+	tmpdir, err := ioutil.TempDir(testDir, "")
+	assert.NoError(err)
+	defer os.RemoveAll(tmpdir)
+
+	logFile := filepath.Join(tmpdir, "log")
+
+	app := cli.NewApp()
+
+	set := flag.NewFlagSet("", 0)
+	set.Bool("debug", true, "")
+	set.String("log", logFile, "")
+	set.String("log-format", "captain-barnacles", "")
+	set.Parse([]string{"create"})
+
+	logOut := ccLog.Out
+	ccLog.Out = nil
+
+	defer func() {
+		ccLog.Out = logOut
+	}()
+
+	ctx := cli.NewContext(app, set, nil)
+
+	err = beforeSubcommands(ctx)
+	assert.Error(err)
+	assert.NotNil(ccLog.Out)
+}
+
+func TestMainBeforeSubCommandsLoadConfigurationFail(t *testing.T) {
+	assert := assert.New(t)
+
+	tmpdir, err := ioutil.TempDir(testDir, "")
+	assert.NoError(err)
+	defer os.RemoveAll(tmpdir)
+
+	logFile := filepath.Join(tmpdir, "log")
+	configFile := filepath.Join(tmpdir, "config")
+
+	app := cli.NewApp()
+
+	for _, logFormat := range []string{"json", "text"} {
+		set := flag.NewFlagSet("", 0)
+		set.Bool("debug", true, "")
+		set.String("log", logFile, "")
+		set.String("log-format", logFormat, "")
+		set.String("cc-config", configFile, "")
+		set.Parse([]string{"cc-env"})
+
+		ctx := cli.NewContext(app, set, nil)
+
+		savedExitFunc := exitFunc
+
+		exitStatus := 0
+		exitFunc = func(status int) { exitStatus = status }
+
+		defer func() {
+			exitFunc = savedExitFunc
+		}()
+
+		// calls fatal() so no return
+		_ = beforeSubcommands(ctx)
+		assert.NotEqual(exitStatus, 0)
+	}
+}
+
+func TestMainFatal(t *testing.T) {
+	assert := assert.New(t)
+
+	tmpdir, err := ioutil.TempDir(testDir, "")
+	assert.NoError(err)
+	defer os.RemoveAll(tmpdir)
+
+	var exitStatus int
+	savedExitFunc := exitFunc
+
+	exitFunc = func(status int) { exitStatus = status }
+
+	savedErrorFile := defaultErrorFile
+
+	output := filepath.Join(tmpdir, "output")
+	f, err := os.OpenFile(output, os.O_CREATE|os.O_WRONLY|os.O_SYNC, testFileMode)
+	assert.NoError(err)
+	defaultErrorFile = f
+
+	defer func() {
+		f.Close()
+		defaultErrorFile = savedErrorFile
+		exitFunc = savedExitFunc
+	}()
+
+	exitError := errors.New("hello world")
+
+	fatal(exitError)
+	assert.Equal(exitStatus, 1)
+
+	text, err := getFileContents(output)
+	assert.NoError(err)
+
+	trimmed := strings.TrimSpace(text)
+	assert.Equal(exitError.Error(), trimmed)
+}
+
+func testVersionString(assert *assert.Assertions, versionString, expectedVersion, expectedCommit, expectedOCIVersion string) {
+	foundVersion := false
+	foundCommit := false
+	foundOCIVersion := false
+
+	versionRE := regexp.MustCompile(fmt.Sprintf(`%s\s*:\s*%v`, name, expectedVersion))
+	commitRE := regexp.MustCompile(fmt.Sprintf(`%s\s*:\s*%v`, "commit", expectedCommit))
+
+	ociRE := regexp.MustCompile(fmt.Sprintf(`%s\s*:\s*%v`, "OCI specs", expectedOCIVersion))
+
+	lines := strings.Split(versionString, "\n")
+	assert.True(len(lines) > 0)
+
+	for _, line := range lines {
+		vMatches := versionRE.FindAllStringSubmatch(line, -1)
+		if vMatches != nil {
+			foundVersion = true
+		}
+
+		cMatches := commitRE.FindAllStringSubmatch(line, -1)
+		if cMatches != nil {
+			foundCommit = true
+		}
+
+		oMatches := ociRE.FindAllStringSubmatch(line, -1)
+		if oMatches != nil {
+			foundOCIVersion = true
+		}
+	}
+
+	args := fmt.Sprintf("versionString: %q, expectedVersion: %q, expectedCommit: %v, expectedOCIVersion: %v\n",
+		versionString, expectedVersion, expectedCommit, expectedOCIVersion)
+
+	assert.True(foundVersion, args)
+	assert.True(foundCommit, args)
+	assert.True(foundOCIVersion, args)
+}
+
+func TestMainMakeVersionString(t *testing.T) {
+	assert := assert.New(t)
+
+	v := makeVersionString()
+
+	testVersionString(assert, v, version, commit, specs.Version)
+}
+
+func TestMainMakeVersionStringNoVersion(t *testing.T) {
+	assert := assert.New(t)
+
+	savedVersion := version
+	version = ""
+
+	defer func() {
+		version = savedVersion
+	}()
+
+	v := makeVersionString()
+
+	testVersionString(assert, v, unknown, commit, specs.Version)
+}
+
+func TestMainMakeVersionStringNoCommit(t *testing.T) {
+	assert := assert.New(t)
+
+	savedCommit := commit
+	commit = ""
+
+	defer func() {
+		commit = savedCommit
+	}()
+
+	v := makeVersionString()
+
+	testVersionString(assert, v, version, unknown, specs.Version)
+}
+
+func TestMainMakeVersionStringNoOCIVersion(t *testing.T) {
+	assert := assert.New(t)
+
+	savedVersion := specs.Version
+	specs.Version = ""
+
+	defer func() {
+		specs.Version = savedVersion
+	}()
+
+	v := makeVersionString()
+
+	testVersionString(assert, v, version, commit, unknown)
+}
+
+func TestMainCreateRuntimeApp(t *testing.T) {
+	assert := assert.New(t)
+
+	savedBefore := runtimeBeforeSubcommands
+	savedOutputFile := defaultOutputFile
+
+	// disable
+	runtimeBeforeSubcommands = nil
+
+	devNull, err := os.OpenFile("/dev/null", os.O_RDWR, 0640)
+	assert.NoError(err)
+	defer devNull.Close()
+
+	defaultOutputFile = devNull
+
+	setCLIGlobals()
+
+	defer func() {
+		resetCLIGlobals()
+		runtimeBeforeSubcommands = savedBefore
+		defaultOutputFile = savedOutputFile
+	}()
+
+	args := []string{name}
+
+	err = createRuntimeApp(args)
+	assert.NoError(err, "%v", args)
+}
+
+func TestMainCreateRuntimeAppInvalidSubCommand(t *testing.T) {
+	assert := assert.New(t)
+
+	exitStatus := 0
+
+	savedBefore := runtimeBeforeSubcommands
+	savedExitFunc := exitFunc
+
+	exitFunc = func(status int) { exitStatus = status }
+
+	// disable
+	runtimeBeforeSubcommands = nil
+
+	defer func() {
+		runtimeBeforeSubcommands = savedBefore
+		exitFunc = savedExitFunc
+	}()
+
+	// calls fatal() so no return
+	_ = createRuntimeApp([]string{name, "i-am-an-invalid-sub-command"})
+
+	assert.NotEqual(exitStatus, 0)
+}
+
+func TestMainCreateRuntime(t *testing.T) {
+	assert := assert.New(t)
+
+	const cmd = "foo"
+	const msg = "moo FAILURE"
+
+	resetCLIGlobals()
+
+	exitStatus := 0
+
+	savedOSArgs := os.Args
+	savedExitFunc := exitFunc
+	savedBefore := runtimeBeforeSubcommands
+	savedCommands := runtimeCommands
+
+	os.Args = []string{name, cmd}
+	exitFunc = func(status int) { exitStatus = status }
+
+	// disable
+	runtimeBeforeSubcommands = nil
+
+	// override sub-commands
+	runtimeCommands = []cli.Command{
+		cli.Command{
+			Name: cmd,
+			Action: func(context *cli.Context) error {
+				return errors.New(msg)
+			},
+		},
+	}
+
+	defer func() {
+		os.Args = savedOSArgs
+		exitFunc = savedExitFunc
+		runtimeBeforeSubcommands = savedBefore
+		runtimeCommands = savedCommands
+	}()
+
+	assert.Equal(exitStatus, 0)
+	createRuntime()
+	assert.NotEqual(exitStatus, 0)
+}
+
+func TestMainVersionPrinter(t *testing.T) {
+	assert := assert.New(t)
+
+	tmpdir, err := ioutil.TempDir("", "")
+	assert.NoError(err)
+	defer os.RemoveAll(tmpdir)
+
+	savedOutputFile := defaultOutputFile
+
+	defer func() {
+		resetCLIGlobals()
+		defaultOutputFile = savedOutputFile
+	}()
+
+	output := filepath.Join(tmpdir, "output")
+	f, err := os.OpenFile(output, os.O_CREATE|os.O_WRONLY|os.O_SYNC, testFileMode)
+	assert.NoError(err)
+	defer f.Close()
+
+	defaultOutputFile = f
+
+	setCLIGlobals()
+
+	err = createRuntimeApp([]string{name, "--version"})
+	assert.NoError(err)
+
+	err = grep(fmt.Sprintf(`%s\s*:\s*%s`, name, version), output)
+	assert.NoError(err)
+}
+
+func TestMainFatalWriter(t *testing.T) {
+	assert := assert.New(t)
+
+	const cmd = "foo"
+	const msg = "moo FAILURE"
+	exitStatus := 0
+
+	// create buffer to save logger output
+	buf := &bytes.Buffer{}
+
+	savedBefore := runtimeBeforeSubcommands
+	savedLogOutput := ccLog.Out
+	savedCLIExiter := cli.OsExiter
+	savedCommands := runtimeCommands
+
+	// disable
+	runtimeBeforeSubcommands = nil
+
+	// save all output
+	ccLog.Out = buf
+
+	cli.OsExiter = func(status int) { exitStatus = status }
+
+	// override sub-commands
+	runtimeCommands = []cli.Command{
+		cli.Command{
+			Name: cmd,
+			Action: func(context *cli.Context) error {
+				return cli.NewExitError(msg, 42)
+			},
+		},
+	}
+
+	defer func() {
+		runtimeBeforeSubcommands = savedBefore
+		ccLog.Out = savedLogOutput
+		cli.OsExiter = savedCLIExiter
+		runtimeCommands = savedCommands
+	}()
+
+	setCLIGlobals()
+
+	err := createRuntimeApp([]string{name, cmd})
+	assert.Error(err)
+
+	re := regexp.MustCompile(
+		fmt.Sprintf(`\blevel\b.*\berror\b.*\b%s\b`, msg))
+	matches := re.FindAllStringSubmatch(buf.String(), -1)
+	assert.NotEmpty(matches)
+}
+
+func TestMainSetCLIGlobals(t *testing.T) {
+	assert := assert.New(t)
+
+	defer resetCLIGlobals()
+
+	cli.AppHelpTemplate = ""
+	cli.VersionPrinter = nil
+	cli.ErrWriter = nil
+
+	setCLIGlobals()
+
+	assert.NotEqual(cli.AppHelpTemplate, "")
+	assert.NotNil(cli.VersionPrinter)
+	assert.NotNil(cli.ErrWriter)
+}
+
+func TestMainResetCLIGlobals(t *testing.T) {
+	assert := assert.New(t)
+
+	assert.NotEqual(cli.AppHelpTemplate, "")
+	assert.NotNil(savedCLIVersionPrinter)
+	assert.NotNil(savedCLIErrWriter)
+
+	cli.AppHelpTemplate = ""
+	cli.VersionPrinter = nil
+	cli.ErrWriter = nil
+
+	resetCLIGlobals()
+
+	assert.Equal(cli.AppHelpTemplate, savedCLIAppHelpTemplate)
+	assert.NotNil(cli.VersionPrinter)
+	assert.NotNil(savedCLIVersionPrinter)
 }
