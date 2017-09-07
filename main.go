@@ -118,6 +118,10 @@ var runtimeBeforeSubcommands = beforeSubcommands
 // runtimeCommandNotFound is the function to handle an invalid sub-command.
 var runtimeCommandNotFound = commandNotFound
 
+// runtimeVersion is the function that returns the full version
+// string describing the runtime.
+var runtimeVersion = makeVersionString
+
 // beforeSubcommands is the function to perform preliminary checks
 // before command-line parsing occurs.
 func beforeSubcommands(context *cli.Context) error {
@@ -183,6 +187,26 @@ func commandNotFound(c *cli.Context, command string) {
 	fatal(err)
 }
 
+// makeVersionString returns a multi-line string describing the runtime
+// version along with the version of the OCI specification it supports.
+func makeVersionString() string {
+	v := make([]string, 0, 3)
+
+	if version != "" {
+		v = append(v, name+"  : "+version)
+	}
+
+	if commit != "" {
+		v = append(v, "   commit   : "+commit)
+	}
+
+	if specs.Version != "" {
+		v = append(v, "   OCI specs: "+specs.Version)
+	}
+
+	return strings.Join(v, "\n")
+}
+
 func main() {
 	app := cli.NewApp()
 	app.Name = name
@@ -190,16 +214,7 @@ func main() {
 	app.CommandNotFound = runtimeCommandNotFound
 
 	cli.AppHelpTemplate = fmt.Sprintf(`%s%s`, cli.AppHelpTemplate, notes)
-
-	v := make([]string, 0, 3)
-	if version != "" {
-		v = append(v, name+"  : "+version)
-	}
-	if commit != "" {
-		v = append(v, "   commit   : "+commit)
-	}
-	v = append(v, "   OCI specs: "+specs.Version)
-	app.Version = strings.Join(v, "\n")
+	app.Version = runtimeVersion()
 
 	// Override the default function to display version details to
 	// ensure the "--version" option and "version" command are identical.
