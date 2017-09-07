@@ -194,14 +194,20 @@ func makeVersionString() string {
 
 	if version != "" {
 		v = append(v, name+"  : "+version)
+	} else {
+		v = append(v, name+"  : "+unknown)
 	}
 
 	if commit != "" {
 		v = append(v, "   commit   : "+commit)
+	} else {
+		v = append(v, "   commit   : "+unknown)
 	}
 
 	if specs.Version != "" {
 		v = append(v, "   OCI specs: "+specs.Version)
+	} else {
+		v = append(v, "   OCI specs: "+unknown)
 	}
 
 	return strings.Join(v, "\n")
