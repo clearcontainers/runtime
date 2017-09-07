@@ -122,6 +122,11 @@ var runtimeCommandNotFound = commandNotFound
 // string describing the runtime.
 var runtimeVersion = makeVersionString
 
+// saved default cli package values (for testing).
+var savedCLIAppHelpTemplate = cli.AppHelpTemplate
+var savedCLIVersionPrinter = cli.VersionPrinter
+var savedCLIErrWriter = cli.ErrWriter
+
 // beforeSubcommands is the function to perform preliminary checks
 // before command-line parsing occurs.
 func beforeSubcommands(context *cli.Context) error {
@@ -213,34 +218,38 @@ func makeVersionString() string {
 	return strings.Join(v, "\n")
 }
 
-func main() {
-	app := cli.NewApp()
-	app.Name = name
-	app.Usage = usage
-	app.CommandNotFound = runtimeCommandNotFound
-
+// setCLIGlobals modifies various cli package global variables
+func setCLIGlobals() {
 	cli.AppHelpTemplate = fmt.Sprintf(`%s%s`, cli.AppHelpTemplate, notes)
-	app.Version = runtimeVersion()
 
 	// Override the default function to display version details to
 	// ensure the "--version" option and "version" command are identical.
 	cli.VersionPrinter = func(c *cli.Context) {
-		fmt.Println(c.App.Version)
+		fmt.Fprintln(defaultOutputFile, c.App.Version)
 	}
-
-	app.Flags = runtimeFlags
-	app.Commands = runtimeCommands
-	app.Before = runtimeBeforeSubcommands
 
 	// If the command returns an error, cli takes upon itself to print
 	// the error on cli.ErrWriter and exit.
 	// Use our own writer here to ensure the log gets sent to the right
 	// location.
 	cli.ErrWriter = &fatalWriter{cli.ErrWriter}
+}
 
-	if err := app.Run(os.Args); err != nil {
-		fatal(err)
-	}
+// createRuntimeApp creates an application to process the command-line
+// arguments and invoke the requested runtime command.
+func createRuntimeApp(args []string) error {
+	app := cli.NewApp()
+
+	app.Name = name
+	app.Writer = defaultOutputFile
+	app.Usage = usage
+	app.CommandNotFound = runtimeCommandNotFound
+	app.Version = runtimeVersion()
+	app.Flags = runtimeFlags
+	app.Commands = runtimeCommands
+	app.Before = runtimeBeforeSubcommands
+
+	return app.Run(args)
 }
 
 // userWantsUsage determines if the user only wishes to see the usage
@@ -276,4 +285,17 @@ func (f *fatalWriter) Write(p []byte) (n int, err error) {
 	// Ensure error is logged before displaying to the user
 	ccLog.Error(string(p))
 	return f.cliErrWriter.Write(p)
+}
+
+func createRuntime() {
+	setCLIGlobals()
+
+	err := createRuntimeApp(os.Args)
+	if err != nil {
+		fatal(err)
+	}
+}
+
+func main() {
+	createRuntime()
 }
