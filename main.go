@@ -62,6 +62,10 @@ var vci vc.VC = virtcontainersImpl
 // information to.
 var defaultOutputFile = os.Stdout
 
+// defaultErrorFile is the default output file to write error
+// messages to.
+var defaultErrorFile = os.Stderr
+
 func beforeSubcommands(context *cli.Context) error {
 	if userWantsUsage(context) || (context.NArg() == 1 && (context.Args()[0] == "cc-check")) {
 		// No setup required if the user just
@@ -216,7 +220,7 @@ func userWantsUsage(context *cli.Context) bool {
 // fatal prints the error's details exits the program.
 func fatal(err error) {
 	ccLog.Error(err)
-	fmt.Fprintln(os.Stderr, err)
+	fmt.Fprintln(defaultErrorFile, err)
 	exit(1)
 }
 
