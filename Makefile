@@ -76,6 +76,9 @@ PKGLIBDIR := $(LOCALSTATEDIR)/lib/$(CCDIR)
 PKGRUNDIR := $(LOCALSTATEDIR)/run/$(CCDIR)
 PKGLIBEXECDIR := $(LIBEXECDIR)/$(CCDIR)
 
+BASH_COMPLETIONS := data/completions/bash/cc-runtime
+BASH_COMPLETIONSDIR := $(SHAREDIR)/bash-completion/completions
+
 KERNELPATH := $(PKGDATADIR)/vmlinuz.container
 IMAGEPATH := $(PKGDATADIR)/clear-containers.img
 
@@ -129,6 +132,7 @@ DESTCONFIG := $(abspath $(DESTCONFDIR)/$(CONFIG_FILE))
 PAUSEDESTDIR := $(abspath $(DESTDIR)/$(PAUSEROOTPATH)/$(PAUSEBINRELPATH))
 
 # list of variables the user may wish to override
+USER_VARS += BASH_COMPLETIONSDIR
 USER_VARS += BINDIR
 USER_VARS += CC_SYSTEM_BUILD
 USER_VARS += DESTCONFIG
@@ -276,12 +280,15 @@ check-go-static:
 coverage:
 	$(QUIET_TEST).ci/go-test.sh html-coverage
 
-install: default
+install: default install-completions
 	$(QUIET_INST)install -D $(TARGET) $(DESTTARGET)
 	$(QUIET_INST)install -D $(CONFIG) $(DESTCONFIG)
 	@ if [ -e pause/pause ]; then \
 		install -D pause/pause $(PAUSEDESTDIR); \
 	fi
+
+install-completions:
+	$(QUIET_INST)install --mode 0644 -D $(BASH_COMPLETIONS) $(BASH_COMPLETIONSDIR)
 
 clean:
 	$(QUIET_CLEAN)rm -f $(TARGET) $(CONFIG) $(GENERATED_FILES)
