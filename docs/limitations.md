@@ -48,6 +48,10 @@ configuration. It should be possible to pass this information through to
 the QEMU command line CPU configuration options to gain a similar
 effect.
 
+Note that the `--cpu-quota` and `--cpu-period` `docker run` options are
+supported; in combination, these two options can provide most of the
+functionality that `--cpus` would offer.
+
 See issue [\#341](https://github.com/clearcontainers/runtime/issues/341) for more information.
 
 #### `docker run --kernel-memory=`
