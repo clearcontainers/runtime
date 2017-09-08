@@ -97,15 +97,15 @@ var runtimeFlags = []cli.Flag{
 // commands.
 var runtimeCommands = []cli.Command{
 	checkCLICommand,
-	envCLICommand,
 	createCLICommand,
 	deleteCLICommand,
+	envCLICommand,
 	execCLICommand,
 	killCLICommand,
 	listCLICommand,
-	runCLICommand,
 	pauseCLICommand,
 	resumeCLICommand,
+	runCLICommand,
 	startCLICommand,
 	stateCLICommand,
 	versionCLICommand,
