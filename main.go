@@ -96,10 +96,8 @@ var runtimeFlags = []cli.Flag{
 // runtimeCommands is the list of supported command-line (sub-)
 // commands.
 var runtimeCommands = []cli.Command{
-	checkCLICommand,
 	createCLICommand,
 	deleteCLICommand,
-	envCLICommand,
 	execCLICommand,
 	killCLICommand,
 	listCLICommand,
@@ -109,6 +107,10 @@ var runtimeCommands = []cli.Command{
 	startCLICommand,
 	stateCLICommand,
 	versionCLICommand,
+
+	// Clear Containers specific extensions
+	ccCheckCLICommand,
+	ccEnvCLICommand,
 }
 
 // runtimeBeforeSubcommands is the function to run before command-line
