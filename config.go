@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
+	"github.com/Sirupsen/logrus"
 	vc "github.com/containers/virtcontainers"
 	"github.com/containers/virtcontainers/pkg/oci"
 )
@@ -395,7 +396,11 @@ func loadConfiguration(configPath string, ignoreLogging bool) (resolvedConfigPat
 			return "", "", config, err
 		}
 
-		ccLog.Debugf("TOML configuration: %v", tomlConf)
+		ccLog.WithFields(
+			logrus.Fields{
+				"file":   logfilePath,
+				"format": "TOML",
+			}).Debugf("loaded configuration")
 	}
 
 	if err := updateRuntimeConfig(resolved, tomlConf, &config); err != nil {

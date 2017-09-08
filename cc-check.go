@@ -21,6 +21,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
 	vc "github.com/containers/virtcontainers"
 	"github.com/urfave/cli"
 )
@@ -34,10 +35,11 @@ type kernelModule struct {
 }
 
 const (
-	moduleParamDir = "parameters"
-	cpuFlagsTag    = "flags"
-	successMessage = "System is capable of running " + project
-	failMessage    = "System is not capable of running " + project
+	moduleParamDir        = "parameters"
+	cpuFlagsTag           = "flags"
+	successMessage        = "System is capable of running " + project
+	failMessage           = "System is not capable of running " + project
+	kernelPropertyCorrect = "Kernel property value correct"
 )
 
 // variables rather than consts to allow tests to modify them
@@ -146,15 +148,21 @@ func checkCPU(tag, cpuinfo string, attribs map[string]string) (count uint32, err
 	}
 
 	for attrib, desc := range attribs {
+		fields := logrus.Fields{
+			"type":        tag,
+			"name":        attrib,
+			"description": desc,
+		}
+
 		found := findAnchoredString(cpuinfo, attrib)
 		if !found {
-			ccLog.Errorf("CPU does not have required %v: %q (%s)", tag, desc, attrib)
+			ccLog.WithFields(fields).Errorf("CPU property not found")
 			count++
 			continue
 
 		}
 
-		ccLog.Infof("Found CPU %v %q (%s)", tag, desc, attrib)
+		ccLog.WithFields(fields).Infof("CPU property found")
 	}
 
 	return count, nil
@@ -178,13 +186,19 @@ func checkKernelModules(modules map[string]kernelModule) (count uint32, err erro
 	}
 
 	for module, details := range modules {
+		fields := logrus.Fields{
+			"type":        "module",
+			"name":        module,
+			"description": details.desc,
+		}
+
 		if !haveKernelModule(module) {
-			ccLog.Errorf("kernel module %q (%s) not found", module, details.desc)
+			ccLog.WithFields(fields).Error("kernel property not found")
 			count++
 			continue
 		}
 
-		ccLog.Infof("Found kernel module %q (%s)", details.desc, module)
+		ccLog.WithFields(fields).Infof("kernel property found")
 
 		for param, expected := range details.parameters {
 			path := filepath.Join(sysModuleDir, module, moduleParamDir, param)
@@ -196,25 +210,29 @@ func checkKernelModules(modules map[string]kernelModule) (count uint32, err erro
 			value = strings.TrimRight(value, "\n\r")
 
 			if value != expected {
-				msg := fmt.Sprintf("kernel module %q parameter %q has value %q (expected %q)", details.desc, param, value, expected)
+				fields["expected"] = expected
+				fields["actual"] = value
+				fields["parameter"] = param
+
+				msg := "kernel module parameter has unexpected value"
 
 				// this option is not required when
 				// already running under a hypervisor.
 				if param == "unrestricted_guest" && onVMM {
-					ccLog.Warn(msg)
+					ccLog.WithFields(fields).Warn(kernelPropertyCorrect)
 					continue
 				}
 
 				if param == "nested" {
-					ccLog.Warn(msg)
+					ccLog.WithFields(fields).Warn(msg)
 					continue
 				}
 
-				ccLog.Error(msg)
+				ccLog.WithFields(fields).Error(msg)
 				count++
 			}
 
-			ccLog.Infof("Kernel module %q parameter %q has correct value", details.desc, param)
+			ccLog.WithFields(fields).Info(kernelPropertyCorrect)
 		}
 	}
 
@@ -275,7 +293,6 @@ var ccCheckCLICommand = cli.Command{
 			return err
 		}
 
-		ccLog.Info("")
 		ccLog.Info(successMessage)
 
 		return nil

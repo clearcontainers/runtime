@@ -29,7 +29,7 @@ import (
 )
 
 func testRemoveCgroupsPathSuccessful(t *testing.T, cgroupsPathList []string) {
-	if err := removeCgroupsPath(cgroupsPathList); err != nil {
+	if err := removeCgroupsPath("foo", cgroupsPathList); err != nil {
 		t.Fatalf("This test should succeed (cgroupsPathList = %v): %s", cgroupsPathList, err)
 	}
 }
