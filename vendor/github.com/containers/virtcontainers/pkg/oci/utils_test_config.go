@@ -56,7 +56,7 @@ const minimalConfig = `
 		"path": "rootfs",
 		"readonly": true
 	},
-	"hostname": "runc",
+	"hostname": "testHostname",
 	"mounts": [
 		{
 			"destination": "/proc",

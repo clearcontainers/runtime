@@ -171,6 +171,27 @@ func (c *Container) setStateFstype(fstype string) error {
 	return nil
 }
 
+func (c *Container) setStateRootfsBlockChecked(checked bool) error {
+	c.state.RootfsBlockChecked = checked
+	err := c.pod.storage.storeContainerResource(c.pod.id, c.id, stateFileType, c.state)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Container) setStateHotpluggedDrive(hotplugged bool) error {
+	c.state.HotpluggedDrive = hotplugged
+
+	err := c.pod.storage.storeContainerResource(c.pod.id, c.id, stateFileType, c.state)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // URL returns the URL related to the pod.
 func (c *Container) URL() string {
 	return c.pod.URL()
@@ -237,7 +258,7 @@ func fetchContainer(pod *Pod, containerID string) (*Container, error) {
 		return nil, err
 	}
 
-	virtLog.Infof("Info structure: %+v", config)
+	virtLog.Debugf("Container config: %+v", config)
 
 	return createContainer(pod, config)
 }
@@ -456,6 +477,17 @@ func (c *Container) start() error {
 	}
 	defer c.pod.proxy.disconnect()
 
+	if !c.state.RootfsBlockChecked {
+		agentCaps := c.pod.agent.capabilities()
+		hypervisorCaps := c.pod.hypervisor.capabilities()
+
+		if agentCaps.isBlockDeviceSupported() && hypervisorCaps.isBlockDeviceHotplugSupported() {
+			if err := c.addDrive(false); err != nil {
+				return err
+			}
+		}
+	}
+
 	err = c.pod.agent.startContainer(*(c.pod), *c)
 	if err != nil {
 		c.stop()
@@ -513,6 +545,10 @@ func (c *Container) stop() error {
 
 	err = c.pod.agent.stopContainer(*(c.pod), *c)
 	if err != nil {
+		return err
+	}
+
+	if err := c.removeDrive(); err != nil {
 		return err
 	}
 
@@ -635,4 +671,101 @@ func newProcess(token string, pid int) Process {
 		Pid:       pid,
 		StartTime: time.Now().UTC(),
 	}
+}
+
+func (c *Container) addDrive(create bool) error {
+	defer func() {
+		c.setStateRootfsBlockChecked(true)
+	}()
+
+	dev, err := getDeviceForPath(c.rootFs)
+
+	if err == errMountPointNotFound {
+		return nil
+	}
+
+	if err != nil {
+		return err
+	}
+
+	virtLog.Infof("Device details for container %s: Major:%d, Minor:%d, MountPoint:%s", c.id, dev.major, dev.minor, dev.mountPoint)
+
+	isDM, err := checkStorageDriver(dev.major, dev.minor)
+	if err != nil {
+		return err
+	}
+
+	if !isDM {
+		return nil
+	}
+
+	// If device mapper device, then fetch the full path of the device
+	devicePath, fsType, err := getDevicePathAndFsType(dev.mountPoint)
+	if err != nil {
+		return err
+	}
+
+	virtLog.Infof("Block Device path %s detected for container with fstype : %s\n", devicePath, c.id, fsType)
+
+	// Add drive with id as container id
+	devID := fmt.Sprintf("drive-%s", c.id)
+	drive := Drive{
+		File:   devicePath,
+		Format: "raw",
+		ID:     devID,
+	}
+
+	// if pod in create stage
+	if create {
+		if err := c.pod.hypervisor.addDevice(drive, blockDev); err != nil {
+			return err
+		}
+		c.setStateHotpluggedDrive(false)
+	} else {
+		if err := c.pod.hypervisor.hotplugAddDevice(drive, blockDev); err != nil {
+			return err
+		}
+		c.setStateHotpluggedDrive(true)
+	}
+
+	driveIndex, err := c.pod.getAndSetPodBlockIndex()
+	if err != nil {
+		return err
+	}
+
+	if err := c.setStateBlockIndex(driveIndex); err != nil {
+		return err
+	}
+
+	if err := c.setStateFstype(fsType); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// isDriveUsed checks if a drive has been used for container rootfs
+func (c *Container) isDriveUsed() bool {
+	if c.state.Fstype == "" {
+		return false
+	}
+	return true
+}
+
+func (c *Container) removeDrive() (err error) {
+	if c.isDriveUsed() && c.state.HotpluggedDrive {
+		virtLog.Infof("Unplugging block device for container %s", c.id)
+
+		devID := fmt.Sprintf("drive-%s", c.id)
+		drive := Drive{
+			ID: devID,
+		}
+
+		if err := c.pod.hypervisor.hotplugRemoveDevice(drive, blockDev); err != nil {
+			virtLog.Errorf("Error while unplugging block device : %s", err)
+			return err
+		}
+	}
+
+	return nil
 }

@@ -54,6 +54,11 @@
 		"version": "757bef9",
 		"license": "BSD (3 clause)"
 	},
+	"github.com/intel/tfortools": {
+		"url": "https://github.com/intel/tfortools.git",
+		"version": "2aef60e",
+		"license": "Apache v2.0"
+	},
 	"github.com/mattn/go-sqlite3": {
 		"url": "https://github.com/mattn/go-sqlite3.git",
 		"version": "6f2749a",
