@@ -5,7 +5,7 @@
   branch = "master"
   name = "github.com/01org/ciao"
   packages = ["qemu","ssntp/uuid"]
-  revision = "add4d7434b13ea7fc5f1c8d43e4864a67cf329a8"
+  revision = "da22c6ccce00e942d37212717d112105fa174588"
 
 [[projects]]
   branch = "master"
@@ -41,7 +41,7 @@
   branch = "master"
   name = "github.com/containers/virtcontainers"
   packages = [".","pkg/cni","pkg/hyperstart","pkg/oci","pkg/vcMock"]
-  revision = "e2c760d303ac0616f9e4fba774dbde93514c9556"
+  revision = "355a162e595764ef99d3aa3355c9483267532a24"
 
 [[projects]]
   branch = "master"

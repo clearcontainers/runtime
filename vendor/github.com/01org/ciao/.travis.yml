@@ -6,15 +6,18 @@ services:
 
 go:
     - 1.8
-    - go1.9beta2
+    - 1.9
     - tip
 
-env:
-    - COVERALLS_TOKEN=mwTn1pOFqEOUT13vylZNHq53NanoMznO7
+env: #need empty
 matrix:
+  include:
+    - go: 1.9
+      env: TEST_CASES_FLAGS=-race
   allow_failures:
   - go: tip
-  - go: go1.9beta2
+  - go: 1.9
+    env: TEST_CASES_FLAGS=-race
 
 go_import_path: github.com/01org/ciao
 
@@ -27,12 +30,12 @@ before_install:
   - go get github.com/google/gofuzz github.com/stretchr/testify
   - go get -u gopkg.in/alecthomas/gometalinter.v1
   - gometalinter.v1 --install
-  - pip install ansible
 
 # We need to create and install SSNTP certs for the SSNTP and controller tests
 before_script:
    - sudo mkdir -p /etc/pki/ciao/
    - sudo mkdir -p /var/lib/ciao/logs/scheduler
+   - sudo -E $GOPATH/bin/ciao-deploy auth setup
    - sudo -E $GOPATH/bin/ciao-cert -directory /etc/pki/ciao -host localhost -anchor -role scheduler
    - sudo -E $GOPATH/bin/ciao-cert -directory /etc/pki/ciao -host localhost -anchor-cert /etc/pki/ciao/cert-Scheduler-localhost.pem -role agent
    - sudo -E $GOPATH/bin/ciao-cert -directory /etc/pki/ciao -host localhost -anchor-cert /etc/pki/ciao/cert-Scheduler-localhost.pem -role agent,netagent
@@ -62,12 +65,10 @@ script:
    - sudo mkdir -p /var/lib/ciao/instances
    - sudo mkdir -p /var/lib/ciao/data/controller/workloads
    - sudo chmod 0777 -R /var/lib/ciao
-   - test-cases -v -timeout 9 -coverprofile /tmp/cover.out -short github.com/01org/ciao/ciao-controller/...
-   - test-cases -v -timeout 9 -coverprofile /tmp/cover.out -append-profile -short github.com/01org/ciao/ciao-launcher github.com/01org/ciao/ciao-scheduler github.com/01org/ciao/payloads github.com/01org/ciao/configuration github.com/01org/ciao/testutil github.com/01org/ciao/ssntp/uuid github.com/01org/ciao/qemu github.com/01org/ciao/openstack/... github.com/01org/ciao/bat  github.com/01org/ciao/ciao-image/... github.com/01org/ciao/database/... github.com/01org/ciao/ciao-storage/... github.com/01org/ciao/deviceinfo github.com/01org/ciao/osprepare github.com/01org/ciao/templateutils
-   - export GOROOT=`go env GOROOT` && sudo -E PATH=$PATH:$GOROOT/bin $GOPATH/bin/test-cases -v -timeout 9 -coverprofile /tmp/cover.out -append-profile github.com/01org/ciao/ssntp
-   - export GOROOT=`go env GOROOT` && export SNNET_ENV=198.51.100.0/24 && sudo -E PATH=$PATH:$GOROOT/bin $GOPATH/bin/test-cases -v -timeout 9 -short -tags travis -coverprofile /tmp/cover.out -append-profile github.com/01org/ciao/networking/libsnnet
-   # Test ansible playbooks
-   - ansible-playbook -i _DeploymentAndDistroPackaging/ansible/tests/hosts _DeploymentAndDistroPackaging/ansible/ciao.yml --syntax-check
+   - test-cases $TEST_CASES_FLAGS -v -timeout 9 -coverprofile /tmp/cover.out -short github.com/01org/ciao/ciao-controller/...
+   - test-cases $TEST_CASES_FLAGS -v -timeout 9 -coverprofile /tmp/cover.out -append-profile -short github.com/01org/ciao/ciao-launcher github.com/01org/ciao/ciao-scheduler github.com/01org/ciao/payloads github.com/01org/ciao/configuration github.com/01org/ciao/testutil github.com/01org/ciao/ssntp/uuid github.com/01org/ciao/qemu github.com/01org/ciao/openstack/... github.com/01org/ciao/bat  github.com/01org/ciao/ciao-image/... github.com/01org/ciao/database/... github.com/01org/ciao/ciao-storage/... github.com/01org/ciao/deviceinfo github.com/01org/ciao/osprepare
+   - export GOROOT=`go env GOROOT` && sudo -E PATH=$PATH:$GOROOT/bin $GOPATH/bin/test-cases $TEST_CASES_FLAGS -v -timeout 9 -coverprofile /tmp/cover.out -append-profile github.com/01org/ciao/ssntp
+   - export GOROOT=`go env GOROOT` && export SNNET_ENV=198.51.100.0/24 && sudo -E PATH=$PATH:$GOROOT/bin $GOPATH/bin/test-cases -race -v -timeout 9 -short -tags travis -coverprofile /tmp/cover.out -append-profile github.com/01org/ciao/networking/libsnnet
 
 after_success:
    - $GOPATH/bin/goveralls -service=travis-ci -coverprofile=/tmp/cover.out

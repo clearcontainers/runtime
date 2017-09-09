@@ -84,7 +84,7 @@ func (c *HyperConfig) validate(pod Pod) bool {
 		c.PauseBinPath = filepath.Join(defaultPauseBinDir, pauseBinName)
 	}
 
-	virtLog.Infof("Hyperstart config %v", c)
+	virtLog.Debugf("Hyperstart config %v", c)
 
 	return true
 }
@@ -428,7 +428,7 @@ func (h *hyper) startPod(pod Pod) error {
 		return err
 	}
 
-	hostname := pod.id
+	hostname := pod.config.Hostname
 	if len(hostname) > maxHostnameLen {
 		hostname = hostname[:maxHostnameLen]
 	}

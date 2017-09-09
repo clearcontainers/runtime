@@ -34,8 +34,7 @@ connectivity for workload instances and insures tenant isolation.
 Workloads (whether container or VM) are automatically placed in a unified
 L2 network, one such network per tenant.
 
-A [cli](https://github.com/01org/ciao/tree/master/ciao-cli) and
-[webui](https://github.com/01org/ciao-webui) are available.
+A [cli](https://github.com/01org/ciao/tree/master/ciao-cli) is available.
 
 All ciao components communicate with each other via
 [SSNTP](https://github.com/01org/ciao/blob/master/ssntp/README.md) using a

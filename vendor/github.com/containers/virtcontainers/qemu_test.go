@@ -560,3 +560,38 @@ func TestQemuMachineTypes(t *testing.T) {
 		}
 	}
 }
+
+func TestQemuBlockHotplugCapabilities(t *testing.T) {
+	type testData struct {
+		machineType     string
+		expectedSupport bool
+	}
+
+	data := []testData{
+		{"pc-lite", false},
+		{"q35", false},
+		{"pc", true},
+
+		{"PC-LITE", false},
+		{"PC", false},
+		{"Q35", false},
+		{"", false},
+		{" ", false},
+		{".", false},
+		{"0", false},
+		{"1", false},
+		{"-1", false},
+	}
+
+	q := &qemu{}
+
+	for _, d := range data {
+		q.qemuConfig.Machine.Type = d.machineType
+
+		caps := q.capabilities()
+		isSupported := caps.isBlockDeviceHotplugSupported()
+		if isSupported != d.expectedSupport {
+			t.Fatalf("expected blockdevice hotplug support : %v, got %v", d.expectedSupport, isSupported)
+		}
+	}
+}

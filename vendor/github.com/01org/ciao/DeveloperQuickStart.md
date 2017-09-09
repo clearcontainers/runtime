@@ -52,14 +52,12 @@ ciao-down mode, it refers to the host system in the case of the bare metal mode.
       2. Scheduler 	
       3. Compute+Network Node Agent (i.e. CN + NN Launcher)
       4. Workloads (Containers and VMs)
-      5. WebUI
-      6. Mock Openstack Services
-      7. Machine Local DHCP Server
+      5. Mock Openstack Services
+      6. Machine Local DHCP Server
       ...
 
 The machine acts as the Ciao compute node, network node, ciao-controller, 
-ciao-scheduler and also hosts the ciao-webui as well as other openstack 
-and dhcp services.
+ciao-scheduler and also hosts other openstack and dhcp services.
 
 ## Graphical Overview
 
@@ -71,31 +69,31 @@ completely self contained.
 
 ```
    
-   ____________________________________________________________________________________________ 
-  |                                                                                            |
-  |                                                                                            |
-  |                                                                                            |
-  |                                                                  [Tenant VMs]  [CNCI VMs]  |
-  |                                                                     |  |  |       ||       |
-  |                                                     Tenant Bridges ----------     ||       |
-  |                                                                         |         ||       |
-  |                                                                         |         ||       |
-  | [ciao-webui] [scheduler] [controller] [keystone] [CN+NN Launcher]       |         ||       |
-  |    ||             ||       ||          ||           ||                  |         ||       |
-  |    ||             ||       ||          ||           ||                  |         ||       |
-  |    ||             ||       ||          ||           ||                  |         ||       |
-  |    ||             ||       ||          ||           ||                  |         ||       |
-  |    ||             ||       ||          ||           ||                  |         ||       |
-  |    ||             ||       ||          ||           ||      [DHCP/DNS   |         ||       |
-  |    ||             ||       ||          ||           ||        Server]   |         ||       |
-  |    ||             ||       ||          ||           ||           ||     |         ||       |
-  |  --------------------------------------------------------------------------------------    |              
-  |           Host Local Network Bridge + macvlan (ciao_br, ciaovlan)                          |
-  |                                                                                            |
-  |                                                                                            |
-  |____________________________________________________________________________________________|
+   ____________________________________________________________________________
+  |                                                                            |
+  |                                                                            |
+  |                                                                            |
+  |                                                [Tenant VMs]  [CNCI VMs]    |
+  |                                                   |  |  |       ||         |
+  |                                   Tenant Bridges ----------     ||         |
+  |                                                       |         ||         |
+  |                                                       |         ||         |
+  |      [scheduler] [controller]  [CN+NN Launcher]       |         ||         |
+  |           ||       ||             ||                  |         ||         |
+  |           ||       ||             ||                  |         ||         |
+  |           ||       ||             ||                  |         ||         |
+  |           ||       ||             ||                  |         ||         |
+  |           ||       ||             ||                  |         ||         |
+  |           ||       ||             ||      [DHCP/DNS   |         ||         |
+  |           ||       ||             ||        Server]   |         ||         |
+  |           ||       ||             ||           ||     |         ||         |
+  |  ------------------------------------------------------------------------  |
+  |           Host Local Network Bridge + macvlan (ciao_br, ciaovlan)          |
+  |                                                                            |
+  |                                                                            |
+  |____________________________________________________________________________|
                                                                                                        
-                                Development Machine
+                              Development Machine
 
 ```
 
@@ -148,34 +146,9 @@ When you run ciao-down create, ciao-down looks in its environment for
 proxy variables such as http_proxy, https_proxy and no_proxy.  If it
 finds them it ensures that these proxies are correctly configured for
 all the software that it installs and uses inside the VM, e.g., apt, docker,
-npm, wget, ciao-cli.  So if your development machine is sitting
+wget, ciao-cli.  So if your development machine is sitting
 behind a proxy, ensure you have your proxy environment variables set
 before running ciao-down.
-
-## Ciao-webui
-
-Ciao has a webui called ciao-webui (https://github.com/01org/ciao-webui).
-When ciao-down create is run, ciao-down downloads the source code for
-the ciao-webui and all the development tools needed to build it.  By
-default, ciao-down stores the code for the web-ui in ~/ciao-webui.
-
-If you wish to actively work on the sources of ciao-webui you can ask
-ciao-down create to mount a host directory containing the webui sources
-into the VM.  This is done using the -ui-path option of ciao-down create.
-For example
-
-```
-ciao-down create --ui-path $HOME/src/ciao-webui ciao
-```
-
-would mount the $HOME/src/ciao-webui directory inside the VM at the
-same location as the directory appears on your host.  You can then
-modify the ciao-webui code on your host and build inside the VM.
-
-
-For more details and full set of capabilities of ciao-down see the full 
-[ciao-down documentation ](https://github.com/01org/ciao/blob/master/testutil/ciao-down/README.md) 
-
 
 # Getting Started with Bare Metal
 
@@ -296,29 +269,6 @@ To check everything is working try the following command
 ```
 ciao-cli workload list
 ```
-
-# Running ciao-webui
-
-The easiest way to develop and run the ciao-webui is inside a VM built by 
-ciao-down.  Not only does ciao-down download the web-ui code for you but it 
-also downloads and configures all of the dependencies needed to develop the 
-ciao-webui, such as npm.
-
-To run the webui in a ciao-down VM simply execute the following commands
-
-```
-cd ~/ciao-webui
-./deploy.sh production --config_file=$HOME/local/webui_config.json
-```
-
-And then point your host's browser at https://localhost:3000.  The
-certificate used by the web-ui inside ciao-down is self signed so you
-will need to accept the certificate in your browser before you can view
-the web-ui.
-
-Ciao-down configures an account for you to use.  The user name is 'csr'
-and the password is 'hello'.  Enter these credentials in the login screen
-to start managing your cluster.
 
 # Running the BAT tests
 
