@@ -3,6 +3,10 @@
 The Clear Containers runtime is an open source project licensed under the
 [Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0).
 
+## Code of Conduct
+
+All contributors must agree to the project [code of conduct](CODE_OF_CONDUCT.md).
+
 ## Coding Style (Go)
 
 The usual Go style, enforced by `gofmt`, should be used. Additionally, the [Go
