@@ -110,6 +110,7 @@ DEFVCPUS := 1
 DEFMEMSZ := 2048
 
 DEFDISABLEBLOCK := false
+DEFENABLEMEMPREALLOC := false
 
 SED = sed
 
@@ -175,6 +176,7 @@ USER_VARS += PAUSEDESTDIR
 USER_VARS += DEFVCPUS
 USER_VARS += DEFMEMSZ
 USER_VARS += DEFDISABLEBLOCK
+USER_VARS += DEFENABLEMEMPREALLOC
 
 
 V              = @
@@ -223,6 +225,7 @@ const pauseBinRelativePath = "$(PAUSEBINRELPATH)"
 const defaultVCPUCount uint32 = $(DEFVCPUS)
 const defaultMemSize uint32 = $(DEFMEMSZ) // MiB
 const defaultDisableBlockDeviceUse bool = $(DEFDISABLEBLOCK)
+const defaultEnableMemPrealloc bool = $(DEFENABLEMEMPREALLOC)
 
 // Default config file used by stateless systems.
 var defaultRuntimeConfiguration = "$(DESTCONFIG)"
@@ -281,6 +284,7 @@ $(CONFIG): $(CONFIG_IN) $(GENERATED_FILES)
 		-e "s|@DEFVCPUS@|$(DEFVCPUS)|g" \
 		-e "s|@DEFMEMSZ@|$(DEFMEMSZ)|g" \
 		-e "s|@DEFDISABLEBLOCK@|$(DEFDISABLEBLOCK)|g" \
+		-e "s|@DEFENABLEMEMPREALLOC@|$(DEFENABLEMEMPREALLOC)|g" \
 		$< > $@
 
 generate-config: $(CONFIG)
