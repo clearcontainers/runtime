@@ -37,6 +37,25 @@ const testProxyURL = "file:///proxyURL"
 const testProxyVersion = "proxy version 0.1"
 const testShimVersion = "shim version 0.1"
 
+// makeVersionBinary creates a shell script with the specified file
+// name. When run as "file --version", it will display the specified
+// version to stdout and exit successfully.
+func makeVersionBinary(file, version string) error {
+	err := createFile(file,
+		fmt.Sprintf(`#!/bin/sh
+	[ "$1" = "--version" ] && echo "%s"`, version))
+	if err != nil {
+		return err
+	}
+
+	err = os.Chmod(file, testExeFileMode)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func makeRuntimeConfig(prefixDir string) (configFile string, config oci.RuntimeConfig, err error) {
 	const logPath = "/log/path"
 	hypervisorPath := filepath.Join(prefixDir, "hypervisor")
@@ -75,26 +94,12 @@ func makeRuntimeConfig(prefixDir string) (configFile string, config oci.RuntimeC
 		}
 	}
 
-	err = createFile(shimPath,
-		fmt.Sprintf(`#!/bin/sh
-	[ "$1" = "--version" ] && echo "%s"`, testShimVersion))
+	err = makeVersionBinary(shimPath, testShimVersion)
 	if err != nil {
 		return "", oci.RuntimeConfig{}, err
 	}
 
-	err = os.Chmod(shimPath, testExeFileMode)
-	if err != nil {
-		return "", oci.RuntimeConfig{}, err
-	}
-
-	err = createFile(proxyPath,
-		fmt.Sprintf(`#!/bin/sh
-	[ "$1" = "--version" ] && echo "%s"`, testProxyVersion))
-	if err != nil {
-		return "", oci.RuntimeConfig{}, err
-	}
-
-	err = os.Chmod(proxyPath, testExeFileMode)
+	err = makeVersionBinary(proxyPath, testProxyVersion)
 	if err != nil {
 		return "", oci.RuntimeConfig{}, err
 	}
