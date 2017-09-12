@@ -64,6 +64,12 @@ type State struct {
 
 	// File system of the rootfs incase it is block device
 	Fstype string `json:"fstype"`
+
+	// Bool to indicate if container rootfs has been checked for block storage.
+	RootfsBlockChecked bool `json:"rootfsBlockChecked"`
+
+	// Bool to indicate if the drive for a container was hotplugged.
+	HotpluggedDrive bool `json:"hotpluggedDrive"`
 }
 
 // valid checks that the pod state is valid.
@@ -289,6 +295,8 @@ type PodStatus struct {
 // PodConfig is a Pod configuration.
 type PodConfig struct {
 	ID string
+
+	Hostname string
 
 	// Field specific to OCI specs, needed to setup all the hooks
 	Hooks Hooks
@@ -629,7 +637,7 @@ func fetchPod(podID string) (*Pod, error) {
 		return nil, err
 	}
 
-	virtLog.Infof("Info structure: %+v", config)
+	virtLog.Debugf("Pod config: %+v", config)
 
 	return createPod(config)
 }
@@ -1156,58 +1164,10 @@ func (p *Pod) addDrives() error {
 	}
 
 	for _, c := range p.containers {
-		dev, err := getDeviceForPath(c.rootFs)
-		if err != nil && err != errMountPointNotFound {
-			return err
-		}
-
-		if err == errMountPointNotFound {
-			continue
-		}
-
-		virtLog.Infof("Device details for container %s: Major:%d, Minor:%d, MountPoint:%s\n", c.id, dev.major, dev.minor, dev.mountPoint)
-
-		isDM, err := isDeviceMapper(dev.major, dev.minor)
-		if err != nil {
-			return err
-		}
-
-		if !isDM {
-			continue
-		}
-
-		// If device mapper device, then fetch the full path of the device
-		devicePath, fsType, err := getDevicePathAndFsType(dev.mountPoint)
-		if err != nil {
-			return err
-		}
-
-		virtLog.Infof("Block Device path %s detected for container with fstype : %s\n", devicePath, c.id, fsType)
-
-		// Add drive with id as container id
-		devID := fmt.Sprintf("drive-%s", c.id)
-		drive := Drive{
-			File:   devicePath,
-			Format: "raw",
-			ID:     devID,
-		}
-
-		if err := p.hypervisor.addDevice(drive, blockDev); err != nil {
-			return err
-		}
-
-		driveIndex, err := p.getAndSetPodBlockIndex()
-		if err != nil {
-			return err
-		}
-
-		if err := c.setStateBlockIndex(driveIndex); err != nil {
-			return err
-		}
-
-		if err := c.setStateFstype(fsType); err != nil {
+		if err := c.addDrive(true); err != nil {
 			return err
 		}
 	}
+
 	return nil
 }

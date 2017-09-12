@@ -124,7 +124,8 @@ func TestMinimalPodConfig(t *testing.T) {
 	}
 
 	expectedPodConfig := vc.PodConfig{
-		ID: containerID,
+		ID:       containerID,
+		Hostname: "testHostname",
 
 		HypervisorType: vc.QemuHypervisor,
 		AgentType:      vc.HyperstartAgent,

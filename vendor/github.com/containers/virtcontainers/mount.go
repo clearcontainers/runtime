@@ -184,6 +184,8 @@ func getDevicePathAndFsType(mountPoint string) (devicePath, fsType string, err e
 
 var blockFormatTemplate = "/sys/dev/block/%d:%d/dm"
 
+var checkStorageDriver = isDeviceMapper
+
 // isDeviceMapper checks if the device with the major and minor numbers is a devicemapper block device
 func isDeviceMapper(major, minor int) (bool, error) {
 

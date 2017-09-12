@@ -17,13 +17,13 @@
 package ssntp
 
 import (
-	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/asn1"
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -897,6 +897,11 @@ type Config struct {
 	// ConfigURI contains the location of the configuration that the
 	// SSNTP server will fetch to setup the cluster.
 	ConfigURI string
+
+	// Rand contains a reader that provides random data. This data is
+	// used by the underlying TLS session.  If Rand is nil, the default
+	// random number generator for the TLS package will be used.
+	Rand io.Reader
 }
 
 // Logger is an interface for SSNTP users to define their own
@@ -988,10 +993,10 @@ func prepareTLSConfig(config *Config, server bool) *tls.Config {
 		log.Fatalf("SSNTP: Load Certificate: %s", err)
 	}
 
-	return prepareTLS(caPEM, certPEM, server)
+	return prepareTLS(caPEM, certPEM, server, config.Rand)
 }
 
-func prepareTLS(caPEM, certPEM []byte, server bool) *tls.Config {
+func prepareTLS(caPEM, certPEM []byte, server bool, rand io.Reader) *tls.Config {
 	cert, err := tls.X509KeyPair(certPEM, certPEM)
 	if err != nil {
 		log.Printf("SSNTP: Load Key: %s", err)
@@ -1009,7 +1014,7 @@ func prepareTLS(caPEM, certPEM []byte, server bool) *tls.Config {
 			Certificates: []tls.Certificate{cert},
 			RootCAs:      certPool,
 			ClientCAs:    certPool,
-			Rand:         rand.Reader,
+			Rand:         rand,
 			ClientAuth:   tls.RequireAndVerifyClientCert,
 		}
 	}
@@ -1017,6 +1022,7 @@ func prepareTLS(caPEM, certPEM []byte, server bool) *tls.Config {
 	return &tls.Config{
 		Certificates: []tls.Certificate{cert},
 		RootCAs:      certPool,
+		Rand:         rand,
 	}
 }
 
