@@ -31,7 +31,7 @@ import (
 //
 // XXX: Increment for every change to the output format
 // (meaning any change to the EnvInfo type).
-const formatVersion = "1.0.2"
+const formatVersion = "1.0.3"
 
 // MetaInfo stores information on the format of the output itself
 type MetaInfo struct {
@@ -79,8 +79,9 @@ type RuntimeVersionInfo struct {
 
 // HypervisorInfo stores hypervisor details
 type HypervisorInfo struct {
-	Location    PathInfo
 	MachineType string
+	Version     string
+	Location    PathInfo
 }
 
 // ProxyInfo stores proxy details
@@ -285,6 +286,22 @@ func getAgentInfo(config oci.RuntimeConfig) (AgentInfo, error) {
 	return ccAgent, nil
 }
 
+func getHypervisorInfo(config oci.RuntimeConfig, hypervisorDetails hypervisorDetails) HypervisorInfo {
+	version, err := getCommandVersion(hypervisorDetails.HypervisorPath)
+	if err != nil {
+		version = unknown
+	}
+
+	return HypervisorInfo{
+		MachineType: config.HypervisorConfig.HypervisorMachineType,
+		Version:     version,
+		Location: PathInfo{
+			Path:     config.HypervisorConfig.HypervisorPath,
+			Resolved: hypervisorDetails.HypervisorPath,
+		},
+	}
+}
+
 func getEnvInfo(configFile, logfilePath string, config oci.RuntimeConfig) (env EnvInfo, err error) {
 	meta := getMetaInfo()
 
@@ -315,13 +332,7 @@ func getEnvInfo(configFile, logfilePath string, config oci.RuntimeConfig) (env E
 		return EnvInfo{}, err
 	}
 
-	hypervisor := HypervisorInfo{
-		Location: PathInfo{
-			Path:     config.HypervisorConfig.HypervisorPath,
-			Resolved: resolvedHypervisor.HypervisorPath,
-		},
-		MachineType: config.HypervisorConfig.HypervisorMachineType,
-	}
+	hypervisor := getHypervisorInfo(config, resolvedHypervisor)
 
 	image := PathInfo{
 		Path:     config.HypervisorConfig.ImagePath,
