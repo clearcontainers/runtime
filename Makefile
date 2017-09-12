@@ -42,6 +42,8 @@ TARGET = cc-runtime
 DESTDIR :=
 CCDIR := clear-containers
 
+installing = $(findstring install,$(MAKECMDGOALS))
+
 ifeq ($(cc_system_build),yes)
     # Configure the build for a standard Clear Containers system that is
     # using OBS-generated packages.
@@ -51,6 +53,12 @@ ifeq ($(cc_system_build),yes)
     QEMUBINDIR    := $(BINDIR)
     SYSCONFDIR    := /etc
     LOCALSTATEDIR := /var
+
+    ifeq (,$(installing))
+        # Force a rebuild to ensure version details are correct
+        # (but only for a non-install build phase).
+        EXTRA_DEPS = clean
+    endif
 else
     PREFIX        := /usr/local
     BINDIR        := $(PREFIX)/bin
@@ -213,7 +221,7 @@ GENERATED_FILES += config-generated.go
 config-generated.go: Makefile VERSION
 	$(QUIET_GENERATE)echo "$$GENERATED_CODE" >$@
 
-$(TARGET): $(SOURCES) $(GENERATED_FILES) Makefile | show-summary
+$(TARGET): $(EXTRA_DEPS) $(SOURCES) $(GENERATED_FILES) Makefile | show-summary
 	$(QUIET_BUILD)go build -i -o $@ .
 
 pause: pause/pause.go
