@@ -31,3 +31,17 @@ func TestBlockDeviceCapability(t *testing.T) {
 		t.Fatal()
 	}
 }
+
+func TestBlockDeviceHotplugCapability(t *testing.T) {
+	var caps capabilities
+
+	if caps.isBlockDeviceHotplugSupported() {
+		t.Fatal()
+	}
+
+	caps.setBlockDeviceHotplugSupport()
+
+	if !caps.isBlockDeviceHotplugSupported() {
+		t.Fatal()
+	}
+}

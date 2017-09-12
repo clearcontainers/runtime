@@ -351,6 +351,8 @@ func PodConfig(ocispec CompatOCISpec, runtime RuntimeConfig, bundlePath, cid, co
 	podConfig := vc.PodConfig{
 		ID: cid,
 
+		Hostname: ocispec.Hostname,
+
 		Hooks: containerHooks(ocispec),
 
 		VMConfig: resources,

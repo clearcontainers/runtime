@@ -315,5 +315,8 @@ type hypervisor interface {
 	pausePod() error
 	resumePod() error
 	addDevice(devInfo interface{}, devType deviceType) error
+	hotplugAddDevice(devInfo interface{}, devType deviceType) error
+	hotplugRemoveDevice(devInfo interface{}, devType deviceType) error
 	getPodConsole(podID string) string
+	capabilities() capabilities
 }

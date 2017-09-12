@@ -28,6 +28,10 @@ func (m *mockHypervisor) init(config HypervisorConfig) error {
 	return nil
 }
 
+func (m *mockHypervisor) capabilities() capabilities {
+	return capabilities{}
+}
+
 func (m *mockHypervisor) createPod(podConfig PodConfig) error {
 	return nil
 }
@@ -51,6 +55,14 @@ func (m *mockHypervisor) resumePod() error {
 }
 
 func (m *mockHypervisor) addDevice(devInfo interface{}, devType deviceType) error {
+	return nil
+}
+
+func (m *mockHypervisor) hotplugAddDevice(devInfo interface{}, devType deviceType) error {
+	return nil
+}
+
+func (m *mockHypervisor) hotplugRemoveDevice(devInfo interface{}, devType deviceType) error {
 	return nil
 }
 
