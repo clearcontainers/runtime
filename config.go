@@ -81,6 +81,7 @@ type hypervisor struct {
 	DefaultVCPUs          int32  `toml:"default_vcpus"`
 	DefaultMemSz          uint32 `toml:"default_memory"`
 	DisableBlockDeviceUse bool   `toml:"disable_block_device_use"`
+	MemPrealloc           bool   `toml:"enable_mem_prealloc"`
 }
 
 type proxy struct {
@@ -207,6 +208,7 @@ func newQemuHypervisorConfig(h hypervisor) (vc.HypervisorConfig, error) {
 		DefaultVCPUs:          h.defaultVCPUs(),
 		DefaultMemSz:          h.defaultMemSz(),
 		DisableBlockDeviceUse: h.DisableBlockDeviceUse,
+		MemPrealloc:           h.MemPrealloc,
 	}, nil
 }
 
@@ -314,6 +316,7 @@ func loadConfiguration(configPath string, ignoreLogging bool) (resolvedConfigPat
 		HypervisorMachineType: defaultMachineType,
 		DefaultVCPUs:          defaultVCPUCount,
 		DefaultMemSz:          defaultMemSize,
+		MemPrealloc:           defaultEnableMemPrealloc,
 	}
 
 	defaultAgentConfig := vc.HyperConfig{
