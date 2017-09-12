@@ -49,6 +49,7 @@ fi
 
 changes(){
 	echo "## Changes"
+	echo "**FIXME - massage this section by hand to produce a summary please**"
 	git log --merges  "$from_commit"..HEAD  | awk '/Merge pull/{getline; getline;print }'  | \
 		while read -r pr
 		do
