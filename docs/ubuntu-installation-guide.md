@@ -1,5 +1,10 @@
 # Installing Clear Containers 3.0 on Ubuntu
 
+Note:
+
+If you are installing on a system that already has Clear Containers 2.x
+installed, first read [the upgrading document](upgrading.md).
+
 Clear Containers **3.0** is available for Ubuntu\* **16.04**.
 
 This step is only required in case Docker is not installed on the system.

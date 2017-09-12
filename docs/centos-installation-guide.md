@@ -4,6 +4,11 @@ This document _only_ covers installing on a
 [CentOS](https://www.centos.org/) system. It explicitly does **not**
 cover installation on Red Hat* Enterprise Linux (RHEL).
 
+Note:
+
+If you are installing on a system that already has Clear Containers 2.x
+installed, first read [the upgrading document](upgrading.md).
+
 ## Required Setup
 
 The installation requires the current user to run the `sudo` command
