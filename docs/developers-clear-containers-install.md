@@ -5,7 +5,20 @@ instructions for any developers eager to try Clear Containers 3.0 and who
 want to build Clear Containers from the source code and are familiar with the
 process.
 
-## Requirements
+## Initial setup
+
+The recommended way to create a development environment is to first install the
+packaged versions of the Clear Containers components to create a working
+system:
+
+  * [Fedora*](fedora-installation-guide.md)
+  * [Ubuntu*](ubuntu-installation-guide.md)
+
+The installation guide instructions will install all packaged
+components, plus docker, the hypervisor and the Clear Containers image
+and kernel.
+
+## Requirements to build individual components
 
   * [go 1.8.3](https://golang.org/)
   * [gcc](https://gcc.gnu.org/) and associated C language build tooling
@@ -17,123 +30,107 @@ process.
   * [Runtime](https://github.com/clearcontainers/runtime)
   * [Proxy](https://github.com/clearcontainers/proxy)
   * [Shim](https://github.com/clearcontainers/shim)
+  * [Agent](https://github.com/clearcontainers/agent)
+
+Since the installation guide will have installed packaged versions of
+all required components, it is only necessary to install the source for
+the component(s) you wish to develop with.
 
 **IMPORTANT:** Do not combine [Clear Containers 2.1](https://github.com/01org/cc-oci-runtime) and [Clear Containers 3.0](https://github.com/clearcontainers).
 Both projects ship ``cc-proxy`` and they are not compatible with each other.
 
-## Setup the environment
+### Setup the environment
 
 1. Define GOPATH
 
-```bash
-$ export GOPATH=$HOME/go
-```
+   ```bash
+   $ export GOPATH=$HOME/go
+   ```
 
 2. Create GOPATH Directory
 
-```bash
-$ mkdir -p $GOPATH
-```
+   ```bash
+   $ mkdir -p $GOPATH
+   ```
 
 3. Get the code
 
-```bash
-$ go get -d github.com/clearcontainers/runtime
-$ go get -d github.com/clearcontainers/proxy
-$ git clone https://github.com/clearcontainers/shim $GOPATH/src/github.com/clearcontainers/shim
-$ go get -d github.com/clearcontainers/tests
-```
+   ```bash
+   $ go get -d github.com/clearcontainers/runtime
+   $ go get -d github.com/clearcontainers/proxy
+   $ git clone https://github.com/clearcontainers/shim $GOPATH/src/github.com/clearcontainers/shim
+   $ go get -d github.com/clearcontainers/agent
+   $ go get -d github.com/clearcontainers/tests
+   $ go get -d github.com/clearcontainers/osbuilder
+   ```
 
-## Build and install components
+### Build and install components
 
 1. Proxy
 
-```bash
-$ cd $GOPATH/src/github.com/clearcontainers/proxy
-$ make
-$ sudo make install
-```
+   ```bash
+   $ cd $GOPATH/src/github.com/clearcontainers/proxy
+   $ make
+   $ sudo make install
+   ```
 
 2. Shim
 
-```bash
-$ cd $GOPATH/src/github.com/clearcontainers/shim
-$ ./autogen.sh
-$ make
-$ sudo make install
-```
+   ```bash
+   $ cd $GOPATH/src/github.com/clearcontainers/shim
+   $ ./autogen.sh
+   $ make
+   $ sudo make install
+   ```
 
 3. Runtime
 
-```bash
-$ cd $GOPATH/src/github.com/clearcontainers/runtime
-$ make build-cc-system
-$ sudo -E PATH=$PATH make install-cc-system
-```
+   ```bash
+   $ cd $GOPATH/src/github.com/clearcontainers/runtime
+   $ make build-cc-system
+   $ sudo -E PATH=$PATH make install-cc-system
+   ```
 
+4. Agent
+
+   ```bash
+   $ cd $GOPATH/src/github.com/clearcontainers/agent
+   $ make
+   ```
+
+   The agent is installed inside the root filesystem image
+   used by the hypervisor, hence to test a new agent version it is
+   necessary to create a custom rootfs image. The example below
+   demonstrates how to do this using the osbuilder tooling.
+
+   ```bash
+   $ cd $GOPATH/src/github.com/clearcontainers/osbuilder
+
+   $ # Create a rootfs image
+   $ sudo -E make rootfs USE_DOCKER=true
+
+   $ # Overwrite the default cc-agent binary with a custom built version
+   $ sudo cp $GOPATH/src/github.com/clearcontainers/agent/cc-agent ./workdir/rootfs/usr/bin/cc-agent
+
+   $ # Generate a container.img file
+   $ sudo -E make image USE_DOCKER=true
+
+   $ # Install the custom image
+   $ sudo install --owner root --group root --mode 0755 workdir/container.img /usr/share/clear-containers/
+
+   $ # Update the runtime configuration
+   $ # (note that this is only an example using default paths).
+   $ sudo sed -i.bak -e 's!^\(image = ".*"\)!# \1 \
+   image = "/usr/share/clear-containers/container.img"!g' \
+   /etc/clear-containers/configuration.toml
+   
 For more details on the runtime's build system, run:
 
 ```bash
 $ make help
 ```
 
-4. Qemu-Lite, Clear Containers image and kernel
+## See Also
 
-In Fedora:
-```bash
-$ source /etc/os-release
-$ sudo -E VERSION_ID=$VERSION_ID dnf config-manager --add-repo \
-http://download.opensuse.org/repositories/home:/clearcontainers:/clear-containers-3/Fedora\_$VERSION_ID/home:clearcontainers:clear-containers-3.repo
-$ sudo -E dnf install -y qemu-lite clear-containers-image linux-container
-```
-
-In Ubuntu 16.04 or newer:
-```bash
-$ sudo -E apt-get install -y apt-transport-https ca-certificates curl software-properties-common
-$ sudo sh -c "echo 'deb http://download.opensuse.org/repositories/home:/clearcontainers:/clear-containers-3/xUbuntu_$(lsb_release -rs)/ /' >> /etc/apt/sources.list.d/clear-containers.list"
-$ curl -fsSL http://download.opensuse.org/repositories/home:/clearcontainers:/clear-containers-3/xUbuntu_$(lsb_release -rs)/Release.key | sudo apt-key add -
-$ sudo -E apt-get update
-$ sudo -E apt-get install -y qemu-lite clear-containers-image linux-container
-
-```
-
-## Enable Clear Containers 3.0 for Docker
-
-1. Clear Containers configuration file
-
-Edit `$SYSCONFDIR/clear-containers/configuration.toml` according to your needs.
-
-Refer to [https://github.com/clearcontainers/runtime#debugging](https://github.com/clearcontainers/runtime#debugging)
-for additional information how to debug the runtime.
-
-2. Configure Docker for Clear Containers 3.0
-
-```bash
-$ sudo mkdir -p /etc/systemd/system/docker.service.d/
-$ cat << EOF | sudo tee /etc/systemd/system/docker.service.d/clear-containers.conf
-[Service]
-ExecStart=
-ExecStart=/usr/bin/dockerd -D --add-runtime cc-runtime=/usr/local/bin/cc-runtime --default-runtime=cc-runtime
-
-[Service]
-# Allow maximum number of containers to run.
-TasksMax=infinity
-
-EOF
-```
-
-3. Restart Docker and Clear Containers systemd services
-
-```bash
-$ sudo systemctl daemon-reload
-$ sudo systemctl restart docker
-$ sudo systemctl enable cc-proxy.socket
-$ sudo systemctl start cc-proxy.socket
-```
-
-## Run Clear Containers 3.0
-
-```bash
-$ docker run -it ubuntu bash
-root@6adfa8386497732d78468a19da6365602e96e95c401bec2c74ea1af14c672635:/#
-```
+  * [General Debugging](../README.md#debugging)
+  * [Debugging the agent inside the hypervisor](debug-agent.md)
