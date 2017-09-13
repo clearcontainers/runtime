@@ -156,14 +156,14 @@ func TestRunInvalidArgs(t *testing.T) {
 }
 
 type runContainerData struct {
-	pidFilePath    string
-	consolePath    string
-	bundlePath     string
-	configJSONPath string
-	pod            *vcMock.Pod
-	runtimeConfig  oci.RuntimeConfig
-	process        *os.Process
-	tmpDir         string
+	pidFilePath   string
+	consolePath   string
+	bundlePath    string
+	configJSON    string
+	pod           *vcMock.Pod
+	runtimeConfig oci.RuntimeConfig
+	process       *os.Process
+	tmpDir        string
 }
 
 func testRunContainerSetup(t *testing.T) runContainerData {
@@ -211,15 +211,18 @@ func testRunContainerSetup(t *testing.T) runContainerData {
 	runtimeConfig, err := newTestRuntimeConfig(tmpdir, consolePath, true)
 	assert.NoError(err)
 
+	configJSON, err := readOCIConfigJSON(configPath)
+	assert.NoError(err)
+
 	return runContainerData{
-		pidFilePath:    pidFilePath,
-		consolePath:    consolePath,
-		bundlePath:     bundlePath,
-		configJSONPath: configPath,
-		pod:            pod,
-		runtimeConfig:  runtimeConfig,
-		process:        cmd.Process,
-		tmpDir:         tmpdir,
+		pidFilePath:   pidFilePath,
+		consolePath:   consolePath,
+		bundlePath:    bundlePath,
+		configJSON:    configJSON,
+		pod:           pod,
+		runtimeConfig: runtimeConfig,
+		process:       cmd.Process,
+		tmpDir:        tmpdir,
 	}
 }
 
@@ -257,7 +260,7 @@ func TestRunContainerSuccessful(t *testing.T) {
 						ID: d.pod.ID(),
 						Annotations: map[string]string{
 							oci.ContainerTypeKey: string(vc.PodContainer),
-							oci.ConfigPathKey:    d.configJSONPath,
+							oci.ConfigJSONKey:    d.configJSON,
 						},
 					},
 				},
@@ -333,7 +336,7 @@ func TestRunContainerDetachSuccessful(t *testing.T) {
 						ID: d.pod.ID(),
 						Annotations: map[string]string{
 							oci.ContainerTypeKey: string(vc.PodContainer),
-							oci.ConfigPathKey:    d.configJSONPath,
+							oci.ConfigJSONKey:    d.configJSON,
 						},
 					},
 				},
@@ -406,7 +409,7 @@ func TestRunContainerDeleteFail(t *testing.T) {
 						ID: d.pod.ID(),
 						Annotations: map[string]string{
 							oci.ContainerTypeKey: string(vc.PodContainer),
-							oci.ConfigPathKey:    d.configJSONPath,
+							oci.ConfigJSONKey:    d.configJSON,
 						},
 					},
 				},
@@ -482,7 +485,7 @@ func TestRunContainerWaitFail(t *testing.T) {
 						ID: d.pod.ID(),
 						Annotations: map[string]string{
 							oci.ContainerTypeKey: string(vc.PodContainer),
-							oci.ConfigPathKey:    d.configJSONPath,
+							oci.ConfigJSONKey:    d.configJSON,
 						},
 					},
 				},
@@ -566,7 +569,7 @@ func TestRunContainerStartFail(t *testing.T) {
 						ID: d.pod.ID(),
 						Annotations: map[string]string{
 							oci.ContainerTypeKey: string(vc.PodContainer),
-							oci.ConfigPathKey:    d.configJSONPath,
+							oci.ConfigJSONKey:    d.configJSON,
 						},
 					},
 				},
