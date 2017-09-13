@@ -21,7 +21,17 @@ default_vcpus = -1
 disable_block_device_use = @DEFDISABLEBLOCK@
 
 # Enable pre allocation of VM RAM, default false
+# Enabling this will result in lower container density
+# as all of the memory will be allocated and locked
+# This is useful when you want to reserve all the memory
+# upfront or in the cases where you want memory latencies
+# to be very predictable
+# Default false
 #enable_mem_prealloc = true
+#
+# Enable swap of vm memory. Default false.
+# The behaviour is undefined if mem_prealloc is also set to true
+#enable_swap = true
 
 [proxy.cc]
 url = "@PROXYURL@"
