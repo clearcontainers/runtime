@@ -36,6 +36,26 @@ import (
 const testProxyURL = "file:///proxyURL"
 const testProxyVersion = "proxy version 0.1"
 const testShimVersion = "shim version 0.1"
+const testHypervisorVersion = "QEMU emulator version 2.7.0+git.741f430a96-6.1, Copyright (c) 2003-2016 Fabrice Bellard and the QEMU Project developers"
+
+// makeVersionBinary creates a shell script with the specified file
+// name. When run as "file --version", it will display the specified
+// version to stdout and exit successfully.
+func makeVersionBinary(file, version string) error {
+	err := createFile(file,
+		fmt.Sprintf(`#!/bin/sh
+	[ "$1" = "--version" ] && echo "%s"`, version))
+	if err != nil {
+		return err
+	}
+
+	err = os.Chmod(file, testExeFileMode)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 func makeRuntimeConfig(prefixDir string) (configFile string, config oci.RuntimeConfig, err error) {
 	const logPath = "/log/path"
@@ -75,26 +95,17 @@ func makeRuntimeConfig(prefixDir string) (configFile string, config oci.RuntimeC
 		}
 	}
 
-	err = createFile(shimPath,
-		fmt.Sprintf(`#!/bin/sh
-	[ "$1" = "--version" ] && echo "%s"`, testShimVersion))
+	err = makeVersionBinary(shimPath, testShimVersion)
 	if err != nil {
 		return "", oci.RuntimeConfig{}, err
 	}
 
-	err = os.Chmod(shimPath, testExeFileMode)
+	err = makeVersionBinary(proxyPath, testProxyVersion)
 	if err != nil {
 		return "", oci.RuntimeConfig{}, err
 	}
 
-	err = createFile(proxyPath,
-		fmt.Sprintf(`#!/bin/sh
-	[ "$1" = "--version" ] && echo "%s"`, testProxyVersion))
-	if err != nil {
-		return "", oci.RuntimeConfig{}, err
-	}
-
-	err = os.Chmod(proxyPath, testExeFileMode)
+	err = makeVersionBinary(hypervisorPath, testHypervisorVersion)
 	if err != nil {
 		return "", oci.RuntimeConfig{}, err
 	}
@@ -248,6 +259,7 @@ model name	: %s
 
 func getExpectedHypervisor(config oci.RuntimeConfig) HypervisorInfo {
 	return HypervisorInfo{
+		Version: testHypervisorVersion,
 		Location: PathInfo{
 			Path:     config.HypervisorConfig.HypervisorPath,
 			Resolved: config.HypervisorConfig.HypervisorPath,
@@ -1221,4 +1233,21 @@ func TestCCEnvCLIFunctionFail(t *testing.T) {
 
 	err = fn(ctx)
 	assert.Error(t, err)
+}
+
+func TestGetHypervisorInfo(t *testing.T) {
+	assert := assert.New(t)
+
+	tmpdir, err := ioutil.TempDir("", "")
+	assert.NoError(err)
+	defer os.RemoveAll(tmpdir)
+
+	const logFile = "/tmp/file.log"
+
+	_, config, err := makeRuntimeConfig(tmpdir)
+	assert.NoError(err)
+
+	info := getHypervisorInfo(config, hypervisorDetails{})
+
+	assert.Equal(info.Version, unknown)
 }
