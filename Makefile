@@ -111,6 +111,7 @@ DEFMEMSZ := 2048
 
 DEFDISABLEBLOCK := false
 DEFENABLEMEMPREALLOC := false
+DEFENABLESWAP := false
 
 SED = sed
 
@@ -177,6 +178,7 @@ USER_VARS += DEFVCPUS
 USER_VARS += DEFMEMSZ
 USER_VARS += DEFDISABLEBLOCK
 USER_VARS += DEFENABLEMEMPREALLOC
+USER_VARS += DEFENABLESWAP
 
 
 V              = @
@@ -226,6 +228,7 @@ const defaultVCPUCount uint32 = $(DEFVCPUS)
 const defaultMemSize uint32 = $(DEFMEMSZ) // MiB
 const defaultDisableBlockDeviceUse bool = $(DEFDISABLEBLOCK)
 const defaultEnableMemPrealloc bool = $(DEFENABLEMEMPREALLOC)
+const defaultEnableSwap bool = $(DEFENABLESWAP)
 
 // Default config file used by stateless systems.
 var defaultRuntimeConfiguration = "$(DESTCONFIG)"
@@ -285,6 +288,7 @@ $(CONFIG): $(CONFIG_IN) $(GENERATED_FILES)
 		-e "s|@DEFMEMSZ@|$(DEFMEMSZ)|g" \
 		-e "s|@DEFDISABLEBLOCK@|$(DEFDISABLEBLOCK)|g" \
 		-e "s|@DEFENABLEMEMPREALLOC@|$(DEFENABLEMEMPREALLOC)|g" \
+		-e "s|@DEFENABLEMSWAP@|$(DEFENABLESWAP)|g" \
 		$< > $@
 
 generate-config: $(CONFIG)
