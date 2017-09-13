@@ -37,7 +37,7 @@ all required components, it is only necessary to install the source for
 the component(s) you wish to develop with.
 
 **IMPORTANT:** Do not combine [Clear Containers 2.x](https://github.com/01org/cc-oci-runtime) and [Clear Containers 3.x](https://github.com/clearcontainers) on the same system.
-Both projects ship ``cc-proxy`` and ``cc-shim`` which are not compatible with each other.
+Both projects ship `cc-proxy` and `cc-shim` which are not compatible with each other.
 See [the upgrading document](upgrading.md) for further details.
 
 ### Setup the environment
