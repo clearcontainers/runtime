@@ -1021,9 +1021,9 @@ func TestStartContainerFailingPodNotStarted(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c, err = StartContainer(p.ID(), contID)
-	if c != nil || err == nil {
-		t.Fatal()
+	_, err = StartContainer(p.ID(), contID)
+	if err == nil {
+		t.Fatal("Function should have failed")
 	}
 }
 

@@ -741,6 +741,16 @@ type Knobs struct {
 
 	// Daemonize will turn the qemu process into a daemon
 	Daemonize bool
+
+	// MemPrealloc will allocate all the RAM upfront
+	MemPrealloc bool
+
+	// Mlock will control locking of memory
+	// Only active when Realtime is set to true
+	Mlock bool
+
+	// Realtime will enable realtime QEMU
+	Realtime bool
 }
 
 // Config is the qemu configuration structure.
@@ -987,6 +997,29 @@ func (config *Config) appendKnobs() {
 
 	if config.Knobs.Daemonize == true {
 		config.qemuParams = append(config.qemuParams, "-daemonize")
+	}
+
+	if config.Knobs.MemPrealloc == true {
+		if config.Memory.Size != "" {
+			dimmName := "dimm1"
+			objMemParam := "memory-backend-ram,id=" + dimmName + ",size=" + config.Memory.Size + ",prealloc=on"
+			deviceMemParam := "pc-dimm,id=" + dimmName + ",memdev=" + dimmName
+
+			config.qemuParams = append(config.qemuParams, "-object")
+			config.qemuParams = append(config.qemuParams, objMemParam)
+
+			config.qemuParams = append(config.qemuParams, "-device")
+			config.qemuParams = append(config.qemuParams, deviceMemParam)
+		}
+	}
+
+	if config.Knobs.Realtime == true {
+		config.qemuParams = append(config.qemuParams, "-realtime")
+		if config.Knobs.Mlock == true {
+			config.qemuParams = append(config.qemuParams, "mlock=on")
+		} else {
+			config.qemuParams = append(config.qemuParams, "mlock=off")
+		}
 	}
 }
 

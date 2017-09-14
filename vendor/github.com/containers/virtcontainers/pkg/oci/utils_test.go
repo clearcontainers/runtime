@@ -17,6 +17,7 @@
 package oci
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -106,13 +107,24 @@ func TestMinimalPodConfig(t *testing.T) {
 		},
 	}
 
+	var minimalOCISpec CompatOCISpec
+
+	//Marshal and unmarshall json to compare  podConfig and expectedPodConfig
+	if err := json.Unmarshal([]byte(minimalConfig), &minimalOCISpec); err != nil {
+		t.Fatal(err)
+	}
+	ociSpecJSON, err := json.Marshal(minimalOCISpec)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	expectedContainerConfig := vc.ContainerConfig{
 		ID:             containerID,
 		RootFs:         path.Join(tempBundlePath, "rootfs"),
 		ReadonlyRootfs: true,
 		Cmd:            expectedCmd,
 		Annotations: map[string]string{
-			ConfigPathKey:    configPath,
+			ConfigJSONKey:    string(ociSpecJSON),
 			BundlePathKey:    tempBundlePath,
 			ContainerTypeKey: string(vc.PodSandbox),
 		},
@@ -138,7 +150,7 @@ func TestMinimalPodConfig(t *testing.T) {
 		Containers: []vc.ContainerConfig{expectedContainerConfig},
 
 		Annotations: map[string]string{
-			ConfigPathKey: configPath,
+			ConfigJSONKey: string(ociSpecJSON),
 			BundlePathKey: tempBundlePath,
 		},
 	}
@@ -239,10 +251,6 @@ func testStatusToOCIStateSuccessful(t *testing.T, cStatus vc.ContainerStatus, ex
 }
 
 func TestStatusToOCIStateSuccessfulWithReadyState(t *testing.T) {
-	configPath, err := createConfig("config.json", minimalConfig)
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	testContID := "testContID"
 	testPID := 12345
@@ -253,7 +261,7 @@ func TestStatusToOCIStateSuccessfulWithReadyState(t *testing.T) {
 	}
 
 	containerAnnotations := map[string]string{
-		ConfigPathKey: configPath,
+		ConfigJSONKey: minimalConfig,
 		BundlePathKey: tempBundlePath,
 	}
 
@@ -276,16 +284,9 @@ func TestStatusToOCIStateSuccessfulWithReadyState(t *testing.T) {
 
 	testStatusToOCIStateSuccessful(t, cStatus, expected)
 
-	if err := os.Remove(configPath); err != nil {
-		t.Fatal(err)
-	}
 }
 
 func TestStatusToOCIStateSuccessfulWithRunningState(t *testing.T) {
-	configPath, err := createConfig("config.json", minimalConfig)
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	testContID := "testContID"
 	testPID := 12345
@@ -296,7 +297,7 @@ func TestStatusToOCIStateSuccessfulWithRunningState(t *testing.T) {
 	}
 
 	containerAnnotations := map[string]string{
-		ConfigPathKey: configPath,
+		ConfigJSONKey: minimalConfig,
 		BundlePathKey: tempBundlePath,
 	}
 
@@ -319,17 +320,9 @@ func TestStatusToOCIStateSuccessfulWithRunningState(t *testing.T) {
 
 	testStatusToOCIStateSuccessful(t, cStatus, expected)
 
-	if err := os.Remove(configPath); err != nil {
-		t.Fatal(err)
-	}
 }
 
 func TestStatusToOCIStateSuccessfulWithStoppedState(t *testing.T) {
-	configPath, err := createConfig("config.json", minimalConfig)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	testContID := "testContID"
 	testPID := 12345
 	testRootFs := "testRootFs"
@@ -339,7 +332,7 @@ func TestStatusToOCIStateSuccessfulWithStoppedState(t *testing.T) {
 	}
 
 	containerAnnotations := map[string]string{
-		ConfigPathKey: configPath,
+		ConfigJSONKey: minimalConfig,
 		BundlePathKey: tempBundlePath,
 	}
 
@@ -362,23 +355,15 @@ func TestStatusToOCIStateSuccessfulWithStoppedState(t *testing.T) {
 
 	testStatusToOCIStateSuccessful(t, cStatus, expected)
 
-	if err := os.Remove(configPath); err != nil {
-		t.Fatal(err)
-	}
 }
 
 func TestStatusToOCIStateSuccessfulWithNoState(t *testing.T) {
-	configPath, err := createConfig("config.json", minimalConfig)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	testContID := "testContID"
 	testPID := 12345
 	testRootFs := "testRootFs"
 
 	containerAnnotations := map[string]string{
-		ConfigPathKey: configPath,
+		ConfigJSONKey: minimalConfig,
 		BundlePathKey: tempBundlePath,
 	}
 
@@ -400,9 +385,6 @@ func TestStatusToOCIStateSuccessfulWithNoState(t *testing.T) {
 
 	testStatusToOCIStateSuccessful(t, cStatus, expected)
 
-	if err := os.Remove(configPath); err != nil {
-		t.Fatal(err)
-	}
 }
 
 func TestStateToOCIState(t *testing.T) {

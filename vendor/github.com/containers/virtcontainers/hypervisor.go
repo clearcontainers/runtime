@@ -151,6 +151,17 @@ type HypervisorConfig struct {
 	// DefaultMem specifies default memory size in MiB for the VM.
 	// Pod configuration VMConfig.Memory overwrites this.
 	DefaultMemSz uint32
+
+	// MemPrealloc specifies if the memory should be pre-allocated
+	MemPrealloc bool
+
+	// Realtime Used to enable/disable realtime
+	Realtime bool
+
+	// Mlock is used to control memory locking when Realtime is enabled
+	// Realtime=true and Mlock=false, allows for swapping out of VM memory
+	// enabling higher density
+	Mlock bool
 }
 
 func (conf *HypervisorConfig) valid() (bool, error) {

@@ -223,7 +223,7 @@ func TestAppendEmptyDevice(t *testing.T) {
 	testAppend(device, "", t)
 }
 
-var knobsString = "-no-user-config -nodefaults -nographic -daemonize"
+var knobsString = "-no-user-config -nodefaults -nographic -daemonize -realtime mlock=on"
 
 func TestAppendKnobsAllTrue(t *testing.T) {
 	knobs := Knobs{
@@ -231,6 +231,9 @@ func TestAppendKnobsAllTrue(t *testing.T) {
 		NoDefaults:   true,
 		NoGraphic:    true,
 		Daemonize:    true,
+		MemPrealloc:  true,
+		Realtime:     true,
+		Mlock:        true,
 	}
 
 	testAppend(knobs, knobsString, t)
@@ -241,6 +244,9 @@ func TestAppendKnobsAllFalse(t *testing.T) {
 		NoUserConfig: false,
 		NoDefaults:   false,
 		NoGraphic:    false,
+		MemPrealloc:  false,
+		Realtime:     false,
+		Mlock:        false,
 	}
 
 	testAppend(knobs, "", t)
