@@ -241,7 +241,7 @@ func hostIsClearContainersCapable(cpuinfoFile string) error {
 	return nil
 }
 
-var checkCLICommand = cli.Command{
+var ccCheckCLICommand = cli.Command{
 	Name:  "cc-check",
 	Usage: "tests if system can run " + project,
 	Action: func(context *cli.Context) error {
