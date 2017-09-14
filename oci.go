@@ -228,13 +228,9 @@ func processCgroupsPathForResource(ociSpec oci.CompatOCISpec, resource string, i
 	}
 
 	if !cgroupMountFound {
-		if isPod {
-			return "", fmt.Errorf("cgroupsPath %q is absolute, cgroup mount MUST exist",
-				ociSpec.Linux.CgroupsPath)
-		}
-
-		// In case of container (CRI-O), if the mount point is not
-		// provided, we assume this is a relative path.
+		// According to the OCI spec, an absolute path should be
+		// interpreted as relative to the system cgroup mount point
+		// when there is no cgroup mount point.
 		return filepath.Join(cgroupsDirPath, resource, ociSpec.Linux.CgroupsPath), nil
 	}
 

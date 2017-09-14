@@ -344,9 +344,9 @@ func TestProcessCgroupsPathRelativePathSuccessful(t *testing.T) {
 	}
 }
 
-func TestProcessCgroupsPathAbsoluteNoCgroupMountFailure(t *testing.T) {
-	assert := assert.New(t)
+func TestProcessCgroupsPathAbsoluteNoCgroupMountSuccessful(t *testing.T) {
 	absoluteCgroupsPath := "/absolute/cgroups/path"
+	cgroupsDirPath = "/foo/runtime/base"
 
 	ociSpec := oci.CompatOCISpec{}
 
@@ -357,9 +357,9 @@ func TestProcessCgroupsPathAbsoluteNoCgroupMountFailure(t *testing.T) {
 	for _, d := range cgroupTestData {
 		ociSpec.Linux.Resources = d.linuxSpec
 
-		_, err := processCgroupsPath(ociSpec, true)
-		assert.Error(err, "This test should fail because no cgroup mount provided (%+v)", d)
-		assert.False(vcMock.IsMockError(err))
+		p := filepath.Join(cgroupsDirPath, d.resource, absoluteCgroupsPath)
+
+		testProcessCgroupsPath(t, ociSpec, []string{p})
 	}
 }
 
