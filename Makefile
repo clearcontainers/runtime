@@ -266,7 +266,7 @@ generate-config: $(CONFIG)
 
 check: check-go-static check-go-test
 
-check-go-test:
+check-go-test: $(GENERATED_FILES)
 	$(QUIET_TEST).ci/go-test.sh
 
 check-go-static:

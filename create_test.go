@@ -467,7 +467,7 @@ func TestCreateContainerInvalid(t *testing.T) {
 	}
 }
 
-func TestCreateProcessCgroupsPathFail(t *testing.T) {
+func TestCreateProcessCgroupsPathSuccessful(t *testing.T) {
 	assert := assert.New(t)
 
 	pod := &vcMock.Pod{
@@ -522,33 +522,38 @@ func TestCreateProcessCgroupsPathFail(t *testing.T) {
 		Limit: &limit,
 	}
 
-	// Set an absolute (and invalid) path
-	spec.Linux.CgroupsPath = "/this/is/not/a/valid/cgroup/path"
+	// Set an absolute path
+	spec.Linux.CgroupsPath = "/this/is/a/cgroup/path"
 
 	var mounts []specs.Mount
 	foundMount := false
 
+	// Replace the standard cgroup destination with a temporary one.
 	for _, mount := range spec.Mounts {
 		if mount.Type == "cgroup" {
 			foundMount = true
-		} else {
-			mounts = append(mounts, mount)
+			cgroupDir, err := ioutil.TempDir("", "cgroup")
+			assert.NoError(err)
+
+			defer os.RemoveAll(cgroupDir)
+			mount.Destination = cgroupDir
 		}
+
+		mounts = append(mounts, mount)
 	}
 
 	assert.True(foundMount)
 
-	// Remove the cgroup mount
+	// Replace mounts with the newly created one.
 	spec.Mounts = mounts
 
 	// Rewrite the file
 	err = writeOCIConfigFile(spec, ociConfigFile)
 	assert.NoError(err)
 
-	for detach := range []bool{true, false} {
-		err := create(testContainerID, bundlePath, testConsole, pidFilePath, true, runtimeConfig)
-		assert.Error(err, "%+v", detach)
-		assert.False(vcMock.IsMockError(err))
+	for _, detach := range []bool{true, false} {
+		err := create(testContainerID, bundlePath, testConsole, pidFilePath, detach, runtimeConfig)
+		assert.NoError(err, "detached: %+v", detach)
 	}
 }
 
