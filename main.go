@@ -199,23 +199,26 @@ func commandNotFound(c *cli.Context, command string) {
 func makeVersionString() string {
 	v := make([]string, 0, 3)
 
-	if version != "" {
-		v = append(v, name+"  : "+version)
-	} else {
-		v = append(v, name+"  : "+unknown)
+	versionStr := version
+	if versionStr == "" {
+		versionStr = unknown
 	}
 
-	if commit != "" {
-		v = append(v, "   commit   : "+commit)
-	} else {
-		v = append(v, "   commit   : "+unknown)
+	v = append(v, name+"  : "+versionStr)
+
+	commitStr := commit
+	if commitStr == "" {
+		commitStr = unknown
 	}
 
-	if specs.Version != "" {
-		v = append(v, "   OCI specs: "+specs.Version)
-	} else {
-		v = append(v, "   OCI specs: "+unknown)
+	v = append(v, "   commit   : "+commitStr)
+
+	specVersionStr := specs.Version
+	if specVersionStr == "" {
+		specVersionStr = unknown
 	}
+
+	v = append(v, "   OCI specs: "+specVersionStr)
 
 	return strings.Join(v, "\n")
 }
