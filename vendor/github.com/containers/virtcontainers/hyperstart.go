@@ -454,12 +454,6 @@ func (h *hyper) startPod(pod Pod) error {
 		return err
 	}
 
-	for _, c := range pod.containers {
-		if err := h.startOneContainer(pod, *c); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 

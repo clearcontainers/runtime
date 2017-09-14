@@ -687,7 +687,7 @@ func (p *Pod) startCheckStates() error {
 	return nil
 }
 
-func (p *Pod) startSetStates() error {
+func (p *Pod) startSetState() error {
 	podState := State{
 		State: StateRunning,
 		// retain existing URL value
@@ -695,11 +695,6 @@ func (p *Pod) startSetStates() error {
 	}
 
 	err := p.setPodState(podState)
-	if err != nil {
-		return err
-	}
-
-	err = p.setContainersState(podState.State)
 	if err != nil {
 		return err
 	}
@@ -795,12 +790,15 @@ func (p *Pod) start() error {
 		return err
 	}
 
-	for _, c := range p.containers {
-		c.storeMounts()
+	// Pod is started
+	if err := p.startSetState(); err != nil {
+		return err
 	}
 
-	if err := p.startSetStates(); err != nil {
-		return err
+	for _, c := range p.containers {
+		if err := c.start(); err != nil {
+			return err
+		}
 	}
 
 	virtLog.Infof("Started Pod %s", p.ID())

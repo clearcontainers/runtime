@@ -33,8 +33,8 @@ var (
 	// ErrNoLinux is an error for missing Linux sections in the OCI configuration file.
 	ErrNoLinux = errors.New("missing Linux section")
 
-	// ConfigPathKey is the annotation key to fetch the OCI configuration file path.
-	ConfigPathKey = "com.github.containers.virtcontainers.pkg.oci.config_path"
+	// ConfigJSONKey is the annotation key to fetch the OCI configuration.
+	ConfigJSONKey = "com.github.containers.virtcontainers.pkg.oci.config"
 
 	// BundlePathKey is the annotation key to fetch the OCI configuration file path.
 	BundlePathKey = "com.github.containers.virtcontainers.pkg.oci.bundle_path"
@@ -336,14 +336,17 @@ func PodConfig(ocispec CompatOCISpec, runtime RuntimeConfig, bundlePath, cid, co
 		return vc.PodConfig{}, err
 	}
 
-	configPath := getConfigPath(bundlePath)
-
 	networkConfig, err := networkConfig(ocispec)
 	if err != nil {
 		return vc.PodConfig{}, err
 	}
 
 	resources, err := vmConfig(ocispec, runtime)
+	if err != nil {
+		return vc.PodConfig{}, err
+	}
+
+	ociSpecJSON, err := json.Marshal(ocispec)
 	if err != nil {
 		return vc.PodConfig{}, err
 	}
@@ -375,7 +378,7 @@ func PodConfig(ocispec CompatOCISpec, runtime RuntimeConfig, bundlePath, cid, co
 		Containers: []vc.ContainerConfig{containerConfig},
 
 		Annotations: map[string]string{
-			ConfigPathKey: configPath,
+			ConfigJSONKey: string(ociSpecJSON),
 			BundlePathKey: bundlePath,
 		},
 	}
@@ -386,7 +389,11 @@ func PodConfig(ocispec CompatOCISpec, runtime RuntimeConfig, bundlePath, cid, co
 // ContainerConfig converts an OCI compatible runtime configuration
 // file to a virtcontainers container configuration structure.
 func ContainerConfig(ocispec CompatOCISpec, bundlePath, cid, console string, detach bool) (vc.ContainerConfig, error) {
-	configPath := getConfigPath(bundlePath)
+
+	ociSpecJSON, err := json.Marshal(ocispec)
+	if err != nil {
+		return vc.ContainerConfig{}, err
+	}
 
 	rootfs := ocispec.Root.Path
 	if !filepath.IsAbs(rootfs) {
@@ -416,7 +423,7 @@ func ContainerConfig(ocispec CompatOCISpec, bundlePath, cid, console string, det
 		ReadonlyRootfs: ocispec.Spec.Root.Readonly,
 		Cmd:            cmd,
 		Annotations: map[string]string{
-			ConfigPathKey: configPath,
+			ConfigJSONKey: string(ociSpecJSON),
 			BundlePathKey: bundlePath,
 		},
 		Mounts: containerMounts(ocispec),
@@ -498,18 +505,13 @@ func EnvVars(envs []string) ([]vc.EnvVar, error) {
 // GetOCIConfig returns an OCI spec configuration from the annotation
 // stored into the container status.
 func GetOCIConfig(status vc.ContainerStatus) (CompatOCISpec, error) {
-	ociConfigPath, ok := status.Annotations[ConfigPathKey]
+	ociConfigStr, ok := status.Annotations[ConfigJSONKey]
 	if !ok {
-		return CompatOCISpec{}, fmt.Errorf("Annotation[%s] not found", ConfigPathKey)
-	}
-
-	data, err := ioutil.ReadFile(ociConfigPath)
-	if err != nil {
-		return CompatOCISpec{}, err
+		return CompatOCISpec{}, fmt.Errorf("Annotation[%s] not found", ConfigJSONKey)
 	}
 
 	var ociSpec CompatOCISpec
-	if err := json.Unmarshal(data, &ociSpec); err != nil {
+	if err := json.Unmarshal([]byte(ociConfigStr), &ociSpec); err != nil {
 		return CompatOCISpec{}, err
 	}
 

@@ -170,6 +170,8 @@ func TestDeletePod(t *testing.T) {
 	}
 
 	configPath := testConfigSetup(t)
+	configJSON, err := readOCIConfigJSON(configPath)
+	assert.NoError(err)
 
 	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
 		return []vc.PodStatus{
@@ -180,7 +182,7 @@ func TestDeletePod(t *testing.T) {
 						ID: pod.ID(),
 						Annotations: map[string]string{
 							oci.ContainerTypeKey: string(vc.PodSandbox),
-							oci.ConfigPathKey:    configPath,
+							oci.ConfigJSONKey:    configJSON,
 						},
 						State: vc.State{
 							State: "ready",
@@ -195,7 +197,7 @@ func TestDeletePod(t *testing.T) {
 		testingImpl.ListPodFunc = nil
 	}()
 
-	err := delete(pod.ID(), false)
+	err = delete(pod.ID(), false)
 	assert.Error(err)
 	assert.True(vcMock.IsMockError(err))
 
@@ -231,6 +233,8 @@ func TestDeleteInvalidContainerType(t *testing.T) {
 	}
 
 	configPath := testConfigSetup(t)
+	configJSON, err := readOCIConfigJSON(configPath)
+	assert.NoError(err)
 
 	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
 		return []vc.PodStatus{
@@ -241,7 +245,7 @@ func TestDeleteInvalidContainerType(t *testing.T) {
 						ID: pod.ID(),
 						Annotations: map[string]string{
 							oci.ContainerTypeKey: "InvalidType",
-							oci.ConfigPathKey:    configPath,
+							oci.ConfigJSONKey:    configJSON,
 						},
 						State: vc.State{
 							State: "created",
@@ -257,7 +261,7 @@ func TestDeleteInvalidContainerType(t *testing.T) {
 	}()
 
 	// Delete an invalid container type
-	err := delete(pod.ID(), false)
+	err = delete(pod.ID(), false)
 	assert.Error(err)
 	assert.False(vcMock.IsMockError(err))
 }
@@ -270,6 +274,8 @@ func TestDeletePodRunning(t *testing.T) {
 	}
 
 	configPath := testConfigSetup(t)
+	configJSON, err := readOCIConfigJSON(configPath)
+	assert.NoError(err)
 
 	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
 		return []vc.PodStatus{
@@ -280,7 +286,7 @@ func TestDeletePodRunning(t *testing.T) {
 						ID: pod.ID(),
 						Annotations: map[string]string{
 							oci.ContainerTypeKey: string(vc.PodSandbox),
-							oci.ConfigPathKey:    configPath,
+							oci.ConfigJSONKey:    configJSON,
 						},
 						State: vc.State{
 							State: "running",
@@ -296,7 +302,7 @@ func TestDeletePodRunning(t *testing.T) {
 	}()
 
 	// Delete on a running pod should fail
-	err := delete(pod.ID(), false)
+	err = delete(pod.ID(), false)
 	assert.Error(err)
 	assert.False(vcMock.IsMockError(err))
 
@@ -340,6 +346,8 @@ func TestDeleteRunningContainer(t *testing.T) {
 	}
 
 	configPath := testConfigSetup(t)
+	configJSON, err := readOCIConfigJSON(configPath)
+	assert.NoError(err)
 
 	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
 		return []vc.PodStatus{
@@ -350,7 +358,7 @@ func TestDeleteRunningContainer(t *testing.T) {
 						ID: pod.MockContainers[0].ID(),
 						Annotations: map[string]string{
 							oci.ContainerTypeKey: string(vc.PodContainer),
-							oci.ConfigPathKey:    configPath,
+							oci.ConfigJSONKey:    configJSON,
 						},
 						State: vc.State{
 							State: "running",
@@ -366,7 +374,7 @@ func TestDeleteRunningContainer(t *testing.T) {
 	}()
 
 	// Delete on a running container should fail.
-	err := delete(pod.MockContainers[0].ID(), false)
+	err = delete(pod.MockContainers[0].ID(), false)
 	assert.Error(err)
 	assert.False(vcMock.IsMockError(err))
 
@@ -414,6 +422,8 @@ func TestDeleteContainer(t *testing.T) {
 	}
 
 	configPath := testConfigSetup(t)
+	configJSON, err := readOCIConfigJSON(configPath)
+	assert.NoError(err)
 
 	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
 		return []vc.PodStatus{
@@ -424,7 +434,7 @@ func TestDeleteContainer(t *testing.T) {
 						ID: pod.MockContainers[0].ID(),
 						Annotations: map[string]string{
 							oci.ContainerTypeKey: string(vc.PodContainer),
-							oci.ConfigPathKey:    configPath,
+							oci.ConfigJSONKey:    configJSON,
 						},
 						State: vc.State{
 							State: "ready",
@@ -439,7 +449,7 @@ func TestDeleteContainer(t *testing.T) {
 		testingImpl.ListPodFunc = nil
 	}()
 
-	err := delete(pod.MockContainers[0].ID(), false)
+	err = delete(pod.MockContainers[0].ID(), false)
 	assert.Error(err)
 	assert.True(vcMock.IsMockError(err))
 

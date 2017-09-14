@@ -319,11 +319,6 @@ func unBridgeNetworkPair(netPair NetworkInterfacePair) error {
 		return fmt.Errorf("Could not get TAP interface: %s", err)
 	}
 
-	vethLink, err := getLinkByName(netHandle, netPair.VirtIface.Name, &netlink.Veth{})
-	if err != nil {
-		return fmt.Errorf("Could not get veth interface: %s", err)
-	}
-
 	bridgeLink, err := getLinkByName(netHandle, netPair.Name, &netlink.Bridge{})
 	if err != nil {
 		return fmt.Errorf("Could not get bridge interface: %s", err)
@@ -331,14 +326,6 @@ func unBridgeNetworkPair(netPair NetworkInterfacePair) error {
 
 	if err := netHandle.LinkSetDown(bridgeLink); err != nil {
 		return fmt.Errorf("Could not disable bridge %s: %s", netPair.Name, err)
-	}
-
-	if err := netHandle.LinkSetDown(vethLink); err != nil {
-		return fmt.Errorf("Could not disable veth %s: %s", netPair.VirtIface.Name, err)
-	}
-
-	if err := netHandle.LinkSetNoMaster(vethLink); err != nil {
-		return fmt.Errorf("Could not detach veth %s: %s", netPair.VirtIface.Name, err)
 	}
 
 	if err := netHandle.LinkSetDown(tapLink); err != nil {
@@ -355,6 +342,21 @@ func unBridgeNetworkPair(netPair NetworkInterfacePair) error {
 
 	if err := netHandle.LinkDel(tapLink); err != nil {
 		return fmt.Errorf("Could not remove TAP %s: %s", netPair.TAPIface.Name, err)
+	}
+
+	vethLink, err := getLinkByName(netHandle, netPair.VirtIface.Name, &netlink.Veth{})
+	if err != nil {
+		// The veth pair is not totally managed by virtcontainers
+		virtLog.Warn("Could not get veth interface: %s", err)
+	} else {
+		if err := netHandle.LinkSetDown(vethLink); err != nil {
+			return fmt.Errorf("Could not disable veth %s: %s", netPair.VirtIface.Name, err)
+		}
+
+		if err := netHandle.LinkSetNoMaster(vethLink); err != nil {
+			return fmt.Errorf("Could not detach veth %s: %s", netPair.VirtIface.Name, err)
+		}
+
 	}
 
 	return nil

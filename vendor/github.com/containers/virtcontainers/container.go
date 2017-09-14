@@ -488,9 +488,12 @@ func (c *Container) start() error {
 		}
 	}
 
-	err = c.pod.agent.startContainer(*(c.pod), *c)
-	if err != nil {
-		c.stop()
+	if err = c.pod.agent.startContainer(*(c.pod), *c); err != nil {
+		virtLog.Error("Failed to start container: ", err)
+
+		if err := c.stop(); err != nil {
+			virtLog.Warn("failed to stop container: ", err)
+		}
 		return err
 	}
 
@@ -527,6 +530,18 @@ func (c *Container) stop() error {
 	if err != nil {
 		return err
 	}
+
+	defer func() {
+		// If shim is still running something went wrong
+		// Make sure we stop the shim process
+		if running, _ := isShimRunning(c.process.Pid); running {
+			virtLog.Warn("Failed to stop container, stopping dangling shim")
+			if err := stopShim(c.process.Pid); err != nil {
+				virtLog.Warn("failed to stop shim: ", err)
+			}
+		}
+
+	}()
 
 	if _, _, err := c.pod.proxy.connect(*(c.pod), false); err != nil {
 		return err

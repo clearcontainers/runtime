@@ -5,31 +5,31 @@
   branch = "master"
   name = "github.com/01org/ciao"
   packages = ["qemu","ssntp/uuid"]
-  revision = "9453e376b8ad6d67fd0dafb3dffd0d515a1f9feb"
+  revision = "8c505ffb1e9b0397bee3a65569f517ca4821fe81"
 
 [[projects]]
   branch = "master"
   name = "github.com/Sirupsen/logrus"
   packages = ["."]
-  revision = "3d4380f53a34dcdc95f0c1db702615992b38d9a4"
+  revision = "89742aefa4b206dcf400792f3bd35b542998eb3b"
 
 [[projects]]
   branch = "master"
   name = "github.com/clearcontainers/proxy"
   packages = ["api","client"]
-  revision = "cf19e7935daaff8db546111c7a48cfdc2c1f09f6"
+  revision = "79ff321da6d34682fea11a47dff0e5ca72c20a01"
 
 [[projects]]
   branch = "master"
   name = "github.com/containernetworking/cni"
   packages = ["libcni","pkg/invoke","pkg/types","pkg/types/020","pkg/types/current","pkg/version"]
-  revision = "49d814cf37bfea351a1caedd0c66825c9d6fca52"
+  revision = "909fe7d10d98ab99b9990966796316249c83b263"
 
 [[projects]]
   branch = "master"
   name = "github.com/containernetworking/plugins"
   packages = ["pkg/ns"]
-  revision = "5bbff37294de9dfb33771dac6f53411c88abe62a"
+  revision = "e256564546e8d1ca8a36911f8445c11929043221"
 
 [[projects]]
   name = "github.com/davecgh/go-spew"
@@ -41,7 +41,7 @@
   branch = "master"
   name = "github.com/kubernetes-incubator/cri-o"
   packages = ["pkg/annotations"]
-  revision = "f3f8b67b76d53887b874633c6de13140dae99b76"
+  revision = "400713a58bedb88678e84b72d4620847c8d27fec"
 
 [[projects]]
   branch = "master"
@@ -53,13 +53,13 @@
   branch = "master"
   name = "github.com/opencontainers/runc"
   packages = ["libcontainer/configs"]
-  revision = "ff00fb108cc8764bdeb3fa1c538f572545673a9d"
+  revision = "593914b8bd5448a93f7c3e4902a03408b6d5c0ce"
 
 [[projects]]
   branch = "master"
   name = "github.com/opencontainers/runtime-spec"
   packages = ["specs-go"]
-  revision = "c3ed25aeee1d5a9bce94c68180224a366530af09"
+  revision = "689521f694a44ef01d4d39d17c638271655d58fd"
 
 [[projects]]
   name = "github.com/pmezard/go-difflib"
@@ -68,40 +68,46 @@
   version = "v1.0.0"
 
 [[projects]]
+  name = "github.com/sirupsen/logrus"
+  packages = ["."]
+  revision = "f006c2ac4710855cf0f916dd6b77acf6b048dc6e"
+  version = "v1.0.3"
+
+[[projects]]
   branch = "master"
   name = "github.com/stretchr/testify"
   packages = ["assert"]
-  revision = "f6abca593680b2315d2075e0f5e2a9751e3f431a"
+  revision = "890a5c3458b43e6104ff5da8dfa139d013d77544"
 
 [[projects]]
   branch = "master"
   name = "github.com/urfave/cli"
   packages = ["."]
-  revision = "b892ba3809cd07fcf2b064e166b0c2e16e0147bd"
+  revision = "7fb9c86b14e6a702a4157ccb5a863f07d844a207"
 
 [[projects]]
   branch = "master"
   name = "github.com/vishvananda/netlink"
   packages = [".","nl"]
-  revision = "4e28683688429fdf8413cc610d59fb1841986300"
+  revision = "933b978eae8c18daa1077a0eb7186b689cd9f82d"
 
 [[projects]]
   branch = "master"
   name = "github.com/vishvananda/netns"
   packages = ["."]
-  revision = "54f0e4339ce73702a0607f49922aaa1e749b418d"
+  revision = "86bef332bfc3b59b7624a600bd53009ce91a9829"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
-  packages = ["curve25519","ed25519","ed25519/internal/edwards25519","ssh"]
-  revision = "adbae1b6b6fb4b02448a0fc0dbbc9ba2b95b294d"
+  packages = ["curve25519","ed25519","ed25519/internal/edwards25519","ssh","ssh/terminal"]
+  revision = "faadfbdc035307d901e69eea569f5dda451a3ee3"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
-  packages = ["unix"]
-  revision = "f7928cfef4d09d1b080aa2b6fd3ca9ba1567c733"
+  packages = ["unix","windows"]
+  revision = "062cd7e4e68206d8bab9b18396626e855c992658"
 
 [solve-meta]
   analyzer-name = "dep"
