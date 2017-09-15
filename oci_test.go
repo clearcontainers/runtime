@@ -369,21 +369,23 @@ func TestProcessCgroupsPathAbsoluteNoCgroupMountDestinationFailure(t *testing.T)
 
 	ociSpec := oci.CompatOCISpec{}
 
-	ociSpec.Linux = &specs.Linux{
-		Resources: &specs.LinuxResources{
-			Memory: &specs.LinuxMemory{},
-		},
-		CgroupsPath: absoluteCgroupsPath,
-	}
-
 	ociSpec.Mounts = []specs.Mount{
 		{
 			Type: "cgroup",
 		},
 	}
 
-	_, err := processCgroupsPath(ociSpec, true)
-	assert.Error(err, "This test should fail because no cgroup mount destination provided")
+	ociSpec.Linux = &specs.Linux{
+		CgroupsPath: absoluteCgroupsPath,
+	}
+
+	for _, d := range cgroupTestData {
+		ociSpec.Linux.Resources = d.linuxSpec
+		for _, isPod := range []bool{true, false} {
+			_, err := processCgroupsPath(ociSpec, isPod)
+			assert.Error(err, "This test should fail because no cgroup mount destination provided")
+		}
+	}
 }
 
 func TestProcessCgroupsPathAbsoluteSuccessful(t *testing.T) {
