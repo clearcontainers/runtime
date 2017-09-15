@@ -33,6 +33,10 @@ The runtime has a built-in command to determine if your host system is capable o
 $ cc-runtime cc-check
 ```
 
+## Quick start for users
+
+See the [installation guides](docs/) available for various operating systems.
+
 ## Quick start for developers
 
 See the [developer's installation guide](docs/developers-clear-containers-install.md).
