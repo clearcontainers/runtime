@@ -18,7 +18,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	goruntime "runtime"
 	"strings"
@@ -331,19 +330,16 @@ func loadConfiguration(configPath string, ignoreLogging bool) (resolvedConfigPat
 		ShimType:         defaultShim,
 	}
 
+	var resolved string
+
 	if configPath == "" {
-		configPath = defaultRuntimeConfiguration
+		resolved, err = getDefaultConfigFile()
+	} else {
+		resolved, err = resolvePath(configPath)
 	}
 
-	resolved, err := resolvePath(configPath)
 	if err != nil {
-		if os.IsNotExist(err) {
-			// Make the error clearer than the one returned
-			// by EvalSymlinks().
-			return "", "", config, fmt.Errorf("Config file %v does not exist", configPath)
-		}
-
-		return "", "", config, err
+		return "", "", config, fmt.Errorf("Cannot find usable config file (%v)", err)
 	}
 
 	configData, err := ioutil.ReadFile(resolved)
@@ -375,4 +371,36 @@ func loadConfiguration(configPath string, ignoreLogging bool) (resolvedConfigPat
 	}
 
 	return resolved, logfilePath, config, nil
+}
+
+// getDefaultConfigFilePaths returns a list of paths that will be
+// considered as configuration files in priority order.
+func getDefaultConfigFilePaths() []string {
+	return []string{
+		// normally below "/etc"
+		defaultSysConfRuntimeConfiguration,
+
+		// normally below "/usr/share"
+		defaultRuntimeConfiguration,
+	}
+}
+
+// getDefaultConfigFile looks in multiple default locations for a
+// configuration file and returns the resolved path for the first file
+// found, or an error if no config files can be found.
+func getDefaultConfigFile() (string, error) {
+	var errs []string
+
+	for _, file := range getDefaultConfigFilePaths() {
+		resolved, err := resolvePath(file)
+		if err != nil {
+			s := fmt.Sprintf("config file %q unresolvable: %v", file, err)
+			errs = append(errs, s)
+			continue
+		}
+
+		return resolved, nil
+	}
+
+	return "", errors.New(strings.Join(errs, ", "))
 }

@@ -70,6 +70,7 @@ endif
 
 LIBEXECDIR := $(PREFIX)/libexec
 SHAREDIR := $(PREFIX)/share
+DEFAULTSDIR := $(SHAREDIR)/defaults
 
 PKGDATADIR := $(SHAREDIR)/$(CCDIR)
 PKGLIBDIR := $(LOCALSTATEDIR)/lib/$(CCDIR)
@@ -123,8 +124,15 @@ CONFIG_IN = $(CONFIG).in
 
 DESTTARGET := $(abspath $(DESTBINDIR)/$(TARGET))
 
-DESTCONFDIR := $(DESTDIR)/$(SYSCONFDIR)/$(CCDIR)
+DESTCONFDIR := $(DESTDIR)/$(DEFAULTSDIR)/$(CCDIR)
+DESTSYSCONFDIR := $(DESTDIR)/$(SYSCONFDIR)/$(CCDIR)
+
+# Main configuration file location for stateless systems
 DESTCONFIG := $(abspath $(DESTCONFDIR)/$(CONFIG_FILE))
+
+# Secondary configuration file location. Note that this takes precedence
+# over DESTCONFIG.
+DESTSYSCONFIG := $(abspath $(DESTSYSCONFDIR)/$(CONFIG_FILE))
 
 DESTSHAREDIR := $(DESTDIR)/$(SHAREDIR)
 
@@ -139,6 +147,7 @@ USER_VARS += BINDIR
 USER_VARS += CC_SYSTEM_BUILD
 USER_VARS += DESTCONFIG
 USER_VARS += DESTDIR
+USER_VARS += DESTSYSCONFIG
 USER_VARS += DESTTARGET
 USER_VARS += GLOBALLOGPATH
 USER_VARS += IMAGEPATH
@@ -215,7 +224,13 @@ const defaultVCPUCount uint32 = $(DEFVCPUS)
 const defaultMemSize uint32 = $(DEFMEMSZ) // MiB
 const defaultDisableBlockDeviceUse bool = $(DEFDISABLEBLOCK)
 
+// Default config file used by stateless systems.
 var defaultRuntimeConfiguration = "$(DESTCONFIG)"
+
+// Alternate config file that takes precedence over
+// defaultRuntimeConfiguration.
+var defaultSysConfRuntimeConfiguration = "$(DESTSYSCONFIG)"
+
 var defaultProxyPath = "$(PROXYPATH)"
 endef
 
@@ -339,14 +354,15 @@ show-footer:
 show-summary: show-header
 	@printf "• Summary:\n"
 	@printf "\n"
-	@printf "\tClear Containers system build     : $(cc_system_build)\n"
+	@printf "\tClear Containers system build         : $(cc_system_build)\n"
 	@printf "\n"
-	@printf "\tbinary install path (DESTTARGET)  : %s\n" $(DESTTARGET)
-	@printf "\tconfig install path (DESTCONFIG)  : %s\n" $(DESTCONFIG)
-	@printf "\thypervisor path (QEMUPATH)        : %s\n" $(QEMUPATH)
-	@printf "\tassets path (PKGDATADIR)          : %s\n" $(PKGDATADIR)
-	@printf "\tproxy+shim path (PKGLIBEXECDIR)   : %s\n" $(PKGLIBEXECDIR)
-	@printf "\tpause bundle path (PAUSEROOTPATH) : %s\n" $(PAUSEROOTPATH)
+	@printf "\tbinary install path (DESTTARGET)      : %s\n" $(DESTTARGET)
+	@printf "\tconfig install path (DESTCONFIG)      : %s\n" $(DESTCONFIG)
+	@printf "\talternate config path (DESTSYSCONFIG) : %s\n" $(DESTSYSCONFIG)
+	@printf "\thypervisor path (QEMUPATH)            : %s\n" $(QEMUPATH)
+	@printf "\tassets path (PKGDATADIR)              : %s\n" $(PKGDATADIR)
+	@printf "\tproxy+shim path (PKGLIBEXECDIR)       : %s\n" $(PKGLIBEXECDIR)
+	@printf "\tpause bundle path (PAUSEROOTPATH)     : %s\n" $(PAUSEROOTPATH)
 	@printf "\n"
 
 

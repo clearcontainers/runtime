@@ -91,6 +91,10 @@ var runtimeFlags = []cli.Flag{
 		Value: defaultRootDirectory,
 		Usage: "root directory for storage of container state (this should be located in tmpfs)",
 	},
+	cli.BoolFlag{
+		Name:  "cc-show-default-config-paths",
+		Usage: "show config file paths that will be checked for (in order)",
+	},
 }
 
 // runtimeCommands is the list of supported command-line (sub-)
@@ -132,6 +136,16 @@ var savedCLIErrWriter = cli.ErrWriter
 // beforeSubcommands is the function to perform preliminary checks
 // before command-line parsing occurs.
 func beforeSubcommands(context *cli.Context) error {
+	if context.GlobalBool("cc-show-default-config-paths") {
+		files := getDefaultConfigFilePaths()
+
+		for _, file := range files {
+			fmt.Fprintf(defaultOutputFile, "%s\n", file)
+		}
+
+		exit(0)
+	}
+
 	if userWantsUsage(context) || (context.NArg() == 1 && (context.Args()[0] == "cc-check")) {
 		// No setup required if the user just
 		// wants to see the usage statement or are

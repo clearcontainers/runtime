@@ -128,7 +128,7 @@ sudo yum -y install cc-runtime cc-proxy cc-shim linux-container clear-containers
 # rather than the OBS default values.
 sudo -E prefix_dir="${prefix_dir}" sed -i -e \
     "s,^path = \"/usr/bin/qemu-system-x86_64\",path = \"${prefix_dir}/bin/qemu-system-x86_64\",g" \
-    /etc/clear-containers/configuration.toml
+    /usr/share/defaults/clear-containers/configuration.toml
 
 # Configure CC by default
 service_dir="/etc/systemd/system/docker.service.d"

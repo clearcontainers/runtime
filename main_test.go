@@ -80,6 +80,14 @@ func init() {
 		panic("ERROR: invalid build: commit not set")
 	}
 
+	if defaultSysConfRuntimeConfiguration == "" {
+		panic("ERROR: invalid build: defaultSysConfRuntimeConfiguration not set")
+	}
+
+	if defaultRuntimeConfiguration == "" {
+		panic("ERROR: invalid build: defaultRuntimeConfiguration not set")
+	}
+
 	fmt.Printf("INFO: switching to fake virtcontainers implementation for testing\n")
 	vci = testingImpl
 
@@ -746,6 +754,72 @@ func TestMainBeforeSubCommandsLoadConfigurationFail(t *testing.T) {
 		// calls fatal() so no return
 		_ = beforeSubcommands(ctx)
 		assert.NotEqual(exitStatus, 0)
+	}
+}
+
+func TestMainBeforeSubCommandsShowCCConfigPaths(t *testing.T) {
+	assert := assert.New(t)
+
+	tmpdir, err := ioutil.TempDir(testDir, "")
+	assert.NoError(err)
+	defer os.RemoveAll(tmpdir)
+
+	app := cli.NewApp()
+
+	set := flag.NewFlagSet("", 0)
+	set.Bool("cc-show-default-config-paths", true, "")
+
+	ctx := cli.NewContext(app, set, nil)
+
+	savedExitFunc := exitFunc
+
+	exitStatus := 99
+	exitFunc = func(status int) { exitStatus = status }
+
+	defer func() {
+		exitFunc = savedExitFunc
+	}()
+
+	savedOutputFile := defaultOutputFile
+
+	defer func() {
+		resetCLIGlobals()
+		defaultOutputFile = savedOutputFile
+	}()
+
+	output := filepath.Join(tmpdir, "output")
+	f, err := os.OpenFile(output, os.O_CREATE|os.O_WRONLY|os.O_SYNC, testFileMode)
+	assert.NoError(err)
+	defer f.Close()
+
+	defaultOutputFile = f
+
+	setCLIGlobals()
+
+	_ = beforeSubcommands(ctx)
+	assert.Equal(exitStatus, 0)
+
+	text, err := getFileContents(output)
+	assert.NoError(err)
+
+	lines := strings.Split(text, "\n")
+
+	// Remove last line if empty
+	length := len(lines)
+	last := lines[length-1]
+	if last == "" {
+		lines = lines[:length-1]
+	}
+
+	assert.Equal(len(lines), 2)
+
+	for i, line := range lines {
+		switch i {
+		case 0:
+			assert.Equal(line, defaultSysConfRuntimeConfiguration)
+		case 1:
+			assert.Equal(line, defaultRuntimeConfiguration)
+		}
 	}
 }
 
