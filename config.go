@@ -83,6 +83,7 @@ type hypervisor struct {
 	DisableBlockDeviceUse bool   `toml:"disable_block_device_use"`
 	MemPrealloc           bool   `toml:"enable_mem_prealloc"`
 	Swap                  bool   `toml:"enable_swap"`
+	Debug                 bool   `toml:"enable_debug"`
 }
 
 type proxy struct {
@@ -211,6 +212,7 @@ func newQemuHypervisorConfig(h hypervisor) (vc.HypervisorConfig, error) {
 		DisableBlockDeviceUse: h.DisableBlockDeviceUse,
 		MemPrealloc:           h.MemPrealloc,
 		Mlock:                 !h.Swap,
+		Debug:                 h.Debug,
 	}, nil
 }
 
@@ -320,6 +322,7 @@ func loadConfiguration(configPath string, ignoreLogging bool) (resolvedConfigPat
 		DefaultMemSz:          defaultMemSize,
 		MemPrealloc:           defaultEnableMemPrealloc,
 		Mlock:                 !defaultEnableSwap,
+		Debug:                 defaultEnableDebug,
 	}
 
 	defaultAgentConfig := vc.HyperConfig{

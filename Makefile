@@ -112,6 +112,7 @@ DEFMEMSZ := 2048
 DEFDISABLEBLOCK := false
 DEFENABLEMEMPREALLOC := false
 DEFENABLESWAP := false
+DEFENABLEDEBUG := false
 
 SED = sed
 
@@ -179,6 +180,7 @@ USER_VARS += DEFMEMSZ
 USER_VARS += DEFDISABLEBLOCK
 USER_VARS += DEFENABLEMEMPREALLOC
 USER_VARS += DEFENABLESWAP
+USER_VARS += DEFENABLEDEBUG
 
 
 V              = @
@@ -229,6 +231,7 @@ const defaultMemSize uint32 = $(DEFMEMSZ) // MiB
 const defaultDisableBlockDeviceUse bool = $(DEFDISABLEBLOCK)
 const defaultEnableMemPrealloc bool = $(DEFENABLEMEMPREALLOC)
 const defaultEnableSwap bool = $(DEFENABLESWAP)
+const defaultEnableDebug bool = $(DEFENABLEDEBUG)
 
 // Default config file used by stateless systems.
 var defaultRuntimeConfiguration = "$(DESTCONFIG)"
@@ -289,6 +292,7 @@ $(CONFIG): $(CONFIG_IN) $(GENERATED_FILES)
 		-e "s|@DEFDISABLEBLOCK@|$(DEFDISABLEBLOCK)|g" \
 		-e "s|@DEFENABLEMEMPREALLOC@|$(DEFENABLEMEMPREALLOC)|g" \
 		-e "s|@DEFENABLEMSWAP@|$(DEFENABLESWAP)|g" \
+		-e "s|@DEFENABLEMSWAP@|$(DEFENABLEDEBUG)|g" \
 		$< > $@
 
 generate-config: $(CONFIG)
