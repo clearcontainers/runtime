@@ -253,6 +253,7 @@ func createRuntimeApp(args []string) error {
 	app.Flags = runtimeFlags
 	app.Commands = runtimeCommands
 	app.Before = runtimeBeforeSubcommands
+	app.EnableBashCompletion = true
 
 	return app.Run(args)
 }

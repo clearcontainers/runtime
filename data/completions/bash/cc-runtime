@@ -1,0 +1,148 @@
+#!/bin/bash
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#---------------------------------------------------------------------
+
+#---------------------------------------------------------------------
+# Description: Bash tab completion script.
+#---------------------------------------------------------------------
+
+_ccruntime='cc-runtime'
+
+# Return a list of sub-commands
+_cc_get_subcmds()
+{
+    "$_ccruntime" --generate-bash-completion
+}
+
+# Return a list of options for the specified sub-command
+#
+# Limitation: Note that this only supports long-options.
+_cc_get_subcmd_options()
+{
+    local subcmd="$1"
+
+    "$_ccruntime" "$subcmd" --help |\
+        egrep -- "^ *--[^ ]*[ ][^ ]*" |\
+        awk '{print $1}' |\
+        tr -d \, |\
+        sort
+}
+
+# Return a list of global options
+_cc_get_global_options()
+{
+    _cc_get_subcmd_options ""
+}
+
+# Return name of subcmd already seen, or ""
+_cc_subcmd_seen()
+{
+    local subcmds=$(_cc_get_subcmds)
+    local cmd
+
+    for cmd in $subcmds; do
+        local word
+        for word in ${COMP_WORDS[@]}; do
+            [ "$cmd" = "$word" ] && echo "$cmd"
+        done
+    done
+
+    echo ""
+}
+
+# Return 0 if the specified sub-command requires the name of an
+# *existing* container, else 1.
+_cc_subcmd_needs_existing_container()
+{
+    local subcmd="$1"
+    local cmd
+
+    for cmd in \
+	    'cc-check' \
+	    'cc-env' \
+	    'create' \
+	    'help' \
+	    'list' \
+	    'version'; do
+        [ "$cmd" = "$subcmd" ] && return 1
+    done
+
+    return 0
+}
+
+# Returns a list of container names
+_cc_get_containers()
+{
+    # Commands that manipulate containers need root privileges.
+    # If the user isn't running as root, don't attempt to obtain a list
+    # as it will result in an error.
+    [ $(id -u) -eq 0 ] || return
+
+    "$_ccruntime" list --quiet
+}
+
+_cc_bash_autocomplete() {
+    COMPREPLY=()
+
+    local opts opt
+
+    local cur="${COMP_WORDS[COMP_CWORD]}"
+
+    for opt in \
+        '-h' '--help' 'help' \
+        '-v' '--version' 'version';
+    do
+        # No further completions possible for these commands
+        [ "$cur" = "$opt" ] && return 0
+    done
+
+    local subcmd_seen=$(_cc_subcmd_seen)
+
+    if [ -n "$subcmd_seen" ]; then
+	    _cc_subcmd_needs_existing_container "$subcmd_seen"
+	    local container_cmd=$?
+    
+            if [ -n "$cur" ]; then
+                    # Complete with local options and maybe container names
+                    opts=$(_cc_get_subcmd_options "$subcmd_seen")
+                    [ $container_cmd -eq 0 ] && opts="$opts $(_cc_get_containers)"
+            elif [[ "${cur}" == -* ]]; then
+                    # Complete with local options
+                    opts=$(_cc_get_subcmd_options "$subcmd_seen")
+            else
+                    # Potentially complete with container names
+                    [ $container_cmd -eq 0 ] && opts="$(_cc_get_containers)"
+            fi
+    else
+            if [ -n "$cur" ]; then
+                    # Complete with global options and subcmds
+                    opts="$opts $(_cc_get_global_options)"
+                    opts="$opts $(_cc_get_subcmds)"
+            elif [[ "${cur}" == -* ]]; then
+                    # Complete with global options
+                    opts=$(_cc_get_global_options)
+            else
+                    # Complete with subcmds
+                    opts=$(_cc_get_subcmds)
+            fi
+    fi
+
+    [ -n "$opts" ] && COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+
+    return 0
+}
+
+complete -F _cc_bash_autocomplete "$_ccruntime"
