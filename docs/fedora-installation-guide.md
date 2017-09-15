@@ -1,5 +1,10 @@
 # Installing Clear Containers 3.0 on Fedora
 
+Note:
+
+If you are installing on a system that already has Clear Containers 2.x
+installed, first read [the upgrading document](upgrading.md).
+
 Clear Containers **3.0** is available for Fedora\* versions **24** and **25**.
 
 This step is only required in case Docker is not installed on the system.
