@@ -76,9 +76,6 @@ PKGLIBDIR := $(LOCALSTATEDIR)/lib/$(CCDIR)
 PKGRUNDIR := $(LOCALSTATEDIR)/run/$(CCDIR)
 PKGLIBEXECDIR := $(LIBEXECDIR)/$(CCDIR)
 
-BASH_COMPLETIONS := data/completions/bash/cc-runtime
-BASH_COMPLETIONSDIR := $(SHAREDIR)/bash-completion/completions
-
 KERNELPATH := $(PKGDATADIR)/vmlinuz.container
 IMAGEPATH := $(PKGDATADIR)/clear-containers.img
 
@@ -129,7 +126,12 @@ DESTTARGET := $(abspath $(DESTBINDIR)/$(TARGET))
 DESTCONFDIR := $(DESTDIR)/$(SYSCONFDIR)/$(CCDIR)
 DESTCONFIG := $(abspath $(DESTCONFDIR)/$(CONFIG_FILE))
 
+DESTSHAREDIR := $(DESTDIR)/$(SHAREDIR)
+
 PAUSEDESTDIR := $(abspath $(DESTDIR)/$(PAUSEROOTPATH)/$(PAUSEBINRELPATH))
+
+BASH_COMPLETIONS := data/completions/bash/cc-runtime
+BASH_COMPLETIONSDIR := $(DESTSHAREDIR)/bash-completion/completions
 
 # list of variables the user may wish to override
 USER_VARS += BASH_COMPLETIONSDIR
