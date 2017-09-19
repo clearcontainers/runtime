@@ -116,11 +116,7 @@ func kill(containerID, signal string, all bool) error {
 		return fmt.Errorf("Container %s not ready or running, cannot send a signal", containerID)
 	}
 
-	if err := vci.KillContainer(podID, containerID, signum, all); err != nil {
-		return err
-	}
-
-	return nil
+	return vci.KillContainer(podID, containerID, signum, all)
 }
 
 func processSignal(signal string) (syscall.Signal, error) {

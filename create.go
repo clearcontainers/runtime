@@ -140,11 +140,7 @@ func create(containerID, bundlePath, console, pidFilePath string, detach bool,
 	// Creation of PID file has to be the last thing done in the create
 	// because containerd considers the create complete after this file
 	// is created.
-	if err := createPIDFile(pidFilePath, process.Pid); err != nil {
-		return err
-	}
-
-	return nil
+	return createPIDFile(pidFilePath, process.Pid)
 }
 
 func getKernelParams(containerID string) []vc.Param {

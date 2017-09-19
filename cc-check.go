@@ -234,11 +234,7 @@ func hostIsClearContainersCapable(cpuinfoFile string) error {
 		return err
 	}
 
-	if err = checkKernelModules(requiredKernelModules); err != nil {
-		return err
-	}
-
-	return nil
+	return checkKernelModules(requiredKernelModules)
 }
 
 var ccCheckCLICommand = cli.Command{
