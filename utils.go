@@ -150,6 +150,11 @@ func resolvePath(path string) (string, error) {
 
 	resolved, err := filepath.EvalSymlinks(absolute)
 	if err != nil {
+		if os.IsNotExist(err) {
+			// Make the error clearer than the default
+			return "", fmt.Errorf("file %v does not exist", absolute)
+		}
+
 		return "", err
 	}
 

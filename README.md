@@ -47,9 +47,20 @@ See [the contributing document](CONTRIBUTING.md).
 
 ## Configuration
 
-The runtime uses a single configuration file called `configuration.toml` which is normally located at `/etc/clear-containers/configuration.toml`.
+The runtime uses a single configuration file called `configuration.toml`.
+Since the runtime supports a [stateless system](https://clearlinux.org/features/stateless),
+it checks for this configuration file in multiple locations. The default
+location is `/usr/share/defaults/clear-containers/configuration.toml` for a
+standard system. However, if `/etc/clear-containers/configuration.toml`
+exists, this will take priority.
 
-To see details of your systems runtime environment (including the location of the configuration file), run:
+To see which paths the runtime will check for a configuration source, run:
+
+```bash
+$ cc-runtime --cc-show-default-config-paths
+```
+
+To see details of your systems runtime environment (including the location of the configuration file being used), run:
 
 ```bash
 $ cc-runtime cc-env

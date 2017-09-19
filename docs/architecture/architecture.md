@@ -236,9 +236,9 @@ library.
 ### Configuration
 
 The runtime uses a TOML format configuration file called `configuration.toml`. By
-default this file is installed in the `/etc/clear-containers` directory and
-contains various settings such as the paths to the hypervisor, the guest
-kernel and the mini-OS image.
+default this file is installed in the `/usr/share/defaults/clear-containers`
+directory and contains various settings such as the paths to the hypervisor,
+the guest kernel and the mini-OS image.
 
 Most users will not need to modify the configuration file.
 

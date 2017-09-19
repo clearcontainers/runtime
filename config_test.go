@@ -211,6 +211,7 @@ func testLoadConfiguration(t *testing.T, dir string,
 
 			// override
 			defaultRuntimeConfiguration = testConfig.ConfigPath
+			defaultSysConfRuntimeConfiguration = ""
 
 			for _, file := range configFiles {
 				var err error
@@ -870,4 +871,70 @@ func TestAgentDefaults(t *testing.T) {
 	path := "/foo/bar/baz"
 	a.PauseRootPath = path
 	assert.Equal(t, a.pauseRootPath(), path, "custom agent pause root path wrong")
+}
+
+func TestGetDefaultConfigFilePaths(t *testing.T) {
+	assert := assert.New(t)
+
+	results := getDefaultConfigFilePaths()
+	// There should be atleast two config file locations
+	assert.True(len(results) >= 2)
+
+	for _, f := range results {
+		// Paths cannot be empty
+		assert.NotNil(f)
+	}
+}
+
+func TestGetDefaultConfigFile(t *testing.T) {
+	assert := assert.New(t)
+
+	tmpdir, err := ioutil.TempDir(testDir, "")
+	assert.NoError(err)
+	defer os.RemoveAll(tmpdir)
+
+	hypervisor := "qemu"
+	confDir := filepath.Join(tmpdir, "conf")
+	sysConfDir := filepath.Join(tmpdir, "sysconf")
+
+	for _, dir := range []string{confDir, sysConfDir} {
+		err = os.MkdirAll(dir, testDirMode)
+		assert.NoError(err)
+	}
+
+	confDirConfig, err := createAllRuntimeConfigFiles(confDir, hypervisor)
+	assert.NoError(err)
+
+	sysConfDirConfig, err := createAllRuntimeConfigFiles(sysConfDir, hypervisor)
+	assert.NoError(err)
+
+	savedConf := defaultRuntimeConfiguration
+	savedSysConf := defaultSysConfRuntimeConfiguration
+
+	defaultRuntimeConfiguration = confDirConfig.ConfigPath
+	defaultSysConfRuntimeConfiguration = sysConfDirConfig.ConfigPath
+
+	defer func() {
+		defaultRuntimeConfiguration = savedConf
+		defaultSysConfRuntimeConfiguration = savedSysConf
+
+	}()
+
+	got, err := getDefaultConfigFile()
+	assert.NoError(err)
+	// defaultSysConfRuntimeConfiguration has priority over defaultRuntimeConfiguration
+	assert.Equal(got, defaultSysConfRuntimeConfiguration)
+
+	// force defaultRuntimeConfiguration to be returned
+	os.Remove(defaultSysConfRuntimeConfiguration)
+
+	got, err = getDefaultConfigFile()
+	assert.NoError(err)
+	assert.Equal(got, defaultRuntimeConfiguration)
+
+	// force error
+	os.Remove(defaultRuntimeConfiguration)
+
+	_, err = getDefaultConfigFile()
+	assert.Error(err)
 }

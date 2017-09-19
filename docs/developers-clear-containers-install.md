@@ -123,7 +123,7 @@ See [the upgrading document](upgrading.md) for further details.
    $ # (note that this is only an example using default paths).
    $ sudo sed -i.bak -e 's!^\(image = ".*"\)!# \1 \
    image = "/usr/share/clear-containers/container.img"!g' \
-   /etc/clear-containers/configuration.toml
+   /usr/share/defaults/clear-containers/configuration.toml
    
 For more details on the runtime's build system, run:
 
