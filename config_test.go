@@ -146,6 +146,7 @@ func createAllRuntimeConfigFiles(dir, hypervisor string) (config testRuntimeConf
 		DefaultVCPUs:          defaultVCPUCount,
 		DefaultMemSz:          defaultMemSize,
 		DisableBlockDeviceUse: disableBlockDevice,
+		Mlock: !defaultEnableSwap,
 	}
 
 	agentConfig := vc.HyperConfig{
@@ -609,6 +610,7 @@ func TestMinimalRuntimeConfig(t *testing.T) {
 		DefaultVCPUs:          defaultVCPUCount,
 		DefaultMemSz:          defaultMemSize,
 		DisableBlockDeviceUse: defaultDisableBlockDeviceUse,
+		Mlock: !defaultEnableSwap,
 	}
 
 	expectedAgentConfig := vc.HyperConfig{
