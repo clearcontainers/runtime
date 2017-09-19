@@ -2,6 +2,9 @@
 
 * [Overview](#overview)
     * [Hypervisor](#hypervisor)
+      * [Assets](#assets)
+        * [Guest kernel](#guest-kernel)
+        * [Root filesystem image](#root-filesystem-image)
     * [Agent](#agent)
     * [Runtime](#runtime)
         * [Configuration](#configuration)
@@ -79,7 +82,7 @@ container processes.
 
 ## Hypervisor
 
-Clear Containers use  [QEMU](http://www.qemu-project.org/)/[KVM](http://www.linux-kvm.org/page/Main_Page)
+Clear Containers use [QEMU](http://www.qemu-project.org/)/[KVM](http://www.linux-kvm.org/page/Main_Page)
 to create virtual machines where containers will run:
 
 ![QEMU/KVM](arch-images/qemu.png)
@@ -106,7 +109,45 @@ This transition has been delayed until after the release of Clear Containers 3.0
 due to regressions, as described in [runtime issue 407](https://github.com/clearcontainers/runtime/issues/407).
 Once support for features like hotplug are available in `q35`, the project will
 look to transition to this machine type.
- 
+
+### Assets
+
+Additional resources are required to create each QEMU virtual machine
+instance, specifically a guest kernel and a root filesystem image known as the
+"mini O/S".
+
+The locations of these resources are passed to
+QEMU by the runtime (see [Configuration](#configuration)).
+
+#### Guest kernel
+
+The guest kernel is passed to the QEMU hypervisor and used to boot the virtual
+machine. It is highly optimised for kernel boot time and minimal memory
+footprint, providing only those services required by a container workload.
+
+#### Root filesystem image
+
+The root filesystem image, sometimes referred to as the "mini O/S", is a
+highly optimised container bootstrap system based on [Clear Linux](https://clearlinux.org/).
+It provides an extremely minimal environment and has a highly optimised boot
+path.
+
+The only services running in the context of the mini O/S are the init daemon
+(`systemd`) and the [Agent](#agent). The real workload the user wishes to run
+executes within a confined context which uses the container manager image as
+its root filesystem.
+
+For example, when `docker run -ti ubuntu date` is run:
+
+- The hypervisor will boot the mini-OS image using the guest kernel.
+- `systemd`, running inside the mini-OS context, will launch the `cc-agent` in
+  the same context.
+- The agent will create a new confined context to run the specifed command in
+  (`date` in this example).
+- The agent will then execute the command (`date` in this example) inside this
+  new context, first setting the root filesystem to the expected Ubuntu* root
+  filesystem.
+
 ## Agent
 
 [`cc-agent`](https://github.com/clearcontainers/agent) is a daemon running in the
@@ -195,7 +236,10 @@ library.
 ### Configuration
 
 The runtime uses a TOML format configuration file called `configuration.toml`. By
-default this file is installed in the `/etc/clear-containers` directory.
+default this file is installed in the `/etc/clear-containers` directory and
+contains various settings such as the paths to the hypervisor, the guest
+kernel and the mini-OS image.
+
 Most users will not need to modify the configuration file.
 
 The file is well commented and provides a few "knobs" that can be used to modify
