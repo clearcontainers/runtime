@@ -79,7 +79,7 @@ container processes.
 
 ## Hypervisor
 
-Clear Containers use  [QEMU](http://www.qemu-project.org/)/[KVM](http://www.linux-kvm.org/page/Main_Page)
+Clear Containers use [QEMU](http://www.qemu-project.org/)/[KVM](http://www.linux-kvm.org/page/Main_Page)
 to create virtual machines where containers will run:
 
 ![QEMU/KVM](arch-images/qemu.png)
