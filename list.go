@@ -178,10 +178,8 @@ func (f *formatTabular) Write(state []fullContainerState, showAll bool, file *os
 			fmt.Fprintf(w, "\n")
 		}
 	}
-	if err := w.Flush(); err != nil {
-		return err
-	}
-	return nil
+
+	return w.Flush()
 }
 
 func (f *formatJSON) Write(state []fullContainerState, showAll bool, file *os.File) error {
