@@ -253,6 +253,17 @@ const (
 	//	|       |       | (0x0) |  (0xb)  |                 |                         |
 	//	+-----------------------------------------------------------------------------+
 	DetachVolume
+
+	// Restore is used to ask a specific CIAO agent that had previously been placed into
+	// maintenance mode by an EVACUATE command to start accepting new instances once more.
+	// The payload for this command contains the UIID of the node to restore.
+	//
+	//
+	//	+---------------------------------------------------------------------------------+
+	//	| Major | Minor | Type  | Operand |  Payload Length | YAML formatted payload      |
+	//	|       |       | (0x0) |  (0x4)  |                 |                             |
+	//	+---------------------------------------------------------------------------------+
+	Restore
 )
 
 const (
@@ -617,6 +628,8 @@ func (command Command) String() string {
 		return "Attach storage volume"
 	case DetachVolume:
 		return "Detach storage volume"
+	case Restore:
+		return "Restore"
 	}
 
 	return ""

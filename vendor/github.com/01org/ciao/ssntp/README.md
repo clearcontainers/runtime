@@ -390,6 +390,20 @@ The DetachVolume command payload includes a volume UUID and an instance UUID.
 +-----------------------------------------------------------------------------+
 ```
 
+#### Restore ####
+
+Restore is used to ask a specific CIAO agent that had previously been placed into
+maintenance mode by an EVACUATE command to start accepting new instances once more.
+
+The payload for this command contains the UIID of the node to restore.
+
+```
++---------------------------------------------------------------------------------+
+| Major | Minor | Type  | Operand |  Payload Length | YAML formatted payload      |
+|       |       | (0x0) |  (0x4)  |                 |                             |
++---------------------------------------------------------------------------------+
+```
+
 ### SSNTP STATUS frames ###
 
 There are 5 different SSNTP STATUS frames:

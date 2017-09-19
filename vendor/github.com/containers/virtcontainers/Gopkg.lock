@@ -5,7 +5,7 @@
   branch = "master"
   name = "github.com/01org/ciao"
   packages = ["qemu","ssntp/uuid"]
-  revision = "8c505ffb1e9b0397bee3a65569f517ca4821fe81"
+  revision = "9d6632430ecf42a35c23b7c6cdc560d5116d9483"
 
 [[projects]]
   branch = "master"
@@ -17,13 +17,13 @@
   branch = "master"
   name = "github.com/clearcontainers/proxy"
   packages = ["api","client"]
-  revision = "79ff321da6d34682fea11a47dff0e5ca72c20a01"
+  revision = "e9cee5aa68bf2b5dd28b062f2fd67b98df3d0a6c"
 
 [[projects]]
   branch = "master"
   name = "github.com/containernetworking/cni"
   packages = ["libcni","pkg/invoke","pkg/types","pkg/types/020","pkg/types/current","pkg/version"]
-  revision = "909fe7d10d98ab99b9990966796316249c83b263"
+  revision = "6614adf4a42990cf3b400c119835fb3e5650a364"
 
 [[projects]]
   branch = "master"
@@ -41,7 +41,7 @@
   branch = "master"
   name = "github.com/kubernetes-incubator/cri-o"
   packages = ["pkg/annotations"]
-  revision = "400713a58bedb88678e84b72d4620847c8d27fec"
+  revision = "5e3c53c1721e9fdd6a3c52fcd953dfa35af846d5"
 
 [[projects]]
   branch = "master"
@@ -59,7 +59,7 @@
   branch = "master"
   name = "github.com/opencontainers/runtime-spec"
   packages = ["specs-go"]
-  revision = "689521f694a44ef01d4d39d17c638271655d58fd"
+  revision = "325e66a6635c2bc78fafbfd994010c9ea4ead824"
 
 [[projects]]
   name = "github.com/pmezard/go-difflib"
@@ -101,13 +101,13 @@
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["curve25519","ed25519","ed25519/internal/edwards25519","ssh","ssh/terminal"]
-  revision = "faadfbdc035307d901e69eea569f5dda451a3ee3"
+  revision = "7d9177d70076375b9a59c8fde23d52d9c4a7ecd5"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix","windows"]
-  revision = "062cd7e4e68206d8bab9b18396626e855c992658"
+  revision = "b6e1ae21643682ce023deb8d152024597b0e9bb4"
 
 [solve-meta]
   analyzer-name = "dep"
