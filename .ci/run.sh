@@ -18,6 +18,14 @@
 
 set -e
 
+# Make sure root does not own any folder of the GOPATH
+# Otherwise this would prevent the following scripts to
+# succeed when performing "go get"
+sudo chown -R ${USER}:${USER} ${GOPATH}
+
+# Run unit testing
+make check
+
 # Current docker tests:
 # TODO: Move these docker commands to more formal tests in 
 # `clearcontainers/tests` repository. See issue: 
