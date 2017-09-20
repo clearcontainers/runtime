@@ -133,12 +133,18 @@ To report a bug that is not already documented, please [open an issue in
 github](https://github.com/clearcontainers/runtime/issues/new) so we all get
 visibility on the problem and work toward resolution.
 
-To help the developers resolve your issue, please include the output
-from the command below in the issue:
+To help developers resolve your issue, please include the output
+from the following command in the issue (the output is designed to be pasted
+into the issue, but alternatively you can attach it as a file):
 
 ```bash
-$ cc-runtime cc-env
+$ cc-collect-data.sh
 ```
+
+Note:
+
+Before attaching the output of this command to an issue, you must review it to
+ensure you are happy for such information to be publically visible.
 
 ## Closing issues
 
