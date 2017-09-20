@@ -46,6 +46,12 @@ disable_block_device_use = @DEFDISABLEBLOCK@
 # 
 #enable_debug = true
 
+# Disable the customizations done in the runtime when it detects
+# that it is running on top a VMM. This will result in the runtime
+# behaving as it would when running on bare metal.
+# 
+#disable_nesting_checks = true
+
 [proxy.cc]
 url = "@PROXYURL@"
 

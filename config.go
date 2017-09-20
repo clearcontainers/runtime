@@ -85,6 +85,7 @@ type hypervisor struct {
 	MemPrealloc           bool   `toml:"enable_mem_prealloc"`
 	Swap                  bool   `toml:"enable_swap"`
 	Debug                 bool   `toml:"enable_debug"`
+	DisableNestingChecks  bool   `toml:"disable_nesting_checks"`
 }
 
 type proxy struct {
@@ -236,6 +237,7 @@ func newQemuHypervisorConfig(h hypervisor) (vc.HypervisorConfig, error) {
 		MemPrealloc:           h.MemPrealloc,
 		Mlock:                 !h.Swap,
 		Debug:                 h.Debug,
+		DisableNestingChecks:  h.DisableNestingChecks,
 	}, nil
 }
 
@@ -347,6 +349,7 @@ func loadConfiguration(configPath string, ignoreLogging bool) (resolvedConfigPat
 		MemPrealloc:           defaultEnableMemPrealloc,
 		Mlock:                 !defaultEnableSwap,
 		Debug:                 defaultEnableDebug,
+		DisableNestingChecks:  defaultDisableNestingChecks,
 	}
 
 	defaultAgentConfig := vc.HyperConfig{
