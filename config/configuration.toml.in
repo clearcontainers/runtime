@@ -9,16 +9,42 @@ machine_type = "@MACHINETYPE@"
 # For example, use `kernel_params = "vsyscall=emulate"` if you are having
 # trouble running pre-2.15 glibc
 kernel_params = "@KERNELPARAMS@"
+
 # Default number of vCPUs per POD/VM:
 # unspecified or 0 --> will be set to @DEFVCPUS@
 # < 0              --> will be set to the actual number of physical cores
 # > 0 <= 255       --> will be set to the specified number
 # > 255            --> will be set to 255
 default_vcpus = -1
+
 # Default memory size in MiB for POD/VM.
 # If unspecified then it will be set @DEFMEMSZ@ MiB.
 #default_memory = @DEFMEMSZ@
 disable_block_device_use = @DEFDISABLEBLOCK@
+
+# Enable pre allocation of VM RAM, default false
+# Enabling this will result in lower container density
+# as all of the memory will be allocated and locked
+# This is useful when you want to reserve all the memory
+# upfront or in the cases where you want memory latencies
+# to be very predictable
+# Default false
+#enable_mem_prealloc = true
+
+# Enable swap of vm memory. Default false.
+# The behaviour is undefined if mem_prealloc is also set to true
+#enable_swap = true
+
+# Debug changes the default hypervisor and kernel parameters to
+# enable debug output where available.
+# Default false
+# these logs can be obtained in the cc-proxy logs  when the 
+# proxy is set to run in debug mode
+# /usr/libexec/clear-containers/cc-proxy -log debug
+# or by stopping the cc-proxy service and running the cc-proxy 
+# explicitly using the same command line
+# 
+#enable_debug = true
 
 [proxy.cc]
 url = "@PROXYURL@"
