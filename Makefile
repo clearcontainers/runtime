@@ -143,8 +143,11 @@ PAUSEDESTDIR := $(abspath $(DESTDIR)/$(PAUSEROOTPATH)/$(PAUSEBINRELPATH))
 BASH_COMPLETIONS := data/completions/bash/cc-runtime
 BASH_COMPLETIONSDIR := $(DESTSHAREDIR)/bash-completion/completions
 
-SCRIPTS := data/cc-collect-data.sh
+COLLECT_SCRIPT = data/cc-collect-data.sh
+SCRIPTS += $(COLLECT_SCRIPT)
 SCRIPTS_DIR := $(abspath $(DESTBINDIR))
+
+GENERATED_FILES += $(COLLECT_SCRIPT)
 
 # list of variables the user may wish to override
 USER_VARS += BASH_COMPLETIONSDIR

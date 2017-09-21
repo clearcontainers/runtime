@@ -1,6 +1,7 @@
 /cc-runtime
 /coverage.html
 /config-generated.go
+/data/cc-collect-data.sh
 /config/configuration.toml
 /pause/pause
 /pause/pause.o

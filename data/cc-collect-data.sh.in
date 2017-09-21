@@ -20,6 +20,7 @@
 
 script_name=${0##*/}
 runtime=$(which "cc-runtime")
+script_version="@VERSION@ (commit @COMMIT@)"
 
 die()
 {
@@ -199,7 +200,7 @@ show_meta()
 	heading "Meta"
 
 	date=$(date '+%Y-%m-%d.%H:%M:%S.%N')
-	msg "Running \`$script_name\` at \`$date\`"
+	msg "Running \`$script_name\` version \`$script_version\` at \`$date\`."
 }
 
 main()
