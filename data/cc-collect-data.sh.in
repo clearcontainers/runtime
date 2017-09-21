@@ -137,14 +137,14 @@ show_runtime_log_details()
 				msg "Recent problems found in global log \`$global_log\`:"
 				show_quoted_text "$problems"
 			else
-				msg "No recent problems found in global log \`$global_log\`:"
+				msg "No recent problems found in global log \`$global_log\`."
 			fi
 		else
-			msg "Global log \`$global_log\` does not exist"
+			msg "Global log \`$global_log\` does not exist."
 		fi
 
 	else
-		msg "Global log not enabled"
+		msg "Global log not enabled."
 	fi
 }
 
