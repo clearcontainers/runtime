@@ -70,7 +70,7 @@ run_cmd_and_show_quoted_output()
 {
 	local cmd="$*"
 
-	msg "Output of \`$cmd\`:"
+	msg "Output of \"\`$cmd\`\":"
 	output=$(eval "$cmd" 2>&1)
 	show_quoted_text "$output"
 }
