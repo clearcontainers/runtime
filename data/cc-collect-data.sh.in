@@ -205,18 +205,21 @@ show_meta()
 	msg "Running \`$script_name\` version \`$script_version\` at \`$date\`."
 }
 
+show_runtime()
+{
+	msg "Runtime is \`$runtime\`."
+
+	cmd="cc-env"
+	heading "\`$cmd\`"
+	run_cmd_and_show_quoted_output "$runtime $cmd"
+}
+
 main()
 {
 	[ $(id -u) -eq 0 ] || die "Need to run as root"
 
 	show_meta
-
-	msg "Runtime is \`$runtime\`"
-
-	cmd="cc-env"
-	heading "\`$cmd\`"
-	run_cmd_and_show_quoted_output "$runtime $cmd"
-
+	show_runtime
 	show_runtime_configs
 	show_runtime_log_details
 	show_container_mgr_details
