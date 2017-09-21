@@ -144,6 +144,9 @@ PAUSEDESTDIR := $(abspath $(DESTDIR)/$(PAUSEROOTPATH)/$(PAUSEBINRELPATH))
 BASH_COMPLETIONS := data/completions/bash/cc-runtime
 BASH_COMPLETIONSDIR := $(DESTSHAREDIR)/bash-completion/completions
 
+SCRIPTS := data/cc-collect-data.sh
+SCRIPTS_DIR := $(abspath $(DESTBINDIR))
+
 # list of variables the user may wish to override
 USER_VARS += BASH_COMPLETIONSDIR
 USER_VARS += BINDIR
@@ -309,7 +312,7 @@ check-go-static:
 coverage:
 	$(QUIET_TEST).ci/go-test.sh html-coverage
 
-install: default install-completions
+install: default install-completions install-scripts
 	$(QUIET_INST)install -D $(TARGET) $(DESTTARGET)
 	$(QUIET_INST)install -D $(CONFIG) $(DESTCONFIG)
 	@ if [ -e pause/pause ]; then \
@@ -318,6 +321,9 @@ install: default install-completions
 
 install-completions:
 	$(QUIET_INST)install --mode 0644 -D $(BASH_COMPLETIONS) $(BASH_COMPLETIONSDIR)
+
+install-scripts:
+	$(QUIET_INST)install --mode 0755 -D $(SCRIPTS) $(SCRIPTS_DIR)
 
 clean:
 	$(QUIET_CLEAN)rm -f $(TARGET) $(CONFIG) $(GENERATED_FILES)
