@@ -199,7 +199,7 @@ show_container_mgr_details()
 
 show_meta()
 {
-	heading "Meta"
+	heading "Meta details"
 
 	date=$(date '+%Y-%m-%d.%H:%M:%S.%N')
 	msg "Running \`$script_name\` version \`$script_version\` at \`$date\`."
