@@ -117,8 +117,10 @@ show_runtime_log_details()
 		if [ -e "$global_log" ]; then
 			local pattern="("
 			pattern+="\<warn\>"
+			pattern+="\<warning\>"
 			pattern+="|\<error\>"
 			pattern+="|\<fail\>"
+			pattern+="|\<failed\>"
 			pattern+="|\<fatal\>"
 			pattern+="|\<impossible\>"
 			pattern+="|\<missing\>"
