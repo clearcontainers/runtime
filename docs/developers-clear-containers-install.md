@@ -102,7 +102,8 @@ See [the upgrading document](upgrading.md) for further details.
    The agent is installed inside the root filesystem image
    used by the hypervisor, hence to test a new agent version it is
    necessary to create a custom rootfs image. The example below
-   demonstrates how to do this using the osbuilder tooling.
+   demonstrates how to do this using the
+	 [osbuilder](https://github.com/clearcontainers/osbuilder) tooling.
 
    ```bash
    $ cd $GOPATH/src/github.com/clearcontainers/osbuilder
@@ -124,12 +125,44 @@ See [the upgrading document](upgrading.md) for further details.
    $ sudo sed -i.bak -e 's!^\(image = ".*"\)!# \1 \
    image = "/usr/share/clear-containers/container.img"!g' \
    /usr/share/defaults/clear-containers/configuration.toml
-   
+   ```
+
 For more details on the runtime's build system, run:
 
 ```bash
 $ make help
 ```
+
+5. Kernel
+
+   The latest kernel for Clear Linux can be found on
+   [the releases page](https://github.com/clearcontainers/linux/releases).
+   The Clear Linux kernel can be used to rebuild and modify a custom VM
+   container kernel as needed. The example below demonstrates how to do this
+   using the [osbuilder](https://github.com/clearcontainers/osbuilder) tooling.
+
+   ```bash
+	$ cd $GOPATH/src/github.com/clearcontainers/osbuilder
+
+	$ # Fetch latest kernel sources from github.com/clearcontainers/linux
+	$ make kernel-src
+
+	$ # Optionally modify kernel sources or config at $PWD/workdir/linux
+
+	$ # build kernel
+	$ make kernel
+
+	$ # Install the custom image
+	$ sudo install --owner root --group root --mode 0755 workdir/vmlinuz.container /usr/share/clear-containers/custom-vmlinuz
+	$ sudo install --owner root --group root --mode 0755 workdir/vmlinux.container /usr/share/clear-containers/custom-vmlinux
+
+	$ # Update the runtime configuration
+	$ # (note that this is only an example using default paths).
+	$ # Note: vmlinuz is used for pc platform type.
+	$ #       vmlinux is used for pc-lite and q35-lite platform type.
+	$ sudo sed -i.bak -e 's!^\(kernel = ".*"\)!# \1\nkernel = "/usr/share/clear-containers/custom-vmlinuz"!g' \
+	/usr/share/defaults/clear-containers/configuration.toml
+	 ```
 
 ## See Also
 
