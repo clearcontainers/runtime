@@ -161,10 +161,7 @@ func getExpectedShimDetails(config oci.RuntimeConfig) (ShimInfo, error) {
 	return ShimInfo{
 		Type:    string(config.ShimType),
 		Version: testShimVersion,
-		Location: PathInfo{
-			Path:     shimPath,
-			Resolved: shimPath,
-		},
+		Path:    shimPath,
 	}, nil
 }
 
@@ -177,12 +174,9 @@ func getExpectedAgentDetails(config oci.RuntimeConfig) (AgentInfo, error) {
 	agentBinPath := agentConfig.PauseBinPath
 
 	return AgentInfo{
-		Type:    string(config.AgentType),
-		Version: unknown,
-		PauseBin: PathInfo{
-			Path:     agentBinPath,
-			Resolved: agentBinPath,
-		},
+		Type:         string(config.AgentType),
+		Version:      unknown,
+		PauseBinPath: agentBinPath,
 	}, nil
 }
 
@@ -259,28 +253,21 @@ model name	: %s
 
 func getExpectedHypervisor(config oci.RuntimeConfig) HypervisorInfo {
 	return HypervisorInfo{
-		Version: testHypervisorVersion,
-		Location: PathInfo{
-			Path:     config.HypervisorConfig.HypervisorPath,
-			Resolved: config.HypervisorConfig.HypervisorPath,
-		},
+		Version:     testHypervisorVersion,
+		Path:        config.HypervisorConfig.HypervisorPath,
 		MachineType: config.HypervisorConfig.HypervisorMachineType,
 	}
 }
 
-func getExpectedImage(config oci.RuntimeConfig) PathInfo {
-	return PathInfo{
-		Path:     config.HypervisorConfig.ImagePath,
-		Resolved: config.HypervisorConfig.ImagePath,
+func getExpectedImage(config oci.RuntimeConfig) ImageInfo {
+	return ImageInfo{
+		Path: config.HypervisorConfig.ImagePath,
 	}
 }
 
 func getExpectedKernel(config oci.RuntimeConfig) KernelInfo {
 	return KernelInfo{
-		Location: PathInfo{
-			Path:     config.HypervisorConfig.KernelPath,
-			Resolved: config.HypervisorConfig.KernelPath,
-		},
+		Path:       config.HypervisorConfig.KernelPath,
 		Parameters: strings.Join(vc.SerializeParams(config.HypervisorConfig.KernelParams, "="), " "),
 	}
 }
@@ -294,10 +281,7 @@ func getExpectedRuntimeDetails(configFile, logFile string) RuntimeInfo {
 		},
 		Config: RuntimeConfigInfo{
 			GlobalLogPath: logFile,
-			Location: PathInfo{
-				Path:     configFile,
-				Resolved: configFile,
-			},
+			Path:          configFile,
 		},
 	}
 }
@@ -514,129 +498,6 @@ func TestCCEnvGetEnvInfoNoProcVersion(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestCCEnvGetEnvInfoNoHypervisor(t *testing.T) {
-	tmpdir, err := ioutil.TempDir("", "")
-	if err != nil {
-		panic(err)
-	}
-	defer os.RemoveAll(tmpdir)
-
-	const logFile = "/tmp/file.log"
-
-	configFile, config, err := makeRuntimeConfig(tmpdir)
-	assert.NoError(t, err)
-
-	expected, err := getExpectedSettings(config, tmpdir, configFile, logFile)
-	assert.NoError(t, err)
-
-	err = os.Remove(expected.Hypervisor.Location.Resolved)
-	assert.NoError(t, err)
-
-	_, err = getEnvInfo(configFile, logFile, config)
-	assert.Error(t, err)
-}
-
-func TestCCEnvGetEnvInfoNoImage(t *testing.T) {
-	tmpdir, err := ioutil.TempDir("", "")
-	if err != nil {
-		panic(err)
-	}
-	defer os.RemoveAll(tmpdir)
-
-	const logFile = "/tmp/file.log"
-
-	configFile, config, err := makeRuntimeConfig(tmpdir)
-	assert.NoError(t, err)
-
-	expected, err := getExpectedSettings(config, tmpdir, configFile, logFile)
-	assert.NoError(t, err)
-
-	err = os.Remove(expected.Image.Resolved)
-	assert.NoError(t, err)
-
-	_, err = getEnvInfo(configFile, logFile, config)
-	assert.Error(t, err)
-}
-
-func TestCCEnvGetEnvInfoNoKernel(t *testing.T) {
-	tmpdir, err := ioutil.TempDir("", "")
-	if err != nil {
-		panic(err)
-	}
-	defer os.RemoveAll(tmpdir)
-
-	const logFile = "/tmp/file.log"
-
-	configFile, config, err := makeRuntimeConfig(tmpdir)
-	assert.NoError(t, err)
-
-	expected, err := getExpectedSettings(config, tmpdir, configFile, logFile)
-	assert.NoError(t, err)
-
-	err = os.Remove(expected.Kernel.Location.Resolved)
-	assert.NoError(t, err)
-
-	_, err = getEnvInfo(configFile, logFile, config)
-	assert.Error(t, err)
-}
-
-func TestCCEnvGetEnvInfoNoShim(t *testing.T) {
-	tmpdir, err := ioutil.TempDir("", "")
-	if err != nil {
-		panic(err)
-	}
-	defer os.RemoveAll(tmpdir)
-
-	const logFile = "/tmp/file.log"
-
-	configFile, config, err := makeRuntimeConfig(tmpdir)
-	assert.NoError(t, err)
-
-	expected, err := getExpectedSettings(config, tmpdir, configFile, logFile)
-	assert.NoError(t, err)
-
-	err = os.Remove(expected.Shim.Location.Resolved)
-	assert.NoError(t, err)
-
-	_, err = getEnvInfo(configFile, logFile, config)
-	assert.Error(t, err)
-}
-
-func TestCCEnvGetEnvInfoInvalidAgent(t *testing.T) {
-	tmpdir, err := ioutil.TempDir("", "")
-	if err != nil {
-		panic(err)
-	}
-	defer os.RemoveAll(tmpdir)
-
-	const logFile = "/tmp/file.log"
-
-	configFile, config, err := makeRuntimeConfig(tmpdir)
-	assert.NoError(t, err)
-
-	_, err = getExpectedSettings(config, tmpdir, configFile, logFile)
-	assert.NoError(t, err)
-
-	//err = os.Remove(expected.Shim.Location.Resolved)
-	//assert.NoError(t, err)
-
-	cwd, err := os.Getwd()
-	assert.NoError(t, err)
-	defer os.Chdir(cwd)
-
-	agentConfig, ok := config.AgentConfig.(vc.HyperConfig)
-	assert.True(t, ok)
-
-	dir := filepath.Dir(agentConfig.PauseBinPath)
-
-	// remove the pause bins parent directory
-	err = os.RemoveAll(dir)
-	assert.NoError(t, err)
-
-	_, err = getEnvInfo(configFile, logFile, config)
-	assert.Error(t, err)
-}
-
 func TestCCEnvGetEnvInfoInvalidProxy(t *testing.T) {
 	tmpdir, err := ioutil.TempDir("", "")
 
@@ -775,28 +636,6 @@ func TestCCEnvGetShimInfo(t *testing.T) {
 	assert.Equal(t, expectedShim, ccShim)
 }
 
-func TestCCEnvGetShimInfoENOENT(t *testing.T) {
-	tmpdir, err := ioutil.TempDir("", "")
-	if err != nil {
-		panic(err)
-	}
-	defer os.RemoveAll(tmpdir)
-
-	_, config, err := makeRuntimeConfig(tmpdir)
-	assert.NoError(t, err)
-
-	expectedShim, err := getExpectedShimDetails(config)
-	assert.NoError(t, err)
-
-	// remove the shim ensuring its version cannot be queried
-	shim := expectedShim.Location.Resolved
-	err = os.Remove(shim)
-	assert.NoError(t, err)
-
-	_, err = getShimInfo(config)
-	assert.Error(t, err)
-}
-
 func TestCCEnvGetShimInfoNoVersion(t *testing.T) {
 	tmpdir, err := ioutil.TempDir("", "")
 	if err != nil {
@@ -810,7 +649,7 @@ func TestCCEnvGetShimInfoNoVersion(t *testing.T) {
 	expectedShim, err := getExpectedShimDetails(config)
 	assert.NoError(t, err)
 
-	shim := expectedShim.Location.Resolved
+	shim := expectedShim.Path
 
 	// ensure querying the shim version fails
 	err = createFile(shim, `#!/bin/sh
@@ -880,58 +719,21 @@ func TestCCEnvGetAgentInfoInvalidType(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestCCEnvGetAgentInfoUnableToResolvePath(t *testing.T) {
-	tmpdir, err := ioutil.TempDir("", "")
-	if err != nil {
-		panic(err)
-	}
-	defer os.RemoveAll(tmpdir)
-
-	_, config, err := makeRuntimeConfig(tmpdir)
-	assert.NoError(t, err)
-
-	_, err = getExpectedAgentDetails(config)
-	assert.NoError(t, err)
-
-	cwd, err := os.Getwd()
-	assert.NoError(t, err)
-	defer os.Chdir(cwd)
-
-	agentConfig, ok := config.AgentConfig.(vc.HyperConfig)
-	assert.True(t, ok)
-
-	dir := filepath.Dir(agentConfig.PauseBinPath)
-
-	// remove the pause bins parent directory
-	err = os.RemoveAll(dir)
-	assert.NoError(t, err)
-
-	_, err = getAgentInfo(config)
-	assert.Error(t, err)
-}
-
 func testCCEnvShowSettings(t *testing.T, tmpdir string, tmpfile *os.File) error {
 
 	ccRuntime := RuntimeInfo{}
 
 	ccHypervisor := HypervisorInfo{
-		Location: PathInfo{
-			Path:     "/hypervisor/path",
-			Resolved: "/resolved/hypervisor/path",
-		},
+		Path:        "/resolved/hypervisor/path",
 		MachineType: "hypervisor-machine-type",
 	}
 
-	ccImage := PathInfo{
-		Path:     "/image/path",
-		Resolved: "/resolved/image/path",
+	ccImage := ImageInfo{
+		Path: "/resolved/image/path",
 	}
 
 	ccKernel := KernelInfo{
-		Location: PathInfo{
-			Path:     "/kernel/path",
-			Resolved: "/resolved/kernel/path",
-		},
+		Path:       "/kernel/path",
 		Parameters: "foo=bar xyz",
 	}
 
@@ -944,19 +746,13 @@ func testCCEnvShowSettings(t *testing.T, tmpdir string, tmpfile *os.File) error 
 	ccShim := ShimInfo{
 		Type:    "shim-type",
 		Version: "shim-version",
-		Location: PathInfo{
-			Path:     "/shim/path",
-			Resolved: "/resolved/shim/path",
-		},
+		Path:    "/resolved/shim/path",
 	}
 
 	ccAgent := AgentInfo{
-		Type:    "agent-type",
-		Version: "agent-version",
-		PauseBin: PathInfo{
-			Path:     "/agent/path",
-			Resolved: "/resolved/agent/path",
-		},
+		Type:         "agent-type",
+		Version:      "agent-version",
+		PauseBinPath: "/resolved/agent/path",
 	}
 
 	expectedHostDetails, err := getExpectedHostDetails(tmpdir)
@@ -1057,38 +853,6 @@ func TestCCEnvHandleSettings(t *testing.T) {
 
 	_, err = toml.DecodeFile(tmpfile.Name(), &ccEnv)
 	assert.NoError(t, err)
-}
-
-func TestCCEnvHandleSettingsGetEnvInfoFailure(t *testing.T) {
-	tmpdir, err := ioutil.TempDir("", "")
-	if err != nil {
-		panic(err)
-	}
-	defer os.RemoveAll(tmpdir)
-
-	const logFile = "/tmp/file.log"
-
-	configFile, config, err := makeRuntimeConfig(tmpdir)
-	assert.NoError(t, err)
-
-	_, err = getExpectedSettings(config, tmpdir, configFile, logFile)
-	assert.NoError(t, err)
-
-	m := map[string]interface{}{
-		"configFile":    configFile,
-		"logfilePath":   logFile,
-		"runtimeConfig": config,
-	}
-
-	tmpfile, err := ioutil.TempFile("", "")
-	assert.NoError(t, err)
-	defer os.Remove(tmpfile.Name())
-
-	err = os.Remove(config.HypervisorConfig.HypervisorPath)
-	assert.NoError(t, err)
-
-	err = handleSettings(tmpfile, m)
-	assert.Error(t, err)
 }
 
 func TestCCEnvHandleSettingsInvalidParams(t *testing.T) {
@@ -1216,20 +980,13 @@ func TestCCEnvCLIFunctionFail(t *testing.T) {
 	fn, ok := ccEnvCLICommand.Action.(func(context *cli.Context) error)
 	assert.True(t, ok)
 
-	devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0666)
-	assert.NoError(t, err)
-
-	// throw away output
 	savedOutputFile := defaultOutputFile
-	defaultOutputFile = devNull
+	// invalidate
+	defaultOutputFile = nil
 
 	defer func() {
 		defaultOutputFile = savedOutputFile
 	}()
-
-	// cause a failure
-	err = os.Remove(config.HypervisorConfig.HypervisorPath)
-	assert.NoError(t, err)
 
 	err = fn(ctx)
 	assert.Error(t, err)
@@ -1247,7 +1004,7 @@ func TestGetHypervisorInfo(t *testing.T) {
 	_, config, err := makeRuntimeConfig(tmpdir)
 	assert.NoError(err)
 
-	info := getHypervisorInfo(config, hypervisorDetails{})
+	info := getHypervisorInfo(config)
 
-	assert.Equal(info.Version, unknown)
+	assert.Equal(info.Version, testHypervisorVersion)
 }

@@ -17,7 +17,6 @@ package main
 import (
 	"errors"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -31,7 +30,7 @@ import (
 //
 // XXX: Increment for every change to the output format
 // (meaning any change to the EnvInfo type).
-const formatVersion = "1.0.3"
+const formatVersion = "1.0.4"
 
 // MetaInfo stores information on the format of the output itself
 type MetaInfo struct {
@@ -39,16 +38,15 @@ type MetaInfo struct {
 	Version string
 }
 
-// PathInfo stores a path in its original, and fully resolved forms
-type PathInfo struct {
-	Path     string
-	Resolved string
-}
-
 // KernelInfo stores kernel details
 type KernelInfo struct {
-	Location   PathInfo
+	Path       string
 	Parameters string
+}
+
+// ImageInfo stores root filesystem image details
+type ImageInfo struct {
+	Path string
 }
 
 // CPUInfo stores host CPU details
@@ -59,8 +57,7 @@ type CPUInfo struct {
 
 // RuntimeConfigInfo stores runtime config details.
 type RuntimeConfigInfo struct {
-	Location PathInfo
-	// Note a PathInfo as it may not exist (validly)
+	Path          string
 	GlobalLogPath string
 }
 
@@ -81,7 +78,7 @@ type RuntimeVersionInfo struct {
 type HypervisorInfo struct {
 	MachineType string
 	Version     string
-	Location    PathInfo
+	Path        string
 }
 
 // ProxyInfo stores proxy details
@@ -93,16 +90,16 @@ type ProxyInfo struct {
 
 // ShimInfo stores shim details
 type ShimInfo struct {
-	Type     string
-	Version  string
-	Location PathInfo
+	Type    string
+	Version string
+	Path    string
 }
 
 // AgentInfo stores agent details
 type AgentInfo struct {
-	Type     string
-	Version  string
-	PauseBin PathInfo
+	Type         string
+	Version      string
+	PauseBinPath string
 }
 
 // DistroInfo stores host operating system distribution details.
@@ -127,7 +124,7 @@ type EnvInfo struct {
 	Meta       MetaInfo
 	Runtime    RuntimeInfo
 	Hypervisor HypervisorInfo
-	Image      PathInfo
+	Image      ImageInfo
 	Kernel     KernelInfo
 	Proxy      ProxyInfo
 	Shim       ShimInfo
@@ -150,12 +147,7 @@ func getRuntimeInfo(configFile, logFile string, config oci.RuntimeConfig) Runtim
 
 	runtimeConfig := RuntimeConfigInfo{
 		GlobalLogPath: logFile,
-		Location: PathInfo{
-			// This path is already resolved by
-			// loadConfiguration().
-			Path:     configFile,
-			Resolved: configFile,
-		},
+		Path:          configFile,
 	}
 
 	return RuntimeInfo{
@@ -240,12 +232,8 @@ func getShimInfo(config oci.RuntimeConfig) (ShimInfo, error) {
 	}
 
 	shimPath := shimConfig.Path
-	shimPathResolved, err := filepath.EvalSymlinks(shimPath)
-	if err != nil {
-		return ShimInfo{}, err
-	}
 
-	version, err := getCommandVersion(shimPathResolved)
+	version, err := getCommandVersion(shimPath)
 	if err != nil {
 		version = unknown
 	}
@@ -253,10 +241,7 @@ func getShimInfo(config oci.RuntimeConfig) (ShimInfo, error) {
 	ccShim := ShimInfo{
 		Type:    string(config.ShimType),
 		Version: version,
-		Location: PathInfo{
-			Path:     shimPath,
-			Resolved: shimPathResolved,
-		},
+		Path:    shimPath,
 	}
 
 	return ccShim, nil
@@ -269,25 +254,20 @@ func getAgentInfo(config oci.RuntimeConfig) (AgentInfo, error) {
 	}
 
 	agentBinPath := agentConfig.PauseBinPath
-	agentBinPathResolved, err := filepath.EvalSymlinks(agentBinPath)
-	if err != nil {
-		return AgentInfo{}, err
-	}
 
 	ccAgent := AgentInfo{
-		Type:    string(config.AgentType),
-		Version: unknown,
-		PauseBin: PathInfo{
-			Path:     agentBinPath,
-			Resolved: agentBinPathResolved,
-		},
+		Type:         string(config.AgentType),
+		Version:      unknown,
+		PauseBinPath: agentBinPath,
 	}
 
 	return ccAgent, nil
 }
 
-func getHypervisorInfo(config oci.RuntimeConfig, hypervisorDetails hypervisorDetails) HypervisorInfo {
-	version, err := getCommandVersion(hypervisorDetails.HypervisorPath)
+func getHypervisorInfo(config oci.RuntimeConfig) HypervisorInfo {
+	hypervisorPath := config.HypervisorConfig.HypervisorPath
+
+	version, err := getCommandVersion(hypervisorPath)
 	if err != nil {
 		version = unknown
 	}
@@ -295,10 +275,7 @@ func getHypervisorInfo(config oci.RuntimeConfig, hypervisorDetails hypervisorDet
 	return HypervisorInfo{
 		MachineType: config.HypervisorConfig.HypervisorMachineType,
 		Version:     version,
-		Location: PathInfo{
-			Path:     config.HypervisorConfig.HypervisorPath,
-			Resolved: hypervisorDetails.HypervisorPath,
-		},
+		Path:        hypervisorPath,
 	}
 }
 
@@ -306,11 +283,6 @@ func getEnvInfo(configFile, logfilePath string, config oci.RuntimeConfig) (env E
 	meta := getMetaInfo()
 
 	ccRuntime := getRuntimeInfo(configFile, logfilePath, config)
-
-	resolvedHypervisor, err := getHypervisorDetails(config)
-	if err != nil {
-		return EnvInfo{}, err
-	}
 
 	ccHost, err := getHostInfo()
 	if err != nil {
@@ -332,18 +304,14 @@ func getEnvInfo(configFile, logfilePath string, config oci.RuntimeConfig) (env E
 		return EnvInfo{}, err
 	}
 
-	hypervisor := getHypervisorInfo(config, resolvedHypervisor)
+	hypervisor := getHypervisorInfo(config)
 
-	image := PathInfo{
-		Path:     config.HypervisorConfig.ImagePath,
-		Resolved: resolvedHypervisor.ImagePath,
+	image := ImageInfo{
+		Path: config.HypervisorConfig.ImagePath,
 	}
 
 	kernel := KernelInfo{
-		Location: PathInfo{
-			Path:     config.HypervisorConfig.KernelPath,
-			Resolved: resolvedHypervisor.KernelPath,
-		},
+		Path:       config.HypervisorConfig.KernelPath,
 		Parameters: strings.Join(vc.SerializeParams(config.HypervisorConfig.KernelParams, "="), " "),
 	}
 

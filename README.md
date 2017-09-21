@@ -75,7 +75,7 @@ but can be enabled with a simple change to the [configuration](#Configuration) f
 First, to determine the configuration file path for your host run:
 
 ```bash
-$ cc-runtime cc-env | grep -A 2 'Runtime.Config.Location'
+$ cc-runtime cc-env | grep -A 1 Runtime.Config
 ```
 
 To enable the global log:

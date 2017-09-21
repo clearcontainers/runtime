@@ -102,28 +102,34 @@ type agent struct {
 	PauseRootPath string `toml:"pause_root_path"`
 }
 
-func (h hypervisor) path() string {
+func (h hypervisor) path() (string, error) {
+	p := h.Path
+
 	if h.Path == "" {
-		return defaultHypervisorPath
+		p = defaultHypervisorPath
 	}
 
-	return h.Path
+	return resolvePath(p)
 }
 
-func (h hypervisor) kernel() string {
-	if h.Kernel == "" {
-		return defaultKernelPath
+func (h hypervisor) kernel() (string, error) {
+	p := h.Kernel
+
+	if p == "" {
+		p = defaultKernelPath
 	}
 
-	return h.Kernel
+	return resolvePath(p)
 }
 
-func (h hypervisor) image() string {
-	if h.Image == "" {
-		return defaultImagePath
+func (h hypervisor) image() (string, error) {
+	p := h.Image
+
+	if p == "" {
+		p = defaultImagePath
 	}
 
-	return h.Image
+	return resolvePath(p)
 }
 
 func (h hypervisor) kernelParams() string {
@@ -172,26 +178,42 @@ func (p proxy) url() string {
 	return p.URL
 }
 
-func (s shim) path() string {
-	if s.Path == "" {
-		return defaultShimPath
+func (s shim) path() (string, error) {
+	p := s.Path
+
+	if p == "" {
+		p = defaultShimPath
 	}
 
-	return s.Path
+	return resolvePath(p)
 }
 
-func (a agent) pauseRootPath() string {
-	if a.PauseRootPath == "" {
-		return defaultPauseRootPath
+func (a agent) pauseRootPath() (string, error) {
+	p := a.PauseRootPath
+
+	if p == "" {
+		p = defaultPauseRootPath
 	}
 
-	return a.PauseRootPath
+	return resolvePath(p)
 }
 
 func newQemuHypervisorConfig(h hypervisor) (vc.HypervisorConfig, error) {
-	hypervisor := h.path()
-	kernel := h.kernel()
-	image := h.image()
+	hypervisor, err := h.path()
+	if err != nil {
+		return vc.HypervisorConfig{}, err
+	}
+
+	kernel, err := h.kernel()
+	if err != nil {
+		return vc.HypervisorConfig{}, err
+	}
+
+	image, err := h.image()
+	if err != nil {
+		return vc.HypervisorConfig{}, err
+	}
+
 	kernelParams := h.kernelParams()
 	machineType := h.machineType()
 
@@ -217,10 +239,9 @@ func newQemuHypervisorConfig(h hypervisor) (vc.HypervisorConfig, error) {
 }
 
 func newHyperstartAgentConfig(a agent) (vc.HyperConfig, error) {
-	dir := a.pauseRootPath()
-
-	if !fileExists(dir) {
-		return vc.HyperConfig{}, fmt.Errorf("Directory does not exist: %v", dir)
+	dir, err := a.pauseRootPath()
+	if err != nil {
+		return vc.HyperConfig{}, err
 	}
 
 	path := filepath.Join(dir, pauseBinRelativePath)
@@ -235,10 +256,9 @@ func newHyperstartAgentConfig(a agent) (vc.HyperConfig, error) {
 }
 
 func newCCShimConfig(s shim) (vc.CCShimConfig, error) {
-	path := s.path()
-
-	if !fileExists(path) {
-		return vc.CCShimConfig{}, fmt.Errorf("File does not exist: %v", path)
+	path, err := s.path()
+	if err != nil {
+		return vc.CCShimConfig{}, err
 	}
 
 	return vc.CCShimConfig{
@@ -312,6 +332,9 @@ func updateRuntimeConfig(configPath string, tomlConf tomlConfig, config *oci.Run
 //
 // If ignoreLogging is true, the global log will not be initialised nor
 // will this function make any log calls.
+//
+// All paths are resolved fully meaning if this function does not return an
+// error, all paths are valid at the time of the call.
 func loadConfiguration(configPath string, ignoreLogging bool) (resolvedConfigPath, logfilePath string, config oci.RuntimeConfig, err error) {
 	defaultHypervisorConfig := vc.HypervisorConfig{
 		HypervisorPath:        defaultHypervisorPath,

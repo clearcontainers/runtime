@@ -20,7 +20,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"text/tabwriter"
 	"time"
 
@@ -236,36 +235,22 @@ func getContainers(context *cli.Context) ([]fullContainerState, error) {
 
 // getHypervisorDetails returns details of the hypervisor used to host
 // the container.
-//
-// It ensures all paths are fully expanded.
 func getHypervisorDetails(runtimeConfig oci.RuntimeConfig) (hypervisorDetails, error) {
 	initialHypervisorPath := runtimeConfig.HypervisorConfig.HypervisorPath
 	initialKernelPath := runtimeConfig.HypervisorConfig.KernelPath
 	initialImagePath := runtimeConfig.HypervisorConfig.ImagePath
 
-	if initialHypervisorPath == "" {
-		return hypervisorDetails{}, fmt.Errorf("Need hypervisor path")
-	}
-
-	if initialKernelPath == "" {
-		return hypervisorDetails{}, fmt.Errorf("Need kernel path")
-	}
-
-	if initialImagePath == "" {
-		return hypervisorDetails{}, fmt.Errorf("Need image path")
-	}
-
-	hypervisorPath, err := filepath.EvalSymlinks(initialHypervisorPath)
+	hypervisorPath, err := resolvePath(initialHypervisorPath)
 	if err != nil {
 		return hypervisorDetails{}, err
 	}
 
-	kernelPath, err := filepath.EvalSymlinks(initialKernelPath)
+	kernelPath, err := resolvePath(initialKernelPath)
 	if err != nil {
 		return hypervisorDetails{}, err
 	}
 
-	imagePath, err := filepath.EvalSymlinks(initialImagePath)
+	imagePath, err := resolvePath(initialImagePath)
 	if err != nil {
 		return hypervisorDetails{}, err
 	}

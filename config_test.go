@@ -799,49 +799,145 @@ func TestNewCCShimConfig(t *testing.T) {
 }
 
 func TestHypervisorDefaults(t *testing.T) {
+	assert := assert.New(t)
+
 	h := hypervisor{}
 
-	assert.Equal(t, h.path(), defaultHypervisorPath, "default hypervisor path wrong")
-	assert.Equal(t, h.kernel(), defaultKernelPath, "default hypervisor kernel wrong")
-	assert.Equal(t, h.image(), defaultImagePath, "default hypervisor image wrong")
-	assert.Equal(t, h.kernelParams(), defaultKernelParams, "default hypervisor image wrong")
-	assert.Equal(t, h.machineType(), defaultMachineType, "default hypervisor machine type wrong")
-	assert.Equal(t, h.defaultVCPUs(), defaultVCPUCount, "default vCPU number is wrong")
-	assert.Equal(t, h.defaultMemSz(), defaultMemSize, "default memory size is wrong")
-
-	path := "/foo"
-	h.Path = path
-	assert.Equal(t, h.path(), path, "custom hypervisor path wrong")
-
-	kernel := "wibble"
-	h.Kernel = kernel
-	assert.Equal(t, h.kernel(), kernel, "custom hypervisor kernel wrong")
-
-	kernelParams := "foo=bar xyz"
-	h.KernelParams = kernelParams
-	assert.Equal(t, h.kernelParams(), kernelParams, "custom hypervisor kernel parameterms wrong")
-
-	image := "foo"
-	h.Image = image
-	assert.Equal(t, h.image(), image, "custom hypervisor image wrong")
+	assert.Equal(h.machineType(), defaultMachineType, "default hypervisor machine type wrong")
+	assert.Equal(h.defaultVCPUs(), defaultVCPUCount, "default vCPU number is wrong")
+	assert.Equal(h.defaultMemSz(), defaultMemSize, "default memory size is wrong")
 
 	machineType := "foo"
 	h.MachineType = machineType
-	assert.Equal(t, h.machineType(), machineType, "custom hypervisor machine type wrong")
+	assert.Equal(h.machineType(), machineType, "custom hypervisor machine type wrong")
 
 	// auto inferring
 	h.DefaultVCPUs = -1
-	assert.Equal(t, h.defaultVCPUs(), uint32(goruntime.NumCPU()), "default vCPU number is wrong")
+	assert.Equal(h.defaultVCPUs(), uint32(goruntime.NumCPU()), "default vCPU number is wrong")
 
 	h.DefaultVCPUs = 2
-	assert.Equal(t, h.defaultVCPUs(), uint32(2), "default vCPU number is wrong")
+	assert.Equal(h.defaultVCPUs(), uint32(2), "default vCPU number is wrong")
 
 	// qemu supports max 255
 	h.DefaultVCPUs = 8086
-	assert.Equal(t, h.defaultVCPUs(), uint32(255), "default vCPU number is wrong")
+	assert.Equal(h.defaultVCPUs(), uint32(255), "default vCPU number is wrong")
 
 	h.DefaultMemSz = 1024
-	assert.Equal(t, h.defaultMemSz(), uint32(1024), "default memory size is wrong")
+	assert.Equal(h.defaultMemSz(), uint32(1024), "default memory size is wrong")
+}
+
+func TestHypervisorDefaultsHypervisor(t *testing.T) {
+	assert := assert.New(t)
+
+	tmpdir, err := ioutil.TempDir(testDir, "")
+	assert.NoError(err)
+	defer os.RemoveAll(tmpdir)
+
+	testHypervisorPath := filepath.Join(tmpdir, "hypervisor")
+	testHypervisorLinkPath := filepath.Join(tmpdir, "hypervisor-link")
+
+	err = createEmptyFile(testHypervisorPath)
+	assert.NoError(err)
+
+	err = syscall.Symlink(testHypervisorPath, testHypervisorLinkPath)
+	assert.NoError(err)
+
+	savedHypervisorPath := defaultHypervisorPath
+
+	defer func() {
+		defaultHypervisorPath = savedHypervisorPath
+	}()
+
+	defaultHypervisorPath = testHypervisorPath
+	h := hypervisor{}
+	p, err := h.path()
+	assert.NoError(err)
+	assert.Equal(p, defaultHypervisorPath, "default hypervisor path wrong")
+
+	// test path resolution
+	defaultHypervisorPath = testHypervisorLinkPath
+	h = hypervisor{}
+	p, err = h.path()
+	assert.NoError(err)
+	assert.Equal(p, testHypervisorPath)
+}
+
+func TestHypervisorDefaultsKernel(t *testing.T) {
+	assert := assert.New(t)
+
+	tmpdir, err := ioutil.TempDir(testDir, "")
+	assert.NoError(err)
+	defer os.RemoveAll(tmpdir)
+
+	testKernelPath := filepath.Join(tmpdir, "kernel")
+	testKernelLinkPath := filepath.Join(tmpdir, "kernel-link")
+
+	err = createEmptyFile(testKernelPath)
+	assert.NoError(err)
+
+	err = syscall.Symlink(testKernelPath, testKernelLinkPath)
+	assert.NoError(err)
+
+	savedKernelPath := defaultKernelPath
+
+	defer func() {
+		defaultKernelPath = savedKernelPath
+	}()
+
+	defaultKernelPath = testKernelPath
+
+	h := hypervisor{}
+	p, err := h.kernel()
+	assert.NoError(err)
+	assert.Equal(p, defaultKernelPath, "default Kernel path wrong")
+
+	// test path resolution
+	defaultKernelPath = testKernelLinkPath
+	h = hypervisor{}
+	p, err = h.kernel()
+	assert.NoError(err)
+	assert.Equal(p, testKernelPath)
+
+	assert.Equal(h.kernelParams(), defaultKernelParams, "default hypervisor image wrong")
+	kernelParams := "foo=bar xyz"
+	h.KernelParams = kernelParams
+	assert.Equal(h.kernelParams(), kernelParams, "custom hypervisor kernel parameterms wrong")
+}
+
+func TestHypervisorDefaultsImage(t *testing.T) {
+	assert := assert.New(t)
+
+	tmpdir, err := ioutil.TempDir(testDir, "")
+	assert.NoError(err)
+	defer os.RemoveAll(tmpdir)
+
+	testImagePath := filepath.Join(tmpdir, "image")
+	testImageLinkPath := filepath.Join(tmpdir, "image-link")
+
+	err = createEmptyFile(testImagePath)
+	assert.NoError(err)
+
+	err = syscall.Symlink(testImagePath, testImageLinkPath)
+	assert.NoError(err)
+
+	savedImagePath := defaultImagePath
+
+	defer func() {
+		defaultImagePath = savedImagePath
+	}()
+
+	defaultImagePath = testImagePath
+	h := hypervisor{}
+	p, err := h.image()
+	assert.NoError(err)
+	assert.Equal(p, defaultImagePath, "default Image path wrong")
+
+	// test path resolution
+	defaultImagePath = testImageLinkPath
+	h = hypervisor{}
+	p, err = h.image()
+	assert.NoError(err)
+	assert.Equal(p, testImagePath)
 }
 
 func TestProxyDefaults(t *testing.T) {
@@ -856,23 +952,75 @@ func TestProxyDefaults(t *testing.T) {
 }
 
 func TestShimDefaults(t *testing.T) {
+	assert := assert.New(t)
+
+	tmpdir, err := ioutil.TempDir(testDir, "")
+	assert.NoError(err)
+	defer os.RemoveAll(tmpdir)
+
+	testShimPath := filepath.Join(tmpdir, "shim")
+	testShimLinkPath := filepath.Join(tmpdir, "shim-link")
+
+	err = createEmptyFile(testShimPath)
+	assert.NoError(err)
+
+	err = syscall.Symlink(testShimPath, testShimLinkPath)
+	assert.NoError(err)
+
+	savedShimPath := defaultShimPath
+
+	defer func() {
+		defaultShimPath = savedShimPath
+	}()
+
+	defaultShimPath = testShimPath
 	s := shim{}
+	p, err := s.path()
+	assert.NoError(err)
+	assert.Equal(p, defaultShimPath, "default shim path wrong")
 
-	assert.Equal(t, s.path(), defaultShimPath, "default shim path wrong")
-
-	path := "/foo/bar"
-	s.Path = path
-	assert.Equal(t, s.path(), path, "custom shim path wrong")
+	// test path resolution
+	defaultShimPath = testShimLinkPath
+	s = shim{}
+	p, err = s.path()
+	assert.NoError(err)
+	assert.Equal(p, testShimPath)
 }
 
 func TestAgentDefaults(t *testing.T) {
+	assert := assert.New(t)
+
+	tmpdir, err := ioutil.TempDir(testDir, "")
+	assert.NoError(err)
+	defer os.RemoveAll(tmpdir)
+
+	testPauseRootPath := filepath.Join(tmpdir, "pause")
+	testPauseRootLinkPath := filepath.Join(tmpdir, "pause-link")
+
+	err = os.MkdirAll(testPauseRootPath, testDirMode)
+	assert.NoError(err)
+
+	err = syscall.Symlink(testPauseRootPath, testPauseRootLinkPath)
+	assert.NoError(err)
+
+	savedPauseRootPath := defaultPauseRootPath
+
+	defer func() {
+		defaultPauseRootPath = savedPauseRootPath
+	}()
+
+	defaultPauseRootPath = testPauseRootPath
+
 	a := agent{}
+	p, err := a.pauseRootPath()
+	assert.NoError(err)
+	assert.Equal(p, defaultPauseRootPath, "default agent pause root path wrong")
 
-	assert.Equal(t, a.pauseRootPath(), defaultPauseRootPath, "default agent pause root path wrong")
-
-	path := "/foo/bar/baz"
-	a.PauseRootPath = path
-	assert.Equal(t, a.pauseRootPath(), path, "custom agent pause root path wrong")
+	// test path resolution
+	defaultPauseRootPath = testPauseRootLinkPath
+	p, err = a.pauseRootPath()
+	assert.NoError(err)
+	assert.Equal(p, testPauseRootPath, "default agent pause root path wrong")
 }
 
 func TestGetDefaultConfigFilePaths(t *testing.T) {

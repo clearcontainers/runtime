@@ -216,17 +216,18 @@ var commit = "$(COMMIT)"
 // version is the runtime version.
 var version = "$(VERSION)"
 
-const defaultHypervisorPath = "$(QEMUPATH)"
-const defaultImagePath = "$(IMAGEPATH)"
-const defaultKernelPath = "$(KERNELPATH)"
+var defaultHypervisorPath = "$(QEMUPATH)"
+var defaultImagePath = "$(IMAGEPATH)"
+var defaultKernelPath = "$(KERNELPATH)"
+var defaultPauseRootPath = "$(PAUSEROOTPATH)"
+var defaultShimPath = "$(SHIMPATH)"
+
 const defaultKernelParams = "$(KERNELPARAMS)"
 const defaultMachineType = "$(MACHINETYPE)"
-const defaultPauseRootPath = "$(PAUSEROOTPATH)"
 const defaultProxyURL = "$(PROXYURL)"
 const defaultRootDirectory = "$(PKGRUNDIR)"
 const defaultRuntimeLib = "$(PKGLIBDIR)"
 const defaultRuntimeRun = "$(PKGRUNDIR)"
-const defaultShimPath = "$(SHIMPATH)"
 const pauseBinRelativePath = "$(PAUSEBINRELPATH)"
 
 const defaultVCPUCount uint32 = $(DEFVCPUS)
