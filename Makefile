@@ -370,6 +370,10 @@ show-footer:
 	@printf "• Project home: https://github.com/clearcontainers/runtime\n\n"
 
 show-summary: show-header
+	@printf "• golang:\n"
+	@printf "\t"
+	@go version
+	@printf "\n"
 	@printf "• Summary:\n"
 	@printf "\n"
 	@printf "\tClear Containers system build         : $(cc_system_build)\n"
