@@ -83,6 +83,7 @@ type hypervisor struct {
 	DefaultMemSz          uint32 `toml:"default_memory"`
 	DisableBlockDeviceUse bool   `toml:"disable_block_device_use"`
 	MemPrealloc           bool   `toml:"enable_mem_prealloc"`
+	HugePages             bool   `toml:"enable_hugepages"`
 	Swap                  bool   `toml:"enable_swap"`
 	Debug                 bool   `toml:"enable_debug"`
 }
@@ -234,6 +235,7 @@ func newQemuHypervisorConfig(h hypervisor) (vc.HypervisorConfig, error) {
 		DefaultMemSz:          h.defaultMemSz(),
 		DisableBlockDeviceUse: h.DisableBlockDeviceUse,
 		MemPrealloc:           h.MemPrealloc,
+		HugePages:             h.HugePages,
 		Mlock:                 !h.Swap,
 		Debug:                 h.Debug,
 	}, nil
@@ -345,6 +347,7 @@ func loadConfiguration(configPath string, ignoreLogging bool) (resolvedConfigPat
 		DefaultVCPUs:          defaultVCPUCount,
 		DefaultMemSz:          defaultMemSize,
 		MemPrealloc:           defaultEnableMemPrealloc,
+		HugePages:             defaultEnableHugePages,
 		Mlock:                 !defaultEnableSwap,
 		Debug:                 defaultEnableDebug,
 	}
