@@ -151,7 +151,7 @@ func TestRunInvalidArgs(t *testing.T) {
 
 	for i, a := range args {
 		err := run(a.containerID, a.bundle, a.console, a.consoleSocket, a.pidFile, a.detach, a.runtimeConfig)
-		assert.Errorf(err, "test %d (%+v)", i, a)
+		assert.Error(err, "test %d (%+v)", i, a)
 	}
 }
 

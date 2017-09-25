@@ -648,7 +648,7 @@ func TestMainBeforeSubCommands(t *testing.T) {
 		err := beforeSubcommands(ctx)
 
 		if d.expectError {
-			assert.Errorf(err, "test %d (%+v)", i, d)
+			assert.Error(err, "test %d (%+v)", i, d)
 		} else {
 			assert.NoError(err, "test %d (%+v)", i, d)
 		}
