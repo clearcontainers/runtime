@@ -20,6 +20,7 @@
 
 script_name=${0##*/}
 runtime=$(which "cc-runtime")
+script_version="@VERSION@ (commit @COMMIT@)"
 
 die()
 {
@@ -38,6 +39,17 @@ heading()
 {
 	local name="$*"
 	echo -e "\n# $name\n"
+}
+
+subheading()
+{
+	local name="$*"
+	echo -e "\n## $name\n"
+}
+
+separator()
+{
+	echo -e '\n---\n'
 }
 
 have_cmd()
@@ -69,7 +81,7 @@ run_cmd_and_show_quoted_output()
 {
 	local cmd="$*"
 
-	msg "Output of \`$cmd\`:"
+	msg "Output of \"\`$cmd\`\":"
 	output=$(eval "$cmd" 2>&1)
 	show_quoted_text "$output"
 }
@@ -86,7 +98,8 @@ show_runtime_configs()
 		die "failed to check config files - runtime is probably too old ($version)"
 	fi
 
-	msg "Runtime default config files"
+	subheading "Runtime default config files"
+
 	show_quoted_text "$configs"
 
 	# add in the standard defaults for good measure "just in case"
@@ -96,7 +109,7 @@ show_runtime_configs()
 	# create a unique list of config files
 	configs=$(echo $configs|tr ' ' '\n'|sort -u)
 
-	msg "Runtime config file contents"
+	subheading "Runtime config file contents"
 
 	for config in $configs; do
 		if [ -e "$config" ]; then
@@ -105,6 +118,8 @@ show_runtime_configs()
 			msg "Config file \`$config\` not found"
 		fi
 	done
+
+	separator
 }
 
 show_runtime_log_details()
@@ -116,8 +131,10 @@ show_runtime_log_details()
 		if [ -e "$global_log" ]; then
 			local pattern="("
 			pattern+="\<warn\>"
+			pattern+="\<warning\>"
 			pattern+="|\<error\>"
 			pattern+="|\<fail\>"
+			pattern+="|\<failed\>"
 			pattern+="|\<fatal\>"
 			pattern+="|\<impossible\>"
 			pattern+="|\<missing\>"
@@ -134,20 +151,21 @@ show_runtime_log_details()
 				msg "Recent problems found in global log \`$global_log\`:"
 				show_quoted_text "$problems"
 			else
-				msg "No recent problems found in global log \`$global_log\`:"
+				msg "No recent problems found in global log \`$global_log\`."
 			fi
 		else
-			msg "Global log \`$global_log\` does not exist"
+			msg "Global log \`$global_log\` does not exist."
 		fi
 
 	else
-		msg "Global log not enabled"
+		msg "Global log not enabled."
 	fi
+
+	separator
 }
 
 show_package_versions()
 {
-
 	heading "Packages"
 
 	local pattern="("
@@ -179,6 +197,8 @@ show_package_versions()
 	if have_cmd "rpm"; then
 		run_cmd_and_show_quoted_output "rpm -qa|egrep \"$pattern\""
 	fi
+
+	separator
 }
 
 show_container_mgr_details()
@@ -186,20 +206,37 @@ show_container_mgr_details()
 	heading "Container manager details"
 
 	if have_cmd "docker"; then
+		subheading "Docker"
 		run_cmd_and_show_quoted_output "docker info"
 	fi
 
 	if have_cmd "kubectl"; then
+		subheading "Kubernetes"
 		run_cmd_and_show_quoted_output "kubectl config view"
 	fi
+
+	separator
 }
 
 show_meta()
 {
-	heading "Meta"
+	heading "Meta details"
 
 	date=$(date '+%Y-%m-%d.%H:%M:%S.%N')
-	msg "Running \`$script_name\` at \`$date\`"
+	msg "Running \`$script_name\` version \`$script_version\` at \`$date\`."
+
+	separator
+}
+
+show_runtime()
+{
+	msg "Runtime is \`$runtime\`."
+
+	cmd="cc-env"
+	heading "\`$cmd\`"
+	run_cmd_and_show_quoted_output "$runtime $cmd"
+
+	separator
 }
 
 main()
@@ -207,13 +244,7 @@ main()
 	[ $(id -u) -eq 0 ] || die "Need to run as root"
 
 	show_meta
-
-	msg "Runtime is \`$runtime\`"
-
-	cmd="cc-env"
-	heading "\`$cmd\`"
-	run_cmd_and_show_quoted_output "$runtime $cmd"
-
+	show_runtime
 	show_runtime_configs
 	show_runtime_log_details
 	show_container_mgr_details

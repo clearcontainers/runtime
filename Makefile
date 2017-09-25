@@ -123,7 +123,6 @@ COMMIT := $(if $(shell git status --porcelain --untracked-files=no),${COMMIT_NO}
 
 CONFIG_FILE = configuration.toml
 CONFIG = config/$(CONFIG_FILE)
-CONFIG_IN = $(CONFIG).in
 
 DESTTARGET := $(abspath $(DESTBINDIR)/$(TARGET))
 
@@ -144,8 +143,11 @@ PAUSEDESTDIR := $(abspath $(DESTDIR)/$(PAUSEROOTPATH)/$(PAUSEBINRELPATH))
 BASH_COMPLETIONS := data/completions/bash/cc-runtime
 BASH_COMPLETIONSDIR := $(DESTSHAREDIR)/bash-completion/completions
 
-SCRIPTS := data/cc-collect-data.sh
+COLLECT_SCRIPT = data/cc-collect-data.sh
+SCRIPTS += $(COLLECT_SCRIPT)
 SCRIPTS_DIR := $(abspath $(DESTBINDIR))
+
+GENERATED_FILES += $(COLLECT_SCRIPT)
 
 # list of variables the user may wish to override
 USER_VARS += BASH_COMPLETIONSDIR
@@ -249,12 +251,12 @@ endef
 export GENERATED_CODE
 
 
-GENERATED_FILES += config-generated.go
+GENERATED_GO_FILES += config-generated.go
 
 config-generated.go: Makefile VERSION
 	$(QUIET_GENERATE)echo "$$GENERATED_CODE" >$@
 
-$(TARGET): $(EXTRA_DEPS) $(SOURCES) $(GENERATED_FILES) Makefile | show-summary
+$(TARGET): $(EXTRA_DEPS) $(SOURCES) $(GENERATED_GO_FILES) $(GENERATED_FILES) Makefile | show-summary
 	$(QUIET_BUILD)go build -i -o $@ .
 
 pause: pause/pause.go
@@ -276,8 +278,12 @@ pause: pause/pause.go
 $(TARGET).coverage: $(SOURCES) $(GENERATED_FILES) Makefile
 	$(QUIET_TEST)go test -o $@ -covermode count
 
-$(CONFIG): $(CONFIG_IN) $(GENERATED_FILES)
+GENERATED_FILES += $(CONFIG)
+
+$(GENERATED_FILES): %: %.in Makefile VERSION
 	$(QUIET_CONFIG)$(SED) \
+		-e "s|@COMMIT@|$(COMMIT)|g" \
+		-e "s|@VERSION@|$(VERSION)|g" \
 		-e "s|@CONFIG_IN@|$(CONFIG_IN)|g" \
 		-e "s|@IMAGEPATH@|$(IMAGEPATH)|g" \
 		-e "s|@KERNELPATH@|$(KERNELPATH)|g" \
@@ -326,7 +332,7 @@ install-scripts:
 	$(QUIET_INST)install --mode 0755 -D $(SCRIPTS) $(SCRIPTS_DIR)
 
 clean:
-	$(QUIET_CLEAN)rm -f $(TARGET) $(CONFIG) $(GENERATED_FILES)
+	$(QUIET_CLEAN)rm -f $(TARGET) $(CONFIG) $(GENERATED_GO_FILES) $(GENERATED_FILES)
 	$(QUIET_CLEAN)rm -f pause/pause
 
 show-usage: show-header
