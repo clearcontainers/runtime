@@ -4,7 +4,14 @@ script_dir=$(cd `dirname $0`; pwd)
 root_dir=`dirname $script_dir`
 
 test_packages="."
-go_test_flags="-v -race -timeout 5s"
+
+# Set default test run timeout value.
+#
+# CC_GO_TEST_TIMEOUT can be set to any value accepted by
+# "go test -timeout X"
+timeout_value=${CC_GO_TEST_TIMEOUT:-10s}
+
+go_test_flags="-v -race -timeout $timeout_value"
 cov_file="profile.cov"
 tmp_cov_file="profile_tmp.cov"
 
