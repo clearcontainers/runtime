@@ -108,13 +108,7 @@ func findAnchoredString(haystack, needle string) bool {
 	// Ensure the search string is anchored
 	pattern := regexp.MustCompile(`\b` + needle + `\b`)
 
-	matched := pattern.MatchString(haystack)
-
-	if matched {
-		return true
-	}
-
-	return false
+	return pattern.MatchString(haystack)
 }
 
 func getCPUFlags(cpuinfo string) string {
@@ -140,11 +134,7 @@ func haveKernelModule(module string) bool {
 	// Now, check if the module is unloaded, but available
 	cmd := exec.Command(modInfoCmd, module)
 	err := cmd.Run()
-	if err == nil {
-		return true
-	}
-
-	return false
+	return err == nil
 }
 
 func checkCPU(tag, cpuinfo string, attribs map[string]string) error {
@@ -154,11 +144,10 @@ func checkCPU(tag, cpuinfo string, attribs map[string]string) error {
 
 	for attrib, desc := range attribs {
 		found := findAnchoredString(cpuinfo, attrib)
-		if found {
-			ccLog.Infof("Found CPU %v %q (%s)", tag, desc, attrib)
-		} else {
+		if !found {
 			return fmt.Errorf("CPU does not have required %v: %q (%s)", tag, desc, attrib)
 		}
+		ccLog.Infof("Found CPU %v %q (%s)", tag, desc, attrib)
 	}
 
 	return nil
@@ -193,9 +182,7 @@ func checkKernelModules(modules map[string]kernelModule) error {
 
 			value = strings.TrimRight(value, "\n\r")
 
-			if value == expected {
-				ccLog.Infof("Kernel module %q parameter %q has correct value", details.desc, param)
-			} else {
+			if value != expected {
 				msg := fmt.Sprintf("kernel module %q parameter %q has value %q (expected %q)", details.desc, param, value, expected)
 
 				// this option is not required when
@@ -207,6 +194,8 @@ func checkKernelModules(modules map[string]kernelModule) error {
 
 				return errors.New(msg)
 			}
+
+			ccLog.Infof("Kernel module %q parameter %q has correct value", details.desc, param)
 		}
 	}
 

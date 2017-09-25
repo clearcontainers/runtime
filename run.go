@@ -95,30 +95,30 @@ func run(containerID, bundle, console, consoleSocket, pidFile string, detach boo
 		return err
 	}
 
-	if !detach {
-		containers := pod.GetAllContainers()
-		if len(containers) == 0 {
-			return fmt.Errorf("There are no containers running in the pod: %s", pod.ID())
-		}
-
-		p, err := os.FindProcess(containers[0].GetPid())
-		if err != nil {
-			return err
-		}
-
-		ps, err := p.Wait()
-		if err != nil {
-			return fmt.Errorf("Process state %s: %s", ps.String(), err)
-		}
-
-		// delete container's resources
-		if err := delete(pod.ID(), true); err != nil {
-			return err
-		}
-
-		//runtime should forward container exit code to the system
-		return cli.NewExitError("", ps.Sys().(syscall.WaitStatus).ExitStatus())
+	if detach {
+		return nil
 	}
 
-	return nil
+	containers := pod.GetAllContainers()
+	if len(containers) == 0 {
+		return fmt.Errorf("There are no containers running in the pod: %s", pod.ID())
+	}
+
+	p, err := os.FindProcess(containers[0].GetPid())
+	if err != nil {
+		return err
+	}
+
+	ps, err := p.Wait()
+	if err != nil {
+		return fmt.Errorf("Process state %s: %s", ps.String(), err)
+	}
+
+	// delete container's resources
+	if err := delete(pod.ID(), true); err != nil {
+		return err
+	}
+
+	//runtime should forward container exit code to the system
+	return cli.NewExitError("", ps.Sys().(syscall.WaitStatus).ExitStatus())
 }
