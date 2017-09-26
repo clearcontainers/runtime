@@ -425,13 +425,11 @@ func getDefaultConfigFile() (string, error) {
 
 	for _, file := range getDefaultConfigFilePaths() {
 		resolved, err := resolvePath(file)
-		if err != nil {
-			s := fmt.Sprintf("config file %q unresolvable: %v", file, err)
-			errs = append(errs, s)
-			continue
+		if err == nil {
+			return resolved, nil
 		}
-
-		return resolved, nil
+		s := fmt.Sprintf("config file %q unresolvable: %v", file, err)
+		errs = append(errs, s)
 	}
 
 	return "", errors.New(strings.Join(errs, ", "))

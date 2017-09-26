@@ -242,21 +242,21 @@ func execute(context *cli.Context) error {
 		return err
 	}
 
-	if !params.detach {
-		p, err := os.FindProcess(process.Pid)
-		if err != nil {
-			return err
-		}
-
-		ps, err := p.Wait()
-		if err != nil {
-			return fmt.Errorf("Process state %s, container info %+v: %v",
-				ps.String(), status, err)
-		}
-
-		// Exit code has to be forwarded in this case.
-		return cli.NewExitError("", ps.Sys().(syscall.WaitStatus).ExitStatus())
+	if params.detach {
+		return nil
 	}
 
-	return nil
+	p, err := os.FindProcess(process.Pid)
+	if err != nil {
+		return err
+	}
+
+	ps, err := p.Wait()
+	if err != nil {
+		return fmt.Errorf("Process state %s, container info %+v: %v",
+			ps.String(), status, err)
+	}
+
+	// Exit code has to be forwarded in this case.
+	return cli.NewExitError("", ps.Sys().(syscall.WaitStatus).ExitStatus())
 }
