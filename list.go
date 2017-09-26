@@ -17,7 +17,6 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"text/tabwriter"
@@ -186,16 +185,6 @@ func (f *formatJSON) Write(state []fullContainerState, showAll bool, file *os.Fi
 }
 
 func getContainers(context *cli.Context) ([]fullContainerState, error) {
-	runtimeConfig, ok := context.App.Metadata["runtimeConfig"].(oci.RuntimeConfig)
-	if !ok {
-		return nil, errors.New("invalid runtime config")
-	}
-
-	hypervisorDetails, err := getHypervisorDetails(runtimeConfig)
-	if err != nil {
-		return nil, err
-	}
-
 	podList, err := vci.ListPod()
 	if err != nil {
 		return nil, err
@@ -207,6 +196,12 @@ func getContainers(context *cli.Context) ([]fullContainerState, error) {
 		if len(pod.ContainersStatus) == 0 {
 			// ignore empty pods
 			continue
+		}
+
+		hypervisorDetails := hypervisorDetails{
+			HypervisorPath: pod.HypervisorConfig.HypervisorPath,
+			ImagePath:      pod.HypervisorConfig.ImagePath,
+			KernelPath:     pod.HypervisorConfig.KernelPath,
 		}
 
 		for _, container := range pod.ContainersStatus {
@@ -231,33 +226,4 @@ func getContainers(context *cli.Context) ([]fullContainerState, error) {
 	}
 
 	return s, nil
-}
-
-// getHypervisorDetails returns details of the hypervisor used to host
-// the container.
-func getHypervisorDetails(runtimeConfig oci.RuntimeConfig) (hypervisorDetails, error) {
-	initialHypervisorPath := runtimeConfig.HypervisorConfig.HypervisorPath
-	initialKernelPath := runtimeConfig.HypervisorConfig.KernelPath
-	initialImagePath := runtimeConfig.HypervisorConfig.ImagePath
-
-	hypervisorPath, err := resolvePath(initialHypervisorPath)
-	if err != nil {
-		return hypervisorDetails{}, err
-	}
-
-	kernelPath, err := resolvePath(initialKernelPath)
-	if err != nil {
-		return hypervisorDetails{}, err
-	}
-
-	imagePath, err := resolvePath(initialImagePath)
-	if err != nil {
-		return hypervisorDetails{}, err
-	}
-
-	return hypervisorDetails{
-		HypervisorPath: hypervisorPath,
-		KernelPath:     kernelPath,
-		ImagePath:      imagePath,
-	}, nil
 }
