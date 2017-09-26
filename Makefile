@@ -145,6 +145,7 @@ BASH_COMPLETIONSDIR := $(DESTSHAREDIR)/bash-completion/completions
 
 COLLECT_SCRIPT = data/cc-collect-data.sh
 SCRIPTS += $(COLLECT_SCRIPT)
+SCRIPTS += data/cc-find-stale-containers.sh
 SCRIPTS_DIR := $(abspath $(DESTBINDIR))
 
 GENERATED_FILES += $(COLLECT_SCRIPT)
