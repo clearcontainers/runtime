@@ -24,7 +24,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 
@@ -97,67 +96,6 @@ var testStatuses = []fullContainerState{
 // Implement the io.Writer interface
 func (w *TestFileWriter) Write(bytes []byte) (n int, err error) {
 	return w.File.Write(bytes)
-}
-
-func TestListGetHypervisorDetailsWithSymLinks(t *testing.T) {
-	tmpDir, err := ioutil.TempDir(testDir, "hypervisor-details-")
-	if err != nil {
-		t.Error(err)
-	}
-
-	kernel := path.Join(tmpDir, "kernel")
-	image := path.Join(tmpDir, "image")
-	hypervisor := path.Join(tmpDir, "image")
-
-	kernelLink := path.Join(tmpDir, "link-to-kernel")
-	imageLink := path.Join(tmpDir, "link-to-image")
-	hypervisorLink := path.Join(tmpDir, "link-to-hypervisor")
-
-	type testData struct {
-		file    string
-		symLink string
-	}
-
-	for _, d := range []testData{
-		{kernel, kernelLink},
-		{image, imageLink},
-		{hypervisor, hypervisorLink},
-	} {
-		err = createEmptyFile(d.file)
-		if err != nil {
-			t.Error(err)
-		}
-
-		err = syscall.Symlink(d.file, d.symLink)
-		if err != nil {
-			t.Error(err)
-		}
-	}
-
-	hypervisorConfig := vc.HypervisorConfig{
-		KernelPath:     kernelLink,
-		ImagePath:      imageLink,
-		HypervisorPath: hypervisorLink,
-	}
-
-	runtimeConfig := oci.RuntimeConfig{
-		HypervisorConfig: hypervisorConfig,
-	}
-
-	expected := hypervisorDetails{
-		KernelPath:     kernel,
-		ImagePath:      image,
-		HypervisorPath: hypervisor,
-	}
-
-	result, err := getHypervisorDetails(runtimeConfig)
-	if err != nil {
-		t.Error(err)
-	}
-
-	assert.Equal(t, result, expected, "hypervisor configs")
-
-	os.RemoveAll(tmpDir)
 }
 
 func formatListDataAsBytes(formatter formatState, state []fullContainerState, showAll bool) (bytes []byte, err error) {
@@ -423,106 +361,6 @@ func TestListGetContainersListPodFail(t *testing.T) {
 	_, err = getContainers(ctx)
 	assert.Error(err)
 	assert.True(vcMock.IsMockError(err))
-}
-
-func TestListGetContainersNoHypervisorDetails(t *testing.T) {
-	assert := assert.New(t)
-
-	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
-		// No pre-existing pods
-		return []vc.PodStatus{}, nil
-	}
-
-	defer func() {
-		testingImpl.ListPodFunc = nil
-	}()
-
-	tmpdir, err := ioutil.TempDir(testDir, "")
-	assert.NoError(err)
-	defer os.RemoveAll(tmpdir)
-
-	app := cli.NewApp()
-	ctx := cli.NewContext(app, nil, nil)
-	app.Name = "foo"
-
-	runtimeConfig, err := newTestRuntimeConfig(tmpdir, testConsole, true)
-	assert.NoError(err)
-
-	invalidRuntimeConfig := runtimeConfig
-
-	// remove required element
-	invalidRuntimeConfig.HypervisorConfig = vc.HypervisorConfig{}
-
-	ctx.App.Metadata = map[string]interface{}{
-		"runtimeConfig": invalidRuntimeConfig,
-	}
-
-	_, err = getContainers(ctx)
-	// invalid config provided
-	assert.Error(err)
-	assert.False(vcMock.IsMockError(err))
-
-	// valid config
-	ctx.App.Metadata["runtimeConfig"] = runtimeConfig
-
-	_, err = getContainers(ctx)
-	assert.NoError(err)
-}
-
-func TestListGetHypervisorDetailsMissingDetails(t *testing.T) {
-	assert := assert.New(t)
-
-	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
-		// No pre-existing pods
-		return []vc.PodStatus{}, nil
-	}
-
-	defer func() {
-		testingImpl.ListPodFunc = nil
-	}()
-
-	tmpdir, err := ioutil.TempDir(testDir, "")
-	assert.NoError(err)
-	defer os.RemoveAll(tmpdir)
-
-	app := cli.NewApp()
-	ctx := cli.NewContext(app, nil, nil)
-	app.Name = "foo"
-
-	runtimeConfig, err := newTestRuntimeConfig(tmpdir, testConsole, true)
-	assert.NoError(err)
-
-	ctx.App.Metadata = map[string]interface{}{}
-
-	invalidRuntimeConfig := runtimeConfig
-
-	// remove required element
-	invalidRuntimeConfig.HypervisorConfig.HypervisorPath = ""
-	ctx.App.Metadata["runtimeConfig"] = invalidRuntimeConfig
-
-	_, err = getContainers(ctx)
-	assert.Error(err)
-	assert.False(vcMock.IsMockError(err))
-
-	invalidRuntimeConfig = runtimeConfig
-
-	// remove required element
-	invalidRuntimeConfig.HypervisorConfig.ImagePath = ""
-	ctx.App.Metadata["runtimeConfig"] = invalidRuntimeConfig
-
-	_, err = getContainers(ctx)
-	assert.Error(err)
-	assert.False(vcMock.IsMockError(err))
-
-	invalidRuntimeConfig = runtimeConfig
-
-	// remove required element
-	invalidRuntimeConfig.HypervisorConfig.KernelPath = ""
-	ctx.App.Metadata["runtimeConfig"] = invalidRuntimeConfig
-
-	_, err = getContainers(ctx)
-	assert.Error(err)
-	assert.False(vcMock.IsMockError(err))
 }
 
 func TestListGetContainers(t *testing.T) {
@@ -804,4 +642,99 @@ func TestListCLIFunctionQuiet(t *testing.T) {
 
 	trimmed := strings.TrimSpace(text)
 	assert.Equal(testPodID, trimmed)
+}
+
+func TestListGetContainersWithNewAndOldAssets(t *testing.T) {
+	assert := assert.New(t)
+
+	pod1 := &vcMock.Pod{
+		MockID: testPodID,
+	}
+
+	testPodID2 := strings.Replace(testPodID, "9", "1", -1)
+	assert.NotNil(testPodID2)
+
+	pod2 := &vcMock.Pod{
+		MockID: testPodID2,
+	}
+
+	pod1Path := "/this/is/path/1"
+	pod2Path := "/i/am/called/path/number/2"
+
+	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
+		return []vc.PodStatus{
+			{
+				ID: pod1.ID(),
+				ContainersStatus: []vc.ContainerStatus{
+					{
+						ID:          pod1.ID(),
+						Annotations: map[string]string{},
+					},
+				},
+				HypervisorConfig: vc.HypervisorConfig{
+					KernelPath:     path.Join(pod1Path, "kernel"),
+					ImagePath:      path.Join(pod1Path, "image"),
+					HypervisorPath: path.Join(pod1Path, "hypervisor"),
+				},
+			},
+			{
+				ID: pod2.ID(),
+				ContainersStatus: []vc.ContainerStatus{
+					{
+						ID:          pod2.ID(),
+						Annotations: map[string]string{},
+					},
+				},
+				HypervisorConfig: vc.HypervisorConfig{
+					KernelPath:     path.Join(pod2Path, "kernel"),
+					ImagePath:      path.Join(pod2Path, "image"),
+					HypervisorPath: path.Join(pod2Path, "hypervisor"),
+				},
+			},
+		}, nil
+	}
+
+	defer func() {
+		testingImpl.ListPodFunc = nil
+	}()
+
+	tmpdir, err := ioutil.TempDir(testDir, "")
+	assert.NoError(err)
+	defer os.RemoveAll(tmpdir)
+
+	app := cli.NewApp()
+	ctx := cli.NewContext(app, nil, nil)
+	app.Name = "foo"
+
+	runtimeConfig, err := newTestRuntimeConfig(tmpdir, testConsole, true)
+	assert.NoError(err)
+
+	ctx.App.Metadata = map[string]interface{}{
+		"runtimeConfig": runtimeConfig,
+	}
+
+	state, err := getContainers(ctx)
+	assert.NoError(err)
+
+	seenPath1 := false
+	seenPath2 := false
+
+	for _, s := range state {
+		if s.ID == testPodID {
+			for _, p := range []string{s.HypervisorPath, s.ImagePath, s.KernelPath} {
+				assert.True(strings.HasPrefix(p, pod1Path))
+
+			}
+			seenPath1 = true
+		} else if s.ID == testPodID2 {
+			for _, p := range []string{s.HypervisorPath, s.ImagePath, s.KernelPath} {
+				assert.True(strings.HasPrefix(p, pod2Path))
+
+			}
+			seenPath2 = true
+		}
+	}
+
+	assert.True(seenPath1)
+	assert.True(seenPath2)
 }
