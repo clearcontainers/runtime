@@ -1027,7 +1027,7 @@ func TestMainCreateRuntime(t *testing.T) {
 
 	// override sub-commands
 	runtimeCommands = []cli.Command{
-		cli.Command{
+		{
 			Name: cmd,
 			Action: func(context *cli.Context) error {
 				return errors.New(msg)
@@ -1082,7 +1082,6 @@ func TestMainFatalWriter(t *testing.T) {
 
 	const cmd = "foo"
 	const msg = "moo FAILURE"
-	exitStatus := 0
 
 	// create buffer to save logger output
 	buf := &bytes.Buffer{}
@@ -1098,11 +1097,11 @@ func TestMainFatalWriter(t *testing.T) {
 	// save all output
 	ccLog.Out = buf
 
-	cli.OsExiter = func(status int) { exitStatus = status }
+	cli.OsExiter = func(status int) {}
 
 	// override sub-commands
 	runtimeCommands = []cli.Command{
-		cli.Command{
+		{
 			Name: cmd,
 			Action: func(context *cli.Context) error {
 				return cli.NewExitError(msg, 42)

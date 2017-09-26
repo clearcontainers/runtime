@@ -81,7 +81,9 @@ go vet $go_packages
 
 cmd="gofmt -s -d -l"
 echo "Running gofmt..."
-diff=$(find . -not -wholename '*/vendor/*' -name '*.go' -wholename './pause/*' | \
+
+# Note: ignore git directory in case any refs end in ".go" too.
+diff=$(find . -not -wholename '*/vendor/*' -not -wholename '*/.git/*' -name '*.go' | \
 	xargs $cmd)
 if [ -n "$diff" -a $(echo "$diff" | wc -l) -ne 0 ]
 then
