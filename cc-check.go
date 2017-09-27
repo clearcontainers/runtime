@@ -205,6 +205,11 @@ func checkKernelModules(modules map[string]kernelModule) (count uint32, err erro
 					continue
 				}
 
+				if param == "nested" {
+					ccLog.Warn(msg)
+					continue
+				}
+
 				ccLog.Error(msg)
 				count++
 			}
