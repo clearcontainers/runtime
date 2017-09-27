@@ -22,7 +22,6 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -156,6 +155,7 @@ func TestCheckCheckCPUFlags(t *testing.T) {
 		cpuflags    string
 		required    map[string]string
 		expectError bool
+		expectCount uint32
 	}
 
 	data := []testData{
@@ -163,6 +163,7 @@ func TestCheckCheckCPUFlags(t *testing.T) {
 			"",
 			map[string]string{},
 			true,
+			0,
 		},
 		{
 			"",
@@ -170,6 +171,7 @@ func TestCheckCheckCPUFlags(t *testing.T) {
 				"a": "A flag",
 			},
 			true,
+			0,
 		},
 		{
 			"",
@@ -178,6 +180,7 @@ func TestCheckCheckCPUFlags(t *testing.T) {
 				"b": "B flag",
 			},
 			true,
+			0,
 		},
 		{
 			"a b c",
@@ -185,16 +188,29 @@ func TestCheckCheckCPUFlags(t *testing.T) {
 				"b": "B flag",
 			},
 			false,
+			0,
+		},
+		{
+			"a b c",
+			map[string]string{
+				"x": "X flag",
+				"y": "Y flag",
+				"z": "Z flag",
+			},
+			false,
+			3,
 		},
 	}
 
 	for _, d := range data {
-		err := checkCPUFlags(d.cpuflags, d.required)
+		count, err := checkCPUFlags(d.cpuflags, d.required)
 		if d.expectError {
-			assert.Error(err)
+			assert.Error(err, "%+v", d)
 		} else {
-			assert.NoError(err)
+			assert.NoError(err, "%+v", d)
 		}
+
+		assert.Equal(d.expectCount, count, "%+v", d)
 	}
 }
 
@@ -205,6 +221,7 @@ func TestCheckCheckCPUAttribs(t *testing.T) {
 		cpuinfo     string
 		required    map[string]string
 		expectError bool
+		expectCount uint32
 	}
 
 	data := []testData{
@@ -212,6 +229,7 @@ func TestCheckCheckCPUAttribs(t *testing.T) {
 			"",
 			map[string]string{},
 			true,
+			0,
 		},
 		{
 			"",
@@ -219,6 +237,7 @@ func TestCheckCheckCPUAttribs(t *testing.T) {
 				"a": "",
 			},
 			true,
+			0,
 		},
 		{
 			"a: b",
@@ -226,6 +245,7 @@ func TestCheckCheckCPUAttribs(t *testing.T) {
 				"b": "B attribute",
 			},
 			false,
+			0,
 		},
 		{
 			"a: b\nc: d\ne: f",
@@ -233,6 +253,7 @@ func TestCheckCheckCPUAttribs(t *testing.T) {
 				"b": "B attribute",
 			},
 			false,
+			0,
 		},
 		{
 			"a: b\n",
@@ -241,7 +262,8 @@ func TestCheckCheckCPUAttribs(t *testing.T) {
 				"c": "C attribute",
 				"d": "D attribute",
 			},
-			true,
+			false,
+			2,
 		},
 		{
 			"a: b\nc: d\ne: f",
@@ -251,16 +273,19 @@ func TestCheckCheckCPUAttribs(t *testing.T) {
 				"f": "F attribute",
 			},
 			false,
+			0,
 		},
 	}
 
 	for _, d := range data {
-		err := checkCPUAttribs(d.cpuinfo, d.required)
+		count, err := checkCPUAttribs(d.cpuinfo, d.required)
 		if d.expectError {
-			assert.Error(err)
+			assert.Error(err, "%+v", d)
 		} else {
-			assert.NoError(err)
+			assert.NoError(err, "%+v", d)
 		}
+
+		assert.Equal(d.expectCount, count, "%+v", d)
 	}
 }
 
@@ -356,13 +381,15 @@ func TestCheckCheckKernelModules(t *testing.T) {
 		},
 	}
 
-	err = checkKernelModules(map[string]kernelModule{})
+	count, err := checkKernelModules(map[string]kernelModule{})
 	// No required modules means no error
 	assert.NoError(err)
+	assert.Equal(count, uint32(0))
 
-	err = checkKernelModules(testData)
+	count, err = checkKernelModules(testData)
+	assert.NoError(err)
 	// No modules exist
-	assert.Error(err)
+	assert.Equal(count, uint32(2))
 
 	for module, details := range testData {
 		path := filepath.Join(sysModuleDir, module)
@@ -386,8 +413,9 @@ func TestCheckCheckKernelModules(t *testing.T) {
 		}
 	}
 
-	err = checkKernelModules(testData)
+	count, err = checkKernelModules(testData)
 	assert.NoError(err)
+	assert.Equal(count, uint32(0))
 }
 
 func TestCheckCheckKernelModulesNoUnrestrictedGuest(t *testing.T) {
@@ -440,7 +468,7 @@ func TestCheckCheckKernelModulesNoUnrestrictedGuest(t *testing.T) {
 	vendor := "GenuineIntel"
 	flags := "vmx lm sse4_1"
 
-	err = checkKernelModules(requiredModules)
+	_, err = checkKernelModules(requiredModules)
 	// no cpuInfoFile yet
 	assert.Error(err)
 
@@ -449,11 +477,11 @@ func TestCheckCheckKernelModulesNoUnrestrictedGuest(t *testing.T) {
 
 	createModules(assert, cpuInfoFile, actualModuleData)
 
-	err = checkKernelModules(requiredModules)
+	count, err := checkKernelModules(requiredModules)
 
+	assert.NoError(err)
 	// fails due to unrestricted_guest not being available
-	assert.Error(err)
-	assert.True(strings.Contains(err.Error(), "unrestricted_guest"))
+	assert.Equal(count, uint32(1))
 
 	// pretend test is running under a hypervisor
 	flags += " hypervisor"
@@ -473,10 +501,11 @@ func TestCheckCheckKernelModulesNoUnrestrictedGuest(t *testing.T) {
 
 	ccLog.Out = buf
 
-	err = checkKernelModules(requiredModules)
+	count, err = checkKernelModules(requiredModules)
 
 	// no error now because running under a hypervisor
 	assert.NoError(err)
+	assert.Equal(count, uint32(0))
 
 	re := regexp.MustCompile(`\bwarning\b.*\bunrestricted_guest\b`)
 	matches := re.FindAllStringSubmatch(buf.String(), -1)
@@ -530,7 +559,7 @@ func TestCheckCheckKernelModulesUnreadableFile(t *testing.T) {
 	err = os.Chmod(modParamFile, 0000)
 	assert.NoError(err)
 
-	err = checkKernelModules(testData)
+	_, err = checkKernelModules(testData)
 	assert.Error(err)
 }
 
@@ -573,8 +602,9 @@ func TestCheckCheckKernelModulesInvalidFileContents(t *testing.T) {
 	err = createFile(modParamFile, "burp")
 	assert.NoError(err)
 
-	err = checkKernelModules(testData)
-	assert.Error(err)
+	count, err := checkKernelModules(testData)
+	assert.NoError(err)
+	assert.Equal(count, uint32(1))
 }
 
 func createModules(assert *assert.Assertions, cpuInfoFile string, moduleData []testModuleData) {
