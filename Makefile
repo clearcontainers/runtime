@@ -123,6 +123,7 @@ COMMIT := $(if $(shell git status --porcelain --untracked-files=no),${COMMIT_NO}
 
 CONFIG_FILE = configuration.toml
 CONFIG = config/$(CONFIG_FILE)
+CONFIG_IN = $(CONFIG).in
 
 DESTTARGET := $(abspath $(DESTBINDIR)/$(TARGET))
 
