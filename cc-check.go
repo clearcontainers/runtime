@@ -15,7 +15,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"os/exec"
 	"path/filepath"
@@ -38,6 +37,7 @@ const (
 	moduleParamDir = "parameters"
 	cpuFlagsTag    = "flags"
 	successMessage = "System is capable of running " + project
+	failMessage    = "System is not capable of running " + project
 )
 
 // variables rather than consts to allow tests to modify them
@@ -83,7 +83,7 @@ var requiredKernelModules = map[string]kernelModule{
 	},
 }
 
-// return details of the first CPU
+// getCPUInfo returns details of the first CPU
 func getCPUInfo(cpuInfoFile string) (string, error) {
 	text, err := getFileContents(cpuInfoFile)
 	if err != nil {
@@ -137,38 +137,51 @@ func haveKernelModule(module string) bool {
 	return err == nil
 }
 
-func checkCPU(tag, cpuinfo string, attribs map[string]string) error {
+// checkCPU checks all required CPU attributes modules and returns a count of
+// the number of CPU attribute errors (all of which are logged by this
+// function). Only fatal errors result in an error return.
+func checkCPU(tag, cpuinfo string, attribs map[string]string) (count uint32, err error) {
 	if cpuinfo == "" {
-		return fmt.Errorf("Need cpuinfo")
+		return 0, fmt.Errorf("Need cpuinfo")
 	}
 
 	for attrib, desc := range attribs {
 		found := findAnchoredString(cpuinfo, attrib)
 		if !found {
-			return fmt.Errorf("CPU does not have required %v: %q (%s)", tag, desc, attrib)
+			ccLog.Errorf("CPU does not have required %v: %q (%s)", tag, desc, attrib)
+			count++
+			continue
+
 		}
+
 		ccLog.Infof("Found CPU %v %q (%s)", tag, desc, attrib)
 	}
 
-	return nil
+	return count, nil
 }
-func checkCPUFlags(cpuflags string, required map[string]string) error {
+
+func checkCPUFlags(cpuflags string, required map[string]string) (uint32, error) {
 	return checkCPU("flag", cpuflags, required)
 }
 
-func checkCPUAttribs(cpuinfo string, attribs map[string]string) error {
+func checkCPUAttribs(cpuinfo string, attribs map[string]string) (uint32, error) {
 	return checkCPU("attribute", cpuinfo, attribs)
 }
 
-func checkKernelModules(modules map[string]kernelModule) error {
+// checkKernelModules checks all required kernel modules modules and returns a count of
+// the number of module errors (all of which are logged by this
+// function). Only fatal errors result in an error return.
+func checkKernelModules(modules map[string]kernelModule) (count uint32, err error) {
 	onVMM, err := vc.RunningOnVMM(procCPUInfo)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	for module, details := range modules {
 		if !haveKernelModule(module) {
-			return fmt.Errorf("kernel module %q (%s) not found", module, details.desc)
+			ccLog.Errorf("kernel module %q (%s) not found", module, details.desc)
+			count++
+			continue
 		}
 
 		ccLog.Infof("Found kernel module %q (%s)", details.desc, module)
@@ -177,7 +190,7 @@ func checkKernelModules(modules map[string]kernelModule) error {
 			path := filepath.Join(sysModuleDir, module, moduleParamDir, param)
 			value, err := getFileContents(path)
 			if err != nil {
-				return err
+				return 0, err
 			}
 
 			value = strings.TrimRight(value, "\n\r")
@@ -192,14 +205,20 @@ func checkKernelModules(modules map[string]kernelModule) error {
 					continue
 				}
 
-				return errors.New(msg)
+				if param == "nested" {
+					ccLog.Warn(msg)
+					continue
+				}
+
+				ccLog.Error(msg)
+				count++
 			}
 
 			ccLog.Infof("Kernel module %q parameter %q has correct value", details.desc, param)
 		}
 	}
 
-	return nil
+	return count, nil
 }
 
 // hostIsClearContainersCapable determines if the system is capable of
@@ -210,20 +229,41 @@ func hostIsClearContainersCapable(cpuinfoFile string) error {
 		return err
 	}
 
-	if err = checkCPUAttribs(cpuinfo, requiredCPUAttribs); err != nil {
-		return err
-	}
-
 	cpuFlags := getCPUFlags(cpuinfo)
 	if cpuFlags == "" {
 		return fmt.Errorf("Cannot find CPU flags")
 	}
 
-	if err = checkCPUFlags(cpuFlags, requiredCPUFlags); err != nil {
+	// Keep a track of the error count, but don't error until all tests
+	// have been performed!
+	errorCount := uint32(0)
+
+	count, err := checkCPUAttribs(cpuinfo, requiredCPUAttribs)
+	if err != nil {
 		return err
 	}
 
-	return checkKernelModules(requiredKernelModules)
+	errorCount += count
+
+	count, err = checkCPUFlags(cpuFlags, requiredCPUFlags)
+	if err != nil {
+		return err
+	}
+
+	errorCount += count
+
+	count, err = checkKernelModules(requiredKernelModules)
+	if err != nil {
+		return err
+	}
+
+	errorCount += count
+
+	if errorCount == 0 {
+		return nil
+	}
+
+	return fmt.Errorf("ERROR: %s", failMessage)
 }
 
 var ccCheckCLICommand = cli.Command{
@@ -232,7 +272,7 @@ var ccCheckCLICommand = cli.Command{
 	Action: func(context *cli.Context) error {
 		err := hostIsClearContainersCapable(procCPUInfo)
 		if err != nil {
-			return fmt.Errorf("ERROR: %v", err)
+			return err
 		}
 
 		ccLog.Info("")
