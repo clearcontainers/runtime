@@ -42,14 +42,14 @@ const (
 
 var testStrPID = fmt.Sprintf("%d", testPID)
 
-func testCreateCgroupsFilesSuccessful(t *testing.T, cgroupsPathList []string, pid int) {
-	if err := createCgroupsFiles(cgroupsPathList, pid); err != nil {
+func testCreateCgroupsFilesSuccessful(t *testing.T, cgroupsDirPath string, cgroupsPathList []string, pid int) {
+	if err := createCgroupsFiles(cgroupsDirPath, cgroupsPathList, pid); err != nil {
 		t.Fatalf("This test should succeed (cgroupsPath %q, pid %d): %s", cgroupsPathList, pid, err)
 	}
 }
 
 func TestCgroupsFilesEmptyCgroupsPathSuccessful(t *testing.T) {
-	testCreateCgroupsFilesSuccessful(t, []string{}, testPID)
+	testCreateCgroupsFilesSuccessful(t, "", []string{}, testPID)
 }
 
 func TestCreateCgroupsFilesFailToWriteFile(t *testing.T) {
@@ -71,7 +71,7 @@ func TestCreateCgroupsFilesFailToWriteFile(t *testing.T) {
 
 	files := []string{file}
 
-	err = createCgroupsFiles(files, testPID)
+	err = createCgroupsFiles("cgroups-file", files, testPID)
 	assert.Error(err)
 }
 
@@ -81,7 +81,7 @@ func TestCgroupsFilesNonEmptyCgroupsPathSuccessful(t *testing.T) {
 		t.Fatalf("Could not create temporary cgroups directory: %s", err)
 	}
 
-	testCreateCgroupsFilesSuccessful(t, []string{cgroupsPath}, testPID)
+	testCreateCgroupsFilesSuccessful(t, "cgroups-path-", []string{cgroupsPath}, testPID)
 
 	defer os.RemoveAll(cgroupsPath)
 
@@ -1058,4 +1058,51 @@ func TestCreateCreateContainer(t *testing.T) {
 		_, err = createContainer(spec, testContainerID, bundlePath, testConsole, disableOutput)
 		assert.NoError(err)
 	}
+}
+
+func TestCopyParentCPUSetFail(t *testing.T) {
+	assert := assert.New(t)
+
+	cgroupsPath, err := ioutil.TempDir(testDir, "cgroups-path-")
+	if err != nil {
+		t.Fatalf("Could not create temporary cgroups directory: %s", err)
+	}
+	defer os.RemoveAll(cgroupsPath)
+
+	err = copyParentCPUSet(cgroupsPath, testDir)
+	assert.Error(err)
+}
+
+func TestCopyParentCPUSetSuccessful(t *testing.T) {
+	if os.Geteuid() != 0 {
+		// Create cgroup directory must be root.
+		t.Skip(testDisabledNeedRoot)
+	}
+
+	assert := assert.New(t)
+
+	cgroupsRootPath := findCgroupRoot()
+	if cgroupsRootPath == "" {
+		t.Skip(testDisabledNeedCgroup)
+	}
+
+	cgroupsCPUSetRoot := filepath.Join(cgroupsRootPath, "cpu")
+	if _, err := os.Stat(cgroupsCPUSetRoot); err != nil && os.IsNotExist(err) {
+		t.Skip(testDisabledNeedCgroup)
+	}
+
+	cgroupsPath, err := ioutil.TempDir(cgroupsCPUSetRoot, "cgroups-path-")
+	if err != nil {
+		t.Fatalf("Could not create temporary cgroups directory: %s", err)
+	}
+	defer os.RemoveAll(cgroupsPath)
+
+	err = copyParentCPUSet(cgroupsPath, cgroupsCPUSetRoot)
+	assert.NoError(err)
+
+	currentCpus, currentMems, err := getCPUSet(cgroupsPath)
+	assert.NoError(err)
+
+	assert.False(isEmptyString(currentCpus))
+	assert.False(isEmptyString(currentMems))
 }
