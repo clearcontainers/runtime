@@ -15,6 +15,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -186,4 +187,22 @@ func runCommandFull(args []string, includeStderr bool) (string, error) {
 // runCommand returns the commands space-trimmed standard output on success
 func runCommand(args []string) (string, error) {
 	return runCommandFull(args, false)
+}
+
+// writeFile write data into specified file
+func writeFile(filePath string, data string, fileMode os.FileMode) error {
+	// Normally dir should not be empty, one case is that cgroup subsystem
+	// is not mounted, we will get empty dir, and we want it fail here.
+	if filePath == "" {
+		return fmt.Errorf("no such file for %s", filePath)
+	}
+	if err := ioutil.WriteFile(filePath, []byte(data), fileMode); err != nil {
+		return fmt.Errorf("failed to write %v to %v: %v", data, filePath, err)
+	}
+	return nil
+}
+
+// isEmptyString return if string is empty
+func isEmptyString(b []byte) bool {
+	return len(bytes.Trim(b, "\n")) == 0
 }

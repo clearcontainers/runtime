@@ -18,8 +18,10 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	vc "github.com/containers/virtcontainers"
@@ -134,7 +136,13 @@ func create(containerID, bundlePath, console, pidFilePath string, detach bool,
 		return err
 	}
 
-	if err := createCgroupsFiles(containerID, cgroupsPathList, process.Pid); err != nil {
+	// cgroupsDirPath is CgroupsPath fetch from OCI spec
+	var cgroupsDirPath string
+	if ociSpec.Linux != nil {
+		cgroupsDirPath = ociSpec.Linux.CgroupsPath
+	}
+
+	if err := createCgroupsFiles(containerID, cgroupsDirPath, cgroupsPathList, process.Pid); err != nil {
 		return err
 	}
 
@@ -218,7 +226,7 @@ func createContainer(ociSpec oci.CompatOCISpec, containerID, bundlePath,
 	return c.Process(), nil
 }
 
-func createCgroupsFiles(containerID string, cgroupsPathList []string, pid int) error {
+func createCgroupsFiles(containerID string, cgroupsDirPath string, cgroupsPathList []string, pid int) error {
 	if len(cgroupsPathList) == 0 {
 		fields := logrus.Fields{
 			"container": containerID,
@@ -231,6 +239,11 @@ func createCgroupsFiles(containerID string, cgroupsPathList []string, pid int) e
 	for _, cgroupsPath := range cgroupsPathList {
 		if err := os.MkdirAll(cgroupsPath, cgroupsDirMode); err != nil {
 			return err
+		}
+
+		if strings.Contains(cgroupsPath, "cpu") && cgroupsDirPath != "" {
+			parent := strings.TrimSuffix(cgroupsPath, cgroupsDirPath)
+			copyParentCPUSet(cgroupsPath, parent)
 		}
 
 		tasksFilePath := filepath.Join(cgroupsPath, cgroupsTasksFile)
@@ -288,4 +301,49 @@ func createPIDFile(pidFilePath string, pid int) error {
 	}
 
 	return nil
+}
+
+// copyParentCPUSet copies the cpuset.cpus and cpuset.mems from the parent
+// directory to the current directory if the file's contents are 0
+func copyParentCPUSet(current, parent string) error {
+	currentCpus, currentMems, err := getCPUSet(current)
+	if err != nil {
+		return err
+	}
+
+	parentCpus, parentMems, err := getCPUSet(parent)
+	if err != nil {
+		return err
+	}
+
+	if len(parentCpus) < 1 || len(parentMems) < 1 {
+		return nil
+	}
+
+	var cgroupsFileMode = os.FileMode(0600)
+	if isEmptyString(currentCpus) {
+		if err := writeFile(filepath.Join(current, "cpuset.cpus"), string(parentCpus), cgroupsFileMode); err != nil {
+			return err
+		}
+	}
+
+	if isEmptyString(currentMems) {
+		if err := writeFile(filepath.Join(current, "cpuset.mems"), string(parentMems), cgroupsFileMode); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func getCPUSet(parent string) (cpus []byte, mems []byte, err error) {
+	if cpus, err = ioutil.ReadFile(filepath.Join(parent, "cpuset.cpus")); err != nil {
+		return
+	}
+
+	if mems, err = ioutil.ReadFile(filepath.Join(parent, "cpuset.mems")); err != nil {
+		return
+	}
+
+	return cpus, mems, nil
 }
