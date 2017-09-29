@@ -113,6 +113,7 @@ DEFDISABLEBLOCK := false
 DEFENABLEMEMPREALLOC := false
 DEFENABLESWAP := false
 DEFENABLEDEBUG := false
+DEFDISABLENESTINGCHECKS := false
 
 SED = sed
 
@@ -187,6 +188,7 @@ USER_VARS += DEFDISABLEBLOCK
 USER_VARS += DEFENABLEMEMPREALLOC
 USER_VARS += DEFENABLESWAP
 USER_VARS += DEFENABLEDEBUG
+USER_VARS += DEFDISABLENESTINGCHECKS
 
 
 V              = @
@@ -239,6 +241,7 @@ const defaultDisableBlockDeviceUse bool = $(DEFDISABLEBLOCK)
 const defaultEnableMemPrealloc bool = $(DEFENABLEMEMPREALLOC)
 const defaultEnableSwap bool = $(DEFENABLESWAP)
 const defaultEnableDebug bool = $(DEFENABLEDEBUG)
+const defaultDisableNestingChecks bool = $(DEFDISABLENESTINGCHECKS)
 
 // Default config file used by stateless systems.
 var defaultRuntimeConfiguration = "$(DESTCONFIG)"
@@ -304,6 +307,7 @@ $(GENERATED_FILES): %: %.in Makefile VERSION
 		-e "s|@DEFENABLEMEMPREALLOC@|$(DEFENABLEMEMPREALLOC)|g" \
 		-e "s|@DEFENABLEMSWAP@|$(DEFENABLESWAP)|g" \
 		-e "s|@DEFENABLEMSWAP@|$(DEFENABLEDEBUG)|g" \
+		-e "s|@DEFDISABLENESTINGCHECKS@|$(DEFDISABLENESTINGCHECKS)|g" \
 		$< > $@
 
 generate-config: $(CONFIG)
