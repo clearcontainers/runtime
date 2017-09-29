@@ -1,5 +1,6 @@
-[![Build Status](http://cc-jenkins-ci.westus2.cloudapp.azure.com/job/clear-containers-runtime-azure-ubuntu-16-04/badge/icon)](http://cc-jenkins-ci.westus2.cloudapp.azure.com/job/clear-containers-runtime-azure-ubuntu-16-04/)
-[![Build Status](http://cc-jenkins-ci.westus2.cloudapp.azure.com/job/clear-containers-runtime-azure-ubuntu-17-04/badge/icon)](http://cc-jenkins-ci.westus2.cloudapp.azure.com/job/clear-containers-runtime-azure-ubuntu-17-04/)
+[![Build Status](http://cc-jenkins-ci.westus2.cloudapp.azure.com/job/clear-containers-runtime-azure-ubuntu-16-04-master/badge/icon)](http://cc-jenkins-ci.westus2.cloudapp.azure.com/job/clear-containers-runtime-azure-ubuntu-16-04-master/)
+[![Build Status](http://cc-jenkins-ci.westus2.cloudapp.azure.com/job/clear-containers-runtime-azure-ubuntu-17-04-master/badge/icon)](http://cc-jenkins-ci.westus2.cloudapp.azure.com/job/clear-containers-runtime-azure-ubuntu-17-04-master/)
+[![Build Status](http://cc-jenkins-ci.westus2.cloudapp.azure.com/job/clear-containers-runtime-fedora-26-master/badge/icon)](http://cc-jenkins-ci.westus2.cloudapp.azure.com/job/clear-containers-runtime-fedora-26-master/)
 [![Go Report Card](https://goreportcard.com/badge/github.com/clearcontainers/runtime)](https://goreportcard.com/report/github.com/clearcontainers/runtime)
 [![Coverage Status](https://coveralls.io/repos/github/clearcontainers/runtime/badge.svg?branch=master)](https://coveralls.io/github/clearcontainers/runtime?branch=master)
 
