@@ -72,10 +72,6 @@
 
 [[constraint]]
   branch = "master"
-  name = "github.com/Sirupsen/logrus"
-
-[[constraint]]
-  branch = "master"
   name = "github.com/clearcontainers/proxy"
 
 [[constraint]]
@@ -129,3 +125,7 @@
 [[constraint]]
   branch = "master"
   name = "golang.org/x/sys"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/sirupsen/logrus"

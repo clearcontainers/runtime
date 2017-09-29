@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/01org/ciao/payloads"
-	"github.com/01org/ciao/ssntp/uuid"
+	"github.com/ciao-project/ciao/payloads"
+	"github.com/ciao-project/ciao/ssntp/uuid"
 )
 
 // TraceConfig is the SSNTP tracing configuration to be used

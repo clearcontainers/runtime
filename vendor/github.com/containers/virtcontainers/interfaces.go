@@ -17,7 +17,7 @@ package virtcontainers
 import (
 	"syscall"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 // VC is the Virtcontainers interface

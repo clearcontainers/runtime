@@ -49,11 +49,6 @@
 		"version": "23def4e",
 		"license": "Apache v2.0"
 	},
-	"github.com/gophercloud/gophercloud": {
-		"url": "https://github.com/gophercloud/gophercloud.git",
-		"version": "268e995",
-		"license": "Apache v2.0"
-	},
 	"github.com/gorilla/mux": {
 		"url": "https://github.com/gorilla/mux.git",
 		"version": "757bef9",

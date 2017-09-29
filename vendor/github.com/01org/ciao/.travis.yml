@@ -14,12 +14,14 @@ matrix:
   include:
     - go: 1.9
       env: TEST_CASES_FLAGS=-race
+    - go: 1.9
+      env: LINT_ONLY=1
   allow_failures:
   - go: tip
   - go: 1.9
     env: TEST_CASES_FLAGS=-race
 
-go_import_path: github.com/01org/ciao
+go_import_path: github.com/ciao-project/ciao
 
 before_install:
   - sudo apt-get update -qq
@@ -58,17 +60,17 @@ script:
    - sudo docker pull debian
    - sudo ip link add testdummy type dummy
    - sudo ip addr add 198.51.100.1/24 dev testdummy
-   - gometalinter.v1 --deadline=5m --tests --vendor --disable-all --enable=misspell --enable=vet --enable=ineffassign --enable=gofmt --enable=gocyclo --cyclo-over=15 --enable=golint --enable=deadcode --enable=varcheck --enable=structcheck ./...
+   - if [ $LINT_ONLY ]; then gometalinter.v1 --deadline=10m --tests --vendor --disable-all --enable=misspell --enable=vet --enable=ineffassign --enable=gofmt --enable=gocyclo --cyclo-over=15 --enable=golint --enable=deadcode --enable=varcheck --enable=structcheck --enable=unused ./...; fi
    - cd _release/bat
-   - gometalinter.v1 --deadline=5m --tests --vendor --disable-all --enable=misspell --enable=vet --enable=ineffassign --enable=gofmt --enable=gocyclo --cyclo-over=15 --enable=golint --enable=deadcode --enable=varcheck --enable=structcheck ./...
+   - if [ $LINT_ONLY ]; then gometalinter.v1 --deadline=10m --tests --vendor --disable-all --enable=misspell --enable=vet --enable=ineffassign --enable=gofmt --enable=gocyclo --cyclo-over=15 --enable=golint --enable=deadcode --enable=varcheck --enable=structcheck --enable=unused ./...; fi
    - cd ../..
    - sudo mkdir -p /var/lib/ciao/instances
    - sudo mkdir -p /var/lib/ciao/data/controller/workloads
    - sudo chmod 0777 -R /var/lib/ciao
-   - test-cases $TEST_CASES_FLAGS -v -timeout 9 -coverprofile /tmp/cover.out -short github.com/01org/ciao/ciao-controller/...
-   - test-cases $TEST_CASES_FLAGS -v -timeout 9 -coverprofile /tmp/cover.out -append-profile -short github.com/01org/ciao/ciao-launcher github.com/01org/ciao/ciao-scheduler github.com/01org/ciao/payloads github.com/01org/ciao/configuration github.com/01org/ciao/testutil github.com/01org/ciao/ssntp/uuid github.com/01org/ciao/qemu github.com/01org/ciao/openstack/... github.com/01org/ciao/bat  github.com/01org/ciao/ciao-image/... github.com/01org/ciao/database/... github.com/01org/ciao/ciao-storage/... github.com/01org/ciao/deviceinfo github.com/01org/ciao/osprepare
-   - export GOROOT=`go env GOROOT` && sudo -E PATH=$PATH:$GOROOT/bin $GOPATH/bin/test-cases $TEST_CASES_FLAGS -v -timeout 9 -coverprofile /tmp/cover.out -append-profile github.com/01org/ciao/ssntp
-   - export GOROOT=`go env GOROOT` && export SNNET_ENV=198.51.100.0/24 && sudo -E PATH=$PATH:$GOROOT/bin $GOPATH/bin/test-cases -race -v -timeout 9 -short -tags travis -coverprofile /tmp/cover.out -append-profile github.com/01org/ciao/networking/libsnnet
+   - if [ -z $LINT_ONLY ]; then test-cases $TEST_CASES_FLAGS -v -timeout 9 -coverprofile /tmp/cover.out -short github.com/ciao-project/ciao/ciao-controller/...; fi
+   - if [ -z $LINT_ONLY ]; then test-cases $TEST_CASES_FLAGS -v -timeout 9 -coverprofile /tmp/cover.out -append-profile -short github.com/ciao-project/ciao/ciao-launcher github.com/ciao-project/ciao/ciao-scheduler github.com/ciao-project/ciao/payloads github.com/ciao-project/ciao/configuration github.com/ciao-project/ciao/testutil github.com/ciao-project/ciao/ssntp/uuid github.com/ciao-project/ciao/qemu github.com/ciao-project/ciao/openstack/... github.com/ciao-project/ciao/bat  github.com/ciao-project/ciao/ciao-image/... github.com/ciao-project/ciao/database/... github.com/ciao-project/ciao/ciao-storage/... github.com/ciao-project/ciao/deviceinfo github.com/ciao-project/ciao/osprepare; fi
+   - if [ -z $LINT_ONLY ]; then export GOROOT=`go env GOROOT` && sudo -E PATH=$PATH:$GOROOT/bin $GOPATH/bin/test-cases $TEST_CASES_FLAGS -v -timeout 9 -coverprofile /tmp/cover.out -append-profile github.com/ciao-project/ciao/ssntp; fi
+   - if [ -z $LINT_ONLY ]; then export GOROOT=`go env GOROOT` && export SNNET_ENV=198.51.100.0/24 && sudo -E PATH=$PATH:$GOROOT/bin $GOPATH/bin/test-cases -race -v -timeout 9 -short -tags travis -coverprofile /tmp/cover.out -append-profile github.com/ciao-project/ciao/networking/libsnnet; fi
 
 after_success:
    - $GOPATH/bin/goveralls -service=travis-ci -coverprofile=/tmp/cover.out

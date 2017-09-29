@@ -22,7 +22,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/01org/ciao/testutil"
+	"github.com/ciao-project/ciao/testutil"
 )
 
 func testAppend(structure interface{}, expected string, t *testing.T) {
@@ -215,6 +215,16 @@ func TestAppendDeviceBlock(t *testing.T) {
 	}
 
 	testAppend(blkdev, deviceBlockString, t)
+}
+
+var deviceVFIOString = "-device vfio-pci,host=02:10.0"
+
+func TestAppendDeviceVFIO(t *testing.T) {
+	vfioDevice := VFIODevice{
+		BDF: "02:10.0",
+	}
+
+	testAppend(vfioDevice, deviceVFIOString, t)
 }
 
 func TestAppendEmptyDevice(t *testing.T) {
