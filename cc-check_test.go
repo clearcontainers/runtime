@@ -493,13 +493,13 @@ func TestCheckCheckKernelModulesNoUnrestrictedGuest(t *testing.T) {
 	// create buffer to save logger output
 	buf := &bytes.Buffer{}
 
-	savedLogOutput := ccLog.Out
+	savedLogOutput := ccLog.Logger.Out
 
 	defer func() {
-		ccLog.Out = savedLogOutput
+		ccLog.Logger.Out = savedLogOutput
 	}()
 
-	ccLog.Out = buf
+	ccLog.Logger.Out = buf
 
 	count, err = checkKernelModules(requiredModules)
 
@@ -745,13 +745,13 @@ func TestCCCheckCLIFunction(t *testing.T) {
 	devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0666)
 	assert.NoError(err)
 
-	savedLogOutput := ccLog.Out
+	savedLogOutput := ccLog.Logger.Out
 
 	// discard normal output
-	ccLog.Out = devNull
+	ccLog.Logger.Out = devNull
 
 	defer func() {
-		ccLog.Out = savedLogOutput
+		ccLog.Logger.Out = savedLogOutput
 	}()
 
 	assert.False(fileExists(logfile))

@@ -21,6 +21,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/Sirupsen/logrus"
 	vc "github.com/containers/virtcontainers"
 	"github.com/containers/virtcontainers/pkg/oci"
 	"github.com/urfave/cli"
@@ -133,7 +134,7 @@ func create(containerID, bundlePath, console, pidFilePath string, detach bool,
 		return err
 	}
 
-	if err := createCgroupsFiles(cgroupsPathList, process.Pid); err != nil {
+	if err := createCgroupsFiles(containerID, cgroupsPathList, process.Pid); err != nil {
 		return err
 	}
 
@@ -217,9 +218,13 @@ func createContainer(ociSpec oci.CompatOCISpec, containerID, bundlePath,
 	return c.Process(), nil
 }
 
-func createCgroupsFiles(cgroupsPathList []string, pid int) error {
+func createCgroupsFiles(containerID string, cgroupsPathList []string, pid int) error {
 	if len(cgroupsPathList) == 0 {
-		ccLog.Info("Cgroups files not created because cgroupsPath was empty")
+		fields := logrus.Fields{
+			"container": containerID,
+			"pid":       pid,
+		}
+		ccLog.WithFields(fields).Info("Cgroups files not created because cgroupsPath was empty")
 		return nil
 	}
 

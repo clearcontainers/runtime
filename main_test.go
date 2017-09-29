@@ -675,18 +675,18 @@ func TestMainBeforeSubCommandsInvalidLogFile(t *testing.T) {
 	set.String("log", logFile, "")
 	set.Parse([]string{"create"})
 
-	logLevel := ccLog.Level
-	ccLog.Level = logrus.PanicLevel
+	logLevel := ccLog.Logger.Level
+	ccLog.Logger.Level = logrus.PanicLevel
 
 	defer func() {
-		ccLog.Level = logLevel
+		ccLog.Logger.Level = logLevel
 	}()
 
 	ctx := cli.NewContext(app, set, nil)
 
 	err = beforeSubcommands(ctx)
 	assert.Error(err)
-	assert.Equal(ccLog.Level, logrus.DebugLevel)
+	assert.Equal(ccLog.Logger.Level, logrus.DebugLevel)
 }
 
 func TestMainBeforeSubCommandsInvalidLogFormat(t *testing.T) {
@@ -706,18 +706,18 @@ func TestMainBeforeSubCommandsInvalidLogFormat(t *testing.T) {
 	set.String("log-format", "captain-barnacles", "")
 	set.Parse([]string{"create"})
 
-	logOut := ccLog.Out
-	ccLog.Out = nil
+	logOut := ccLog.Logger.Out
+	ccLog.Logger.Out = nil
 
 	defer func() {
-		ccLog.Out = logOut
+		ccLog.Logger.Out = logOut
 	}()
 
 	ctx := cli.NewContext(app, set, nil)
 
 	err = beforeSubcommands(ctx)
 	assert.Error(err)
-	assert.NotNil(ccLog.Out)
+	assert.NotNil(ccLog.Logger.Out)
 }
 
 func TestMainBeforeSubCommandsLoadConfigurationFail(t *testing.T) {
@@ -1087,7 +1087,7 @@ func TestMainFatalWriter(t *testing.T) {
 	buf := &bytes.Buffer{}
 
 	savedBefore := runtimeBeforeSubcommands
-	savedLogOutput := ccLog.Out
+	savedLogOutput := ccLog.Logger.Out
 	savedCLIExiter := cli.OsExiter
 	savedCommands := runtimeCommands
 
@@ -1095,7 +1095,7 @@ func TestMainFatalWriter(t *testing.T) {
 	runtimeBeforeSubcommands = nil
 
 	// save all output
-	ccLog.Out = buf
+	ccLog.Logger.Out = buf
 
 	cli.OsExiter = func(status int) {}
 
@@ -1111,7 +1111,7 @@ func TestMainFatalWriter(t *testing.T) {
 
 	defer func() {
 		runtimeBeforeSubcommands = savedBefore
-		ccLog.Out = savedLogOutput
+		ccLog.Logger.Out = savedLogOutput
 		cli.OsExiter = savedCLIExiter
 		runtimeCommands = savedCommands
 	}()

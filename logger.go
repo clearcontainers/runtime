@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -96,7 +97,7 @@ func handleGlobalLog(logfilePath string) error {
 		return err
 	}
 
-	ccLog.Hooks.Add(hook)
+	ccLog.Logger.Hooks.Add(hook)
 
 	return nil
 }
@@ -127,18 +128,50 @@ func (hook *GlobalLogHook) Levels() []logrus.Level {
 	return logrus.AllLevels
 }
 
+// formatFields returns a "name=value" formatted string of sorted map keys
+func formatFields(fields map[string]interface{}) string {
+	var keys []string
+
+	for key := range fields {
+		keys = append(keys, key)
+	}
+
+	sort.Sort(sort.StringSlice(keys))
+
+	var sorted []string
+
+	for _, k := range keys {
+		sorted = append(sorted, fmt.Sprintf("%s=%q", k, fields[k]))
+	}
+
+	return strings.Join(sorted, " ")
+}
+
 // Fire is called by the logrus logger when data is available for the
 // hook.
 func (hook *GlobalLogHook) Fire(entry *logrus.Entry) error {
-
 	// Ignore any formatter that has been used and log in a custom format
 	// to the global log.
-	_, err := hook.file.WriteString(fmt.Sprintf("%v:%d:%s:%s:%s\n",
+
+	fields := formatFields(entry.Data)
+
+	str := fmt.Sprintf("time=%q pid=%d name=%q level=%q",
 		entry.Time,
 		os.Getpid(),
 		name,
-		entry.Level,
-		entry.Message))
+		entry.Level)
+
+	if fields != "" {
+		str += " " + fields
+	}
+
+	if entry.Message != "" {
+		str += " " + fmt.Sprintf("msg=%q", entry.Message)
+	}
+
+	str += "\n"
+
+	_, err := hook.file.WriteString(str)
 	if err != nil {
 		return err
 	}

@@ -35,11 +35,11 @@ type testData struct {
 
 func init() {
 	// Ensure all log levels are logged
-	ccLog.Level = logrus.DebugLevel
+	ccLog.Logger.Level = logrus.DebugLevel
 
 	// Discard "normal" log output: this test only cares about the
 	// (additional) global log output
-	ccLog.Out = ioutil.Discard
+	ccLog.Logger.Out = ioutil.Discard
 }
 
 func grep(pattern, file string) error {
@@ -94,6 +94,8 @@ func TestNewGlobalLogHook(t *testing.T) {
 }
 
 func TestHandleGlobalLog(t *testing.T) {
+	assert := assert.New(t)
+
 	tmpdir, err := ioutil.TempDir("", "")
 	if err != nil {
 		t.Fatal(err)
@@ -102,11 +104,11 @@ func TestHandleGlobalLog(t *testing.T) {
 
 	subDir := path.Join(tmpdir, "a/b/global.log")
 	err = os.MkdirAll(subDir, testDirMode)
-	assert.NoError(t, err)
+	assert.NoError(err)
 
 	existingFile := path.Join(tmpdir, "c")
 	err = createEmptyFile(existingFile)
-	assert.NoError(t, err)
+	assert.NoError(err)
 
 	tmpfile := path.Join(tmpdir, "global.log")
 
@@ -124,6 +126,9 @@ func TestHandleGlobalLog(t *testing.T) {
 	}
 
 	for _, d := range data {
+		// clear any existing hooks
+		ccLog.Logger.Hooks = make(map[logrus.Level][]logrus.Hook)
+
 		err := handleGlobalLog(d.path)
 		if d.expectFailure {
 			if err == nil {
@@ -148,10 +153,8 @@ func TestHandleGlobalLog(t *testing.T) {
 		ccLog.Debug(str)
 
 		// Check that the string was logged
-		err = grep(fmt.Sprintf("debug:.*%s", str), d.path)
-		if err != nil {
-			t.Fatal(err)
-		}
+		err = grep(fmt.Sprintf("level=\"debug\".*%s", str), d.path)
+		assert.NoError(err)
 
 		// Check expected perms
 		st, err := os.Stat(d.path)
@@ -201,10 +204,8 @@ func TestHandleGlobalLogEnvVar(t *testing.T) {
 	}
 
 	// Check that the string was logged
-	err = grep(fmt.Sprintf("debug:.*%s", str), tmpfile2)
-	if err != nil {
-		t.Fatal(err)
-	}
+	err = grep(fmt.Sprintf("level=\"debug\".*%s", str), tmpfile2)
+	assert.NoError(t, err)
 }
 
 func TestLoggerFire(t *testing.T) {
@@ -213,24 +214,24 @@ func TestLoggerFire(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ccLog = logrus.New()
+	ccLog = logrus.NewEntry(logrus.New())
 
 	logFile := path.Join(tmpdir, "a/b/global.log")
 	err = handleGlobalLog(logFile)
 	assert.NoError(t, err)
 
 	entry := &logrus.Entry{
-		Logger:  ccLog,
+		Logger:  ccLog.Logger,
 		Time:    time.Now().UTC(),
 		Level:   logrus.DebugLevel,
 		Message: "foo",
 	}
 
-	err = ccLog.Hooks.Fire(logrus.DebugLevel, entry)
+	err = ccLog.Logger.Hooks.Fire(logrus.DebugLevel, entry)
 	assert.NoError(t, err)
 
-	assert.Equal(t, len(ccLog.Hooks[logrus.DebugLevel]), 1)
-	hook, ok := ccLog.Hooks[logrus.DebugLevel][0].(*GlobalLogHook)
+	assert.Equal(t, len(ccLog.Logger.Hooks[logrus.DebugLevel]), 1)
+	hook, ok := ccLog.Logger.Hooks[logrus.DebugLevel][0].(*GlobalLogHook)
 	assert.True(t, ok)
 
 	err = hook.file.Close()
@@ -239,6 +240,6 @@ func TestLoggerFire(t *testing.T) {
 	err = os.RemoveAll(tmpdir)
 	assert.NoError(t, err)
 
-	err = ccLog.Hooks.Fire(logrus.DebugLevel, entry)
+	err = ccLog.Logger.Hooks.Fire(logrus.DebugLevel, entry)
 	assert.Error(t, err)
 }

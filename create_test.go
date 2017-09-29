@@ -43,7 +43,7 @@ const (
 var testStrPID = fmt.Sprintf("%d", testPID)
 
 func testCreateCgroupsFilesSuccessful(t *testing.T, cgroupsPathList []string, pid int) {
-	if err := createCgroupsFiles(cgroupsPathList, pid); err != nil {
+	if err := createCgroupsFiles("foo", cgroupsPathList, pid); err != nil {
 		t.Fatalf("This test should succeed (cgroupsPath %q, pid %d): %s", cgroupsPathList, pid, err)
 	}
 }
@@ -71,7 +71,7 @@ func TestCreateCgroupsFilesFailToWriteFile(t *testing.T) {
 
 	files := []string{file}
 
-	err = createCgroupsFiles(files, testPID)
+	err = createCgroupsFiles("foo", files, testPID)
 	assert.Error(err)
 }
 

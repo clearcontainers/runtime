@@ -48,7 +48,7 @@ NOTES:
 
 `
 
-var ccLog = logrus.New()
+var ccLog = logrus.WithField("source", "runtime")
 
 // concrete virtcontainer implementation
 var virtcontainersImpl = &vc.VCImpl{}
@@ -155,21 +155,22 @@ func beforeSubcommands(context *cli.Context) error {
 	}
 
 	if context.GlobalBool("debug") {
-		ccLog.Level = logrus.DebugLevel
+		ccLog.Logger.Level = logrus.DebugLevel
 	}
+
 	if path := context.GlobalString("log"); path != "" {
 		f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND|os.O_SYNC, 0640)
 		if err != nil {
 			return err
 		}
-		ccLog.Out = f
+		ccLog.Logger.Out = f
 	}
 
 	switch context.GlobalString("log-format") {
 	case "text":
 		// retain logrus's default.
 	case "json":
-		ccLog.Formatter = new(logrus.JSONFormatter)
+		ccLog.Logger.Formatter = new(logrus.JSONFormatter)
 	default:
 		return fmt.Errorf("unknown log-format %q", context.GlobalString("log-format"))
 	}
@@ -188,8 +189,16 @@ func beforeSubcommands(context *cli.Context) error {
 		fatal(err)
 	}
 
-	ccLog.Infof("%v (version %v, commit %v) called as: %v", name, version, commit, context.Args())
-	ccLog.Infof("Using configuration file %q", configFile)
+	args := strings.Join(context.Args(), " ")
+
+	fields := logrus.Fields{
+		"name":      name,
+		"version":   version,
+		"commit":    commit,
+		"arguments": `"` + args + `"`,
+	}
+
+	ccLog.WithFields(fields).Info()
 
 	// make the data accessible to the sub-commands.
 	context.App.Metadata = map[string]interface{}{

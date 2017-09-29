@@ -23,6 +23,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/Sirupsen/logrus"
 	vc "github.com/containers/virtcontainers"
 	"github.com/containers/virtcontainers/pkg/oci"
 	"github.com/opencontainers/runc/libcontainer/utils"
@@ -243,12 +244,17 @@ func processCgroupsPathForResource(ociSpec oci.CompatOCISpec, resource string, i
 	// It is not an error to have this cgroup not mounted. It is usually
 	// due to an old kernel version with missing support for specific
 	// cgroups.
+	fields := logrus.Fields{
+		"path": cgroupPath,
+		"type": "cgroup",
+	}
+
 	if !isCgroupMounted(cgroupPath) {
-		ccLog.Infof("cgroup path %s not mounted", cgroupPath)
+		ccLog.WithFields(fields).Info("path not mounted")
 		return "", nil
 	}
 
-	ccLog.Infof("cgroup path %s mounted", cgroupPath)
+	ccLog.WithFields(fields).Info("path mounted")
 
 	return filepath.Join(cgroupPath, ociSpec.Linux.CgroupsPath), nil
 }
