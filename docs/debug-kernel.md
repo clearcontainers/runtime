@@ -44,3 +44,12 @@ to enable kernel boot logs using the configuration file.
 
    This will result in the `cc-proxy` log being printed on the terminal. This method
    can also be used to capture the logs in a specific `cc-proxy` file.
+
+5. Connect to the Virtual machine console
+
+   If the kernel boots successfully then the virtual machine console can be accessed
+   for further debug.
+
+   ```
+   socat /run/virtcontainers/pods/<pod id>/console.sock
+   ```

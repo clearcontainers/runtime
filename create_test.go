@@ -838,7 +838,7 @@ func TestCreateInvalidKernelParams(t *testing.T) {
 		getKernelParamsFunc = savedFunc
 	}()
 
-	getKernelParamsFunc = func(containerID string) []vc.Param {
+	getKernelParamsFunc = func(containerID string, runtimeConfig oci.RuntimeConfig) []vc.Param {
 		return []vc.Param{
 			{
 				Key:   "",
