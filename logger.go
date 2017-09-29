@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 )
@@ -156,7 +157,7 @@ func (hook *GlobalLogHook) Fire(entry *logrus.Entry) error {
 	fields := formatFields(entry.Data)
 
 	str := fmt.Sprintf("time=%q pid=%d name=%q level=%q",
-		entry.Time,
+		entry.Time.Format(time.RFC3339Nano),
 		os.Getpid(),
 		name,
 		entry.Level)
