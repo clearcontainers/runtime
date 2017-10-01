@@ -42,6 +42,16 @@ const (
 
 var testStrPID = fmt.Sprintf("%d", testPID)
 
+func mockCPUSetContent(contents map[string]string) error {
+	for filePath, data := range contents {
+		if err := writeFile(filePath, data, testFileMode); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func testCreateCgroupsFilesSuccessful(t *testing.T, cgroupsDirPath string, cgroupsPathList []string, pid int) {
 	if err := createCgroupsFiles("foo", cgroupsDirPath, cgroupsPathList, pid); err != nil {
 		t.Fatalf("This test should succeed (cgroupsPath %q, pid %d): %s", cgroupsPathList, pid, err)
@@ -1064,9 +1074,7 @@ func TestCopyParentCPUSetFail(t *testing.T) {
 	assert := assert.New(t)
 
 	cgroupsPath, err := ioutil.TempDir(testDir, "cgroups-path-")
-	if err != nil {
-		t.Fatalf("Could not create temporary cgroups directory: %s", err)
-	}
+	assert.NoError(err)
 	defer os.RemoveAll(cgroupsPath)
 
 	err = copyParentCPUSet(cgroupsPath, testDir)
@@ -1074,43 +1082,38 @@ func TestCopyParentCPUSetFail(t *testing.T) {
 }
 
 func TestCopyParentCPUSetSuccessful(t *testing.T) {
-	if os.Geteuid() != 0 {
-		// Create cgroup directory must be root.
-		t.Skip(testDisabledNeedRoot)
-	}
-
 	assert := assert.New(t)
 
-	cgroupsRootPath := findCgroupRoot()
-	if cgroupsRootPath == "" {
-		t.Skip(testDisabledNeedCgroup)
-	}
-
-	cgroupsCPUSetRoot := filepath.Join(cgroupsRootPath, "cpu")
-	if _, err := os.Stat(cgroupsCPUSetRoot); err != nil && os.IsNotExist(err) {
-		t.Skip(testDisabledNeedCgroup)
-	}
-
-	cpusetCpusPath := filepath.Join(cgroupsCPUSetRoot, "cpuset.cpus")
-	if _, err := os.Stat(cpusetCpusPath); err != nil && os.IsNotExist(err) {
-		t.Skip(testDisabledNeedCgroup)
-	}
-
-	cpusetMemsPath := filepath.Join(cgroupsCPUSetRoot, "cpuset.mems")
-	if _, err := os.Stat(cpusetMemsPath); err != nil && os.IsNotExist(err) {
-		t.Skip(testDisabledNeedCgroup)
-	}
-
-	cgroupsPath, err := ioutil.TempDir(cgroupsCPUSetRoot, "cgroups-path-")
-	if err != nil {
-		t.Fatalf("Could not create temporary cgroups directory: %s", err)
-	}
+	cgroupsPath, err := ioutil.TempDir(testDir, "cgroups-path-")
+	assert.NoError(err)
 	defer os.RemoveAll(cgroupsPath)
 
-	err = copyParentCPUSet(cgroupsPath, cgroupsCPUSetRoot)
+	cgroupsSrcPath := filepath.Join(cgroupsPath, "src")
+	err = os.Mkdir(cgroupsSrcPath, testDirMode)
 	assert.NoError(err)
 
-	currentCpus, currentMems, err := getCPUSet(cgroupsPath)
+	err = mockCPUSetContent(map[string]string{
+		filepath.Join(cgroupsSrcPath, "cpuset.cpus"): "0-1",
+		filepath.Join(cgroupsSrcPath, "cpuset.mems"): "0-1",
+	})
+	assert.NoError(err)
+
+	cgroupsDstPath := filepath.Join(cgroupsPath, "dst")
+	err = os.Mkdir(cgroupsDstPath, testDirMode)
+	assert.NoError(err)
+
+	fd, err := os.Create(filepath.Join(cgroupsDstPath, "cpuset.cpus"))
+	assert.NoError(err)
+	fd.Close()
+
+	fd, err = os.Create(filepath.Join(cgroupsDstPath, "cpuset.mems"))
+	assert.NoError(err)
+	fd.Close()
+
+	err = copyParentCPUSet(cgroupsDstPath, cgroupsSrcPath)
+	assert.NoError(err)
+
+	currentCpus, currentMems, err := getCPUSet(cgroupsDstPath)
 	assert.NoError(err)
 
 	assert.False(isEmptyString(currentCpus))
