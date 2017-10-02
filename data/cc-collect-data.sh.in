@@ -19,7 +19,8 @@
 #   report to help developers diagnose problems.
 
 script_name=${0##*/}
-runtime=$(which "cc-runtime")
+runtime_name="cc-runtime"
+runtime=$(command -v "$runtime_name" 2>/dev/null)
 script_version="@VERSION@ (commit @COMMIT@)"
 
 die()
@@ -242,6 +243,7 @@ show_runtime()
 main()
 {
 	[ $(id -u) -eq 0 ] || die "Need to run as root"
+	[ -n "$runtime" ] || die "cannot find runtime '$runtime_name'"
 
 	show_meta
 	show_runtime
