@@ -14,14 +14,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Description: This script will collect together all information about the
-#   environment and display to stdout. Redirect to a file and attach to a bug
-#   report to help developers diagnose problems.
-
 script_name=${0##*/}
 runtime_name="cc-runtime"
 runtime=$(command -v "$runtime_name" 2>/dev/null)
+issue_url="https://github.com/clearcontainers/runtime/issues/new"
 script_version="@VERSION@ (commit @COMMIT@)"
+
+usage()
+{
+	cat <<EOT
+Usage: $script_name
+
+Summary: Collect data about an Intel® Clear Containers installation.
+
+Description: Run this script as root to obtain a markdown-formatted summary
+  of the Clear Containers installation environment. The output of this script
+  can be pasted directly into a github issue at the address below:
+
+      $issue_url
+
+EOT
+}
 
 die()
 {
@@ -242,6 +255,10 @@ show_runtime()
 
 main()
 {
+	case "$1" in
+		-h|--help|help) usage && exit 0;;
+	esac
+
 	[ $(id -u) -eq 0 ] || die "Need to run as root"
 	[ -n "$runtime" ] || die "cannot find runtime '$runtime_name'"
 
@@ -253,4 +270,4 @@ main()
 	show_package_versions
 }
 
-main
+main "$@"
