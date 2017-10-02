@@ -17,8 +17,10 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"text/tabwriter"
 	"time"
 
@@ -64,7 +66,9 @@ type hypervisorDetails struct {
 // details
 type fullContainerState struct {
 	containerState
-	hypervisorDetails `json:"hypervisor"`
+	CurrentHypervisorDetails hypervisorDetails `json:"currentHypervisor"`
+	LatestHypervisorDetails  hypervisorDetails `json:"latestHypervisor"`
+	StaleAssets              []string
 }
 
 type formatState interface {
@@ -131,6 +135,32 @@ To list containers created using a non-default value for "--root":
 	},
 }
 
+// getStaleAssetsreturns compares the two specified hypervisorDetails objects
+// and returns a list of strings representing which assets in "old" are not
+// current compared to "new". If old and new are identical, the empty string
+// will be returned.
+//
+// Notes:
+//
+// - This function is trivial because it relies upon the fact that new
+//   containers are always created with the latest versions of all assets.
+//
+// - WARNING: Since this function only compares local values, it is unable to
+//   determine if newer (remote) assets are available.
+func getStaleAssets(old, new hypervisorDetails) []string {
+	var stale []string
+
+	if old.KernelPath != new.KernelPath {
+		stale = append(stale, "kernel")
+	}
+
+	if old.ImagePath != new.ImagePath {
+		stale = append(stale, "image")
+	}
+
+	return stale
+}
+
 func (f *formatIDList) Write(state []fullContainerState, showAll bool, file *os.File) error {
 	for _, item := range state {
 		_, err := fmt.Fprintln(file, item.ID)
@@ -141,6 +171,7 @@ func (f *formatIDList) Write(state []fullContainerState, showAll bool, file *os.
 
 	return nil
 }
+
 func (f *formatTabular) Write(state []fullContainerState, showAll bool, file *os.File) error {
 	// values used by runc
 	flags := uint(0)
@@ -153,7 +184,7 @@ func (f *formatTabular) Write(state []fullContainerState, showAll bool, file *os
 	fmt.Fprint(w, "ID\tPID\tSTATUS\tBUNDLE\tCREATED\tOWNER")
 
 	if showAll {
-		fmt.Fprint(w, "\tHYPERVISOR\tKERNEL\tIMAGE\n")
+		fmt.Fprint(w, "\tHYPERVISOR\tKERNEL\tIMAGE\tLATEST-KERNEL\tLATEST-IMAGE\tSTALE\n")
 	} else {
 		fmt.Fprintf(w, "\n")
 	}
@@ -168,10 +199,21 @@ func (f *formatTabular) Write(state []fullContainerState, showAll bool, file *os
 			item.Owner)
 
 		if showAll {
-			fmt.Fprintf(w, "\t%s\t%s\t%s\n",
-				item.HypervisorPath,
-				item.KernelPath,
-				item.ImagePath)
+			stale := strings.Join(item.StaleAssets, ",")
+			if stale == "" {
+				stale = "-"
+			}
+
+			current := item.CurrentHypervisorDetails
+			latest := item.LatestHypervisorDetails
+
+			fmt.Fprintf(w, "\t%s\t%s\t%s\t%s\t%s\t%s\n",
+				current.HypervisorPath,
+				current.KernelPath,
+				current.ImagePath,
+				latest.KernelPath,
+				latest.ImagePath,
+				stale)
 		} else {
 			fmt.Fprintf(w, "\n")
 		}
@@ -185,6 +227,13 @@ func (f *formatJSON) Write(state []fullContainerState, showAll bool, file *os.Fi
 }
 
 func getContainers(context *cli.Context) ([]fullContainerState, error) {
+	runtimeConfig, ok := context.App.Metadata["runtimeConfig"].(oci.RuntimeConfig)
+	if !ok {
+		return nil, errors.New("invalid runtime config")
+	}
+
+	latestHypervisorDetails := getHypervisorDetails(runtimeConfig)
+
 	podList, err := vci.ListPod()
 	if err != nil {
 		return nil, err
@@ -198,7 +247,7 @@ func getContainers(context *cli.Context) ([]fullContainerState, error) {
 			continue
 		}
 
-		hypervisorDetails := hypervisorDetails{
+		currentHypervisorDetails := hypervisorDetails{
 			HypervisorPath: pod.HypervisorConfig.HypervisorPath,
 			ImagePath:      pod.HypervisorConfig.ImagePath,
 			KernelPath:     pod.HypervisorConfig.KernelPath,
@@ -206,6 +255,7 @@ func getContainers(context *cli.Context) ([]fullContainerState, error) {
 
 		for _, container := range pod.ContainersStatus {
 			ociState := oci.StatusToOCIState(container)
+			staleAssets := getStaleAssets(currentHypervisorDetails, latestHypervisorDetails)
 
 			s = append(s, fullContainerState{
 				containerState: containerState{
@@ -220,10 +270,22 @@ func getContainers(context *cli.Context) ([]fullContainerState, error) {
 
 					// FIXME: Owner,
 				},
-				hypervisorDetails: hypervisorDetails,
+				CurrentHypervisorDetails: currentHypervisorDetails,
+				LatestHypervisorDetails:  latestHypervisorDetails,
+				StaleAssets:              staleAssets,
 			})
 		}
 	}
 
 	return s, nil
+}
+
+// getHypervisorDetails returns details of the latest version of the
+// hypervisor and the associated assets.
+func getHypervisorDetails(runtimeConfig oci.RuntimeConfig) hypervisorDetails {
+	return hypervisorDetails{
+		HypervisorPath: runtimeConfig.HypervisorConfig.HypervisorPath,
+		KernelPath:     runtimeConfig.HypervisorConfig.KernelPath,
+		ImagePath:      runtimeConfig.HypervisorConfig.ImagePath,
+	}
 }

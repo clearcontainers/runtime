@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -39,6 +38,24 @@ type TestFileWriter struct {
 	File *os.File
 }
 
+var hypervisorDetails1 = hypervisorDetails{
+	HypervisorPath: "/hypervisor/path",
+	ImagePath:      "/image/path",
+	KernelPath:     "/kernel/path",
+}
+
+var hypervisorDetails2 = hypervisorDetails{
+	HypervisorPath: "/hypervisor/path2",
+	ImagePath:      "/image/path2",
+	KernelPath:     "/kernel/path2",
+}
+
+var hypervisorDetails3 = hypervisorDetails{
+	HypervisorPath: "/hypervisor/path3",
+	ImagePath:      "/image/path3",
+	KernelPath:     "/kernel/path3",
+}
+
 var testStatuses = []fullContainerState{
 	{
 		containerState: containerState{
@@ -49,13 +66,12 @@ var testStatuses = []fullContainerState{
 			Bundle:         "/somewhere/over/the/rainbow",
 			Created:        time.Now().UTC(),
 			Annotations:    map[string]string(nil),
-			Owner:          "",
+			Owner:          "#0",
 		},
-		hypervisorDetails: hypervisorDetails{
-			HypervisorPath: "/hypervisor/path",
-			ImagePath:      "/image/path",
-			KernelPath:     "/kernel/path",
-		},
+
+		CurrentHypervisorDetails: hypervisorDetails1,
+		LatestHypervisorDetails:  hypervisorDetails1,
+		StaleAssets:              []string{},
 	},
 	{
 		containerState: containerState{
@@ -66,13 +82,12 @@ var testStatuses = []fullContainerState{
 			Bundle:         "/this/path/is/invalid",
 			Created:        time.Now().UTC(),
 			Annotations:    map[string]string(nil),
-			Owner:          "",
+			Owner:          "#0",
 		},
-		hypervisorDetails: hypervisorDetails{
-			HypervisorPath: "/hypervisor/path2",
-			ImagePath:      "/image/path2",
-			KernelPath:     "/kernel/path2",
-		},
+
+		CurrentHypervisorDetails: hypervisorDetails2,
+		LatestHypervisorDetails:  hypervisorDetails2,
+		StaleAssets:              []string{},
 	},
 	{
 		containerState: containerState{
@@ -83,13 +98,12 @@ var testStatuses = []fullContainerState{
 			Bundle:         "/foo/bar/baz",
 			Created:        time.Now().UTC(),
 			Annotations:    map[string]string(nil),
-			Owner:          "",
+			Owner:          "#0",
 		},
-		hypervisorDetails: hypervisorDetails{
-			HypervisorPath: "/hypervisor/path3",
-			ImagePath:      "/image/path3",
-			KernelPath:     "/kernel/path3",
-		},
+
+		CurrentHypervisorDetails: hypervisorDetails3,
+		LatestHypervisorDetails:  hypervisorDetails3,
+		StaleAssets:              []string{},
 	},
 }
 
@@ -128,8 +142,15 @@ func formatListDataAsString(formatter formatState, state []fullContainerState, s
 	length := len(lines)
 	last := lines[length-1]
 	if last == "" {
+		fmt.Printf("f: removed last line\n")
 		lines = lines[:length-1]
 	}
+
+	// FIXME
+	for i, line := range lines {
+		fmt.Printf("f: line[%d]: %v\n", i, line)
+	}
+	fmt.Println("------------------------------------------------")
 
 	return lines, nil
 }
@@ -166,7 +187,7 @@ func TestStateToTabular(t *testing.T) {
 	expectedLength := len(testStatuses) + 1
 
 	expectedDefaultHeaderPattern := `\AID\s+PID\s+STATUS\s+BUNDLE\s+CREATED\s+OWNER`
-	expectedExtendedHeaderPattern := `HYPERVISOR\s+KERNEL\s+IMAGE`
+	expectedExtendedHeaderPattern := `HYPERVISOR\s+KERNEL\s+IMAGE\s+LATEST-KERNEL\s+LATEST-IMAGE\s+STALE`
 	endingPattern := `\s*\z`
 
 	lines, err := formatListDataAsString(&formatTabular{}, testStatuses, false)
@@ -230,6 +251,10 @@ func TestStateToTabular(t *testing.T) {
 	expectedHeaderRE = regexp.MustCompile(expectedHeaderPattern)
 
 	if length != expectedLength {
+		fmt.Println("--------------------------------------------------------")
+		for i, line := range lines {
+			fmt.Printf("DEBUG: TestStateToTabular: line[%d]: %q\n", i, line)
+		}
 		t.Fatalf("Expected %d lines, got %d", expectedLength, length)
 	}
 
@@ -248,16 +273,19 @@ func TestStateToTabular(t *testing.T) {
 		lineIndex := i + 1
 		line := lines[lineIndex]
 
-		expectedLinePattern := fmt.Sprintf(`\A%s\s+%d\s+%s\s+%s\s+%s\s+%s\s+%s\s+%s\s+%s\s*\z`,
+		expectedLinePattern := fmt.Sprintf(`\A%s\s+%d\s+%s\s+%s\s+%s\s+%s\s+%s\s+%s\s+%s\s+%s\s+%s\s+%s\s*\z`,
 			regexp.QuoteMeta(status.ID),
 			status.InitProcessPid,
 			regexp.QuoteMeta(status.Status),
 			regexp.QuoteMeta(status.Bundle),
 			regexp.QuoteMeta(status.Created.Format(time.RFC3339Nano)),
 			regexp.QuoteMeta(status.Owner),
-			regexp.QuoteMeta(status.hypervisorDetails.HypervisorPath),
-			regexp.QuoteMeta(status.hypervisorDetails.KernelPath),
-			regexp.QuoteMeta(status.hypervisorDetails.ImagePath))
+			regexp.QuoteMeta(status.CurrentHypervisorDetails.HypervisorPath),
+			regexp.QuoteMeta(status.CurrentHypervisorDetails.KernelPath),
+			regexp.QuoteMeta(status.CurrentHypervisorDetails.ImagePath),
+			regexp.QuoteMeta(status.LatestHypervisorDetails.KernelPath),
+			regexp.QuoteMeta(status.LatestHypervisorDetails.ImagePath),
+			regexp.QuoteMeta("-"))
 
 		expectedLineRE := regexp.MustCompile(expectedLinePattern)
 
@@ -642,99 +670,4 @@ func TestListCLIFunctionQuiet(t *testing.T) {
 
 	trimmed := strings.TrimSpace(text)
 	assert.Equal(testPodID, trimmed)
-}
-
-func TestListGetContainersWithNewAndOldAssets(t *testing.T) {
-	assert := assert.New(t)
-
-	pod1 := &vcMock.Pod{
-		MockID: testPodID,
-	}
-
-	testPodID2 := strings.Replace(testPodID, "9", "1", -1)
-	assert.NotNil(testPodID2)
-
-	pod2 := &vcMock.Pod{
-		MockID: testPodID2,
-	}
-
-	pod1Path := "/this/is/path/1"
-	pod2Path := "/i/am/called/path/number/2"
-
-	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
-		return []vc.PodStatus{
-			{
-				ID: pod1.ID(),
-				ContainersStatus: []vc.ContainerStatus{
-					{
-						ID:          pod1.ID(),
-						Annotations: map[string]string{},
-					},
-				},
-				HypervisorConfig: vc.HypervisorConfig{
-					KernelPath:     path.Join(pod1Path, "kernel"),
-					ImagePath:      path.Join(pod1Path, "image"),
-					HypervisorPath: path.Join(pod1Path, "hypervisor"),
-				},
-			},
-			{
-				ID: pod2.ID(),
-				ContainersStatus: []vc.ContainerStatus{
-					{
-						ID:          pod2.ID(),
-						Annotations: map[string]string{},
-					},
-				},
-				HypervisorConfig: vc.HypervisorConfig{
-					KernelPath:     path.Join(pod2Path, "kernel"),
-					ImagePath:      path.Join(pod2Path, "image"),
-					HypervisorPath: path.Join(pod2Path, "hypervisor"),
-				},
-			},
-		}, nil
-	}
-
-	defer func() {
-		testingImpl.ListPodFunc = nil
-	}()
-
-	tmpdir, err := ioutil.TempDir(testDir, "")
-	assert.NoError(err)
-	defer os.RemoveAll(tmpdir)
-
-	app := cli.NewApp()
-	ctx := cli.NewContext(app, nil, nil)
-	app.Name = "foo"
-
-	runtimeConfig, err := newTestRuntimeConfig(tmpdir, testConsole, true)
-	assert.NoError(err)
-
-	ctx.App.Metadata = map[string]interface{}{
-		"runtimeConfig": runtimeConfig,
-	}
-
-	state, err := getContainers(ctx)
-	assert.NoError(err)
-
-	seenPath1 := false
-	seenPath2 := false
-
-	for _, s := range state {
-		if s.ID == testPodID {
-			for _, p := range []string{s.HypervisorPath, s.ImagePath, s.KernelPath} {
-				assert.True(strings.HasPrefix(p, pod1Path))
-
-			}
-			seenPath1 = true
-		} else if s.ID == testPodID2 {
-			for _, p := range []string{s.HypervisorPath, s.ImagePath, s.KernelPath} {
-				assert.True(strings.HasPrefix(p, pod2Path))
-
-			}
-			seenPath2 = true
-		}
-	}
-
-	assert.True(seenPath1)
-	assert.True(seenPath2)
 }
