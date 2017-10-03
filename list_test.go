@@ -455,9 +455,17 @@ func TestListGetContainersPodWithoutContainers(t *testing.T) {
 func TestListGetContainersPodWithContainer(t *testing.T) {
 	assert := assert.New(t)
 
+	tmpdir, err := ioutil.TempDir(testDir, "")
+	assert.NoError(err)
+	defer os.RemoveAll(tmpdir)
+
 	pod := &vcMock.Pod{
 		MockID: testPodID,
 	}
+
+	rootfs := filepath.Join(tmpdir, "rootfs")
+	err = os.MkdirAll(rootfs, testDirMode)
+	assert.NoError(err)
 
 	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
 		return []vc.PodStatus{
@@ -467,6 +475,7 @@ func TestListGetContainersPodWithContainer(t *testing.T) {
 					{
 						ID:          pod.ID(),
 						Annotations: map[string]string{},
+						RootFs:      rootfs,
 					},
 				},
 			},
@@ -476,10 +485,6 @@ func TestListGetContainersPodWithContainer(t *testing.T) {
 	defer func() {
 		testingImpl.ListPodFunc = nil
 	}()
-
-	tmpdir, err := ioutil.TempDir(testDir, "")
-	assert.NoError(err)
-	defer os.RemoveAll(tmpdir)
 
 	app := cli.NewApp()
 	ctx := cli.NewContext(app, nil, nil)
@@ -531,6 +536,8 @@ func TestListCLIFunctionFormatFail(t *testing.T) {
 		MockID: testPodID,
 	}
 
+	rootfs := filepath.Join(tmpdir, "rootfs")
+
 	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
 		return []vc.PodStatus{
 			{
@@ -541,6 +548,7 @@ func TestListCLIFunctionFormatFail(t *testing.T) {
 						Annotations: map[string]string{
 							oci.ContainerTypeKey: string(vc.PodSandbox),
 						},
+						RootFs: rootfs,
 					},
 				},
 			},
@@ -559,9 +567,10 @@ func TestListCLIFunctionFormatFail(t *testing.T) {
 	// purposely invalid
 	var invalidFile *os.File
 
-	defaultOutputFile = invalidFile
-
 	for _, d := range data {
+		// start off with an invalid output file
+		defaultOutputFile = invalidFile
+
 		app := cli.NewApp()
 		ctx := cli.NewContext(app, d.flags, nil)
 		app.Name = "foo"
@@ -582,13 +591,36 @@ func TestListCLIFunctionFormatFail(t *testing.T) {
 
 		ctx.App.Metadata["runtimeConfig"] = runtimeConfig
 
+		_ = os.Remove(rootfs)
+
+		err = fn(ctx)
+		assert.Error(err)
+
+		err = os.MkdirAll(rootfs, testDirMode)
+		assert.NoError(err)
+
 		err = fn(ctx)
 
-		// invalid file
+		// invalid output file
 		assert.Error(err, d)
 		assert.False(vcMock.IsMockError(err), d)
-	}
 
+		output := filepath.Join(tmpdir, "output")
+		f, err := os.OpenFile(output, os.O_WRONLY|os.O_CREATE, testFileMode)
+		assert.NoError(err)
+		defer f.Close()
+
+		// output file is now valid
+		defaultOutputFile = f
+
+		err = fn(ctx)
+		if d.format == "invalid" {
+			assert.Error(err)
+			assert.False(vcMock.IsMockError(err), d)
+		} else {
+			assert.NoError(err)
+		}
+	}
 }
 
 func TestListCLIFunctionQuiet(t *testing.T) {
@@ -605,6 +637,10 @@ func TestListCLIFunctionQuiet(t *testing.T) {
 		MockID: testPodID,
 	}
 
+	rootfs := filepath.Join(tmpdir, "rootfs")
+	err = os.MkdirAll(rootfs, testDirMode)
+	assert.NoError(err)
+
 	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
 		return []vc.PodStatus{
 			{
@@ -615,6 +651,7 @@ func TestListCLIFunctionQuiet(t *testing.T) {
 						Annotations: map[string]string{
 							oci.ContainerTypeKey: string(vc.PodSandbox),
 						},
+						RootFs: rootfs,
 					},
 				},
 			},
@@ -659,4 +696,41 @@ func TestListCLIFunctionQuiet(t *testing.T) {
 
 	trimmed := strings.TrimSpace(text)
 	assert.Equal(testPodID, trimmed)
+}
+
+func TestListGetDirOwner(t *testing.T) {
+	assert := assert.New(t)
+
+	tmpdir, err := ioutil.TempDir(testDir, "")
+	assert.NoError(err)
+	defer os.RemoveAll(tmpdir)
+
+	_, err = getDirOwner("")
+	// invalid parameter
+	assert.Error(err)
+
+	dir := filepath.Join(tmpdir, "dir")
+
+	_, err = getDirOwner(dir)
+	// ENOENT
+	assert.Error(err)
+
+	err = createEmptyFile(dir)
+	assert.NoError(err)
+
+	_, err = getDirOwner(dir)
+	// wrong file type
+	assert.Error(err)
+
+	err = os.Remove(dir)
+	assert.NoError(err)
+
+	err = os.MkdirAll(dir, testDirMode)
+	assert.NoError(err)
+
+	uid := uint32(os.Getuid())
+
+	dirUID, err := getDirOwner(dir)
+	assert.NoError(err)
+	assert.Equal(dirUID, uid)
 }
