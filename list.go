@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"syscall"
 	"text/tabwriter"
 	"time"
 
@@ -226,6 +227,28 @@ func (f *formatJSON) Write(state []fullContainerState, showAll bool, file *os.Fi
 	return json.NewEncoder(file).Encode(state)
 }
 
+// getDirOwner returns the UID of the specified directory
+func getDirOwner(dir string) (uint32, error) {
+	if dir == "" {
+		return 0, errors.New("BUG: need directory")
+	}
+	st, err := os.Stat(dir)
+	if err != nil {
+		return 0, err
+	}
+
+	if !st.IsDir() {
+		return 0, fmt.Errorf("%q is not a directory", dir)
+	}
+
+	statType, ok := st.Sys().(*syscall.Stat_t)
+	if !ok {
+		return 0, fmt.Errorf("cannot convert %+v to stat type for directory %q", st, dir)
+	}
+
+	return statType.Uid, nil
+}
+
 func getContainers(context *cli.Context) ([]fullContainerState, error) {
 	runtimeConfig, ok := context.App.Metadata["runtimeConfig"].(oci.RuntimeConfig)
 	if !ok {
@@ -257,6 +280,13 @@ func getContainers(context *cli.Context) ([]fullContainerState, error) {
 			ociState := oci.StatusToOCIState(container)
 			staleAssets := getStaleAssets(currentHypervisorDetails, latestHypervisorDetails)
 
+			uid, err := getDirOwner(container.RootFs)
+			if err != nil {
+				return nil, err
+			}
+
+			owner := fmt.Sprintf("#%v", uid)
+
 			s = append(s, fullContainerState{
 				containerState: containerState{
 					Version:        ociState.Version,
@@ -267,8 +297,7 @@ func getContainers(context *cli.Context) ([]fullContainerState, error) {
 					Rootfs:         container.RootFs,
 					Created:        container.StartTime,
 					Annotations:    ociState.Annotations,
-
-					// FIXME: Owner,
+					Owner:          owner,
 				},
 				CurrentHypervisorDetails: currentHypervisorDetails,
 				LatestHypervisorDetails:  latestHypervisorDetails,
