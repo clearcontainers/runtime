@@ -20,6 +20,25 @@ runtime=$(command -v "$runtime_name" 2>/dev/null)
 issue_url="https://github.com/clearcontainers/runtime/issues/new"
 script_version="@VERSION@ (commit @COMMIT@)"
 
+# Maximum number of errors to show for a single system component
+# (such as runtime or proxy).
+PROBLEM_LIMIT=${PROBLEM_LIMIT:-50}
+
+problem_pattern="("
+problem_pattern+="\<warn\>"
+problem_pattern+="\<warning\>"
+problem_pattern+="|\<error\>"
+problem_pattern+="|\<fail\>"
+problem_pattern+="|\<failed\>"
+problem_pattern+="|\<fatal\>"
+problem_pattern+="|\<impossible\>"
+problem_pattern+="|\<missing\>"
+problem_pattern+="|\<does.*not.*exist\>"
+problem_pattern+="|\<not.*found\>"
+problem_pattern+="|\<no.*such.*file\>"
+problem_pattern+="|\<cannot\>"
+problem_pattern+=")"
+
 usage()
 {
 	cat <<EOT
@@ -136,36 +155,35 @@ show_runtime_configs()
 	separator
 }
 
+show_log_details()
+{
+	heading "Logfiles"
+
+	show_runtime_log_details
+	show_proxy_log_details
+
+	separator
+}
+
 show_runtime_log_details()
 {
-	heading "Runtime logs"
+	subheading "Runtime logs"
 
-	local global_log=$($runtime cc-env | egrep "\<GlobalLogPath\>"|cut -d= -f2-|sed 's/^ *//g'|tr -d '"')
+	local global_log=$($runtime cc-env |\
+		egrep "\<GlobalLogPath\>" |\
+		cut -d= -f2- |\
+		sed 's/^ *//g' |\
+		tr -d '"')
+
 	if [ -n "$global_log" ]; then
 		if [ -e "$global_log" ]; then
-			local pattern="("
-			pattern+="\<warn\>"
-			pattern+="\<warning\>"
-			pattern+="|\<error\>"
-			pattern+="|\<fail\>"
-			pattern+="|\<failed\>"
-			pattern+="|\<fatal\>"
-			pattern+="|\<impossible\>"
-			pattern+="|\<missing\>"
-			pattern+="|\<does.*not.*exist\>"
-			pattern+="|\<not.*found\>"
-			pattern+="|\<no.*such.*file\>"
-			pattern+="|\<cannot\>"
-			pattern+=")"
-
-			# Note: output limited to most recent issues
-			local problems=$(egrep -i "$pattern" "$global_log"|tail -50)
+			local problems=$(egrep -i "$problem_pattern" "$global_log"|tail -n ${PROBLEM_LIMIT})
 
 			if [ -n "$problems" ]; then
-				msg "Recent problems found in global log \`$global_log\`:"
+				msg "Recent runtime problems found in global log \`$global_log\`:"
 				show_quoted_text "$problems"
 			else
-				msg "No recent problems found in global log \`$global_log\`."
+				msg "No recent runtime problems found in global log \`$global_log\`."
 			fi
 		else
 			msg "Global log \`$global_log\` does not exist."
@@ -174,8 +192,23 @@ show_runtime_log_details()
 	else
 		msg "Global log not enabled."
 	fi
+}
 
-	separator
+show_proxy_log_details()
+{
+	subheading "Proxy logs"
+
+	local problems=$(journalctl -q -o cat -lau "cc-proxy" |\
+		grep "time=" |\
+		egrep -i "$problem_pattern" |\
+		tail -n ${PROBLEM_LIMIT})
+
+	if [ -n "$problems" ]; then
+		msg "Recent proxy problems found in system journal:"
+		show_quoted_text "$problems"
+	else
+		msg "No recent proxy problems found in system journal."
+	fi
 }
 
 show_package_versions()
@@ -265,7 +298,7 @@ main()
 	show_meta
 	show_runtime
 	show_runtime_configs
-	show_runtime_log_details
+	show_log_details
 	show_container_mgr_details
 	show_package_versions
 }
