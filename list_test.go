@@ -142,15 +142,8 @@ func formatListDataAsString(formatter formatState, state []fullContainerState, s
 	length := len(lines)
 	last := lines[length-1]
 	if last == "" {
-		fmt.Printf("f: removed last line\n")
 		lines = lines[:length-1]
 	}
-
-	// FIXME
-	for i, line := range lines {
-		fmt.Printf("f: line[%d]: %v\n", i, line)
-	}
-	fmt.Println("------------------------------------------------")
 
 	return lines, nil
 }
@@ -251,10 +244,6 @@ func TestStateToTabular(t *testing.T) {
 	expectedHeaderRE = regexp.MustCompile(expectedHeaderPattern)
 
 	if length != expectedLength {
-		fmt.Println("--------------------------------------------------------")
-		for i, line := range lines {
-			fmt.Printf("DEBUG: TestStateToTabular: line[%d]: %q\n", i, line)
-		}
 		t.Fatalf("Expected %d lines, got %d", expectedLength, length)
 	}
 
