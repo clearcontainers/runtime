@@ -106,9 +106,16 @@ func init() {
 	// Do this now to avoid hitting the test timeout value due to
 	// slow network response.
 	fmt.Printf("INFO: ensuring required docker image (%v) is available\n", testDockerImage)
-	_, err = runCommand([]string{"docker", "pull", testDockerImage})
-	if err != nil {
-		panic(err)
+
+	// Only hit the network if the image doesn't exist locally
+	_, err = runCommand([]string{"docker", "image", "inspect", testDockerImage})
+	if err == nil {
+		fmt.Printf("INFO: docker image %v already exists locally\n", testDockerImage)
+	} else {
+		_, err = runCommand([]string{"docker", "pull", testDockerImage})
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	testBundleDir = filepath.Join(testDir, testBundle)
