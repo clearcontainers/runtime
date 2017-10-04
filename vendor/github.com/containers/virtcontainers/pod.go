@@ -719,7 +719,7 @@ func (p *Pod) startVM(netNsPath string) error {
 	select {
 	case <-vmStartedCh:
 		break
-	case <-time.After(time.Second):
+	case <-time.After(time.Duration(10) * time.Second):
 		return fmt.Errorf("Did not receive the pod started notification")
 	}
 
