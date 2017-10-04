@@ -522,6 +522,11 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 		return nil, err
 	}
 
+	// Passthrough devices
+	if err := p.attachDevices(); err != nil {
+		return nil, err
+	}
+
 	// fetch agent capabilities and call addDrives if the agent has support
 	// for block devices.
 	caps := p.agent.capabilities()
@@ -707,6 +712,9 @@ func (p *Pod) startSetState() error {
 func (p *Pod) startVM(netNsPath string) error {
 	vmStartedCh := make(chan struct{})
 	vmStoppedCh := make(chan struct{})
+	const timeout = time.Duration(10) * time.Second
+
+	virtLog.Info("Starting VM")
 
 	go func() {
 		p.network.run(netNsPath, func() error {
@@ -719,8 +727,8 @@ func (p *Pod) startVM(netNsPath string) error {
 	select {
 	case <-vmStartedCh:
 		break
-	case <-time.After(time.Second):
-		return fmt.Errorf("Did not receive the pod started notification")
+	case <-time.After(timeout):
+		return fmt.Errorf("Did not receive the pod started notification (timeout %ds)", timeout)
 	}
 
 	virtLog.Infof("VM started")
@@ -885,6 +893,8 @@ func (p *Pod) resumeSetStates() error {
 
 // stopVM stops the agent inside the VM and shut down the VM itself.
 func (p *Pod) stopVM() error {
+	virtLog.Info("Stopping VM")
+
 	if _, _, err := p.proxy.connect(*p, false); err != nil {
 		return err
 	}
@@ -1150,6 +1160,26 @@ func togglePausePod(podID string, pause bool) (*Pod, error) {
 	}
 
 	return p, nil
+}
+
+func (p *Pod) attachDevices() error {
+	for _, container := range p.containers {
+		if err := container.attachDevices(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (p *Pod) detachDevices() error {
+	for _, container := range p.containers {
+		if err := container.detachDevices(); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // addDrives can be used to pass block storage devices to the hypervisor in case of devicemapper storage.

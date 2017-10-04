@@ -591,6 +591,32 @@ func (blkdev BlockDevice) QemuParams(config *Config) []string {
 	return qemuParams
 }
 
+// VFIODevice represents a qemu vfio device meant for direct access by guest OS.
+type VFIODevice struct {
+	// Bus-Device-Function of device
+	BDF string
+}
+
+// Valid returns true if the VFIODevice structure is valid and complete.
+func (vfioDev VFIODevice) Valid() bool {
+	if vfioDev.BDF == "" {
+		return false
+	}
+
+	return true
+}
+
+// QemuParams returns the qemu parameters built out of this vfio device.
+func (vfioDev VFIODevice) QemuParams(config *Config) []string {
+	var qemuParams []string
+
+	deviceParam := fmt.Sprintf("vfio-pci,host=%s", vfioDev.BDF)
+	qemuParams = append(qemuParams, "-device")
+	qemuParams = append(qemuParams, deviceParam)
+
+	return qemuParams
+}
+
 // RTCBaseType is the qemu RTC base time type.
 type RTCBaseType string
 
@@ -741,6 +767,16 @@ type Knobs struct {
 
 	// Daemonize will turn the qemu process into a daemon
 	Daemonize bool
+
+	// Both HugePages and MemPrealloc require the Memory.Size of the VM
+	// to be set, as they need to reserve the memory upfront in order
+	// for the VM to boot without errors.
+	//
+	// HugePages always results in memory pre-allocation.
+	// However the setup is different from normal pre-allocation.
+	// Hence HugePages has precedence over MemPrealloc
+	// HugePages will pre-allocate all the RAM from huge pages
+	HugePages bool
 
 	// MemPrealloc will allocate all the RAM upfront
 	MemPrealloc bool
@@ -999,7 +1035,19 @@ func (config *Config) appendKnobs() {
 		config.qemuParams = append(config.qemuParams, "-daemonize")
 	}
 
-	if config.Knobs.MemPrealloc == true {
+	if config.Knobs.HugePages == true {
+		if config.Memory.Size != "" {
+			dimmName := "dimm1"
+			objMemParam := "memory-backend-file,id=" + dimmName + ",size=" + config.Memory.Size + ",mem-path=/dev/hugepages,share=on,prealloc=on"
+			numaMemParam := "node,memdev=" + dimmName
+
+			config.qemuParams = append(config.qemuParams, "-object")
+			config.qemuParams = append(config.qemuParams, objMemParam)
+
+			config.qemuParams = append(config.qemuParams, "-numa")
+			config.qemuParams = append(config.qemuParams, numaMemParam)
+		}
+	} else if config.Knobs.MemPrealloc == true {
 		if config.Memory.Size != "" {
 			dimmName := "dimm1"
 			objMemParam := "memory-backend-ram,id=" + dimmName + ",size=" + config.Memory.Size + ",prealloc=on"

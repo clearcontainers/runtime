@@ -17,8 +17,8 @@ package vcMock
 import (
 	"syscall"
 
-	"github.com/Sirupsen/logrus"
 	vc "github.com/containers/virtcontainers"
+	"github.com/sirupsen/logrus"
 )
 
 // Pod is a fake Pod type used for testing

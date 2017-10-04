@@ -21,7 +21,7 @@ package virtcontainers
 import (
 	"syscall"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 // VCImpl is the official virtcontainers function of the same name.

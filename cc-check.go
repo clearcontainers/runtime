@@ -21,8 +21,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	vc "github.com/containers/virtcontainers"
+	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
 

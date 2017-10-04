@@ -80,10 +80,6 @@
 
 [[constraint]]
   branch = "master"
-  name = "github.com/Sirupsen/logrus"
-
-[[constraint]]
-  branch = "master"
   name = "github.com/clearcontainers/proxy"
 
 [[constraint]]
@@ -129,6 +125,10 @@
 [[constraint]]
   name = "github.com/pmezard/go-difflib"
   version = "1.0.0"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/sirupsen/logrus"
 
 [[constraint]]
   branch = "master"

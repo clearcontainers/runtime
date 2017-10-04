@@ -19,8 +19,8 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/Sirupsen/logrus"
 	vc "github.com/containers/virtcontainers"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 

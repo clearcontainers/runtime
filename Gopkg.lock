@@ -5,19 +5,13 @@
   branch = "master"
   name = "github.com/01org/ciao"
   packages = ["qemu","ssntp/uuid"]
-  revision = "9d6632430ecf42a35c23b7c6cdc560d5116d9483"
+  revision = "49b0fd97c72517dfb2450aa6a08ff4b9bb7bff42"
 
 [[projects]]
   branch = "master"
   name = "github.com/BurntSushi/toml"
   packages = ["."]
   revision = "a368813c5e648fee92e5f6c30e3944ff9d5e8895"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/Sirupsen/logrus"
-  packages = ["."]
-  revision = "acfabf31db8f45a9174f54a0d48ea4d15627af4d"
 
 [[projects]]
   branch = "master"
@@ -41,7 +35,7 @@
   branch = "master"
   name = "github.com/containers/virtcontainers"
   packages = [".","pkg/cni","pkg/hyperstart","pkg/oci","pkg/vcMock"]
-  revision = "c280b452bf075d3bac786f8a92ab70c6a1742600"
+  revision = "8cbd7a24a221f4462dab8e2f5308265a35bd68c1"
 
 [[projects]]
   branch = "master"
@@ -54,6 +48,12 @@
   name = "github.com/dlespiau/covertool"
   packages = ["pkg/cover"]
   revision = "b82616d290e628437bc08b858b5ecb3d7fe9ea53"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/go-ini/ini"
+  packages = ["."]
+  revision = "c787282c39ac1fc618827141a1f762240def08a3"
 
 [[projects]]
   branch = "master"
@@ -87,6 +87,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/sirupsen/logrus"
+  packages = ["."]
+  revision = "89742aefa4b206dcf400792f3bd35b542998eb3b"
+
+[[projects]]
+  branch = "master"
   name = "github.com/stretchr/testify"
   packages = ["assert"]
   revision = "4d4bfba8f1d1027c4fdbe371823030df51419987"
@@ -112,7 +118,7 @@
 [[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
-  packages = ["curve25519","ed25519","ed25519/internal/edwards25519","ssh"]
+  packages = ["curve25519","ed25519","ed25519/internal/edwards25519","ssh","ssh/terminal"]
   revision = "adbae1b6b6fb4b02448a0fc0dbbc9ba2b95b294d"
 
 [[projects]]
@@ -124,6 +130,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "4355d9708eb5de24940da29aaf8d1aafee09ff57119999c762830fac0d3d2b1c"
+  inputs-digest = "8a01cb529efa5e6114d1049d6d785d1830e81fd37a91694fafc8e8c35575eece"
   solver-name = "gps-cdcl"
   solver-version = 1

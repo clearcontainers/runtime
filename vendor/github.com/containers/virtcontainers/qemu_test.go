@@ -118,6 +118,8 @@ func testQemuAppend(t *testing.T, structure interface{}, expected []ciaoQemu.Dev
 		}
 	case Drive:
 		devices = q.appendBlockDevice(devices, s)
+	case VFIODevice:
+		devices = q.appendVFIODevice(devices, s)
 	}
 
 	if reflect.DeepEqual(devices, expected) == false {
@@ -203,6 +205,23 @@ func TestQemuAppendBlockDevice(t *testing.T) {
 	}
 
 	testQemuAppend(t, drive, expectedOut, -1, nestedVM)
+}
+
+func TestQemuAppendVFIODevice(t *testing.T) {
+	nestedVM := true
+	bdf := "02:10.1"
+
+	expectedOut := []ciaoQemu.Device{
+		ciaoQemu.VFIODevice{
+			BDF: bdf,
+		},
+	}
+
+	vfDevice := VFIODevice{
+		BDF: bdf,
+	}
+
+	testQemuAppend(t, vfDevice, expectedOut, -1, nestedVM)
 }
 
 func TestQemuAppendFSDevices(t *testing.T) {
