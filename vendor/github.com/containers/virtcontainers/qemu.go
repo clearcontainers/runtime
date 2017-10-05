@@ -674,7 +674,7 @@ func (q *qemu) stopPod() error {
 	select {
 	case <-q.qmpControlCh.disconnectCh:
 		break
-	case <-time.After(time.Second):
+	case <-time.After(time.Duration(10) * time.Second):
 		return fmt.Errorf("Did not receive the VM disconnection notification")
 	}
 

@@ -325,6 +325,12 @@ func StatusPod(podID string) (PodStatus, error) {
 		return PodStatus{}, errNeedPodID
 	}
 
+	lockFile, err := lockPod(podID)
+	if err != nil {
+		return PodStatus{}, err
+	}
+	defer unlockPod(lockFile)
+
 	pod, err := fetchPod(podID)
 	if err != nil {
 		return PodStatus{}, err
@@ -566,6 +572,12 @@ func StatusContainer(podID, containerID string) (ContainerStatus, error) {
 	if containerID == "" {
 		return ContainerStatus{}, errNeedContainerID
 	}
+
+	lockFile, err := lockPod(podID)
+	if err != nil {
+		return ContainerStatus{}, err
+	}
+	defer unlockPod(lockFile)
 
 	pod, err := fetchPod(podID)
 	if err != nil {
