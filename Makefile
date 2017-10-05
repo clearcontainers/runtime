@@ -146,7 +146,7 @@ BASH_COMPLETIONSDIR := $(DESTSHAREDIR)/bash-completion/completions
 
 COLLECT_SCRIPT = data/cc-collect-data.sh
 SCRIPTS += $(COLLECT_SCRIPT)
-SCRIPTS_DIR := $(abspath $(DESTBINDIR))
+SCRIPTS_DIR := $(BINDIR)
 
 GENERATED_FILES += $(COLLECT_SCRIPT)
 
@@ -252,6 +252,13 @@ endef
 
 export GENERATED_CODE
 
+#Install an executable file
+# params:
+# $1 : file to install
+# $2 : directory path where file will be installed
+define INSTALL_EXEC
+	$(QUIET_INST)install -D $1 $(DESTDIR)$2/$(notdir $1);
+endef
 
 GENERATED_GO_FILES += config-generated.go
 
@@ -331,7 +338,7 @@ install-completions:
 	$(QUIET_INST)install --mode 0644 -D $(BASH_COMPLETIONS) $(BASH_COMPLETIONSDIR)
 
 install-scripts:
-	$(QUIET_INST)install --mode 0755 -D $(SCRIPTS) $(SCRIPTS_DIR)
+	$(foreach f,$(SCRIPTS),$(call INSTALL_EXEC,$f,$(SCRIPTS_DIR)))
 
 clean:
 	$(QUIET_CLEAN)rm -f $(TARGET) $(CONFIG) $(GENERATED_GO_FILES) $(GENERATED_FILES)
