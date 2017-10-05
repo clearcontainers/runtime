@@ -21,7 +21,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/01org/ciao/ssntp/uuid"
+	"github.com/ciao-project/ciao/ssntp/uuid"
 )
 
 func setReadTimeout(conn net.Conn) {

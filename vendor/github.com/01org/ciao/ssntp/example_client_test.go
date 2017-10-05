@@ -18,7 +18,7 @@ package ssntp_test
 
 import (
 	"fmt"
-	. "github.com/01org/ciao/ssntp"
+	. "github.com/ciao-project/ciao/ssntp"
 	"time"
 )
 

@@ -39,10 +39,10 @@ groups:
   approvers:
     required: 1
     users:
-      - dlespiau
       - sameo
       - sboeuf
       - amshinde
+      - jodh-intel
 
   reviewers:
     required: 1

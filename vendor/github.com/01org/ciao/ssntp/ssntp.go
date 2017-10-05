@@ -32,7 +32,7 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/01org/ciao/ssntp/uuid"
+	"github.com/ciao-project/ciao/ssntp/uuid"
 	"github.com/golang/glog"
 )
 
@@ -42,7 +42,7 @@ type Type uint8
 
 // Command is the SSNTP Command operand.
 // It can be CONNECT, START, STOP, STATS, EVACUATE, DELETE, RESTART,
-// AssignPublicIP, ReleasePublicIP, CONFIGURE, AttachVolume or DetachVolume.
+// AssignPublicIP, ReleasePublicIP, CONFIGURE or AttachVolume.
 type Command uint8
 
 // Status is the SSNTP Status operand.
@@ -113,16 +113,6 @@ const (
 	//	+-----------------------------------------------------------------------------------------+
 	START
 
-	// STOP is used to ask a CIAO agent to stop a running workload. The workload
-	// is identified by its UUID, as part of the YAML formatted payload:
-	//					   SSNTP STOP Command frame
-	//
-	//	+----------------------------------------------------------------------------------+
-	//	| Major | Minor | Type  | Operand |  Payload Length | YAML formatted workload UUID |
-	//	|       |       | (0x0) |  (0x2)  |                 |                              |
-	//	+----------------------------------------------------------------------------------+
-	STOP
-
 	// STATS is a command sent by CIAO agents to update the SSNTP network
 	// about their compute node statistics. Agents can send that command to either
 	// the main server or to the Controllers directly. In the former case the server will
@@ -161,19 +151,6 @@ const (
 	//	|       |       | (0x0) |  (0x5)  |                 | instance and agent UUIDs |
 	//	+------------------------------------------------------------------------------+
 	DELETE
-
-	// RESTART is a command sent to CIAO CN Agents for restarting an instance that was
-	// previously STOPped. This command is only relevant for persistent workloads since
-	// non persistent ones are implicitly deleted when STOPped and thus can not be
-	// RESTARTed.
-	// The RESTART command payload uses the same YAML schema as the STOP command one, i.e.
-	// an instance UUID and an agent UUID.
-	//                                         SSNTP DELETE Command frame
-	//	+------------------------------------------------------------------------------+
-	//	| Major | Minor | Type  | Operand |  Payload Length | YAML formatted payload   |
-	//	|       |       | (0x0) |  (0x6)  |                 | instance and agent UUIDs |
-	//	+------------------------------------------------------------------------------+
-	RESTART
 
 	// AssignPublicIP is a command sent by the Controller to assign
 	// a publicly routable IP to a given instance. It is sent
@@ -241,18 +218,6 @@ const (
 	//	|       |       | (0x0) |  (0xa)  |                 |                         |
 	//	+-----------------------------------------------------------------------------+
 	AttachVolume
-
-	// DetachVolume is a command sent to ciao-launcher for detaching a storage volume
-	// from a specific running or paused instance.
-	//
-	// The DetachVolume command payload includes a volume UUID and an instance UUID.
-	//
-	//                                       SSNTP DetachVolume Command frame
-	//	+-----------------------------------------------------------------------------+
-	//	| Major | Minor | Type  | Operand |  Payload Length | YAML formatted payload  |
-	//	|       |       | (0x0) |  (0xb)  |                 |                         |
-	//	+-----------------------------------------------------------------------------+
-	DetachVolume
 
 	// Restore is used to ask a specific CIAO agent that had previously been placed into
 	// maintenance mode by an EVACUATE command to start accepting new instances once more.
@@ -562,10 +527,6 @@ const (
 	// a volume to an instance.
 	AttachVolumeFailure
 
-	// DetachVolumeFailure is sent by launcher agents to report a failure to detach
-	// a volume from an instance.
-	DetachVolumeFailure
-
 	// AssignPublicIPFailure is sent by the CNCI when a an external IP
 	// cannot be assigned.
 	AssignPublicIPFailure
@@ -608,16 +569,12 @@ func (command Command) String() string {
 		return "CONNECT"
 	case START:
 		return "START"
-	case STOP:
-		return "STOP"
 	case STATS:
 		return "STATISTICS"
 	case EVACUATE:
 		return "EVACUATE"
 	case DELETE:
 		return "DELETE"
-	case RESTART:
-		return "RESTART"
 	case AssignPublicIP:
 		return "Assign public IP"
 	case ReleasePublicIP:
@@ -626,8 +583,6 @@ func (command Command) String() string {
 		return "CONFIGURE"
 	case AttachVolume:
 		return "Attach storage volume"
-	case DetachVolume:
-		return "Detach storage volume"
 	case Restore:
 		return "Restore"
 	}

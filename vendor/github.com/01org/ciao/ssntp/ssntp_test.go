@@ -28,8 +28,8 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/01org/ciao/ssntp"
-	"github.com/01org/ciao/testutil"
+	. "github.com/ciao-project/ciao/ssntp"
+	"github.com/ciao-project/ciao/testutil"
 )
 
 const tempCertPath = "/tmp/ssntp-test-certs"
@@ -1578,7 +1578,7 @@ func TestCommandNoDuration(t *testing.T) {
 	}
 
 	client.payload = []byte{'Y', 'A', 'M', 'L'}
-	client.ssntp.SendCommand(RESTART, client.payload)
+	client.ssntp.SendCommand(START, client.payload)
 
 	defer func() {
 		client.ssntp.Close()
@@ -1587,7 +1587,7 @@ func TestCommandNoDuration(t *testing.T) {
 
 	select {
 	case check := <-client.cmdChannel:
-		if check != RESTART.String() {
+		if check != START.String() {
 			t.Fatalf("Did not receive the right payload")
 		}
 	case <-time.After(time.Second):
@@ -1832,7 +1832,7 @@ func TestError(t *testing.T) {
 func TestCmdFwd(t *testing.T) {
 	var server ssntpServer
 	var controller, agent ssntpClient
-	command := STOP
+	command := START
 
 	server.t = t
 	serverConfig, err := buildTestConfig(SCHEDULER)
@@ -2470,16 +2470,13 @@ func TestCommandStringer(t *testing.T) {
 	}{
 		{CONNECT, "CONNECT"},
 		{START, "START"},
-		{STOP, "STOP"},
 		{STATS, "STATISTICS"},
 		{EVACUATE, "EVACUATE"},
 		{DELETE, "DELETE"},
-		{RESTART, "RESTART"},
 		{AssignPublicIP, "Assign public IP"},
 		{ReleasePublicIP, "Release public IP"},
 		{CONFIGURE, "CONFIGURE"},
 		{AttachVolume, "Attach storage volume"},
-		{DetachVolume, "Detach storage volume"},
 	}
 
 	for _, test := range stringTests {

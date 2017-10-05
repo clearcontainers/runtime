@@ -1235,3 +1235,61 @@ func TestContainerStateSetFstype(t *testing.T) {
 		t.Fatal()
 	}
 }
+
+func TestPodAttachDevicesVFIO(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("", "")
+	assert.Nil(t, err)
+	os.RemoveAll(tmpDir)
+
+	testFDIOGroup := "2"
+	testDeviceBDFPath := "0000:00:1c.0"
+
+	devicesDir := filepath.Join(tmpDir, testFDIOGroup, "devices")
+	err = os.MkdirAll(devicesDir, dirMode)
+	assert.Nil(t, err)
+
+	deviceFile := filepath.Join(devicesDir, testDeviceBDFPath)
+	_, err = os.Create(deviceFile)
+	assert.Nil(t, err)
+
+	savedIOMMUPath := sysIOMMUPath
+	sysIOMMUPath = tmpDir
+
+	defer func() {
+		sysIOMMUPath = savedIOMMUPath
+	}()
+
+	path := filepath.Join(vfioPath, testFDIOGroup)
+	deviceInfo := DeviceInfo{
+		HostPath:      path,
+		ContainerPath: path,
+		DevType:       "c",
+	}
+	vfioDevice := newVFIODevice(deviceInfo)
+
+	containers := []ContainerConfig{
+		{
+			ID: "100",
+			Devices: []Device{
+				vfioDevice,
+			},
+		},
+	}
+
+	hConfig := newHypervisorConfig(nil, nil)
+	pod, err := testCreatePod(t, testPodID, MockHypervisor, hConfig, NoopAgentType, NoopNetworkModel, NetworkConfig{}, containers, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	c := pod.GetContainer("100")
+	if c == nil {
+		t.Fatal()
+	}
+
+	err = pod.attachDevices()
+	assert.Nil(t, err, "Error while attaching devices %s", err)
+
+	err = pod.detachDevices()
+	assert.Nil(t, err, "Error while detaching devices %s", err)
+}

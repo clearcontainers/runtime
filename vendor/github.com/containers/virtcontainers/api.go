@@ -21,7 +21,7 @@ import (
 	"runtime"
 	"syscall"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 func init() {
@@ -32,7 +32,7 @@ var virtLog = logrus.FieldLogger(logrus.New())
 
 // SetLogger sets the logger for virtcontainers package.
 func SetLogger(logger logrus.FieldLogger) {
-	virtLog = logger
+	virtLog = logger.WithField("source", "virtcontainers")
 }
 
 // CreatePod is the virtcontainers pod creation entry point.
@@ -325,6 +325,12 @@ func StatusPod(podID string) (PodStatus, error) {
 		return PodStatus{}, errNeedPodID
 	}
 
+	lockFile, err := lockPod(podID)
+	if err != nil {
+		return PodStatus{}, err
+	}
+	defer unlockPod(lockFile)
+
 	pod, err := fetchPod(podID)
 	if err != nil {
 		return PodStatus{}, err
@@ -566,6 +572,12 @@ func StatusContainer(podID, containerID string) (ContainerStatus, error) {
 	if containerID == "" {
 		return ContainerStatus{}, errNeedContainerID
 	}
+
+	lockFile, err := lockPod(podID)
+	if err != nil {
+		return ContainerStatus{}, err
+	}
+	defer unlockPod(lockFile)
 
 	pod, err := fetchPod(podID)
 	if err != nil {

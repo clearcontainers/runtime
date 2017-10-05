@@ -499,6 +499,15 @@ func getIfacesFromNetNs(networkNSPath string) ([]netIfaceAddrs, error) {
 				return err
 			}
 
+			// Ignore unconfigured network interfaces
+			// These are either base tunnel devices
+			// that are not namespaced like
+			// gre0, gretap0, sit0, ipip0, tunl0
+			// or incorrectly setup interfaces
+			if (addrs == nil) || (len(addrs) == 0) {
+				continue
+			}
+
 			netIface := netIfaceAddrs{
 				iface: iface,
 				addrs: addrs,

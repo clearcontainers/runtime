@@ -29,6 +29,7 @@ import (
 	vc "github.com/containers/virtcontainers"
 	"github.com/kubernetes-incubator/cri-o/pkg/annotations"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/stretchr/testify/assert"
 )
 
 const tempBundlePath = "/tmp/virtc/ocibundle/"
@@ -54,6 +55,17 @@ func TestMinimalPodConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	savedFunc := vc.GetHostPathFunc
+
+	// Simply assign container path to host path for device.
+	vc.GetHostPathFunc = func(devInfo vc.DeviceInfo) (string, error) {
+		return devInfo.ContainerPath, nil
+	}
+
+	defer func() {
+		vc.GetHostPathFunc = savedFunc
+	}()
 
 	runtimeConfig := RuntimeConfig{
 		HypervisorType: vc.QemuHypervisor,
@@ -118,6 +130,24 @@ func TestMinimalPodConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	devInfo := vc.DeviceInfo{
+		ContainerPath: "/dev/vfio/17",
+		HostPath:      "/dev/vfio/17",
+		Major:         242,
+		Minor:         0,
+		DevType:       "c",
+		UID:           0,
+		GID:           0,
+	}
+
+	vfioDevice := vc.VFIODevice{}
+	vfioDevice.DeviceInfo = devInfo
+	vfioDevice.DeviceType = vc.DeviceVFIO
+
+	expectedDevices := []vc.Device{
+		&vfioDevice,
+	}
+
 	expectedContainerConfig := vc.ContainerConfig{
 		ID:             containerID,
 		RootFs:         path.Join(tempBundlePath, "rootfs"),
@@ -128,7 +158,8 @@ func TestMinimalPodConfig(t *testing.T) {
 			BundlePathKey:    tempBundlePath,
 			ContainerTypeKey: string(vc.PodSandbox),
 		},
-		Mounts: expectedMounts,
+		Mounts:  expectedMounts,
+		Devices: expectedDevices,
 	}
 
 	expectedNetworkConfig := vc.NetworkConfig{
@@ -630,6 +661,47 @@ func TestAddKernelParamInvalid(t *testing.T) {
 	if err == nil {
 		t.Fatal()
 	}
+}
+
+func TestDeviceTypeFailure(t *testing.T) {
+	var ociSpec CompatOCISpec
+
+	invalidDeviceType := "f"
+	ociSpec.Linux = &specs.Linux{}
+	ociSpec.Linux.Devices = []specs.LinuxDevice{
+		{
+			Path: "/dev/vfio",
+			Type: invalidDeviceType,
+		},
+	}
+
+	_, err := containerDevices(ociSpec)
+	assert.NotNil(t, err, "This test should fail as device type [%s] is invalid ", invalidDeviceType)
+}
+
+func TestContains(t *testing.T) {
+	s := []string{"char", "block", "pipe"}
+
+	assert.True(t, contains(s, "char"))
+	assert.True(t, contains(s, "pipe"))
+	assert.False(t, contains(s, "chara"))
+	assert.False(t, contains(s, "socket"))
+}
+
+func TestDevicePathEmpty(t *testing.T) {
+	var ociSpec CompatOCISpec
+
+	ociSpec.Linux = &specs.Linux{}
+	ociSpec.Linux.Devices = []specs.LinuxDevice{
+		{
+			Type:  "c",
+			Major: 252,
+			Minor: 1,
+		},
+	}
+
+	_, err := containerDevices(ociSpec)
+	assert.NotNil(t, err, "This test should fail as path cannot be empty for device")
 }
 
 func TestMain(m *testing.M) {

@@ -258,6 +258,20 @@ func (q *qemu) appendBlockDevice(devices []ciaoQemu.Device, drive Drive) []ciaoQ
 	return devices
 }
 
+func (q *qemu) appendVFIODevice(devices []ciaoQemu.Device, vfDevice VFIODevice) []ciaoQemu.Device {
+	if vfDevice.BDF == "" {
+		return devices
+	}
+
+	devices = append(devices,
+		ciaoQemu.VFIODevice{
+			BDF: vfDevice.BDF,
+		},
+	)
+
+	return devices
+}
+
 func (q *qemu) appendSocket(devices []ciaoQemu.Device, socket Socket) []ciaoQemu.Device {
 	devID := socket.ID
 	if len(devID) > maxDevIDSize {
@@ -457,7 +471,13 @@ func (q *qemu) init(config HypervisorConfig) error {
 	}
 
 	virtLog.Debugf("Running inside a VM = %v", nested)
-	q.nestedRun = nested
+
+	if config.DisableNestingChecks {
+		//Intentionally ignore the nesting check
+		q.nestedRun = false
+	} else {
+		q.nestedRun = nested
+	}
 
 	return nil
 }
@@ -560,6 +580,7 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 		NoGraphic:    true,
 		Daemonize:    true,
 		MemPrealloc:  q.config.MemPrealloc,
+		HugePages:    q.config.HugePages,
 		Realtime:     q.config.Realtime,
 		Mlock:        q.config.Mlock,
 	}
@@ -653,7 +674,9 @@ func (q *qemu) startPod(startCh, stopCh chan struct{}) error {
 func (q *qemu) stopPod() error {
 	cfg := ciaoQemu.QMPConfig{Logger: qmpLogger{}}
 	q.qmpControlCh.disconnectCh = make(chan struct{})
+	const timeout = time.Duration(10) * time.Second
 
+	virtLog.Info("Stopping Pod")
 	qmp, _, err := ciaoQemu.QMPStart(q.qmpControlCh.ctx, q.qmpControlCh.path, cfg, q.qmpControlCh.disconnectCh)
 	if err != nil {
 		virtLog.Errorf("Failed to connect to QEMU instance %v", err)
@@ -674,8 +697,8 @@ func (q *qemu) stopPod() error {
 	select {
 	case <-q.qmpControlCh.disconnectCh:
 		break
-	case <-time.After(time.Second):
-		return fmt.Errorf("Did not receive the VM disconnection notification")
+	case <-time.After(timeout):
+		return fmt.Errorf("Did not receive the VM disconnection notification (timeout %ds)", timeout)
 	}
 
 	return nil
@@ -820,6 +843,9 @@ func (q *qemu) addDevice(devInfo interface{}, devType deviceType) error {
 	case blockDev:
 		drive := devInfo.(Drive)
 		q.qemuConfig.Devices = q.appendBlockDevice(q.qemuConfig.Devices, drive)
+	case vfioDev:
+		vfDevice := devInfo.(VFIODevice)
+		q.qemuConfig.Devices = q.appendVFIODevice(q.qemuConfig.Devices, vfDevice)
 	default:
 		break
 	}

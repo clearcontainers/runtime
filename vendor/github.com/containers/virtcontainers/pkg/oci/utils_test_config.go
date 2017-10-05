@@ -90,6 +90,16 @@ const minimalConfig = `
 	],
 	"hooks": {},
 	"linux": {
+		"devices": [
+				{
+					"gid": 0,
+					"major": 242,
+					"minor": 0,
+					"path": "/dev/vfio/17",
+					"type": "c",
+					"uid": 0
+				 }
+			],
 		"resources": {
 			"devices": [
 				{
