@@ -91,7 +91,7 @@ UUIDs.
    ConnectionFailure (0x4), and then must close the TLS connection to
    the server.
    The client should also parse the cluster
-   [configuration data] (https://github.com/01org/ciao/blob/master/payloads/configure.go)
+   [configuration data] (https://github.com/ciao-project/ciao/blob/master/payloads/configure.go)
    that comes in the CONNECTED payload and configure itself accordingly.
 
 3. Connection is successfully established. Both ends of the connection
@@ -100,7 +100,7 @@ UUIDs.
 ## SSNTP certificates ##
 
 SSNTP uses ciao-cert to generate the certificates it needs to communicate. They
-can be generated with instructions found in [ciao-cert] (https://github.com/01org/ciao/tree/master/ciao-cert).
+can be generated with instructions found in [ciao-cert] (https://github.com/ciao-project/ciao/tree/master/ciao-cert).
 
 ## SSNTP frames ##
 
@@ -153,7 +153,7 @@ UUID:
 #### START ####
 The CIAO Controller client sends the START command to the Scheduler in
 order to schedule a new workload. The [START command YAML payload]
-(https://github.com/01org/ciao/blob/master/payloads/start.go)
+(https://github.com/ciao-project/ciao/blob/master/payloads/start.go)
 is mandatory and contains a full workload description.
 
 If the Scheduler finds a compute node (CN) with enough capacity to run
@@ -163,7 +163,7 @@ UUID managing this CN with the same payload.
 If the Scheduler cannot find a suitable CN for this workload, it will
 asynchronously send a SSNTP ERROR frame back to the Controller. The error
 code should be StartFailure (0x2) and the payload must comply with the
-[StartFailure YAML schema] (https://github.com/01org/ciao/blob/master/payloads/startfailure.go)
+[StartFailure YAML schema] (https://github.com/ciao-project/ciao/blob/master/payloads/startfailure.go)
 so that the Controller eventually knows that a given instance/workload UUID
 could not start.
 
@@ -183,37 +183,6 @@ The START command payload is mandatory:
 +--------------------------------------------------------------------------+
 ```
 
-#### STOP ####
-The CIAO Controller client sends the STOP command to the Scheduler in
-order to stop a running instance on a given CN. The [STOP command
-YAML payload] (https://github.com/01org/ciao/blob/master/payloads/stop.go)
-is mandatory and contains the instance UUID to be stopped and the
-agent UUID that manages this instance.
-
-STOPping an instance means shutting it down. Non persistent
-instances are deleted as well when being STOPped.
-Persistent instances metadata and disks images are stored and
-can be started again through the RESTART SSNTP command.
-
-There are several error cases related to the STOP command:
-
-1. If the Scheduler cannot find the Agent identified in the STOP
-   command payload, it should send a SSNTP error with the
-   StopFailure (0x3) error code back to the Controller.
-
-2. If the Agent cannot actually stop the instance (Because e.g.
-   it's already finished), it should also send a SSNTP error with
-   the StopFailure (0x3) error code back to the Scheduler. It is
-   then the Scheduler responsibility to notify the Controller about it
-   by forwarding this error frame.
-
-```
-+--------------------------------------------------------------------+
-| Major | Minor | Type  | Operand |  Payload Length | YAML formatted |
-|       |       | (0x0) |  (0x2)  |                 |     payload    |
-+--------------------------------------------------------------------+
-```
-
 #### STATS ####
 CIAO CN Agents periodically send the STATS command to the Scheduler
 in order to provide a complete view of the compute node status. It is
@@ -224,7 +193,7 @@ to the Controller so that it can provide a complete cloud status report back to
 the users.
 
 The STATS command comes with a mandatory [YAML formatted payload]
-(https://github.com/01org/ciao/blob/master/payloads/stats.go).
+(https://github.com/ciao-project/ciao/blob/master/payloads/stats.go).
 
 ```
 +----------------------------------------------------------------------------+
@@ -240,7 +209,7 @@ stop and migrate all of the current workloads it is monitoring on
 its node.
 
 The [EVACUATE YAML payload]
-(https://github.com/01org/ciao/blob/master/payloads/evacuate.go)
+(https://github.com/ciao-project/ciao/blob/master/payloads/evacuate.go)
 is mandatory and describes the next state to reach after evacuation
 is done. It could be 'shutdown' for shutting the node down, 'update'
 for having it run a software update, 'reboot' for rebooting the node
@@ -267,33 +236,13 @@ When asked to delete a non existing instance the CN Agent
 must reply with a DeleteFailure error frame.
 
 The [DELETE YAML payload schema]
-(https://github.com/01org/ciao/blob/master/payloads/stop.go)
+(https://github.com/ciao-project/ciao/blob/master/payloads/stop.go)
 is the same as the STOP one.
 
 ```
 +--------------------------------------------------------------------+
 | Major | Minor | Type  | Operand |  Payload Length | YAML formatted |
 |       |       | (0x0) |  (0x5)  |                 |     payload    |
-+--------------------------------------------------------------------+
-```
-
-#### RESTART ####
-The CIAO Controller client may send RESTART commands in order to
-restart previously STOPped persistent instances.
-Non persistent instances cannot be RESTARTed as they are
-implicitly deleted when being STOPped.
-
-When asked to restart a non existing instance the CN Agent
-must reply with a RestartFailure error frame.
-
-The [RESTART YAML payload schema]
-(https://github.com/01org/ciao/blob/master/payloads/start.go)
-is the same as the STOP one.
-
-```
-+--------------------------------------------------------------------+
-| Major | Minor | Type  | Operand |  Payload Length | YAML formatted |
-|       |       | (0x0) |  (0x6)  |                 |     payload    |
 +--------------------------------------------------------------------+
 ```
 
@@ -306,7 +255,7 @@ The public IP is fetched from a pre-allocated pool
 managed by the Controller.
 
 The [AssignPublicIP YAML payload schema]
-(https://github.com/01org/ciao/blob/master/payloads/assignpublicIP.go)
+(https://github.com/ciao-project/ciao/blob/master/payloads/assignpublicIP.go)
 is made of the CNC, the tenant and the instance UUIDs,
 the allocated public IP and the instance private IP and MAC.
 
@@ -326,7 +275,7 @@ The released public IP is added back to the Controller managed
 IP pool.
 
 The [ReleasePublicIP YAML payload schema]
-(https://github.com/01org/ciao/blob/master/payloads/assignpublicIP.go)
+(https://github.com/ciao-project/ciao/blob/master/payloads/assignpublicIP.go)
 is made of the CNCI and a tenant UUIDs, the released
 public IP, the instance private IP and MAC.
 
@@ -353,7 +302,7 @@ CONFIGURE commands should be sent in the following cases:
 * Every time a new agent joins the SSNTP network.
 
 The [CONFIGURE YAML payload]
-(https://github.com/01org/ciao/blob/master/payloads/configure.go)
+(https://github.com/ciao-project/ciao/blob/master/payloads/configure.go)
 always includes the full cloud configuration and not only changes
 compared to the last CONFIGURE command sent.
 
@@ -423,7 +372,7 @@ information:
    the TLS connection to the server.
 
 The CONNECTED frame payload is the same as the
-[CONFIGURE one](https://github.com/01org/ciao/blob/master/payloads/configure.go)
+[CONFIGURE one](https://github.com/ciao-project/ciao/blob/master/payloads/configure.go)
 and contains cluster configuration data.
 
 ```
@@ -439,7 +388,7 @@ Scheduler know that:
 
 1. Their CN capacity has changed. The new capacity is described
    in the [READY YAML payload]
-   (https://github.com/01org/ciao/blob/master/payloads/ready.go).
+   (https://github.com/ciao-project/ciao/blob/master/payloads/ready.go).
    This is the main piece of information the Scheduler uses to
    make its instances scheduling decisions.
 2. They are ready to take further commands, and in particular to
@@ -558,7 +507,7 @@ forward the notification to the right CNCI (Compute Node Concentrator Instance),
 i.e. the CNCI running the tenant workload.
 
 A [TenantAdded event payload]
-(https://github.com/01org/ciao/blob/master/payloads/tenantadded.go)
+(https://github.com/ciao-project/ciao/blob/master/payloads/tenantadded.go)
 is a YAML formatted one containing the tenant, the agent
 and the concentrator instance (CNCI) UUID, the tenant subnet,
 the agent and the CNCI IPs, the subnet key and the CNCI MAC.
@@ -582,7 +531,7 @@ Node Concentrator Instance), i.e. the CNCI running the
 tenant workload.
 
 A [TenantRemoved event payload]
-(https://github.com/01org/ciao/blob/master/payloads/tenantadded.go)
+(https://github.com/ciao-project/ciao/blob/master/payloads/tenantadded.go)
 is a YAML formatted one containing the tenant, the agent
 and the concentrator instance (CNCI) UUID, the tenant subnet,
 the agent and the CNCI IPs, and the subnet key.
@@ -607,7 +556,7 @@ instance would no longer be there) it is safer, simpler
 and less error prone to explicitly send this event.
 
 A [InstanceDeleted event payload]
-(https://github.com/01org/ciao/blob/master/payloads/instancedeleted.go)
+(https://github.com/ciao-project/ciao/blob/master/payloads/instancedeleted.go)
 is a YAML formatted one containing the deleted instance UUID.
 
 The Scheduler receives InstanceDeleted events from the
@@ -639,7 +588,7 @@ a ConcentratorInstanceAdded event as instances will be
 isolated as long as the CNCI for this tenant is not running.
 
 A [ConcentratorInstanceAdded event payload]
-(https://github.com/01org/ciao/blob/master/payloads/concentratorinstanceadded.go)
+(https://github.com/ciao-project/ciao/blob/master/payloads/concentratorinstanceadded.go)
 is a YAML formatted one containing the CNCI IP and the tenant
 UUID on behalf of which the CNCI runs.
 
@@ -660,7 +609,7 @@ or from a control network DHCP server.
 The Scheduler must forward those events to the Controller.
 
 The [PublicIPAssigned event payload]
-(https://github.com/01org/ciao/blob/master/payloads/concentratorinstanceadded.go)
+(https://github.com/ciao-project/ciao/blob/master/payloads/concentratorinstanceadded.go)
 contains the newly assigned public IP, the instance private IP,
 the instance UUID and the concentrator UUID.
 
@@ -678,7 +627,7 @@ to let the CIAO controller know about any kind of frame traces.
 It is then up to the Controller to interpret and store those traces.
 
 The [TraveReport event payload]
-(https://github.com/01org/ciao/blob/master/payloads/tracereport.go)
+(https://github.com/ciao-project/ciao/blob/master/payloads/tracereport.go)
 contains a set of frame traces.
 
 ```
@@ -692,7 +641,7 @@ contains a set of frame traces.
 NodeConnected events are sent by the Scheduler to notify e.g. the Controllers about
 a new compute or networking node being connected.
 The [NodeConnected event payload]
-(https://github.com/01org/ciao/blob/master/payloads/nodeconnected.go)
+(https://github.com/ciao-project/ciao/blob/master/payloads/nodeconnected.go)
 contains the connected node UUID and the node type (compute or networking)
 
 ```
@@ -706,7 +655,7 @@ contains the connected node UUID and the node type (compute or networking)
 NodeDisconnected events are sent by the Scheduler to notify e.g. the Controllers about
 a compute or networking node disconnection.
 The [NodeDisconnected event payload]
-(https://github.com/01org/ciao/blob/master/payloads/nodeconnected.go)
+(https://github.com/ciao-project/ciao/blob/master/payloads/nodeconnected.go)
 contains the disconnected node UUID and the node type (compute or networking)
 
 ```
@@ -731,7 +680,7 @@ support, it should send an InvalidFrameType error back
 to the sender.
 
 The [InvalidFrameType error payload]
-(https://github.com/01org/ciao/blob/master/payloads/invalidframetype.go)
+(https://github.com/ciao-project/ciao/blob/master/payloads/invalidframetype.go)
 only contains the SSNTP frame type that the receiver could
 not process:
 
@@ -761,7 +710,7 @@ instance could not be started. For example:
   it to the Controller.
 
 The [StartFailure YAML payload]
-(https://github.com/01org/ciao/blob/master/payloads/startfailure.go)
+(https://github.com/ciao-project/ciao/blob/master/payloads/startfailure.go)
 contains the instance UUID that failed to be started together
 with an additional error string.
 
@@ -786,7 +735,7 @@ instance is running.
   to the Scheduler and the Scheduler must forward it to the Controller.
 
 The [StopFailure YAML payload]
-(https://github.com/01org/ciao/blob/master/payloads/startfailure.go)
+(https://github.com/ciao-project/ciao/blob/master/payloads/startfailure.go)
 contains the instance UUID that failed to be stopped together
 with an additional error string.
 
@@ -824,7 +773,7 @@ it sends a DELETE SSNTP command to the Scheduler.
   to the Scheduler and the Scheduler must forward it to the Controller.
 
 The [DeleteFailure YAML payload]
-(https://github.com/01org/ciao/blob/master/payloads/deletefailure.go)
+(https://github.com/ciao-project/ciao/blob/master/payloads/deletefailure.go)
 contains the instance UUID that failed to be stopped together
 with an additional error string.
 ```
@@ -846,7 +795,7 @@ it sends a RESTART SSNTP command to the Scheduler.
   to the Scheduler and the Scheduler must forward it to the Controller.
 
 The [RestartFailure YAML payload]
-(https://github.com/01org/ciao/blob/master/payloads/startfailure.go)
+(https://github.com/ciao-project/ciao/blob/master/payloads/startfailure.go)
 contains the instance UUID that failed to be stopped together
 with an additional error string.
 ```
@@ -882,7 +831,7 @@ When the scheduler receives such error back from any client it should revert
 back to the previous valid configuration.
 
 The InvalidConfiguration error frame contain the invalid
-[configuration data](https://github.com/01org/ciao/blob/master/payloads/configure.go) payload.
+[configuration data](https://github.com/ciao-project/ciao/blob/master/payloads/configure.go) payload.
 ```
 +------------------------------------------------------------------------+
 | Major | Minor | Type  | Operand |  Payload Length | YAML formatted     |

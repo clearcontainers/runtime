@@ -457,7 +457,13 @@ func (q *qemu) init(config HypervisorConfig) error {
 	}
 
 	virtLog.Debugf("Running inside a VM = %v", nested)
-	q.nestedRun = nested
+
+	if config.DisableNestingChecks {
+		//Intentionally ignore the nesting check
+		q.nestedRun = false
+	} else {
+		q.nestedRun = nested
+	}
 
 	return nil
 }
@@ -560,6 +566,7 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 		NoGraphic:    true,
 		Daemonize:    true,
 		MemPrealloc:  q.config.MemPrealloc,
+		HugePages:    q.config.HugePages,
 		Realtime:     q.config.Realtime,
 		Mlock:        q.config.Mlock,
 	}

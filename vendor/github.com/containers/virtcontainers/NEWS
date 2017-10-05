@@ -1,3 +1,21 @@
+1.0.2:
+	Added James Hunt as maintainer
+	Added huge pages support
+	Added option for disabling nesting optimizations
+	Fixed the rootfs readonly support
+
+1.0.1:
+	Added QEMU memory locking support
+
+1.0.0:
+	Added support for memory and cpu reservation
+	Added stroage hotplug support
+	Added code of conduct
+	Added memory pre-allocation, realtime and memory locking support
+	Fixed nested virtualization support
+	Fixed log verbosity
+	Fixed pod cleanup
+
 1.0.0-rc.4:
 	Added new project approvers
 	Fixed gometalinter

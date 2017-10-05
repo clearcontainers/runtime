@@ -21,7 +21,7 @@ import (
 	"runtime"
 	"syscall"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 func init() {
@@ -32,7 +32,7 @@ var virtLog = logrus.FieldLogger(logrus.New())
 
 // SetLogger sets the logger for virtcontainers package.
 func SetLogger(logger logrus.FieldLogger) {
-	virtLog = logger
+	virtLog = logger.WithField("source", "virtcontainers")
 }
 
 // CreatePod is the virtcontainers pod creation entry point.

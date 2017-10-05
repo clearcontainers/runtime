@@ -28,8 +28,8 @@ import (
 	"fmt"
 	"syscall"
 
-	"github.com/Sirupsen/logrus"
 	vc "github.com/containers/virtcontainers"
+	"github.com/sirupsen/logrus"
 )
 
 // mockErrorPrefix is a string that all errors returned by the mock

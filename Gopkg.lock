@@ -5,19 +5,13 @@
   branch = "master"
   name = "github.com/01org/ciao"
   packages = ["qemu","ssntp/uuid"]
-  revision = "9d6632430ecf42a35c23b7c6cdc560d5116d9483"
+  revision = "086750f820eead4f154a78f726995ec1751ef5ed"
 
 [[projects]]
   branch = "master"
   name = "github.com/BurntSushi/toml"
   packages = ["."]
   revision = "a368813c5e648fee92e5f6c30e3944ff9d5e8895"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/Sirupsen/logrus"
-  packages = ["."]
-  revision = "acfabf31db8f45a9174f54a0d48ea4d15627af4d"
 
 [[projects]]
   branch = "master"
@@ -38,10 +32,10 @@
   revision = "5bbff37294de9dfb33771dac6f53411c88abe62a"
 
 [[projects]]
-  branch = "master"
   name = "github.com/containers/virtcontainers"
   packages = [".","pkg/cni","pkg/hyperstart","pkg/oci","pkg/vcMock"]
-  revision = "c280b452bf075d3bac786f8a92ab70c6a1742600"
+  revision = "60cbf043705577be11538157ed029300b8e3eb1a"
+  version = "1.0.2"
 
 [[projects]]
   branch = "master"
@@ -87,6 +81,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/sirupsen/logrus"
+  packages = ["."]
+  revision = "89742aefa4b206dcf400792f3bd35b542998eb3b"
+
+[[projects]]
+  branch = "master"
   name = "github.com/stretchr/testify"
   packages = ["assert"]
   revision = "4d4bfba8f1d1027c4fdbe371823030df51419987"
@@ -112,7 +112,7 @@
 [[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
-  packages = ["curve25519","ed25519","ed25519/internal/edwards25519","ssh"]
+  packages = ["curve25519","ed25519","ed25519/internal/edwards25519","ssh","ssh/terminal"]
   revision = "adbae1b6b6fb4b02448a0fc0dbbc9ba2b95b294d"
 
 [[projects]]
@@ -124,6 +124,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "4355d9708eb5de24940da29aaf8d1aafee09ff57119999c762830fac0d3d2b1c"
+  inputs-digest = "4d87a955215cd04f5bb3193b132c90a72394b90a9c73e05921a1d4d8ea92cb56"
   solver-name = "gps-cdcl"
   solver-version = 1
