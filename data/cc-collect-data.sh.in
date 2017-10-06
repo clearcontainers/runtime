@@ -25,10 +25,13 @@ script_version="@VERSION@ (commit @COMMIT@)"
 PROBLEM_LIMIT=${PROBLEM_LIMIT:-50}
 
 problem_pattern="("
+problem_pattern+="\<abort\>|"
 problem_pattern+="\<cannot\>|"
+problem_pattern+="\<critical\>|"
 problem_pattern+="\<does.*not.*exist\>|"
 problem_pattern+="\<error\>|"
 problem_pattern+="\<fail\>|"
+problem_pattern+="\<failure\>|"
 problem_pattern+="\<failed\>|"
 problem_pattern+="\<fatal\>|"
 problem_pattern+="\<impossible\>|"
