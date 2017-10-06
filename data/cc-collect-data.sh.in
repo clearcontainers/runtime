@@ -164,6 +164,7 @@ show_log_details()
 
 	show_runtime_log_details
 	show_proxy_log_details
+	show_shim_log_details
 
 	separator
 }
@@ -222,6 +223,13 @@ show_proxy_log_details()
 	subheading "Proxy logs"
 
 	find_system_journal_problems "proxy" "cc-proxy"
+}
+
+show_shim_log_details()
+{
+	subheading "Shim logs"
+
+	find_system_journal_problems "shim" "cc-shim"
 }
 
 show_package_versions()
