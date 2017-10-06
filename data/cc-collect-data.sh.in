@@ -200,12 +200,23 @@ show_runtime_log_details()
 
 find_system_journal_problems()
 {
-	name="$1"
-	program="$2"
+	local name="$1"
+	local program="$2"
+	local unit="$3"
+
+	local selector
 
 	data_source="system journal"
 
-	local problems=$(journalctl -q -o cat -au "$program" |\
+	if [ -n "$unit" ]; then
+		# select by systemd unit
+		selector='-u'
+	else
+		# select by identifier
+		selector='-t'
+	fi
+
+	local problems=$(journalctl -q -o cat -a "$selector" "$program" |\
 		grep "time=" |\
 		egrep -i "$problem_pattern" |\
 		tail -n ${PROBLEM_LIMIT})
@@ -222,14 +233,14 @@ show_proxy_log_details()
 {
 	subheading "Proxy logs"
 
-	find_system_journal_problems "proxy" "cc-proxy"
+	find_system_journal_problems "proxy" "cc-proxy" "unit"
 }
 
 show_shim_log_details()
 {
 	subheading "Shim logs"
 
-	find_system_journal_problems "shim" "cc-shim"
+	find_system_journal_problems "shim" "cc-shim" ""
 }
 
 show_package_versions()
