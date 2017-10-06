@@ -17,7 +17,6 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -45,7 +44,6 @@ import (
 const (
 	testDisabledNeedRoot    = "Test disabled as requires root user"
 	testDisabledNeedNonRoot = "Test disabled as requires non-root user"
-	testDisabledNeedCgroup  = "Test disabled as cgroup system not support"
 	testDirMode             = os.FileMode(0750)
 	testFileMode            = os.FileMode(0640)
 	testExeFileMode         = os.FileMode(0750)
@@ -494,34 +492,6 @@ func writeOCIConfigFile(spec oci.CompatOCISpec, configPath string) error {
 	}
 
 	return ioutil.WriteFile(configPath, bytes, testFileMode)
-}
-
-func findCgroupRoot() string {
-	var cgroupRootPath string
-	f, err := os.Open("/proc/mounts")
-	if err != nil {
-		return cgroupRootPath
-	}
-	defer f.Close()
-
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		text := scanner.Text()
-		fields := strings.Split(text, " ")
-		index := strings.Index(text, " - ")
-		postSeparatorFields := strings.Fields(text[index+3:])
-		numPostFields := len(postSeparatorFields)
-
-		// This is an error as we can't detect if the mount is for "cgroup"
-		if numPostFields == 0 || fields[0] != "cgroup" || numPostFields < 3 {
-			continue
-		}
-
-		cgroupRootPath = filepath.Dir(fields[1])
-		break
-	}
-
-	return cgroupRootPath
 }
 
 func newSingleContainerPodStatusList(podID, containerID string, podState, containerState vc.State, annotations map[string]string) []vc.PodStatus {
