@@ -77,6 +77,7 @@ type hypervisor struct {
 	Path                  string `toml:"path"`
 	Kernel                string `toml:"kernel"`
 	Image                 string `toml:"image"`
+	Firmware              string `toml:"firmware"`
 	KernelParams          string `toml:"kernel_params"`
 	MachineType           string `toml:"machine_type"`
 	DefaultVCPUs          int32  `toml:"default_vcpus"`
@@ -130,6 +131,16 @@ func (h hypervisor) image() (string, error) {
 
 	if p == "" {
 		p = defaultImagePath
+	}
+
+	return resolvePath(p)
+}
+
+func (h hypervisor) firmware() (string, error) {
+	p := h.Firmware
+
+	if p == "" {
+		p = defaultFirmwarePath
 	}
 
 	return resolvePath(p)
@@ -217,6 +228,11 @@ func newQemuHypervisorConfig(h hypervisor) (vc.HypervisorConfig, error) {
 		return vc.HypervisorConfig{}, err
 	}
 
+	firmware, err := h.firmware()
+	if err != nil {
+		return vc.HypervisorConfig{}, err
+	}
+
 	kernelParams := h.kernelParams()
 	machineType := h.machineType()
 
@@ -230,6 +246,7 @@ func newQemuHypervisorConfig(h hypervisor) (vc.HypervisorConfig, error) {
 		HypervisorPath:        hypervisor,
 		KernelPath:            kernel,
 		ImagePath:             image,
+		FirmwarePath:          firmware,
 		KernelParams:          vc.DeserializeParams(strings.Fields(kernelParams)),
 		HypervisorMachineType: machineType,
 		DefaultVCPUs:          h.defaultVCPUs(),
@@ -345,6 +362,7 @@ func loadConfiguration(configPath string, ignoreLogging bool) (resolvedConfigPat
 		HypervisorPath:        defaultHypervisorPath,
 		KernelPath:            defaultKernelPath,
 		ImagePath:             defaultImagePath,
+		FirmwarePath:          defaultFirmwarePath,
 		HypervisorMachineType: defaultMachineType,
 		DefaultVCPUs:          defaultVCPUCount,
 		DefaultMemSz:          defaultMemSize,

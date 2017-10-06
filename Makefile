@@ -79,6 +79,7 @@ PKGLIBEXECDIR := $(LIBEXECDIR)/$(CCDIR)
 
 KERNELPATH := $(PKGDATADIR)/vmlinuz.container
 IMAGEPATH := $(PKGDATADIR)/clear-containers.img
+FIRMWAREPATH :=
 
 KERNELPARAMS :=
 
@@ -164,6 +165,7 @@ USER_VARS += GLOBALLOGPATH
 USER_VARS += IMAGEPATH
 USER_VARS += MACHINETYPE
 USER_VARS += KERNELPATH
+USER_VARS += FIRMWAREPATH
 USER_VARS += KERNELPARAMS
 USER_VARS += LIBEXECDIR
 USER_VARS += LOCALSTATEDIR
@@ -226,6 +228,7 @@ var version = "$(VERSION)"
 var defaultHypervisorPath = "$(QEMUPATH)"
 var defaultImagePath = "$(IMAGEPATH)"
 var defaultKernelPath = "$(KERNELPATH)"
+var defaultFirmwarePath = "$(FIRMWAREPATH)"
 var defaultPauseRootPath = "$(PAUSEROOTPATH)"
 var defaultShimPath = "$(SHIMPATH)"
 
@@ -302,6 +305,7 @@ $(GENERATED_FILES): %: %.in Makefile VERSION
 		-e "s|@CONFIG_IN@|$(CONFIG_IN)|g" \
 		-e "s|@IMAGEPATH@|$(IMAGEPATH)|g" \
 		-e "s|@KERNELPATH@|$(KERNELPATH)|g" \
+		-e "s|@FIRMWAREPATH@|$(FIRMWAREPATH)|g" \
 		-e "s|@KERNELPARAMS@|$(KERNELPARAMS)|g" \
 		-e "s|@LOCALSTATEDIR@|$(LOCALSTATEDIR)|g" \
 		-e "s|@PAUSEROOTPATH@|$(PAUSEROOTPATH)|g" \
