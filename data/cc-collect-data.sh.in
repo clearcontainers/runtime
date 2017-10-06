@@ -197,21 +197,31 @@ show_runtime_log_details()
 	fi
 }
 
-show_proxy_log_details()
+find_system_journal_problems()
 {
-	subheading "Proxy logs"
+	name="$1"
+	program="$2"
 
-	local problems=$(journalctl -q -o cat -lau "cc-proxy" |\
+	data_source="system journal"
+
+	local problems=$(journalctl -q -o cat -au "$program" |\
 		grep "time=" |\
 		egrep -i "$problem_pattern" |\
 		tail -n ${PROBLEM_LIMIT})
 
 	if [ -n "$problems" ]; then
-		msg "Recent proxy problems found in system journal:"
+		msg "Recent $name problems found in $data_source:"
 		show_quoted_text "$problems"
 	else
-		msg "No recent proxy problems found in system journal."
+		msg "No recent $name problems found in $data_source."
 	fi
+}
+
+show_proxy_log_details()
+{
+	subheading "Proxy logs"
+
+	find_system_journal_problems "proxy" "cc-proxy"
 }
 
 show_package_versions()
