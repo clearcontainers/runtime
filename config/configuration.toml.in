@@ -31,6 +31,14 @@ disable_block_device_use = @DEFDISABLEBLOCK@
 # Default false
 #enable_mem_prealloc = true
 
+# Enable huge pages for VM RAM, default false
+# Enabling this will result in the VM memory
+# being allocated using huge pages.
+# This is useful when you want to use vhost-user network
+# stacks within the container. This will automatically 
+# result in memory pre allocation
+#enable_hugepages = true
+
 # Enable swap of vm memory. Default false.
 # The behaviour is undefined if mem_prealloc is also set to true
 #enable_swap = true
