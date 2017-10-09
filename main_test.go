@@ -36,7 +36,6 @@ import (
 	"github.com/containers/virtcontainers/pkg/vcMock"
 	"github.com/dlespiau/covertool/pkg/cover"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/urfave/cli"
 )
@@ -678,22 +677,13 @@ func TestMainBeforeSubCommandsInvalidLogFile(t *testing.T) {
 	app := cli.NewApp()
 
 	set := flag.NewFlagSet("", 0)
-	set.Bool("debug", true, "")
 	set.String("log", logFile, "")
 	set.Parse([]string{"create"})
-
-	logLevel := ccLog.Logger.Level
-	ccLog.Logger.Level = logrus.PanicLevel
-
-	defer func() {
-		ccLog.Logger.Level = logLevel
-	}()
 
 	ctx := cli.NewContext(app, set, nil)
 
 	err = beforeSubcommands(ctx)
 	assert.Error(err)
-	assert.Equal(ccLog.Logger.Level, logrus.DebugLevel)
 }
 
 func TestMainBeforeSubCommandsInvalidLogFormat(t *testing.T) {

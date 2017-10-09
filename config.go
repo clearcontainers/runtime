@@ -95,6 +95,7 @@ type proxy struct {
 
 type runtime struct {
 	GlobalLogPath string `toml:"global_log_path"`
+	Debug         bool   `toml:"enable_debug"`
 }
 
 type shim struct {
@@ -399,6 +400,12 @@ func loadConfiguration(configPath string, ignoreLogging bool) (resolvedConfigPat
 	}
 
 	logfilePath = tomlConf.Runtime.GlobalLogPath
+
+	if !tomlConf.Runtime.Debug {
+		// If debug is not required, switch back to the original
+		// default log priority, otherwise continue in debug mode.
+		ccLog.Logger.Level = originalLoggerLevel
+	}
 
 	if !ignoreLogging {
 		// The configuration file may have enabled global logging,

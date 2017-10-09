@@ -73,6 +73,11 @@ path = "@SHIMPATH@"
 [agent.hyperstart]
 pause_root_path = "@PAUSEROOTPATH@"
 
+[runtime]
 ## Uncomment to enable the global logging to the default path.
-#[runtime]
 #global_log_path = "@GLOBALLOGPATH@"
+
+# If enabled, the runtime will log additional debug messages to the global
+# log, assuming that is also enabled.
+# (default: disabled)
+#enable_debug = true
