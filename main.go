@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime/debug"
 	"strings"
 
 	vc "github.com/containers/virtcontainers"
@@ -132,6 +133,11 @@ var runtimeVersion = makeVersionString
 var savedCLIAppHelpTemplate = cli.AppHelpTemplate
 var savedCLIVersionPrinter = cli.VersionPrinter
 var savedCLIErrWriter = cli.ErrWriter
+
+func init() {
+	// Force a coredump + full stacktrace on internal error
+	debug.SetTraceback("crash")
+}
 
 // beforeSubcommands is the function to perform preliminary checks
 // before command-line parsing occurs.
