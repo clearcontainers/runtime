@@ -79,34 +79,27 @@ func TestGetContainerInfoContainerIDEmptyFailure(t *testing.T) {
 	assert.Empty(status.ID, "Expected blank fullID, but got %v", status.ID)
 }
 
-func TestGetContainerInfoDuplicateContainerID(t *testing.T) {
+func TestGetContainerInfo(t *testing.T) {
 	assert := assert.New(t)
 
 	pod := &vcMock.Pod{
 		MockID: testPodID,
 	}
 
-	containerID := testContainerID + testContainerID
+	containerID := testContainerID
+
+	containerStatus := vc.ContainerStatus{
+		ID: containerID,
+		Annotations: map[string]string{
+			oci.ContainerTypeKey: string(vc.PodSandbox),
+		},
+	}
 
 	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
 		return []vc.PodStatus{
 			{
-				ID: pod.ID(),
-				ContainersStatus: []vc.ContainerStatus{
-					// 2 containers with same ID
-					{
-						ID: containerID,
-						Annotations: map[string]string{
-							oci.ContainerTypeKey: string(vc.PodSandbox),
-						},
-					},
-					{
-						ID: containerID,
-						Annotations: map[string]string{
-							oci.ContainerTypeKey: string(vc.PodSandbox),
-						},
-					},
-				},
+				ID:               pod.ID(),
+				ContainersStatus: []vc.ContainerStatus{containerStatus},
 			},
 		}, nil
 	}
@@ -115,12 +108,13 @@ func TestGetContainerInfoDuplicateContainerID(t *testing.T) {
 		testingImpl.ListPodFunc = nil
 	}()
 
-	_, _, err := getContainerInfo(testContainerID)
-	assert.Error(err)
-	assert.Equal(err, errPrefixContIDNotUnique)
+	status, podID, err := getContainerInfo(testContainerID)
+	assert.NoError(err)
+	assert.Equal(podID, pod.ID())
+	assert.Equal(status, containerStatus)
 }
 
-func TestGetContainerInfo(t *testing.T) {
+func TestGetContainerInfoMismatch(t *testing.T) {
 	assert := assert.New(t)
 
 	pod := &vcMock.Pod{
@@ -149,11 +143,11 @@ func TestGetContainerInfo(t *testing.T) {
 		testingImpl.ListPodFunc = nil
 	}()
 
-	status, podID, err := getContainerInfo(testContainerID)
+	_, podID, err := getContainerInfo(testContainerID)
 	assert.NoError(err)
-	assert.Equal(podID, pod.ID())
-	assert.Equal(status, containerStatus)
+	assert.Equal(podID, "")
 }
+
 func TestValidCreateParamsContainerIDEmptyFailure(t *testing.T) {
 	assert := assert.New(t)
 	_, err := validCreateParams("", "")
