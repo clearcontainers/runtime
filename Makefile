@@ -80,6 +80,7 @@ PKGLIBEXECDIR := $(LIBEXECDIR)/$(CCDIR)
 KERNELPATH := $(PKGDATADIR)/vmlinuz.container
 IMAGEPATH := $(PKGDATADIR)/clear-containers.img
 FIRMWAREPATH :=
+MACHINEACCELERATORS := nosmm,nosmbus,nosata,nopit,static-prt,nofw
 
 KERNELPARAMS :=
 
@@ -166,6 +167,7 @@ USER_VARS += IMAGEPATH
 USER_VARS += MACHINETYPE
 USER_VARS += KERNELPATH
 USER_VARS += FIRMWAREPATH
+USER_VARS += MACHINEACCELERATORS
 USER_VARS += KERNELPARAMS
 USER_VARS += LIBEXECDIR
 USER_VARS += LOCALSTATEDIR
@@ -229,6 +231,7 @@ var defaultHypervisorPath = "$(QEMUPATH)"
 var defaultImagePath = "$(IMAGEPATH)"
 var defaultKernelPath = "$(KERNELPATH)"
 var defaultFirmwarePath = "$(FIRMWAREPATH)"
+var defaultMachineAccelerators = "$(MACHINEACCELERATORS)"
 var defaultPauseRootPath = "$(PAUSEROOTPATH)"
 var defaultShimPath = "$(SHIMPATH)"
 
@@ -306,6 +309,7 @@ $(GENERATED_FILES): %: %.in Makefile VERSION
 		-e "s|@IMAGEPATH@|$(IMAGEPATH)|g" \
 		-e "s|@KERNELPATH@|$(KERNELPATH)|g" \
 		-e "s|@FIRMWAREPATH@|$(FIRMWAREPATH)|g" \
+		-e "s|@MACHINEACCELERATORS@|$(MACHINEACCELERATORS)|g" \
 		-e "s|@KERNELPARAMS@|$(KERNELPARAMS)|g" \
 		-e "s|@LOCALSTATEDIR@|$(LOCALSTATEDIR)|g" \
 		-e "s|@PAUSEROOTPATH@|$(PAUSEROOTPATH)|g" \
