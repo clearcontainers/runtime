@@ -98,7 +98,8 @@ type runtime struct {
 }
 
 type shim struct {
-	Path string `toml:"path"`
+	Path  string `toml:"path"`
+	Debug bool   `toml:"enable_debug"`
 }
 
 type agent struct {
@@ -191,6 +192,10 @@ func (s shim) path() (string, error) {
 	return resolvePath(p)
 }
 
+func (s shim) debug() bool {
+	return s.Debug
+}
+
 func (a agent) pauseRootPath() (string, error) {
 	p := a.PauseRootPath
 
@@ -267,7 +272,8 @@ func newCCShimConfig(s shim) (vc.CCShimConfig, error) {
 	}
 
 	return vc.CCShimConfig{
-		Path: path,
+		Path:  path,
+		Debug: s.debug(),
 	}, nil
 }
 

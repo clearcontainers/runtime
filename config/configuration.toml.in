@@ -66,6 +66,10 @@ url = "@PROXYURL@"
 [shim.cc]
 path = "@SHIMPATH@"
 
+# If enabled, shim messages will be sent to the system log
+# (default: disabled)
+#enable_debug = true
+
 [agent.hyperstart]
 pause_root_path = "@PAUSEROOTPATH@"
 
