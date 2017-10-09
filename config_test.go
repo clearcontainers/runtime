@@ -919,3 +919,50 @@ func TestDefaultFirmware(t *testing.T) {
 	assert.NoError(err)
 	assert.NotEmpty(p)
 }
+
+func TestDefaultMachineAccelerators(t *testing.T) {
+	assert := assert.New(t)
+	machineAccelerators := "abc,123,rgb"
+	h := hypervisor{MachineAccelerators: machineAccelerators}
+	assert.Equal(machineAccelerators, h.machineAccelerators())
+
+	machineAccelerators = ""
+	h.MachineAccelerators = machineAccelerators
+	assert.Equal(machineAccelerators, h.machineAccelerators())
+
+	machineAccelerators = "abc"
+	h.MachineAccelerators = machineAccelerators
+	assert.Equal(machineAccelerators, h.machineAccelerators())
+
+	machineAccelerators = "abc,123"
+	h.MachineAccelerators = "abc,,123"
+	assert.Equal(machineAccelerators, h.machineAccelerators())
+
+	machineAccelerators = "abc,123"
+	h.MachineAccelerators = ",,abc,,123,,,"
+	assert.Equal(machineAccelerators, h.machineAccelerators())
+
+	machineAccelerators = "abc,123"
+	h.MachineAccelerators = "abc,,123,,,"
+	assert.Equal(machineAccelerators, h.machineAccelerators())
+
+	machineAccelerators = "abc"
+	h.MachineAccelerators = ",,abc,"
+	assert.Equal(machineAccelerators, h.machineAccelerators())
+
+	machineAccelerators = "abc"
+	h.MachineAccelerators = ", , abc , ,"
+	assert.Equal(machineAccelerators, h.machineAccelerators())
+
+	machineAccelerators = "abc"
+	h.MachineAccelerators = " abc "
+	assert.Equal(machineAccelerators, h.machineAccelerators())
+
+	machineAccelerators = "abc,123"
+	h.MachineAccelerators = ", abc , 123 ,"
+	assert.Equal(machineAccelerators, h.machineAccelerators())
+
+	machineAccelerators = "abc,123"
+	h.MachineAccelerators = ",, abc ,,, 123 ,,"
+	assert.Equal(machineAccelerators, h.machineAccelerators())
+}

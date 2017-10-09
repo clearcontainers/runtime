@@ -14,6 +14,11 @@ kernel_params = "@KERNELPARAMS@"
 # If you want that qemu uses the default firmware leave this option empty
 firmware = "@FIRMWAREPATH@"
 
+# Machine accelerators
+# comma-separated list of machine accelerators to pass to the hypervisor.
+# For example, `machine_accelerators = "nosmm,nosmbus,nosata,nopit,static-prt,nofw"`
+machine_accelerators="@MACHINEACCELERATORS@"
+
 # Default number of vCPUs per POD/VM:
 # unspecified or 0 --> will be set to @DEFVCPUS@
 # < 0              --> will be set to the actual number of physical cores
