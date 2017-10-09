@@ -205,7 +205,7 @@ func TestCheckCheckCPUFlags(t *testing.T) {
 	for _, d := range data {
 		count, err := checkCPUFlags(d.cpuflags, d.required)
 		if d.expectError {
-			assert.Error(err, "%+v", d)
+			assert.Errorf(err, "%+v", d)
 		} else {
 			assert.NoError(err, "%+v", d)
 		}
@@ -280,7 +280,7 @@ func TestCheckCheckCPUAttribs(t *testing.T) {
 	for _, d := range data {
 		count, err := checkCPUAttribs(d.cpuinfo, d.required)
 		if d.expectError {
-			assert.Error(err, "%+v", d)
+			assert.Errorf(err, "%+v", d)
 		} else {
 			assert.NoError(err, "%+v", d)
 		}
