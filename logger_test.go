@@ -150,10 +150,10 @@ func TestHandleGlobalLog(t *testing.T) {
 
 		// Add a log entry
 		str := "hello. foo bar baz!"
-		ccLog.Debug(str)
+		ccLog.Info(str)
 
 		// Check that the string was logged
-		err = grep(fmt.Sprintf("level=\"debug\".*%s", str), d.path)
+		err = grep(fmt.Sprintf("level=\"info\".*%s", str), d.path)
 		assert.NoError(err)
 
 		// Check expected perms
@@ -191,7 +191,7 @@ func TestHandleGlobalLogEnvVar(t *testing.T) {
 	}
 
 	str := "foo or moo?"
-	ccLog.Debug(str)
+	ccLog.Info(str)
 	tmpfileExists := fileExists(tmpfile)
 	tmpfile2Exists := fileExists(tmpfile2)
 
@@ -204,7 +204,7 @@ func TestHandleGlobalLogEnvVar(t *testing.T) {
 	}
 
 	// Check that the string was logged
-	err = grep(fmt.Sprintf("level=\"debug\".*%s", str), tmpfile2)
+	err = grep(fmt.Sprintf("level=\"info\".*%s", str), tmpfile2)
 	assert.NoError(t, err)
 }
 
@@ -223,15 +223,15 @@ func TestLoggerFire(t *testing.T) {
 	entry := &logrus.Entry{
 		Logger:  ccLog.Logger,
 		Time:    time.Now().UTC(),
-		Level:   logrus.DebugLevel,
+		Level:   logrus.InfoLevel,
 		Message: "foo",
 	}
 
-	err = ccLog.Logger.Hooks.Fire(logrus.DebugLevel, entry)
+	err = ccLog.Logger.Hooks.Fire(logrus.InfoLevel, entry)
 	assert.NoError(t, err)
 
-	assert.Equal(t, len(ccLog.Logger.Hooks[logrus.DebugLevel]), 1)
-	hook, ok := ccLog.Logger.Hooks[logrus.DebugLevel][0].(*GlobalLogHook)
+	assert.Equal(t, len(ccLog.Logger.Hooks[logrus.InfoLevel]), 1)
+	hook, ok := ccLog.Logger.Hooks[logrus.InfoLevel][0].(*GlobalLogHook)
 	assert.True(t, ok)
 
 	err = hook.file.Close()
@@ -240,6 +240,6 @@ func TestLoggerFire(t *testing.T) {
 	err = os.RemoveAll(tmpdir)
 	assert.NoError(t, err)
 
-	err = ccLog.Logger.Hooks.Fire(logrus.DebugLevel, entry)
+	err = ccLog.Logger.Hooks.Fire(logrus.InfoLevel, entry)
 	assert.Error(t, err)
 }
