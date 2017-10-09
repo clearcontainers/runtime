@@ -69,6 +69,8 @@ $ cc-runtime cc-env
 
 ## Debugging
 
+### Global logfile
+
 To provide a persistent log of all container activity on the system, the runtime
 offers a global logging facility. By default, this feature is disabled
 but can be enabled with a simple change to the [configuration](#Configuration) file.
@@ -101,6 +103,14 @@ attempt to create it.
 
 It is the Administrator's responsibility to ensure there is sufficient
 space for the global log.
+
+### Enabling debug for various components
+
+The runtime, the shim (`cc-shim`), and the hypervisor all have separate debug
+options in the [configuration file](#Configuration).
+
+The proxy (`cc-proxy`) has a command-line option to enable debug output. See
+the [proxy documentation](https://github.com/clearcontainers/proxy#debugging) for further details.
 
 ## Limitations
 
