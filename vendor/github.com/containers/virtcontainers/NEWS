@@ -1,3 +1,9 @@
+1.0.3:
+	Added initial device assignment framework
+	Added VFIO devices assignment initial support
+	Fixed pod locking
+	Fixed unconfigured interfaces handling
+
 1.0.2:
 	Added James Hunt as maintainer
 	Added huge pages support
