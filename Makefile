@@ -77,7 +77,7 @@ PKGLIBDIR := $(LOCALSTATEDIR)/lib/$(CCDIR)
 PKGRUNDIR := $(LOCALSTATEDIR)/run/$(CCDIR)
 PKGLIBEXECDIR := $(LIBEXECDIR)/$(CCDIR)
 
-KERNELPATH := $(PKGDATADIR)/vmlinuz.container
+KERNELPATH := $(PKGDATADIR)/vmlinux.container
 IMAGEPATH := $(PKGDATADIR)/clear-containers.img
 FIRMWAREPATH :=
 MACHINEACCELERATORS := nosmm,nosmbus,nosata,nopit,static-prt,nofw
@@ -88,11 +88,11 @@ KERNELPARAMS :=
 ifeq (,$(filter-out centos rhel,$(distro)))
 QEMUCMD := qemu-system-x86_64
 else
-QEMUCMD := qemu-lite-system-x86_64
+QEMUCMD := qemu-cc-system-x86_64
 endif
 
 QEMUPATH := $(QEMUBINDIR)/$(QEMUCMD)
-MACHINETYPE := pc
+MACHINETYPE := q35
 
 SHIMCMD := cc-shim
 SHIMPATH := $(PKGLIBEXECDIR)/$(SHIMCMD)
