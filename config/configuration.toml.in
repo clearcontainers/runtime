@@ -10,6 +10,13 @@ machine_type = "@MACHINETYPE@"
 # trouble running pre-2.15 glibc
 kernel_params = "@KERNELPARAMS@"
 
+# Path to the firmware.
+# If you want that qemu uses the default firmware leave this option empty
+firmware = "@FIRMWAREPATH@"
+
+# Machine accelerators
+machine_accelerators="@MACHINEACCELERATORS@"
+
 # Default number of vCPUs per POD/VM:
 # unspecified or 0 --> will be set to @DEFVCPUS@
 # < 0              --> will be set to the actual number of physical cores
