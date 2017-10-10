@@ -20,7 +20,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"strings"
 	"syscall"
 
 	vc "github.com/containers/virtcontainers"
@@ -43,21 +42,13 @@ const (
 	cgroupFsType = 0x27e0eb
 )
 
-var (
-	errNeedLinuxResource     = errors.New("Linux resource cannot be empty")
-	errPrefixContIDNotUnique = errors.New("Partial container ID not unique")
-)
+var errNeedLinuxResource = errors.New("Linux resource cannot be empty")
 
 var cgroupsDirPath = "/sys/fs/cgroup"
 
 // getContainerInfo returns the container status and its pod ID.
 // It internally expands the container ID from the prefix provided.
-// An error is returned if >1 containers are found with the specified
-// prefix.
 func getContainerInfo(containerID string) (vc.ContainerStatus, string, error) {
-	var cStatus vc.ContainerStatus
-	var podID string
-
 	// container ID MUST be provided.
 	if containerID == "" {
 		return vc.ContainerStatus{}, "", fmt.Errorf("Missing container ID")
@@ -68,29 +59,17 @@ func getContainerInfo(containerID string) (vc.ContainerStatus, string, error) {
 		return vc.ContainerStatus{}, "", err
 	}
 
-	matchFound := false
 	for _, podStatus := range podStatusList {
 		for _, containerStatus := range podStatus.ContainersStatus {
 			if containerStatus.ID == containerID {
 				return containerStatus, podStatus.ID, nil
 			}
-
-			if strings.HasPrefix(containerStatus.ID, containerID) {
-				if matchFound {
-					return vc.ContainerStatus{}, "", errPrefixContIDNotUnique
-				}
-
-				matchFound = true
-				cStatus = containerStatus
-				podID = podStatus.ID
-			}
 		}
 	}
 
-	if matchFound {
-		return cStatus, podID, nil
-	}
-
+	// Not finding a container should not trigger an error as
+	// getContainerInfo is used for checking the existence and
+	// the absence of a container ID.
 	return vc.ContainerStatus{}, "", nil
 }
 
