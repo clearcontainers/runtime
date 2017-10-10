@@ -334,7 +334,7 @@ func TestCreateInvalidArgs(t *testing.T) {
 
 	for i, d := range data {
 		err := create(d.containerID, d.bundlePath, d.console, d.pidFilePath, d.detach, d.runtimeConfig)
-		assert.Error(err, "test %d (%+v)", i, d)
+		assert.Errorf(err, "test %d (%+v)", i, d)
 	}
 }
 
@@ -377,7 +377,7 @@ func TestCreateInvalidConfigJSON(t *testing.T) {
 
 	for detach := range []bool{true, false} {
 		err := create(testContainerID, bundlePath, testConsole, pidFilePath, true, runtimeConfig)
-		assert.Error(err, "%+v", detach)
+		assert.Errorf(err, "%+v", detach)
 		assert.False(vcMock.IsMockError(err))
 	}
 }
@@ -424,7 +424,7 @@ func TestCreateInvalidContainerType(t *testing.T) {
 
 	for detach := range []bool{true, false} {
 		err := create(testContainerID, bundlePath, testConsole, pidFilePath, true, runtimeConfig)
-		assert.Error(err, "%+v", detach)
+		assert.Errorf(err, "%+v", detach)
 		assert.False(vcMock.IsMockError(err))
 	}
 }
@@ -472,7 +472,7 @@ func TestCreateContainerInvalid(t *testing.T) {
 
 	for detach := range []bool{true, false} {
 		err := create(testContainerID, bundlePath, testConsole, pidFilePath, true, runtimeConfig)
-		assert.Error(err, "%+v", detach)
+		assert.Errorf(err, "%+v", detach)
 		assert.False(vcMock.IsMockError(err))
 	}
 }
@@ -647,7 +647,7 @@ func TestCreateCreateCgroupsFilesFail(t *testing.T) {
 
 	for detach := range []bool{true, false} {
 		err := create(testContainerID, bundlePath, testConsole, pidFilePath, true, runtimeConfig)
-		assert.Error(err, "%+v", detach)
+		assert.Errorf(err, "%+v", detach)
 		assert.False(vcMock.IsMockError(err))
 	}
 }
@@ -723,7 +723,7 @@ func TestCreateCreateCreatePidFileFail(t *testing.T) {
 
 	for detach := range []bool{true, false} {
 		err := create(testContainerID, bundlePath, testConsole, pidFilePath, true, runtimeConfig)
-		assert.Error(err, "%+v", detach)
+		assert.Errorf(err, "%+v", detach)
 		assert.False(vcMock.IsMockError(err))
 	}
 }
@@ -849,7 +849,7 @@ func TestCreateInvalidKernelParams(t *testing.T) {
 
 	for detach := range []bool{true, false} {
 		err := create(testContainerID, bundlePath, testConsole, pidFilePath, true, runtimeConfig)
-		assert.Error(err, "%+v", detach)
+		assert.Errorf(err, "%+v", detach)
 		assert.False(vcMock.IsMockError(err))
 	}
 }
