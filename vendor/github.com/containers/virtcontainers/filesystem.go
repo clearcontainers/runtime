@@ -48,6 +48,9 @@ const (
 
 	// mountsFileType represents a mount file type
 	mountsFileType
+
+	// devicesFileType represents a device file type
+	devicesFileType
 )
 
 // configFile is the file name used for every JSON pod configuration.
@@ -66,6 +69,9 @@ const processFile = "process.json"
 const lockFileName = "lock"
 
 const mountsFile = "mounts.json"
+
+// devicesFile is the file name storing a container's devices.
+const devicesFile = "devices.json"
 
 // dirMode is the permission bits used for creating a directory
 const dirMode = os.FileMode(0750)
@@ -110,6 +116,8 @@ type resourceStorage interface {
 	storeContainerProcess(podID, containerID string, process Process) error
 	fetchContainerMounts(podID, containerID string) ([]Mount, error)
 	storeContainerMounts(podID, containerID string, mounts []Mount) error
+	fetchContainerDevices(podID, containerID string) ([]Device, error)
+	storeContainerDevices(podID, containerID string, devices []Device) error
 }
 
 // filesystem is a resourceStorage interface implementation for a local filesystem.
@@ -175,6 +183,58 @@ func (fs *filesystem) storeFile(file string, data interface{}) error {
 	return nil
 }
 
+// TypedDevice is used as an intermediate representation for marshalling
+// and unmarshalling Device implementations.
+type TypedDevice struct {
+	Type string
+
+	// Data is assigned the Device object.
+	// This being declared as RawMessage prevents it from being  marshalled/unmarshalled.
+	// We do that explicitly depending on Type.
+	Data json.RawMessage
+}
+
+// storeDeviceFile is used to provide custom marshalling for Device objects.
+// Device is first marshalled into TypedDevice to include the type
+// of the Device object.
+func (fs *filesystem) storeDeviceFile(file string, data interface{}) error {
+	if file == "" {
+		return errNeedFile
+	}
+
+	f, err := os.Create(file)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	devices, ok := data.([]Device)
+	if !ok {
+		return fmt.Errorf("Incorrect data type received, Expected []Device")
+	}
+
+	var typedDevices []TypedDevice
+	for _, d := range devices {
+		tempJSON, _ := json.Marshal(d)
+		typedDevice := TypedDevice{
+			Type: d.deviceType(),
+			Data: tempJSON,
+		}
+		typedDevices = append(typedDevices, typedDevice)
+	}
+
+	jsonOut, err := json.Marshal(typedDevices)
+	if err != nil {
+		return fmt.Errorf("Could not marshal devices: %s", err)
+	}
+
+	if _, err := f.Write(jsonOut); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (fs *filesystem) fetchFile(file string, data interface{}) error {
 	if file == "" {
 		return errNeedFile
@@ -190,6 +250,65 @@ func (fs *filesystem) fetchFile(file string, data interface{}) error {
 		return err
 	}
 
+	return nil
+}
+
+// fetchDeviceFile is used for custom unmarshalling of device interface objects.
+func (fs *filesystem) fetchDeviceFile(file string, devices *[]Device) error {
+	if file == "" {
+		return errNeedFile
+	}
+
+	fileData, err := ioutil.ReadFile(file)
+	if err != nil {
+		return err
+	}
+
+	var typedDevices []TypedDevice
+	err = json.Unmarshal([]byte(string(fileData)), &typedDevices)
+
+	if err != nil {
+		return err
+	}
+
+	var tempDevices []Device
+	for _, d := range typedDevices {
+		virtLog.Infof("Device type found in devices file : %s", d.Type)
+
+		switch d.Type {
+		case DeviceVFIO:
+			var device VFIODevice
+			err := json.Unmarshal(d.Data, &device)
+			if err != nil {
+				return err
+			}
+			tempDevices = append(tempDevices, &device)
+			virtLog.Infof("VFIO device unmarshalled [%v]", device)
+
+		case DeviceBlock:
+			var device BlockDevice
+			err := json.Unmarshal(d.Data, &device)
+			if err != nil {
+				return err
+			}
+			tempDevices = append(tempDevices, &device)
+			virtLog.Infof("Block Device unmarshalled [%v]", device)
+
+		case DeviceGeneric:
+			var device GenericDevice
+			err := json.Unmarshal(d.Data, &device)
+			if err != nil {
+				return err
+			}
+			tempDevices = append(tempDevices, &device)
+			virtLog.Infof("Generic device unmarshalled [%v]", device)
+
+		default:
+			return fmt.Errorf("Unknown device type, could not unmarshal")
+		}
+	}
+
+	*devices = tempDevices
 	return nil
 }
 
@@ -224,7 +343,7 @@ func resourceDir(podSpecific bool, podID, containerID string, resource podResour
 	case configFileType:
 		path = configStoragePath
 		break
-	case stateFileType, networkFileType, processFileType, lockFileType, mountsFileType:
+	case stateFileType, networkFileType, processFileType, lockFileType, mountsFileType, devicesFileType:
 		path = runStoragePath
 		break
 	default:
@@ -267,6 +386,9 @@ func (fs *filesystem) resourceURI(podSpecific bool, podID, containerID string, r
 		break
 	case mountsFileType:
 		filename = mountsFile
+		break
+	case devicesFileType:
+		filename = devicesFile
 		break
 	default:
 		return "", "", errInvalidResource
@@ -373,6 +495,19 @@ func (fs *filesystem) storeMountResource(podSpecific bool, podID, containerID st
 	return fs.storeFile(mountsFile, file)
 }
 
+func (fs *filesystem) storeDeviceResource(podSpecific bool, podID, containerID string, resource podResource, file interface{}) error {
+	if resource != devicesFileType {
+		return errInvalidResource
+	}
+
+	devicesFile, _, err := fs.resourceURI(podSpecific, podID, containerID, devicesFileType)
+	if err != nil {
+		return err
+	}
+
+	return fs.storeDeviceFile(devicesFile, file)
+}
+
 func (fs *filesystem) storeResource(podSpecific bool, podID, containerID string, resource podResource, data interface{}) error {
 	if err := fs.commonResourceChecks(podSpecific, podID, containerID, resource); err != nil {
 		return err
@@ -394,6 +529,9 @@ func (fs *filesystem) storeResource(podSpecific bool, podID, containerID string,
 	case []Mount:
 		return fs.storeMountResource(podSpecific, podID, containerID, resource, file)
 
+	case []Device:
+		return fs.storeDeviceResource(podSpecific, podID, containerID, resource, file)
+
 	default:
 		return fmt.Errorf("Invalid resource data type")
 	}
@@ -408,6 +546,12 @@ func (fs *filesystem) fetchResource(podSpecific bool, podID, containerID string,
 	if err != nil {
 		return nil, err
 	}
+
+	return fs.doFetchResource(containerID, path, resource)
+}
+
+func (fs *filesystem) doFetchResource(containerID, path string, resource podResource) (interface{}, error) {
+	var err error
 
 	switch resource {
 	case configFileType:
@@ -464,6 +608,15 @@ func (fs *filesystem) fetchResource(podSpecific bool, podID, containerID string,
 		}
 
 		return mounts, nil
+
+	case devicesFileType:
+		devices := []Device{}
+		err = fs.fetchDeviceFile(path, &devices)
+		if err != nil {
+			return nil, err
+		}
+
+		return devices, nil
 	}
 	return nil, errInvalidResource
 }
@@ -642,8 +795,34 @@ func (fs *filesystem) fetchContainerMounts(podID, containerID string) ([]Mount, 
 	}
 }
 
+func (fs *filesystem) fetchContainerDevices(podID, containerID string) ([]Device, error) {
+	if podID == "" {
+		return []Device{}, errNeedPodID
+	}
+
+	if containerID == "" {
+		return []Device{}, errNeedContainerID
+	}
+
+	data, err := fs.fetchResource(false, podID, containerID, devicesFileType)
+	if err != nil {
+		return []Device{}, err
+	}
+
+	switch devices := data.(type) {
+	case []Device:
+		return devices, nil
+	default:
+		return []Device{}, fmt.Errorf("Unknown devices type : [%T]", devices)
+	}
+}
+
 func (fs *filesystem) storeContainerMounts(podID, containerID string, mounts []Mount) error {
 	return fs.storeContainerResource(podID, containerID, mountsFileType, mounts)
+}
+
+func (fs *filesystem) storeContainerDevices(podID, containerID string, devices []Device) error {
+	return fs.storeContainerResource(podID, containerID, devicesFileType, devices)
 }
 
 func (fs *filesystem) deleteContainerResources(podID, containerID string, resources []podResource) error {

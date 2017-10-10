@@ -92,7 +92,7 @@ func testCreateDevice(t *testing.T) {
 	assert.True(t, ok)
 }
 
-func testNewDevice(t *testing.T) {
+func testNewDevices(t *testing.T) {
 	savedSysDevPrefix := sysDevPrefix
 
 	major := int64(252)
@@ -116,10 +116,20 @@ func testNewDevice(t *testing.T) {
 	err = ioutil.WriteFile(ueventPath, content, 0644)
 	assert.Nil(t, err)
 
-	device, err := NewDevice(path, "c", major, minor, nil, 2, 2)
+	deviceInfo := DeviceInfo{
+		ContainerPath: path,
+		Major:         major,
+		Minor:         minor,
+		UID:           2,
+		GID:           2,
+		DevType:       "c",
+	}
+
+	devices, err := newDevices([]DeviceInfo{deviceInfo})
 	assert.Nil(t, err)
 
-	vfioDev, ok := device.(*VFIODevice)
+	assert.Equal(t, len(devices), 1)
+	vfioDev, ok := devices[0].(*VFIODevice)
 	assert.True(t, ok)
 	assert.Equal(t, vfioDev.DeviceInfo.HostPath, path)
 	assert.Equal(t, vfioDev.DeviceInfo.ContainerPath, path)
