@@ -202,7 +202,7 @@ func contains(s []string, e string) bool {
 	return false
 }
 
-func newLinuxDevice(d spec.LinuxDevice) (vc.Device, error) {
+func newLinuxDeviceInfo(d spec.LinuxDevice) (*vc.DeviceInfo, error) {
 	allowedDeviceTypes := []string{"c", "b", "u", "p"}
 
 	if !contains(allowedDeviceTypes, d.Type) {
@@ -213,24 +213,42 @@ func newLinuxDevice(d spec.LinuxDevice) (vc.Device, error) {
 		return nil, fmt.Errorf("Path cannot be empty for device")
 	}
 
-	return vc.NewDevice(d.Path, d.Type, d.Major, d.Minor, d.FileMode, *d.UID, *d.GID)
+	deviceInfo := vc.DeviceInfo{
+		ContainerPath: d.Path,
+		DevType:       d.Type,
+		Major:         d.Major,
+		Minor:         d.Minor,
+	}
+	if d.UID != nil {
+		deviceInfo.UID = *d.UID
+	}
+
+	if d.GID != nil {
+		deviceInfo.GID = *d.GID
+	}
+
+	if d.FileMode != nil {
+		deviceInfo.FileMode = *d.FileMode
+	}
+
+	return &deviceInfo, nil
 }
 
-func containerDevices(spec CompatOCISpec) ([]vc.Device, error) {
+func containerDeviceInfos(spec CompatOCISpec) ([]vc.DeviceInfo, error) {
 	ociLinuxDevices := spec.Spec.Linux.Devices
 
 	if ociLinuxDevices == nil {
-		return []vc.Device{}, nil
+		return []vc.DeviceInfo{}, nil
 	}
 
-	var devices []vc.Device
+	var devices []vc.DeviceInfo
 	for _, d := range ociLinuxDevices {
-		linuxDevice, err := newLinuxDevice(d)
+		linuxDeviceInfo, err := newLinuxDeviceInfo(d)
 		if err != nil {
-			return []vc.Device{}, err
+			return []vc.DeviceInfo{}, err
 		}
 
-		devices = append(devices, linuxDevice)
+		devices = append(devices, *linuxDeviceInfo)
 	}
 
 	return devices, nil
@@ -460,7 +478,7 @@ func ContainerConfig(ocispec CompatOCISpec, bundlePath, cid, console string, det
 		cmd.SupplementaryGroups = append(cmd.SupplementaryGroups, strconv.FormatUint(uint64(gid), 10))
 	}
 
-	devices, err := containerDevices(ocispec)
+	deviceInfos, err := containerDeviceInfos(ocispec)
 	if err != nil {
 		return vc.ContainerConfig{}, err
 	}
@@ -474,8 +492,8 @@ func ContainerConfig(ocispec CompatOCISpec, bundlePath, cid, console string, det
 			ConfigJSONKey: string(ociSpecJSON),
 			BundlePathKey: bundlePath,
 		},
-		Mounts:  containerMounts(ocispec),
-		Devices: devices,
+		Mounts:      containerMounts(ocispec),
+		DeviceInfos: deviceInfos,
 	}
 
 	cType, err := ocispec.ContainerType()

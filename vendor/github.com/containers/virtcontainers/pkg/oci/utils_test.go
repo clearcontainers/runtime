@@ -132,7 +132,6 @@ func TestMinimalPodConfig(t *testing.T) {
 
 	devInfo := vc.DeviceInfo{
 		ContainerPath: "/dev/vfio/17",
-		HostPath:      "/dev/vfio/17",
 		Major:         242,
 		Minor:         0,
 		DevType:       "c",
@@ -140,12 +139,8 @@ func TestMinimalPodConfig(t *testing.T) {
 		GID:           0,
 	}
 
-	vfioDevice := vc.VFIODevice{}
-	vfioDevice.DeviceInfo = devInfo
-	vfioDevice.DeviceType = vc.DeviceVFIO
-
-	expectedDevices := []vc.Device{
-		&vfioDevice,
+	expectedDeviceInfo := []vc.DeviceInfo{
+		devInfo,
 	}
 
 	expectedContainerConfig := vc.ContainerConfig{
@@ -158,8 +153,8 @@ func TestMinimalPodConfig(t *testing.T) {
 			BundlePathKey:    tempBundlePath,
 			ContainerTypeKey: string(vc.PodSandbox),
 		},
-		Mounts:  expectedMounts,
-		Devices: expectedDevices,
+		Mounts:      expectedMounts,
+		DeviceInfos: expectedDeviceInfo,
 	}
 
 	expectedNetworkConfig := vc.NetworkConfig{
@@ -675,7 +670,7 @@ func TestDeviceTypeFailure(t *testing.T) {
 		},
 	}
 
-	_, err := containerDevices(ociSpec)
+	_, err := containerDeviceInfos(ociSpec)
 	assert.NotNil(t, err, "This test should fail as device type [%s] is invalid ", invalidDeviceType)
 }
 
@@ -700,7 +695,7 @@ func TestDevicePathEmpty(t *testing.T) {
 		},
 	}
 
-	_, err := containerDevices(ociSpec)
+	_, err := containerDeviceInfos(ociSpec)
 	assert.NotNil(t, err, "This test should fail as path cannot be empty for device")
 }
 

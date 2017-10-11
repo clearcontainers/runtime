@@ -58,6 +58,8 @@ const defaultQemuPath = "/usr/bin/qemu-system-x86_64"
 
 const defaultQemuMachineType = "pc-lite"
 
+const defaultQemuMachineAccelerators = "kvm,kernel_irqchip,nvdimm"
+
 const (
 	// QemuPCLite is the QEMU pc-lite machine type
 	QemuPCLite = defaultQemuMachineType
@@ -79,15 +81,15 @@ var qemuPaths = map[string]string{
 var supportedQemuMachines = []ciaoQemu.Machine{
 	{
 		Type:         QemuPCLite,
-		Acceleration: "kvm,kernel_irqchip,nvdimm",
+		Acceleration: defaultQemuMachineAccelerators,
 	},
 	{
 		Type:         QemuPC,
-		Acceleration: "kvm,kernel_irqchip,nvdimm",
+		Acceleration: defaultQemuMachineAccelerators,
 	},
 	{
 		Type:         QemuQ35,
-		Acceleration: "kvm,kernel_irqchip,nvdimm,nosmm,nosmbus,nosata,nopit,nofw",
+		Acceleration: defaultQemuMachineAccelerators,
 	},
 }
 
@@ -567,6 +569,14 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 		return err
 	}
 
+	accelerators := podConfig.HypervisorConfig.MachineAccelerators
+	if accelerators != "" {
+		if !strings.HasPrefix(accelerators, ",") {
+			accelerators = fmt.Sprintf(",%s", accelerators)
+		}
+		machine.Acceleration += accelerators
+	}
+
 	smp := q.setCPUResources(podConfig)
 
 	memory, err := q.setMemoryResources(podConfig)
@@ -648,6 +658,7 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 		Knobs:       knobs,
 		VGA:         "none",
 		GlobalParam: "kvm-pit.lost_tick_policy=discard",
+		Bios:        podConfig.HypervisorConfig.FirmwarePath,
 	}
 
 	q.qemuConfig = qemuConfig

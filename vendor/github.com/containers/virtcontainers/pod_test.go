@@ -1267,25 +1267,21 @@ func TestPodAttachDevicesVFIO(t *testing.T) {
 	}
 	vfioDevice := newVFIODevice(deviceInfo)
 
-	containers := []ContainerConfig{
-		{
-			ID: "100",
-			Devices: []Device{
-				vfioDevice,
-			},
+	c := &Container{
+		id: "100",
+		devices: []Device{
+			vfioDevice,
 		},
 	}
 
-	hConfig := newHypervisorConfig(nil, nil)
-	pod, err := testCreatePod(t, testPodID, MockHypervisor, hConfig, NoopAgentType, NoopNetworkModel, NetworkConfig{}, containers, nil)
-	if err != nil {
-		t.Fatal(err)
+	containers := []*Container{c}
+
+	pod := Pod{
+		containers: containers,
+		hypervisor: &mockHypervisor{},
 	}
 
-	c := pod.GetContainer("100")
-	if c == nil {
-		t.Fatal()
-	}
+	containers[0].pod = &pod
 
 	err = pod.attachDevices()
 	assert.Nil(t, err, "Error while attaching devices %s", err)
