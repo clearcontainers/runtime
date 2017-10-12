@@ -49,7 +49,13 @@ NOTES:
 
 `
 
-var ccLog = logrus.WithField("source", "runtime")
+// ccLog is the logger used to record all messages
+var ccLog *logrus.Entry
+
+// originalLoggerLevel is the default log level. It is used to rever the
+// current log level back to its original value if debug output is not
+// required.
+var originalLoggerLevel logrus.Level
 
 // concrete virtcontainer implementation
 var virtcontainersImpl = &vc.VCImpl{}
@@ -72,10 +78,6 @@ var runtimeFlags = []cli.Flag{
 	cli.StringFlag{
 		Name:  "cc-config",
 		Usage: project + " config file path",
-	},
-	cli.BoolFlag{
-		Name:  "debug",
-		Usage: "enable debug output for logging",
 	},
 	cli.StringFlag{
 		Name:  "log",
@@ -135,6 +137,17 @@ var savedCLIVersionPrinter = cli.VersionPrinter
 var savedCLIErrWriter = cli.ErrWriter
 
 func init() {
+	ccLog = logrus.WithField("source", "runtime")
+
+	// Save the original log level and then set to debug level to ensure
+	// that any problems detected before the config file is parsed are
+	// logged. This is required since the config file determines the true
+	// log level for the runtime: once parsed the log level is set
+	// appropriately but for issues between now and completion of the
+	// config file parsing, it is prudent to operate in verbose mode.
+	originalLoggerLevel = ccLog.Logger.Level
+	ccLog.Logger.Level = logrus.DebugLevel
+
 	// Force a coredump + full stacktrace on internal error
 	debug.SetTraceback("crash")
 }
@@ -158,10 +171,6 @@ func beforeSubcommands(context *cli.Context) error {
 		// running a command that does not manipulate
 		// containers.
 		return nil
-	}
-
-	if context.GlobalBool("debug") {
-		ccLog.Logger.Level = logrus.DebugLevel
 	}
 
 	if path := context.GlobalString("log"); path != "" {

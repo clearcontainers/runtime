@@ -985,6 +985,10 @@ func TestShimDefaults(t *testing.T) {
 	p, err = s.path()
 	assert.NoError(err)
 	assert.Equal(p, testShimPath)
+
+	assert.False(s.debug())
+	s.Debug = true
+	assert.True(s.debug())
 }
 
 func TestAgentDefaults(t *testing.T) {

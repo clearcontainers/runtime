@@ -95,10 +95,12 @@ type proxy struct {
 
 type runtime struct {
 	GlobalLogPath string `toml:"global_log_path"`
+	Debug         bool   `toml:"enable_debug"`
 }
 
 type shim struct {
-	Path string `toml:"path"`
+	Path  string `toml:"path"`
+	Debug bool   `toml:"enable_debug"`
 }
 
 type agent struct {
@@ -191,6 +193,10 @@ func (s shim) path() (string, error) {
 	return resolvePath(p)
 }
 
+func (s shim) debug() bool {
+	return s.Debug
+}
+
 func (a agent) pauseRootPath() (string, error) {
 	p := a.PauseRootPath
 
@@ -267,7 +273,8 @@ func newCCShimConfig(s shim) (vc.CCShimConfig, error) {
 	}
 
 	return vc.CCShimConfig{
-		Path: path,
+		Path:  path,
+		Debug: s.debug(),
 	}, nil
 }
 
@@ -393,6 +400,12 @@ func loadConfiguration(configPath string, ignoreLogging bool) (resolvedConfigPat
 	}
 
 	logfilePath = tomlConf.Runtime.GlobalLogPath
+
+	if !tomlConf.Runtime.Debug {
+		// If debug is not required, switch back to the original
+		// default log priority, otherwise continue in debug mode.
+		ccLog.Logger.Level = originalLoggerLevel
+	}
 
 	if !ignoreLogging {
 		// The configuration file may have enabled global logging,
