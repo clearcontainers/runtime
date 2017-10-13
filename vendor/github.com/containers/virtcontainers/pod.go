@@ -759,10 +759,11 @@ func (p *Pod) startShims() error {
 
 	for idx := range p.containers {
 		shimParams := ShimParams{
-			Token:   proxyInfos[idx].Token,
-			URL:     url,
-			Console: p.containers[idx].config.Cmd.Console,
-			Detach:  p.containers[idx].config.Cmd.Detach,
+			Container: p.containers[idx].id,
+			Token:     proxyInfos[idx].Token,
+			URL:       url,
+			Console:   p.containers[idx].config.Cmd.Console,
+			Detach:    p.containers[idx].config.Cmd.Detach,
 		}
 
 		pid, err := p.shim.start(*p, shimParams)
