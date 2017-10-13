@@ -41,10 +41,11 @@ var waitForShimTimeout = 5.0
 // ShimParams is the structure providing specific parameters needed
 // for the execution of the shim binary.
 type ShimParams struct {
-	Token   string
-	URL     string
-	Console string
-	Detach  bool
+	Container string
+	Token     string
+	URL       string
+	Console   string
+	Detach    bool
 }
 
 // Set sets a shim type based on the input string.

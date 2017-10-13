@@ -702,10 +702,11 @@ func (c *Container) createShimProcess(token, url string, cmd Cmd) (*Process, err
 	}
 
 	shimParams := ShimParams{
-		Token:   token,
-		URL:     url,
-		Console: cmd.Console,
-		Detach:  cmd.Detach,
+		Container: c.id,
+		Token:     token,
+		URL:       url,
+		Console:   cmd.Console,
+		Detach:    cmd.Detach,
 	}
 
 	pid, err := c.pod.shim.start(*(c.pod), shimParams)

@@ -59,7 +59,11 @@ func (s *ccShim) start(pod Pod, params ShimParams) (int, error) {
 		return -1, fmt.Errorf("URL cannot be empty")
 	}
 
-	args := []string{config.Path, "-t", params.Token, "-u", params.URL}
+	if params.Container == "" {
+		return -1, fmt.Errorf("Container cannot be empty")
+	}
+
+	args := []string{config.Path, "-c", params.Container, "-t", params.Token, "-u", params.URL}
 	if config.Debug {
 		args = append(args, "-d")
 	}

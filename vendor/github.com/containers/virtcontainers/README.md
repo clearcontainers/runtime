@@ -25,7 +25,8 @@ Table of Contents
       * [CNI](#cni)
    * [Storage](#storage)
       * [How to check if container uses devicemapper block device as its rootfs](#how-to-check-if-container-uses-devicemapper-block-device-as-its-rootfs)
-
+   * [Devices](#devices)
+      * [How to pass a device using VFIO-passthrough](#how-to-pass-a-device-using-vfio-passthrough)
 
 # What is it ?
 
@@ -258,3 +259,88 @@ Ability to hotplug block devices has been added, which makes it possible to use 
 ## How to check if container uses devicemapper block device as its rootfs
 
 Start a container. Call mount(8) within the container. You should see '/' mounted on /dev/vda device.
+
+# Devices
+
+Support has been added to pass [VFIO](https://www.kernel.org/doc/Documentation/vfio.txt) 
+assigned devices on the docker command line with --device.
+Support for passing other devices including block devices with --device has
+not been added added yet.
+
+## How to pass a device using VFIO-passthrough
+
+1. Requirements
+
+IOMMU group represents the smallest set of devices for which the IOMMU has
+visibility and which is isolated from other groups.  VFIO uses this information
+to enforce safe ownership of devices for userspace. 
+
+You will need Intel VT-d capable hardware. Check if IOMMU is enabled in your host
+kernel by verifying `CONFIG_VFIO_NOIOMMU` is not in the kernel config. If it is set,
+you will need to rebuild your kernel.
+
+The following kernel configs need to be enabled:
+```
+CONFIG_VFIO_IOMMU_TYPE1=m 
+CONFIG_VFIO=m
+CONFIG_VFIO_PCI=m
+```
+
+In addition, you need to pass `intel_iommu=on` on the kernel command line.
+
+2. Identify BDF(Bus-Device-Function) of the PCI device to be assigned.
+
+
+```
+$ lspci -D | grep -e Ethernet -e Network
+0000:01:00.0 Ethernet controller: Intel Corporation Ethernet Controller 10-Gigabit X540-AT2 (rev 01)
+
+$ BDF=0000:01:00.0
+```
+
+3. Find vendor and device id.
+
+```
+$ lspci -n -s $BDF
+01:00.0 0200: 8086:1528 (rev 01)
+```
+
+4. Find IOMMU group.
+
+```
+$ readlink /sys/bus/pci/devices/$BDF/iommu_group
+../../../../kernel/iommu_groups/16
+```
+
+5. Unbind the device from host driver.
+
+```
+$ echo $BDF | sudo tee /sys/bus/pci/devices/$BDF/driver/unbind
+```
+
+6. Bind the device to vfio-pci.
+
+```
+$ sudo modprobe vfio-pci
+$ echo 8086 1528 | sudo tee /sys/bus/pci/drivers/vfio-pci/new_id
+$ echo $BDF | sudo tee --append /sys/bus/pci/drivers/vfio-pci/bind
+```
+
+7. Check /dev/vfio
+
+```
+$ ls /dev/vfio
+16 vfio
+```
+
+8. Start a Clear Containers container passing the VFIO group on the docker command line.
+
+```
+docker run -it --device=/dev/vfio/16 centos/tools bash
+```
+
+9. Running `lspci` within the container should show the device among the 
+PCI devices. The driver for the device needs to be present within the
+Clear Containers kernel. If the driver is missing,  you can add it to your
+custom container kernel using the [osbuilder](https://github.com/clearcontainers/osbuilder)
+tooling.

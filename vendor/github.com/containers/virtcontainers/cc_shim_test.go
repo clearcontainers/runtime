@@ -31,6 +31,9 @@ import (
 	. "github.com/containers/virtcontainers/pkg/mock"
 )
 
+// These tests don't care about the format of the container ID
+const testContainer = "testContainer"
+
 var testShimPath = "/usr/bin/virtcontainers/bin/test/shim"
 var testProxyURL = "foo:///foo/clear-containers/proxy.sock"
 var testWrongConsolePath = "/foo/wrong-console"
@@ -130,6 +133,24 @@ func TestCCShimStartParamsURLEmptyFailure(t *testing.T) {
 	testCCShimStart(t, pod, params, true)
 }
 
+func TestCCShimStartParamsContainerEmptyFailure(t *testing.T) {
+	pod := Pod{
+		config: &PodConfig{
+			ShimType: CCShimType,
+			ShimConfig: CCShimConfig{
+				Path: getMockCCShimBinPath(),
+			},
+		},
+	}
+
+	params := ShimParams{
+		Token: "testToken",
+		URL:   "unix://is/awesome",
+	}
+
+	testCCShimStart(t, pod, params, true)
+}
+
 func TestCCShimStartParamsInvalidCommand(t *testing.T) {
 	dir, err := ioutil.TempDir("", "")
 	if err != nil {
@@ -175,9 +196,10 @@ func startCCShimStartWithoutConsoleSuccessful(t *testing.T, detach bool) (*os.Fi
 	}
 
 	params := ShimParams{
-		Token:  "testToken",
-		URL:    testProxyURL,
-		Detach: detach,
+		Container: testContainer,
+		Token:     "testToken",
+		URL:       testProxyURL,
+		Detach:    detach,
 	}
 
 	return rStdout, wStdout, saveStdout, pod, params, nil
@@ -335,9 +357,10 @@ func TestCCShimStartWithConsoleSuccessful(t *testing.T) {
 	}
 
 	params := ShimParams{
-		Token:   "testToken",
-		URL:     testProxyURL,
-		Console: console,
+		Container: testContainer,
+		Token:     "testToken",
+		URL:       testProxyURL,
+		Console:   console,
 	}
 
 	testCCShimStart(t, pod, params, false)
