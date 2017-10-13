@@ -532,7 +532,7 @@ func TestIsCgroupMounted(t *testing.T) {
 
 	memoryCgroupPath := "/sys/fs/cgroup/memory"
 	if _, err := os.Stat(memoryCgroupPath); os.IsNotExist(err) {
-		t.Skip("memory cgroup does not exist: %s", memoryCgroupPath)
+		t.Skipf("memory cgroup does not exist: %s", memoryCgroupPath)
 	}
 
 	assert.True(isCgroupMounted(memoryCgroupPath), "%s is a cgroup", memoryCgroupPath)
