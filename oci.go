@@ -15,11 +15,13 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	vc "github.com/containers/virtcontainers"
@@ -44,7 +46,9 @@ const (
 
 var errNeedLinuxResource = errors.New("Linux resource cannot be empty")
 
-var cgroupsDirPath = "/sys/fs/cgroup"
+var cgroupsDirPath string
+
+var procMountInfo = "/proc/self/mountinfo"
 
 // getContainerInfo returns the container status and its pod ID.
 // It internally expands the container ID from the prefix provided.
@@ -191,6 +195,12 @@ func processCgroupsPathForResource(ociSpec oci.CompatOCISpec, resource string, i
 		return "", errNeedLinuxResource
 	}
 
+	var err error
+	cgroupsDirPath, err = getCgroupsDirPath(procMountInfo)
+	if err != nil {
+		return "", fmt.Errorf("get CgroupsDirPath error: %s", err)
+	}
+
 	// Relative cgroups path provided.
 	if filepath.IsAbs(ociSpec.Linux.CgroupsPath) == false {
 		return filepath.Join(cgroupsDirPath, resource, ociSpec.Linux.CgroupsPath), nil
@@ -301,4 +311,42 @@ func noNeedForOutput(detach bool, tty bool) bool {
 	}
 
 	return true
+}
+
+func getCgroupsDirPath(mountInfoFile string) (string, error) {
+	if cgroupsDirPath != "" {
+		return cgroupsDirPath, nil
+	}
+
+	f, err := os.Open(mountInfoFile)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	var cgroupRootPath string
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		text := scanner.Text()
+		index := strings.Index(text, " - ")
+		if index < 0 {
+			continue
+		}
+		fields := strings.Split(text, " ")
+		postSeparatorFields := strings.Fields(text[index+3:])
+		numPostFields := len(postSeparatorFields)
+
+		if len(fields) < 5 || postSeparatorFields[0] != "cgroup" || numPostFields < 3 {
+			continue
+		}
+
+		cgroupRootPath = filepath.Dir(fields[4])
+		break
+	}
+
+	if _, err = os.Stat(cgroupRootPath); err != nil {
+		return "", err
+	}
+
+	return cgroupRootPath, nil
 }

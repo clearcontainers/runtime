@@ -530,7 +530,12 @@ func TestIsCgroupMounted(t *testing.T) {
 
 	assert.False(isCgroupMounted(os.TempDir()), "%s is not a cgroup", os.TempDir())
 
-	memoryCgroupPath := "/sys/fs/cgroup/memory"
+	cgroupsDirPath = ""
+	cgroupRootPath, err := getCgroupsDirPath(procMountInfo)
+	if err != nil {
+		assert.NoError(err)
+	}
+	memoryCgroupPath := filepath.Join(cgroupRootPath, "memory")
 	if _, err := os.Stat(memoryCgroupPath); os.IsNotExist(err) {
 		t.Skipf("memory cgroup does not exist: %s", memoryCgroupPath)
 	}
@@ -560,5 +565,58 @@ func TestProcessCgroupsPathForResource(t *testing.T) {
 		_, err := processCgroupsPathForResource(spec, "", isPod)
 		assert.Error(err)
 		assert.False(vcMock.IsMockError(err))
+	}
+}
+
+func TestGetCgroupsDirPath(t *testing.T) {
+	assert := assert.New(t)
+
+	type testData struct {
+		contents       string
+		expectedResult string
+		expectError    bool
+	}
+
+	dir, err := ioutil.TempDir("", "")
+	if err != nil {
+		assert.NoError(err)
+	}
+	defer os.RemoveAll(dir)
+
+	// make sure tested cgroupsDirPath is existed
+	testedCgroupDir := filepath.Join(dir, "weirdCgroup")
+	err = os.Mkdir(testedCgroupDir, testDirMode)
+	assert.NoError(err)
+
+	weirdCgroupPath := filepath.Join(testedCgroupDir, "memory")
+
+	data := []testData{
+		{fmt.Sprintf("num1 num2 num3 / %s num6 num7 - cgroup cgroup rw,memory", weirdCgroupPath), testedCgroupDir, false},
+		// cgroup mount is not properly formated, if fields post - less than 3
+		{fmt.Sprintf("num1 num2 num3 / %s num6 num7 - cgroup cgroup ", weirdCgroupPath), "", true},
+		{"a a a a a a a - b c d", "", true},
+		{"a \na b \na b c\na b c d", "", true},
+		{"", "", true},
+	}
+
+	file := filepath.Join(dir, "mountinfo")
+
+	//file does not exist, should error here
+	_, err = getCgroupsDirPath(file)
+	assert.Error(err)
+
+	for _, d := range data {
+		err := ioutil.WriteFile(file, []byte(d.contents), testFileMode)
+		assert.NoError(err)
+
+		cgroupsDirPath = ""
+		path, err := getCgroupsDirPath(file)
+		if d.expectError {
+			assert.Error(err, fmt.Sprintf("got %q, test data: %+v", path, d))
+		} else {
+			assert.NoError(err, fmt.Sprintf("got %q, test data: %+v", path, d))
+		}
+
+		assert.Equal(d.expectedResult, path)
 	}
 }
