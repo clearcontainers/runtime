@@ -242,12 +242,16 @@ See more documentation at
 
 #### `docker --device`
 
-host device support (`docker run --device`) is not supported. This could
-be mapped to the quite similar QEMU `-device` option to enact device
-pass-through if that particular device is supported by VFIO, but the QEMU
-option requires precise knowledge of which sort of device is being
-mapped, and that information is not necessarily easily available from
-the docker `--device` command.
+Support has been added to pass devices using [Virtual Function I/O (VFIO)](https://www.kernel.org/doc/Documentation/vfio.txt) 
+passthrough. Devices that support the Input–Output Memory Management Unit (IOMMU)
+feature can be assigned to the `vfio-pci` driver and passed
+on the docker command line with `--device=/dev/vfio/$(iommu_group_number)`, 
+where `iommu_group_number` is the IOMMU group that the device belongs to.
+If multiple devices belong to the same IOMMU group, they will all be 
+assigned to the Clear Containers VM.
+
+Support for passing other devices including block devices with `--device`
+is not yet avilable.
 
 #### `docker -v /dev/...`
 
