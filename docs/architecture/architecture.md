@@ -18,6 +18,11 @@
     * [Shim](#shim)
     * [Networking](#networking)
     * [Storage](#storage)
+    * [Kubernetes Support](#kubernetes-support)
+        * [Problem Statement](#problem-statemem)
+        * [OCI Annotations](#oci-annotations)
+        * [Generalization](#generalization)
+        * [Mixing VM based and namespace based runtimes](#mixing-vm-based-and-namespace-based-runtimes)
 * [Appendices](#appendices)
     * [DAX](#dax)
     * [Previous Releases](#previous-releases)
@@ -608,6 +613,140 @@ Users can check to see if the container uses the devicemapper block device as it
 rootfs by calling `mount(8)` within the counter.  If the devicemapper block device
 is used, `/` will be mounted on `/dev/vda`.  Users can disable direct mounting
 of the underlying block device through the runtime configuration.
+
+## Kubernetes support
+
+[Kubernetes\*](https://github.com/kubernetes/kubernetes/) is a popular open source
+container orchestration engine. In Kubernetes, a set of containers sharing resources
+such as networking, storage, mount, PID, etc. is called a
+[Pod](https://kubernetes.io/docs/user-guide/pods/).
+A node can have multiple pods, but at a minimum, a node within a Kubernetes cluster
+only needs to run a container runtime and a container agent (called a
+[kubelet](https://kubernetes.io/docs/admin/kubelet/)).
+
+A Kubernetes cluster runs a control plane where a scheduler (typically running on a
+dedicated master node) calls into a compute kubelet. This kubelet instance is
+responsible for managing the lifecycle of pods within the nodes and eventually relies
+on a container runtime to handle execution. The kubelet architecture decouples
+lifecycle management from container execution through the dedicated
+[`gRPC`](https://github.com/kubernetes/kubernetes/blob/master/pkg/kubelet/apis/cri/v1alpha1/runtime/api.proto) 
+based [Container Runtime Interface (CRI)](https://github.com/kubernetes/community/blob/master/contributors/design-proposals/node/container-runtime-interface-v1.md).
+
+In other words, a kubelet is a CRI client and expects a CRI implementation to
+handle the server side of the interface.
+[CRI-O\*](https://github.com/kubernetes-incubator/cri-o) is a CRI implementation
+that relies on [OCI](https://github.com/opencontainers/runtime-spec) compatible
+runtimes for managing container instances.
+
+Clear Containers is an officially supported CRI-O runtime. It is OCI compatible and
+therefore aligns with CRI-O architecture and requirements.
+However, due to the fact that Kubernetes execution units are sets of containers (also
+known as pods) rather than single containers, the Clear Containers runtime needs to
+get extra information to seamlessly integrate with Kubernetes.
+
+### Problem statement
+
+The Kubernetes\* execution unit is a pod that has specifications detailing constraints
+such as namespaces, groups, hardware resources, security contents, *etc* shared by all
+the containers within that pod.
+By default the kubelet will send a container creation request to its CRI runtime for
+each pod and container creation. Without additional metadata from the CRI runtime,
+the Clear Containers runtime will thus create one virtual machine for each pod and for
+each containers within a pod. However the task of providing the Kubernetes pod semantics
+when creating one virtual machine for each container within the same pod is complex given
+the resources of these virtual machines (such as networking or PID) need to be shared.
+
+The challenge with Clear Containers when working as a Kubernetes\* runtime is thus to know
+when to create a full virtual machine (for pods) and when to create a new container inside
+a previously created virtual machine. In both cases it will get called with very similar
+arguments, so it needs the help of the Kubernetes CRI runtime to be able to distinguish a
+pod creation request from a container one.
+
+### OCI annotations
+
+In order for the Clear Containers runtime (or any virtual machine  based OCI compatible
+runtime) to be able to understand if it needs to create a full virtual machine or if it
+has to create a new container inside an existing pod's virtual machine, CRI-O adds
+specific annotations to the OCI configuration file (`config.json`) which is passed to
+the OCI compatible runtime.
+
+Before calling its runtime, CRI-O will always add a `io.kubernetes.cri-o.ContainerType`
+annotation to the `config.json` configuration file it produces from the kubelet CRI
+request. The `io.kubernetes.cri-o.ContainerType` annotation can either be set to `sandbox`
+or `container`. Clear Containers will then use this annotation to decide if it needs to
+respectively create a virtual machine or a container inside a virtual machine associated
+with a Kubernetes pod:
+
+```Go
+	containerType, err := ociSpec.ContainerType()
+	if err != nil {
+		return err
+	}
+
+	switch containerType {
+	case vc.PodSandbox:
+		process, err = createPod(ociSpec, runtimeConfig, containerID, bundlePath, console, disableOutput)
+		if err != nil {
+			return err
+		}
+	case vc.PodContainer:
+		process, err = createContainer(ociSpec, containerID, bundlePath, console, disableOutput)
+		if err != nil {
+			return err
+		}
+	}
+
+```
+
+### Generalization
+
+Clear Containers 2.1, implemented the initial Kubernetes / CRI-O support by choosing
+to handle pods as a special case for containers. By default the runtime would only be aware
+of containers and only when receiving CRI-O specific annotations would it follow specific
+code paths to handle pods and intra pod containers. This approach showed that container
+orchestration support was an afterthought with 2.1, and that supporting the single container
+Docker use case was the main focus.
+
+Starting from the 3.0 release, Clear Containers took a different, almost opposite, approach.
+The Clear Containers 3.0 runtime is based on the `virtcontainers` package whose API is
+inspired by the Kubernetes CRI one. `virtcontainers` execution units are pods and it does
+not create or manage any container outside of an existing pod context, and thus so does the
+Clear Container 3.0 runtime.
+To create a Docker container it will first create a pod which will represent the container
+hardware virtualized context and then start an actual container inside that virtual machine.
+Both the pod and its container have the same identifier and name.
+
+### Mixing VM based and namespace based runtimes
+
+One interesting evolution of the CRI-O support for the Clear Containers runtime is the ability
+to run virtual machine based pods alongside namespace ones. With CRI-O and Clear Containers,
+one can introduce the concept of workload trust inside a Kubernetes cluster.
+
+A cluster operator can now tag (through Kubernetes annotations) container workloads as `trusted`
+or `untrusted`. The former labels known to be safe workloads while the latter describes
+potentially malicious or misbehaving workloads that need the highest degree of isolation.
+In a software development context, an example of a `trusted` workload would be a containerized
+continuous integration engine whereas all developers applications would be `untrusted` by default.
+Developers workloads can be buggy, unstable or even include malicious code and thus from a
+security perspective it makes sense to tag them as `untrusted`. A CRI-O and Clear Containers
+based Kubernetes cluster handles this use case transparently as long as the deployed containers
+are properly tagged. All `untrusted` containers will be handled by Clear Containers and thus run
+in a hardware virtualized secure sandbox whilst `runc`, for example, could  handle the
+`trusted` ones.
+
+CRI-O's default behaviour is to trust all pods, except when they're annotated with
+`io.kubernetes.cri-o.TrustedSandbox` set to `false`. The default CRI-O trust level is
+set through its `configuration.toml` configuration file. Generally speaking, the CRI-O
+runtime selection between its trusted runtime (typically `runc`) and its untrusted one
+(Clear Containers) is a function of the pod `Privileged` setting, the `io.kubernetes.cri-o.TrustedSandbox`
+annotation value, and the default CRI-O trust level. When a pod is `Privileged`, the
+runtime will always be `runc`. However, when a pod is **not** `Privileged` the runtime
+selection is done as follows:
+
+|                                        | `io.kubernetes.cri-o.TrustedSandbox` not set   | `io.kubernetes.cri-o.TrustedSandbox` = `true` | `io.kubernetes.cri-o.TrustedSandbox` = `false` |
+| :---                                   |     :---:                                      |     :---:                                     |     :---:                                             |
+| Default CRI-O trust level: `trusted`   | runc                                           | runc                                          | Clear Containers |
+| Default CRI-O trust level: `untrusted` | Clear Containers                               | Clear Containers                              | Clear Containers |
 
 # Appendices
 
