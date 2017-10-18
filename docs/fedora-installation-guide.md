@@ -55,5 +55,5 @@ $ sudo systemctl start cc-proxy.socket
 You are now ready to run Clear Containers 3.0. For example:
 
 ```
-$ sudo docker run -ti fedora bash
+$ sudo docker run -ti busybox sh
 ```
