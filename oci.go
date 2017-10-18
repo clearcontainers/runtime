@@ -85,7 +85,7 @@ func getExistingContainerInfo(containerID string) (vc.ContainerStatus, string, e
 
 	// container ID MUST exist.
 	if cStatus.ID == "" {
-		return vc.ContainerStatus{}, "", fmt.Errorf("Container ID does not exist")
+		return vc.ContainerStatus{}, "", fmt.Errorf("Container ID (%v) does not exist", containerID)
 	}
 
 	return cStatus, podID, nil
