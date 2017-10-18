@@ -168,3 +168,5 @@ $ make help
 
   * [General Debugging](../README.md#debugging)
   * [Debugging the agent inside the hypervisor](debug-agent.md)
+  * [Debugging the kernel inside the hypervisor](https://github.com/clearcontainers/runtime/blob/master/docs/debug-kernel.md)
+  
