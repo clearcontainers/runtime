@@ -5,7 +5,7 @@ Note:
 If you are installing on a system that already has Clear Containers 2.x
 installed, first read [the upgrading document](upgrading.md).
 
-Clear Containers **3.0** is available for Fedora\* versions **24** and **25**.
+Clear Containers **3.0** is available for Fedora\* versions **24** , **25** and **26**.
 
 This step is only required in case Docker is not installed on the system.
 1. Install the latest version of Docker with the following commands:
@@ -13,7 +13,7 @@ This step is only required in case Docker is not installed on the system.
 ```
 $ sudo dnf -y install dnf-plugins-core
 $ sudo dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
-$ sudo dnf makecache fast
+$ sudo dnf makecache
 $ sudo dnf -y install docker-ce
 ```
 
