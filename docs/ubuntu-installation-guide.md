@@ -5,14 +5,14 @@ Note:
 If you are installing on a system that already has Clear Containers 2.x
 installed, first read [the upgrading document](upgrading.md).
 
-Clear Containers **3.0** is available for Ubuntu\* **16.04**.
+Clear Containers **3.0** is available for Ubuntu\* **16.04**, **16.10** and **17.04**.
 
 This step is only required in case Docker is not installed on the system.
 1. Install the latest version of Docker with the following commands:
 
 ```
-$ sudo -E apt-get install apt-transport-https ca-certificates curl software-properties-common
-$ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+$ sudo -E apt-get install apt-transport-https ca-certificates wget software-properties-common
+$ wget -qO - https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
 $ sudo -E add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
 $ sudo -E apt-get update
 $ sudo -E apt-get install docker-ce
@@ -25,7 +25,7 @@ For more information on installing Docker please refer to the
 
 ```
 $ sudo sh -c "echo 'deb http://download.opensuse.org/repositories/home:/clearcontainers:/clear-containers-3/xUbuntu_$(lsb_release -rs)/ /' >> /etc/apt/sources.list.d/clear-containers.list"
-$ curl -fsSL http://download.opensuse.org/repositories/home:/clearcontainers:/clear-containers-3/xUbuntu_$(lsb_release -rs)/Release.key | sudo apt-key add -
+$ wget -qO - http://download.opensuse.org/repositories/home:/clearcontainers:/clear-containers-3/xUbuntu_$(lsb_release -rs)/Release.key | sudo apt-key add -
 $ sudo -E apt-get update
 $ sudo -E apt-get install -y cc-runtime cc-proxy cc-shim
 ```
