@@ -52,8 +52,8 @@ $ sudo systemctl start cc-proxy.socket
 
 5. Run Clear Containers 3.0.
 
-You are now ready to run Clear Containers 3.0. For example:
+   You are now ready to run Clear Containers 3.0. For example:
 
-```
-$ sudo docker run -ti busybox sh
-```
+   ```
+   $ sudo docker run -ti busybox sh
+   ```
