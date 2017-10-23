@@ -26,6 +26,22 @@ import (
 // AgentType describes the type of guest agent a Pod should run.
 type AgentType string
 
+// ProcessListOptions contains the options used to list running
+// processes inside the container
+type ProcessListOptions struct {
+	// Format describes the output format to list the running processes.
+	// Formats are unrelated to ps(1) formats, only two formats can be specified:
+	// "json" and "table"
+	Format string
+
+	// Args contains the list of arguments to run ps(1) command.
+	// If Args is empty the agent will use "-ef" as options to ps(1).
+	Args []string
+}
+
+// ProcessList represents the list of running processes inside the container
+type ProcessList []byte
+
 const (
 	// NoopAgentType is the No-Op agent.
 	NoopAgentType AgentType = "noop"
@@ -146,4 +162,7 @@ type agent interface {
 	// container related to a Pod. If all is true, all processes in
 	// the container will be sent the signal.
 	killContainer(pod Pod, c Container, signal syscall.Signal, all bool) error
+
+	// processListContainer will list the processes running inside the container
+	processListContainer(pod Pod, c Container, options ProcessListOptions) (ProcessList, error)
 }

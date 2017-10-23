@@ -4,8 +4,6 @@ VC_BIN_DIR := $(BIN_DIR)/virtcontainers/bin
 TEST_BIN_DIR := $(VC_BIN_DIR)/test
 VIRTC_DIR := hack/virtc
 VIRTC_BIN := virtc
-PAUSE_DIR := pause
-PAUSE_BIN := pause
 HOOK_DIR := hook/mock
 HOOK_BIN := hook
 SHIM_DIR := shim/mock
@@ -31,16 +29,13 @@ build:
 virtc:
 	$(QUIET_GOBUILD)go build -o $(VIRTC_DIR)/$@ $(VIRTC_DIR)/*.go
 
-pause:
-	$(QUIET_GOBUILD)go build -o $(PAUSE_DIR)/$(PAUSE_BIN) pause/*.go
-
 hook:
 	$(QUIET_GOBUILD)go build -o $(HOOK_DIR)/$@ $(HOOK_DIR)/*.go
 
 shim:
 	$(QUIET_GOBUILD)go build -o $(SHIM_DIR)/$@ $(SHIM_DIR)/*.go
 
-binaries: virtc pause hook shim
+binaries: virtc hook shim
 
 #
 # Tests
@@ -71,7 +66,6 @@ endef
 install:
 	@mkdir -p $(VC_BIN_DIR)
 	$(call INSTALL_EXEC,$(VIRTC_DIR)/$(VIRTC_BIN))
-	$(call INSTALL_EXEC,$(PAUSE_DIR)/$(PAUSE_BIN))
 	@mkdir -p $(TEST_BIN_DIR)
 	$(call INSTALL_TEST_EXEC,$(HOOK_DIR)/$(HOOK_BIN))
 	$(call INSTALL_TEST_EXEC,$(SHIM_DIR)/$(SHIM_BIN))
@@ -90,7 +84,6 @@ endef
 
 uninstall:
 	$(call UNINSTALL_EXEC,$(VIRTC_BIN))
-	$(call UNINSTALL_EXEC,$(PAUSE_BIN))
 	$(call UNINSTALL_TEST_EXEC,$(HOOK_BIN))
 	$(call UNINSTALL_TEST_EXEC,$(SHIM_BIN))
 
@@ -100,7 +93,6 @@ uninstall:
 
 clean:
 	rm -f $(VIRTC_DIR)/$(VIRTC_BIN)
-	rm -f $(PAUSE_DIR)/$(PAUSE_BIN)
 	rm -f $(HOOK_DIR)/$(HOOK_BIN)
 	rm -f $(SHIM_DIR)/$(SHIM_BIN)
 
@@ -108,7 +100,6 @@ clean:
 	all \
 	build \
 	virtc \
-	pause \
 	hook \
 	shim \
 	binaries \

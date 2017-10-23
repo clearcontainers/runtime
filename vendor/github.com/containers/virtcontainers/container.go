@@ -707,6 +707,24 @@ func (c *Container) kill(signal syscall.Signal, all bool) error {
 	return nil
 }
 
+func (c *Container) processList(options ProcessListOptions) (ProcessList, error) {
+	state, err := c.fetchState("ps")
+	if err != nil {
+		return nil, err
+	}
+
+	if state.State != StateRunning {
+		return nil, fmt.Errorf("Container not running, impossible to list processes")
+	}
+
+	if _, _, err := c.pod.proxy.connect(*(c.pod), false); err != nil {
+		return nil, err
+	}
+	defer c.pod.proxy.disconnect()
+
+	return c.pod.agent.processListContainer(*(c.pod), *c, options)
+}
+
 func (c *Container) createShimProcess(token, url string, cmd Cmd) (*Process, error) {
 	if c.pod.state.URL != url {
 		return &Process{}, fmt.Errorf("Pod URL %s and URL from proxy %s MUST be identical", c.pod.state.URL, url)

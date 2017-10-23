@@ -74,3 +74,8 @@ func (n *noopAgent) stopContainer(pod Pod, c Container) error {
 func (n *noopAgent) killContainer(pod Pod, c Container, signal syscall.Signal, all bool) error {
 	return nil
 }
+
+// processListContainer is the Noop agent Container ps implementation. It does nothing.
+func (n *noopAgent) processListContainer(pod Pod, c Container, options ProcessListOptions) (ProcessList, error) {
+	return nil, nil
+}

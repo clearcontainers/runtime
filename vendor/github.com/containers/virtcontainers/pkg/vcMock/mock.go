@@ -186,3 +186,12 @@ func (m *VCMock) KillContainer(podID, containerID string, signal syscall.Signal,
 
 	return fmt.Errorf("%s: %s (%+v): podID: %v, containerID: %v, signal: %v, all: %v", mockErrorPrefix, getSelf(), m, podID, containerID, signal, all)
 }
+
+// ProcessListContainer implements the VC function of the same name.
+func (m *VCMock) ProcessListContainer(podID, containerID string, options vc.ProcessListOptions) (vc.ProcessList, error) {
+	if m.ProcessListContainerFunc != nil {
+		return m.ProcessListContainerFunc(podID, containerID, options)
+	}
+
+	return nil, fmt.Errorf("%s: %s (%+v): podID: %v, containerID: %v", mockErrorPrefix, getSelf(), m, podID, containerID)
+}

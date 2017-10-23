@@ -64,11 +64,6 @@
 ## what source location any dependent projects specify.
 # source = "https://github.com/myfork/package.git"
 
-
-[[constraint]]
-  name = "github.com/01org/ciao"
-  revision = "44068003db570d97b20b7de0ed0686a9eee0cc0f"
-
 [[constraint]]
   name = "github.com/clearcontainers/proxy"
   revision = "1d2a6a3ea132a86abd0731408b7dc34f2fc17d55"
@@ -137,3 +132,7 @@
   name = "github.com/sirupsen/logrus"
   revision = "89742aefa4b206dcf400792f3bd35b542998eb3b"
 
+
+[[constraint]]
+  name = "github.com/01org/ciao"
+  revision = "b2a8a2ecea1318ae28a0861191ec385532491b5a"

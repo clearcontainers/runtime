@@ -41,6 +41,7 @@ type VC interface {
 	StartContainer(podID, containerID string) (VCContainer, error)
 	StatusContainer(podID, containerID string) (ContainerStatus, error)
 	StopContainer(podID, containerID string) (VCContainer, error)
+	ProcessListContainer(podID, containerID string, options ProcessListOptions) (ProcessList, error)
 }
 
 // VCPod is the Pod interface

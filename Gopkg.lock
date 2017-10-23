@@ -3,8 +3,8 @@
 
 [[projects]]
   name = "github.com/01org/ciao"
-  packages = ["qemu","ssntp/uuid"]
-  revision = "44068003db570d97b20b7de0ed0686a9eee0cc0f"
+  packages = ["qemu"]
+  revision = "b2a8a2ecea1318ae28a0861191ec385532491b5a"
 
 [[projects]]
   branch = "master"
@@ -29,8 +29,8 @@
 
 [[projects]]
   name = "github.com/containers/virtcontainers"
-  packages = [".","pkg/cni","pkg/hyperstart","pkg/oci","pkg/vcMock"]
-  revision = "db99bdff3281c93adee501b614db1047f5f9d2ee"
+  packages = [".","pkg/cni","pkg/hyperstart","pkg/oci","pkg/uuid","pkg/vcMock"]
+  revision = "e8b0c3a6c9fd7691e37a6aa73ed6af4c42f42ad1"
 
 [[projects]]
   branch = "master"
@@ -116,6 +116,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "1318039f3ee04cbef43d8dedba63912121d81a389d1ca545c71a6c2ec6713ef5"
+  inputs-digest = "3c1e5894ba73555107971ec0b7f8e27019e5f1f8669f8e25ae6fd8f3b345c110"
   solver-name = "gps-cdcl"
   solver-version = 1
