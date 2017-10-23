@@ -45,7 +45,7 @@ func (p *Pod) URL() string {
 
 // GetAllContainers implements the VCPod function of the same name.
 func (p *Pod) GetAllContainers() []vc.VCContainer {
-	var ifa []vc.VCContainer = make([]vc.VCContainer, len(p.MockContainers))
+	var ifa = make([]vc.VCContainer, len(p.MockContainers))
 
 	for i, v := range p.MockContainers {
 		ifa[i] = v

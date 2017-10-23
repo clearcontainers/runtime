@@ -25,6 +25,7 @@ import (
 	"time"
 
 	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/sirupsen/logrus"
 )
 
 // Hook represents an OCI hook, including its required parameters.
@@ -40,6 +41,11 @@ type Hooks struct {
 	PreStartHooks  []Hook
 	PostStartHooks []Hook
 	PostStopHooks  []Hook
+}
+
+// Logger returns a logrus logger appropriate for logging Hooks messages
+func (h *Hooks) Logger() *logrus.Entry {
+	return virtLog.WithField("subsystem", "hooks")
 }
 
 func buildHookState(processID int) specs.State {
@@ -101,7 +107,11 @@ func (h *Hooks) preStartHooks() error {
 	for _, hook := range h.PreStartHooks {
 		err := hook.runHook()
 		if err != nil {
-			virtLog.Errorf("PreStartHook error: %s", err)
+			h.Logger().WithFields(logrus.Fields{
+				"hook-type": "pre-start",
+				"error":     err,
+			}).Error("hook error")
+
 			return err
 		}
 	}
@@ -119,7 +129,10 @@ func (h *Hooks) postStartHooks() error {
 		if err != nil {
 			// In case of post start hook, the error is not fatal,
 			// just need to be logged.
-			virtLog.Infof("PostStartHook error: %s", err)
+			h.Logger().WithFields(logrus.Fields{
+				"hook-type": "post-start",
+				"error":     err,
+			}).Info("hook error")
 		}
 	}
 
@@ -136,7 +149,10 @@ func (h *Hooks) postStopHooks() error {
 		if err != nil {
 			// In case of post stop hook, the error is not fatal,
 			// just need to be logged.
-			virtLog.Infof("PostStopHook error: %s", err)
+			h.Logger().WithFields(logrus.Fields{
+				"hook-type": "post-stop",
+				"error":     err,
+			}).Info("hook error")
 		}
 	}
 

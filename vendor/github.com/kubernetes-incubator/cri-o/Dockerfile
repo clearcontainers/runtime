@@ -1,20 +1,30 @@
-FROM golang:1.7
+FROM golang:1.8
 
 # libseccomp in jessie is not _quite_ new enough -- need backports version
 RUN echo 'deb http://httpredir.debian.org/debian jessie-backports main' > /etc/apt/sources.list.d/backports.list
 
 RUN apt-get update && apt-get install -y \
+    apparmor \
+    autoconf \
+    automake \
+    bison \
     build-essential \
     curl \
+    e2fslibs-dev \
     gawk \
+    gettext \
     iptables \
     pkg-config \
     libaio-dev \
     libcap-dev \
+    libfuse-dev \
+    libostree-dev \
     libprotobuf-dev \
     libprotobuf-c0-dev \
     libseccomp2/jessie-backports \
     libseccomp-dev/jessie-backports \
+    libtool \
+    libudev-dev \
     protobuf-c-compiler \
     protobuf-compiler \
     python-minimal \
@@ -24,7 +34,9 @@ RUN apt-get update && apt-get install -y \
     libdevmapper1.02.1 \
     libdevmapper-dev \
     libgpgme11-dev \
+    liblzma-dev \
     netcat \
+    socat \
     --no-install-recommends \
     && apt-get clean
 
@@ -44,7 +56,7 @@ RUN mkdir -p /usr/src/criu \
     && rm -rf /usr/src/criu
 
 # Install runc
-ENV RUNC_COMMIT 639454475cb9c8b861cc599f8bcd5c8c790ae402
+ENV RUNC_COMMIT 84a082bfef6f932de921437815355186db37aeb1
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/opencontainers/runc.git "$GOPATH/src/github.com/opencontainers/runc" \
@@ -67,16 +79,39 @@ RUN set -x \
        && cp bin/* /opt/cni/bin/ \
        && rm -rf "$GOPATH"
 
-COPY test/plugin_test_args.bash /opt/cni/bin/plugin_test_args.bash
+# Install custom CNI bridge test plugin
+# XXX: this plugin is meant to be a replacement for the old "test_plugin_args.bash"
+# we need this in testing because sandbox_run now gather IP address and the mock
+# plugin wasn't able to properly setup the net ns.
+# The bridge is based on the same commit as the one above.
+#ENV CNI_COMMIT 6bfe036c38c8e1410f1acaa4b2ee16f1851472e4
+ENV CNI_TEST_BRANCH custom-bridge
+RUN set -x \
+       && export GOPATH="$(mktemp -d)" \
+       && git clone https://github.com/runcom/plugins.git "$GOPATH/src/github.com/containernetworking/plugins" \
+       && cd "$GOPATH/src/github.com/containernetworking/plugins" \
+       && git checkout -q "$CNI_TEST_BRANCH" \
+       && ./build.sh \
+       && mkdir -p /opt/cni/bin \
+       && cp bin/bridge /opt/cni/bin/bridge-custom \
+       && rm -rf "$GOPATH"
+
+# Install crictl
+ENV CRICTL_COMMIT 16e6fe4d7199c5689db4630a9330e6a8a12cecd1
+RUN set -x \
+       && export GOPATH="$(mktemp -d)" \
+       && git clone https://github.com/kubernetes-incubator/cri-tools.git "$GOPATH/src/github.com/kubernetes-incubator/cri-tools" \
+       && cd "$GOPATH/src/github.com/kubernetes-incubator/cri-tools" \
+       && git checkout -q "$CRICTL_COMMIT" \
+       && go install github.com/kubernetes-incubator/cri-tools/cmd/crictl \
+       && cp "$GOPATH"/bin/crictl /usr/bin/ \
+       && rm -rf "$GOPATH"
 
 # Make sure we have some policy for pulling images
 RUN mkdir -p /etc/containers
 COPY test/policy.json /etc/containers/policy.json
+COPY test/redhat_sigstore.yaml /etc/containers/registries.d/registry.access.redhat.com.yaml
 
 WORKDIR /go/src/github.com/kubernetes-incubator/cri-o
 
 ADD . /go/src/github.com/kubernetes-incubator/cri-o
-
-RUN make copyimg \
-	&& mkdir -p .artifacts/redis-image \
-	&& ./test/copyimg/copyimg --import-from=docker://redis --export-to=dir:.artifacts/redis-image --signature-policy ./test/policy.json

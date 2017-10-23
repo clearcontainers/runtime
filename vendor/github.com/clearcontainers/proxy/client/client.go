@@ -68,6 +68,24 @@ func (client *Client) sendCommandFull(cmd api.Command, payload interface{},
 		return nil, err
 	}
 
+	if cmd == api.CmdSignal {
+		payloadSignal, ok := payload.(*api.Signal)
+		if !ok {
+			return nil, err
+		}
+
+		if payloadSignal.SignalNumber == int(syscall.SIGKILL) ||
+			payloadSignal.SignalNumber == int(syscall.SIGTERM) {
+			if frame.Header.Type != api.TypeNotification {
+				return nil, fmt.Errorf("unexpected frame type %v", frame.Header.Type)
+			}
+
+			if frame, err = api.ReadFrame(client.conn); err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	if frame.Header.Type != api.TypeResponse {
 		return nil, fmt.Errorf("unexpected frame type %v", frame.Header.Type)
 	}

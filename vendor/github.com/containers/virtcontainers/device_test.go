@@ -26,6 +26,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const fileMode0640 = os.FileMode(0640)
+
 func TestIsVFIO(t *testing.T) {
 	type testData struct {
 		path     string
@@ -39,6 +41,8 @@ func TestIsVFIO(t *testing.T) {
 		{"/dev/vfio", false},
 		{"/dev/vf", false},
 		{"/dev", false},
+		{"/dev/vfio/vfio", false},
+		{"/dev/vfio/vfio/12", false},
 	}
 
 	for _, d := range data {
@@ -72,7 +76,7 @@ func TestIsBlock(t *testing.T) {
 	}
 }
 
-func testCreateDevice(t *testing.T) {
+func TestCreateDevice(t *testing.T) {
 	devInfo := DeviceInfo{
 		HostPath: "/dev/vfio/8",
 	}
@@ -92,7 +96,7 @@ func testCreateDevice(t *testing.T) {
 	assert.True(t, ok)
 }
 
-func testNewDevices(t *testing.T) {
+func TestNewDevices(t *testing.T) {
 	savedSysDevPrefix := sysDevPrefix
 
 	major := int64(252)
@@ -100,30 +104,49 @@ func testNewDevices(t *testing.T) {
 
 	tmpDir, err := ioutil.TempDir("", "")
 	assert.Nil(t, err)
-	os.RemoveAll(tmpDir)
 
 	sysDevPrefix = tmpDir
 	defer func() {
+		os.RemoveAll(tmpDir)
 		sysDevPrefix = savedSysDevPrefix
 	}()
 
-	format := strconv.FormatInt(major, 10) + ":" + strconv.FormatInt(minor, 10)
-	ueventPath := filepath.Join(sysDevPrefix, "char", format, "uevent")
-
 	path := "/dev/vfio/2"
-	content := []byte("MAJOR=252\nMINOR=3\nDEVNAME=vfio/2")
-
-	err = ioutil.WriteFile(ueventPath, content, 0644)
-	assert.Nil(t, err)
-
 	deviceInfo := DeviceInfo{
-		ContainerPath: path,
+		ContainerPath: "",
 		Major:         major,
 		Minor:         minor,
 		UID:           2,
 		GID:           2,
 		DevType:       "c",
 	}
+
+	_, err = newDevices([]DeviceInfo{deviceInfo})
+	assert.NotNil(t, err)
+
+	format := strconv.FormatInt(major, 10) + ":" + strconv.FormatInt(minor, 10)
+	ueventPathPrefix := filepath.Join(sysDevPrefix, "char", format)
+	ueventPath := filepath.Join(ueventPathPrefix, "uevent")
+
+	// Return true for non-existent /sys/dev path.
+	deviceInfo.ContainerPath = path
+	_, err = newDevices([]DeviceInfo{deviceInfo})
+	assert.Nil(t, err)
+
+	err = os.MkdirAll(ueventPathPrefix, dirMode)
+	assert.Nil(t, err)
+
+	// Should return error for bad data in uevent file
+	content := []byte("nonkeyvaluedata")
+	err = ioutil.WriteFile(ueventPath, content, fileMode0640)
+	assert.Nil(t, err)
+
+	_, err = newDevices([]DeviceInfo{deviceInfo})
+	assert.NotNil(t, err)
+
+	content = []byte("MAJOR=252\nMINOR=3\nDEVNAME=vfio/2")
+	err = ioutil.WriteFile(ueventPath, content, fileMode0640)
+	assert.Nil(t, err)
 
 	devices, err := newDevices([]DeviceInfo{deviceInfo})
 	assert.Nil(t, err)
@@ -136,8 +159,8 @@ func testNewDevices(t *testing.T) {
 	assert.Equal(t, vfioDev.DeviceInfo.DevType, "c")
 	assert.Equal(t, vfioDev.DeviceInfo.Major, major)
 	assert.Equal(t, vfioDev.DeviceInfo.Minor, minor)
-	assert.Equal(t, vfioDev.DeviceInfo.UID, 2)
-	assert.Equal(t, vfioDev.DeviceInfo.GID, 2)
+	assert.Equal(t, vfioDev.DeviceInfo.UID, uint32(2))
+	assert.Equal(t, vfioDev.DeviceInfo.GID, uint32(2))
 }
 
 func TestGetBDF(t *testing.T) {

@@ -1,3 +1,11 @@
+1.0.4:
+	Added shim debug output
+	Added support for custom qemu accelerators
+	Added structured logging
+	Added drive hotplug support for all containers
+	Fixed pod block index accounting
+	Fixed vendoring model
+
 1.0.3:
 	Added initial device assignment framework
 	Added VFIO devices assignment initial support

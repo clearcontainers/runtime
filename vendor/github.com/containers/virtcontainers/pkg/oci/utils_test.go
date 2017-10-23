@@ -636,7 +636,10 @@ func TestAddKernelParamValid(t *testing.T) {
 	var config RuntimeConfig
 
 	expected := []vc.Param{
-		{"foo", "bar"},
+		{
+			Key:   "foo",
+			Value: "bar",
+		},
 	}
 
 	err := config.AddKernelParam(expected[0])
@@ -649,7 +652,10 @@ func TestAddKernelParamInvalid(t *testing.T) {
 	var config RuntimeConfig
 
 	invalid := []vc.Param{
-		{"", "bar"},
+		{
+			Key:   "",
+			Value: "bar",
+		},
 	}
 
 	err := config.AddKernelParam(invalid[0])

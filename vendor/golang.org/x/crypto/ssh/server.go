@@ -67,7 +67,7 @@ type ServerConfig struct {
 	PasswordCallback func(conn ConnMetadata, password []byte) (*Permissions, error)
 
 	// PublicKeyCallback, if non-nil, is called when a client
-	// offers a public key for authentication. It must return true
+	// offers a public key for authentication. It must return a nil error
 	// if the given public key can be used to authenticate the
 	// given user. For example, see CertChecker.Authenticate. A
 	// call to this function does not guarantee that the key
@@ -288,12 +288,30 @@ func checkSourceAddress(addr net.Addr, sourceAddrs string) error {
 	return fmt.Errorf("ssh: remote address %v is not allowed because of source-address restriction", addr)
 }
 
+// ServerAuthError implements the error interface. It appends any authentication
+// errors that may occur, and is returned if all of the authentication methods
+// provided by the user failed to authenticate.
+type ServerAuthError struct {
+	// Errors contains authentication errors returned by the authentication
+	// callback methods.
+	Errors []error
+}
+
+func (l ServerAuthError) Error() string {
+	var errs []string
+	for _, err := range l.Errors {
+		errs = append(errs, err.Error())
+	}
+	return "[" + strings.Join(errs, ", ") + "]"
+}
+
 func (s *connection) serverAuthenticate(config *ServerConfig) (*Permissions, error) {
 	sessionID := s.transport.getSessionID()
 	var cache pubKeyCache
 	var perms *Permissions
 
 	authFailures := 0
+	var authErrs []error
 
 userAuthLoop:
 	for {
@@ -312,6 +330,9 @@ userAuthLoop:
 
 		var userAuthReq userAuthRequestMsg
 		if packet, err := s.transport.readPacket(); err != nil {
+			if err == io.EOF {
+				return nil, &ServerAuthError{Errors: authErrs}
+			}
 			return nil, err
 		} else if err = Unmarshal(packet, &userAuthReq); err != nil {
 			return nil, err
@@ -447,6 +468,8 @@ userAuthLoop:
 		default:
 			authErr = fmt.Errorf("ssh: unknown method %q", userAuthReq.Method)
 		}
+
+		authErrs = append(authErrs, authErr)
 
 		if config.AuthLogCallback != nil {
 			config.AuthLogCallback(s, userAuthReq.Method, authErr)

@@ -213,22 +213,12 @@ func TestContainerAddDriveDir(t *testing.T) {
 		checkStorageDriver = savedFunc
 	}()
 
-	err = container.addDrive(true)
-	if err != nil {
-		t.Fatalf("Error with addDrive :%v", err)
-	}
-
-	if container.state.Fstype == "" || container.state.HotpluggedDrive {
-		t.Fatal()
-	}
-
 	container.state.Fstype = ""
 	container.state.HotpluggedDrive = false
 
-	// hotplugged case, when create is passed as false
-	err = container.addDrive(false)
+	err = container.hotplugDrive()
 	if err != nil {
-		t.Fatalf("Error with addDrive :%v", err)
+		t.Fatalf("Error with hotplugDrive :%v", err)
 	}
 
 	if container.state.Fstype == "" || !container.state.HotpluggedDrive {

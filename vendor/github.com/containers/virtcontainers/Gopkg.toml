@@ -65,71 +65,75 @@
 # source = "https://github.com/myfork/package.git"
 
 
-
 [[constraint]]
-  branch = "master"
   name = "github.com/01org/ciao"
+  revision = "44068003db570d97b20b7de0ed0686a9eee0cc0f"
 
 [[constraint]]
-  branch = "master"
   name = "github.com/clearcontainers/proxy"
+  revision = "1d2a6a3ea132a86abd0731408b7dc34f2fc17d55"
 
 [[constraint]]
-  branch = "master"
   name = "github.com/containernetworking/cni"
+  revision = "ff7c3e02e3c212f63a642ad64a5ed22ee54450bd"
 
 [[constraint]]
-  branch = "master"
   name = "github.com/containernetworking/plugins"
+  revision = "e256564546e8d1ca8a36911f8445c11929043221"
 
 [[constraint]]
-  branch = "master"
+  name = "github.com/davecgh/go-spew"
+  revision = "346938d642f2ec3594ed81d874461961cd0faa76"
+
+[[constraint]]
+  name = "github.com/go-ini/ini"
+  revision = "20b96f641a5ea98f2f8619ff4f3e061cff4833bd"
+
+[[constraint]]
   name = "github.com/kubernetes-incubator/cri-o"
+  revision = "3394b3b2d6af0e41d185bb695c6378be5dd4d61d"
 
 [[constraint]]
-  branch = "master"
   name = "github.com/mitchellh/mapstructure"
+  revision = "d0303fe809921458f417bcf828397a65db30a7e4"
 
 [[constraint]]
-  branch = "master"
   name = "github.com/opencontainers/runc"
+  revision = "0351df1c5a66838d0c392b4ac4cf9450de844e2d"
 
 [[constraint]]
-  branch = "master"
   name = "github.com/opencontainers/runtime-spec"
+  revision = "a8125598b32a65ff55c83214d3c262383178e7fa"
 
 [[constraint]]
   name = "github.com/pmezard/go-difflib"
-  version = "1.0.0"
+  revision = "792786c7400a136282c1664665ae0a8db921c6c2"
 
 [[constraint]]
-  branch = "master"
   name = "github.com/stretchr/testify"
+  revision = "890a5c3458b43e6104ff5da8dfa139d013d77544"
 
 [[constraint]]
-  branch = "master"
   name = "github.com/urfave/cli"
+  revision = "ac249472b7de27a9e8990819566d9be95ab5b816"
 
 [[constraint]]
-  branch = "master"
   name = "github.com/vishvananda/netlink"
+  revision = "177f1ceba557262b3f1c3aba4df93a29199fb4eb"
 
 [[constraint]]
-  branch = "master"
   name = "github.com/vishvananda/netns"
+  revision = "86bef332bfc3b59b7624a600bd53009ce91a9829"
 
 [[constraint]]
-  branch = "master"
   name = "golang.org/x/crypto"
+  revision = "76eec36fa14229c4b25bb894c2d0e591527af429"
 
 [[constraint]]
-  branch = "master"
   name = "golang.org/x/sys"
+  revision = "314a259e304ff91bd6985da2a7149bbf91237993"
 
 [[constraint]]
-  branch = "master"
   name = "github.com/sirupsen/logrus"
+  revision = "89742aefa4b206dcf400792f3bd35b542998eb3b"
 
-[[constraint]]
-  branch = "master"
-  name = "github.com/go-ini/ini"
