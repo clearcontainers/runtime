@@ -29,11 +29,11 @@ http://download.opensuse.org/repositories/home:/clearcontainers:/clear-container
 $ sudo -E dnf -y install cc-runtime cc-proxy cc-shim
 ```
 
-3.  Configure Docker to use Clear Containers by default with the following commands:
+3. Configure Docker to use Clear Containers by default with the following commands:
 
 ```
 $ sudo mkdir -p /etc/systemd/system/docker.service.d/
-$ cat << EOF | sudo tee /etc/systemd/system/docker.service.d/clear-containers.conf
+$ cat <<EOF | sudo tee /etc/systemd/system/docker.service.d/clear-containers.conf
 [Service]
 ExecStart=
 ExecStart=/usr/bin/dockerd -D --add-runtime cc-runtime=/usr/bin/cc-runtime --default-runtime=cc-runtime

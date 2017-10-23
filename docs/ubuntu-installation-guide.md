@@ -30,7 +30,7 @@ $ sudo -E apt-get update
 $ sudo -E apt-get -y install cc-runtime cc-proxy cc-shim
 ```
 
-3. Configure Docker to use Clear Containers as the default with the following commands:
+3. Configure Docker to use Clear Containers by default with the following commands:
 
 ```
 $ sudo mkdir -p /etc/systemd/system/docker.service.d/
@@ -45,6 +45,7 @@ EOF
 
 ```
 $ sudo systemctl daemon-reload
+$ sudo systemctl enable docker.service
 $ sudo systemctl restart docker
 $ sudo systemctl enable cc-proxy.socket
 $ sudo systemctl start cc-proxy.socket
