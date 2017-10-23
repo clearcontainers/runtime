@@ -71,21 +71,10 @@ func makeRuntimeConfig(prefixDir string) (configFile string, config oci.RuntimeC
 	// override
 	defaultProxyPath = proxyPath
 
-	agentPauseRoot := filepath.Join(prefixDir, "agentPauseRoot")
-	agentPauseRootBin := filepath.Join(agentPauseRoot, "bin")
-
-	err = os.MkdirAll(agentPauseRootBin, testDirMode)
-	if err != nil {
-		return "", oci.RuntimeConfig{}, err
-	}
-
-	pauseBinPath := path.Join(agentPauseRootBin, "pause")
-
 	filesToCreate := []string{
 		hypervisorPath,
 		kernelPath,
 		imagePath,
-		pauseBinPath,
 	}
 
 	for _, file := range filesToCreate {
@@ -118,7 +107,6 @@ func makeRuntimeConfig(prefixDir string) (configFile string, config oci.RuntimeC
 		kernelParams,
 		machineType,
 		shimPath,
-		agentPauseRoot,
 		testProxyURL,
 		logPath,
 		disableBlock)
@@ -166,17 +154,9 @@ func getExpectedShimDetails(config oci.RuntimeConfig) (ShimInfo, error) {
 }
 
 func getExpectedAgentDetails(config oci.RuntimeConfig) (AgentInfo, error) {
-	agentConfig, ok := config.AgentConfig.(vc.HyperConfig)
-	if !ok {
-		return AgentInfo{}, fmt.Errorf("failed to get agent config")
-	}
-
-	agentBinPath := agentConfig.PauseBinPath
-
 	return AgentInfo{
-		Type:         string(config.AgentType),
-		Version:      unknown,
-		PauseBinPath: agentBinPath,
+		Type:    string(config.AgentType),
+		Version: unknown,
 	}, nil
 }
 
@@ -778,7 +758,7 @@ func TestCCEnvGetAgentInfoInvalidType(t *testing.T) {
 
 	config.AgentConfig = "foo"
 	_, err = getAgentInfo(config)
-	assert.Error(t, err)
+	assert.NoError(t, err)
 }
 
 func testCCEnvShowSettings(t *testing.T, tmpdir string, tmpfile *os.File) error {
@@ -812,9 +792,8 @@ func testCCEnvShowSettings(t *testing.T, tmpdir string, tmpfile *os.File) error 
 	}
 
 	ccAgent := AgentInfo{
-		Type:         "agent-type",
-		Version:      "agent-version",
-		PauseBinPath: "/resolved/agent/path",
+		Type:    "agent-type",
+		Version: "agent-version",
 	}
 
 	expectedHostDetails, err := getExpectedHostDetails(tmpdir)
@@ -933,37 +912,6 @@ func TestCCEnvHandleSettingsInvalidShimConfig(t *testing.T) {
 	assert.NoError(err)
 
 	config.ShimConfig = "invalid shim config"
-
-	m := map[string]interface{}{
-		"configFile":    configFile,
-		"logfilePath":   logFile,
-		"runtimeConfig": config,
-	}
-
-	tmpfile, err := ioutil.TempFile("", "")
-	assert.NoError(err)
-	defer os.Remove(tmpfile.Name())
-
-	err = handleSettings(tmpfile, m)
-	assert.Error(err)
-}
-
-func TestCCEnvHandleSettingsInvalidAgentConfig(t *testing.T) {
-	assert := assert.New(t)
-
-	tmpdir, err := ioutil.TempDir("", "")
-	assert.NoError(err)
-	defer os.RemoveAll(tmpdir)
-
-	const logFile = "/tmp/file.log"
-
-	configFile, config, err := makeRuntimeConfig(tmpdir)
-	assert.NoError(err)
-
-	_, err = getExpectedSettings(config, tmpdir, configFile, logFile)
-	assert.NoError(err)
-
-	config.AgentConfig = "invalid shim config"
 
 	m := map[string]interface{}{
 		"configFile":    configFile,
