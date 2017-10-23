@@ -527,7 +527,7 @@ func TestCreateProcessCgroupsPathSuccessful(t *testing.T) {
 
 	// Set a limit to ensure processCgroupsPath() considers the
 	// cgroup part of the spec
-	limit := uint64(1024 * 1024)
+	limit := int64(1024 * 1024)
 	spec.Linux.Resources.Memory = &specs.LinuxMemory{
 		Limit: &limit,
 	}
@@ -622,7 +622,7 @@ func TestCreateCreateCgroupsFilesFail(t *testing.T) {
 
 	// Set a limit to ensure processCgroupsPath() considers the
 	// cgroup part of the spec
-	limit := uint64(1024 * 1024)
+	limit := int64(1024 * 1024)
 	spec.Linux.Resources.Memory = &specs.LinuxMemory{
 		Limit: &limit,
 	}
@@ -708,7 +708,7 @@ func TestCreateCreateCreatePidFileFail(t *testing.T) {
 
 	// Set a limit to ensure processCgroupsPath() considers the
 	// cgroup part of the spec
-	limit := uint64(1024 * 1024)
+	limit := int64(1024 * 1024)
 	spec.Linux.Resources.Memory = &specs.LinuxMemory{
 		Limit: &limit,
 	}
@@ -778,7 +778,7 @@ func TestCreate(t *testing.T) {
 
 	// Set a limit to ensure processCgroupsPath() considers the
 	// cgroup part of the spec
-	limit := uint64(1024 * 1024)
+	limit := int64(1024 * 1024)
 	spec.Linux.Resources.Memory = &specs.LinuxMemory{
 		Limit: &limit,
 	}
@@ -885,7 +885,7 @@ func TestCreateCreatePodPodConfigFail(t *testing.T) {
 	assert.NoError(err)
 
 	quota := int64(0)
-	limit := uint64(0)
+	limit := int64(0)
 
 	spec.Linux.Resources.Memory = &specs.LinuxMemory{
 		Limit: &limit,
