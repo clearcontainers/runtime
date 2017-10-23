@@ -22,6 +22,8 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+
+	"github.com/sirupsen/logrus"
 )
 
 // podResource is an int representing a pod resource type.
@@ -122,6 +124,11 @@ type resourceStorage interface {
 
 // filesystem is a resourceStorage interface implementation for a local filesystem.
 type filesystem struct {
+}
+
+// Logger returns a logrus logger appropriate for logging filesystem messages
+func (fs *filesystem) Logger() *logrus.Entry {
+	return virtLog.WithField("subsystem", "filesystem")
 }
 
 func (fs *filesystem) createAllResources(pod Pod) (err error) {
@@ -273,7 +280,8 @@ func (fs *filesystem) fetchDeviceFile(file string, devices *[]Device) error {
 
 	var tempDevices []Device
 	for _, d := range typedDevices {
-		virtLog.Infof("Device type found in devices file : %s", d.Type)
+		l := fs.Logger().WithField("device-type", d.Type)
+		l.Info("Device type found")
 
 		switch d.Type {
 		case DeviceVFIO:
@@ -283,7 +291,7 @@ func (fs *filesystem) fetchDeviceFile(file string, devices *[]Device) error {
 				return err
 			}
 			tempDevices = append(tempDevices, &device)
-			virtLog.Infof("VFIO device unmarshalled [%v]", device)
+			l.Infof("VFIO device unmarshalled [%v]", device)
 
 		case DeviceBlock:
 			var device BlockDevice
@@ -292,7 +300,7 @@ func (fs *filesystem) fetchDeviceFile(file string, devices *[]Device) error {
 				return err
 			}
 			tempDevices = append(tempDevices, &device)
-			virtLog.Infof("Block Device unmarshalled [%v]", device)
+			l.Infof("Block Device unmarshalled [%v]", device)
 
 		case DeviceGeneric:
 			var device GenericDevice
@@ -301,7 +309,7 @@ func (fs *filesystem) fetchDeviceFile(file string, devices *[]Device) error {
 				return err
 			}
 			tempDevices = append(tempDevices, &device)
-			virtLog.Infof("Generic device unmarshalled [%v]", device)
+			l.Infof("Generic device unmarshalled [%v]", device)
 
 		default:
 			return fmt.Errorf("Unknown device type, could not unmarshal")

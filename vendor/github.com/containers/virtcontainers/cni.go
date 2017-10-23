@@ -18,10 +18,16 @@ package virtcontainers
 
 import (
 	cniPlugin "github.com/containers/virtcontainers/pkg/cni"
+	"github.com/sirupsen/logrus"
 )
 
 // cni is a network implementation for the CNI plugin.
 type cni struct{}
+
+// Logger returns a logrus logger appropriate for logging cni messages
+func (n *cni) Logger() *logrus.Entry {
+	return virtLog.WithField("subsystem", "cni")
+}
 
 func (n *cni) addVirtInterfaces(networkNS *NetworkNamespace) error {
 	netPlugin, err := cniPlugin.NewNetworkPlugin()
@@ -37,7 +43,7 @@ func (n *cni) addVirtInterfaces(networkNS *NetworkNamespace) error {
 
 		networkNS.Endpoints[idx].Properties = *result
 
-		virtLog.Infof("AddNetwork results %v", *result)
+		n.Logger().Infof("AddNetwork results %v", *result)
 	}
 
 	return nil

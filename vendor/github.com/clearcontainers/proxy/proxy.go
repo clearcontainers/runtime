@@ -57,6 +57,9 @@ type tokenInfo struct {
 // proxyLog for proxy message that shouldn't use a specialized one.
 var proxyLog = logrus.WithField("source", "proxy")
 
+// KSM setting
+var proxyKSM *ksm
+
 // Main struct holding the proxy state
 type proxy struct {
 	// Protect concurrent accesses from separate client goroutines to this
@@ -243,6 +246,10 @@ func registerVM(data []byte, userData interface{}, response *handlerResponse) {
 
 	client.vm = vm
 
+	if proxyKSM != nil {
+		proxyKSM.kick()
+	}
+
 	// We start one goroutine per-VM to monitor the qemu process
 	proxy.wg.Add(1)
 	go func() {
@@ -404,7 +411,7 @@ func disconnectShim(data []byte, userData interface{}, response *handlerResponse
 }
 
 // "signal"
-func signal(data []byte, userData interface{}, response *handlerResponse) {
+func cmdSignal(data []byte, userData interface{}, response *handlerResponse) {
 	client := userData.(*client)
 	payload := api.Signal{}
 
@@ -438,23 +445,33 @@ func signal(data []byte, userData interface{}, response *handlerResponse) {
 
 	client.log.Infof("Signal(%s,%d,%d)", signal, payload.Columns, payload.Rows)
 
+	if err := handleSignal(session, signal, payload); err != nil {
+		response.SetError(err)
+		return
+	}
+}
+
+func handleSignal(session *ioSession, signal syscall.Signal, payload api.Signal) error {
+	// Send exit code to the shim if the process has not been started.
+	if signal == syscall.SIGKILL || signal == syscall.SIGTERM {
+		select {
+		case <-session.processStarted:
+			break
+		default:
+			return session.TerminateShim()
+		}
+	}
+
 	// Wait for the process inside the VM to be started if needed.
 	if err := session.WaitForProcess(false); err != nil {
-		response.SetError(err)
-		return
+		return err
 	}
 
-	var err error
 	if signal == syscall.SIGWINCH {
-		err = session.SendTerminalSize(payload.Columns, payload.Rows)
-	} else {
-		err = session.SendSignal(signal)
-	}
-	if err != nil {
-		response.SetError(err)
-		return
+		return session.SendTerminalSize(payload.Columns, payload.Rows)
 	}
 
+	return session.SendSignal(signal)
 }
 
 func forwardStdin(frame *api.Frame, userData interface{}) error {
@@ -462,6 +479,11 @@ func forwardStdin(frame *api.Frame, userData interface{}) error {
 
 	if client.session == nil {
 		return errors.New("stdin: client not associated with any I/O session")
+	}
+
+	// Don't try to forward stdin if it is empty.
+	if len(frame.Payload) == 0 {
+		return nil
 	}
 
 	return client.session.ForwardStdin(frame)
@@ -550,6 +572,9 @@ func newProxy() *proxy {
 //   ${locatestatedir}/run/cc-oci-runtime/proxy
 var DefaultSocketPath string
 
+// CC 2.1 socket path.
+var legacySocketPath = "/var/run/cc-oci-runtime/proxy.sock"
+
 // ArgSocketPath is populated at runtime from the option -socket-path
 var ArgSocketPath = flag.String("socket-path", "", "specify path to socket file")
 
@@ -561,7 +586,7 @@ func getSocketPath() (string, error) {
 	// populate DefaultSocketPath, so fallback to a reasonable
 	// path. People should really use the Makefile though.
 	if DefaultSocketPath == "" {
-		DefaultSocketPath = "/var/run/cc-oci-runtime/proxy.sock"
+		DefaultSocketPath = legacySocketPath
 	}
 
 	socketPath := DefaultSocketPath
@@ -658,7 +683,7 @@ func (proxy *proxy) serve() {
 	proto.HandleCommand(api.CmdHyper, hyper)
 	proto.HandleCommand(api.CmdConnectShim, connectShim)
 	proto.HandleCommand(api.CmdDisconnectShim, disconnectShim)
-	proto.HandleCommand(api.CmdSignal, signal)
+	proto.HandleCommand(api.CmdSignal, cmdSignal)
 	proto.HandleStream(api.StreamStdin, forwardStdin)
 	proto.HandleStream(api.StreamLog, handleLogEntry)
 
@@ -676,11 +701,25 @@ func (proxy *proxy) serve() {
 }
 
 func proxyMain() {
+	var err error
+
 	proxy := newProxy()
 	if err := proxy.init(); err != nil {
 		fmt.Fprintln(os.Stderr, "init:", err.Error())
 		os.Exit(1)
 	}
+
+	// Init and tune KSM if available
+	proxyKSM, err = startKSM(defaultKSMRoot, proxyKSMMode)
+	if err != nil {
+		// KSM failure should not be fatal
+		fmt.Fprintln(os.Stderr, "init:", err.Error())
+	} else {
+		defer func() {
+			_ = proxyKSM.restore()
+		}()
+	}
+
 	proxy.serve()
 
 	// Wait for all the goroutines started by registerVMHandler to finish.
@@ -736,7 +775,12 @@ func (p *profiler) setup() {
 	}()
 }
 
+// Version is the proxy version. This variable is populated at build time.
+var Version = "unknown"
+var proxyKSMMode ksmMode
+
 func main() {
+	doVersion := flag.Bool("version", false, "display the version")
 	logLevel := flag.String("log", "warn",
 		"log messages above specified level; one of debug, warn, error, fatal or panic")
 
@@ -749,10 +793,19 @@ func main() {
 	flag.UintVar(&pprof.port, "pprof-port", 6060,
 		"port the pprof server will be bound to")
 
+	proxyKSMMode = defaultKSMMode
+
+	flag.Var(&proxyKSMMode, "ksm", "KSM settings [off, initial, auto]")
+
 	flag.Parse()
 
 	if err := SetLoggingLevel(*logLevel); err != nil {
 		logrus.Fatal(err)
+	}
+
+	if *doVersion {
+		fmt.Println("Version:", Version)
+		os.Exit(0)
 	}
 
 	pprof.setup()

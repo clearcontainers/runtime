@@ -91,8 +91,8 @@
   name = "github.com/containernetworking/plugins"
 
 [[constraint]]
-  branch = "master"
   name = "github.com/containers/virtcontainers"
+  revision = "1.0.4"
 
 [[constraint]]
   branch = "master"
@@ -119,8 +119,8 @@
   name = "github.com/opencontainers/runc"
 
 [[constraint]]
-  branch = "master"
   name = "github.com/opencontainers/runtime-spec"
+  revision = "a8125598b32a65ff55c83214d3c262383178e7fa"
 
 [[constraint]]
   name = "github.com/pmezard/go-difflib"
@@ -147,9 +147,9 @@
   name = "github.com/vishvananda/netns"
 
 [[constraint]]
-  branch = "master"
   name = "golang.org/x/crypto"
+  revision = "76eec36fa14229c4b25bb894c2d0e591527af429"
 
 [[constraint]]
-  branch = "master"
   name = "golang.org/x/sys"
+  revision = "314a259e304ff91bd6985da2a7149bbf91237993"

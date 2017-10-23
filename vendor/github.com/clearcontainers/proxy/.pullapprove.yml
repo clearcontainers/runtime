@@ -34,7 +34,7 @@ groups:
     required: 1
     users:
       - amshinde
-      - dlespiau
+      - grahamwhaley
       - mcastelino
       - sameo
 

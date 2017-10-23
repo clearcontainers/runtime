@@ -28,6 +28,7 @@ import (
 
 	ciaoQemu "github.com/01org/ciao/qemu"
 	"github.com/01org/ciao/ssntp/uuid"
+	"github.com/sirupsen/logrus"
 )
 
 type qmpChannel struct {
@@ -70,6 +71,8 @@ const (
 	// QemuQ35 is the QEMU Q35 machine type
 	QemuQ35 = "q35"
 )
+
+const qmpCapErrMsg = "Failed to negoatiate QMP capabilities"
 
 // Mapping between machine types and QEMU binary paths.
 var qemuPaths = map[string]string{
@@ -123,7 +126,11 @@ const (
 	removeDevice
 )
 
-type qmpLogger struct{}
+type qmpLogger struct {
+	logger *logrus.Entry
+}
+
+var qmpLog = virtLog.WithField("subsystem", "qmp")
 
 func (l qmpLogger) V(level int32) bool {
 	if level != 0 {
@@ -134,15 +141,15 @@ func (l qmpLogger) V(level int32) bool {
 }
 
 func (l qmpLogger) Infof(format string, v ...interface{}) {
-	virtLog.Infof(format, v...)
+	qmpLog.Infof(format, v...)
 }
 
 func (l qmpLogger) Warningf(format string, v ...interface{}) {
-	virtLog.Warnf(format, v...)
+	qmpLog.Warnf(format, v...)
 }
 
 func (l qmpLogger) Errorf(format string, v ...interface{}) {
-	virtLog.Errorf(format, v...)
+	qmpLog.Errorf(format, v...)
 }
 
 var kernelDefaultParams = []Param{
@@ -181,6 +188,11 @@ var kernelDefaultParamsDebug = []Param{
 	{"debug", ""},
 	{"systemd.show_status", "true"},
 	{"systemd.log_level", "debug"},
+}
+
+// Logger returns a logrus logger appropriate for logging qemu messages
+func (q *qemu) Logger() *logrus.Entry {
+	return virtLog.WithField("subsystem", "qemu")
 }
 
 func (q *qemu) buildKernelParams(config HypervisorConfig) error {
@@ -437,7 +449,7 @@ func (q *qemu) buildPath() error {
 
 	p, ok := qemuPaths[machineType]
 	if !ok {
-		virtLog.Warnf("Unknown machine type %s", machineType)
+		q.Logger().WithField("machine-type", machineType).Warn("Unknown machine type")
 		p = defaultQemuPath
 	}
 
@@ -472,7 +484,7 @@ func (q *qemu) init(config HypervisorConfig) error {
 		return err
 	}
 
-	virtLog.Debugf("Running inside a VM = %v", nested)
+	q.Logger().WithField("inside-vm", nested).Debug("Checking nesting environment")
 
 	if config.DisableNestingChecks {
 		//Intentionally ignore the nesting check
@@ -496,18 +508,22 @@ func (q *qemu) qmpMonitor(connectedCh chan struct{}) {
 	cfg := ciaoQemu.QMPConfig{Logger: qmpLogger{}}
 	qmp, ver, err := ciaoQemu.QMPStart(q.qmpMonitorCh.ctx, q.qmpMonitorCh.path, cfg, q.qmpMonitorCh.disconnectCh)
 	if err != nil {
-		virtLog.Errorf("Failed to connect to QEMU instance %v", err)
+		q.Logger().WithError(err).Error("Failed to connect to QEMU instance")
 		return
 	}
 
 	q.qmpMonitorCh.qmp = qmp
 
-	virtLog.Infof("QMP version %d.%d.%d", ver.Major, ver.Minor, ver.Micro)
-	virtLog.Infof("QMP capabilities %s", ver.Capabilities)
+	q.Logger().WithFields(logrus.Fields{
+		"qmp-major-version": ver.Major,
+		"qmp-minor-version": ver.Minor,
+		"qmp-micro-version": ver.Micro,
+		"qmp-capabilities":  strings.Join(ver.Capabilities, ","),
+	}).Infof("QMP details")
 
 	err = q.qmpMonitorCh.qmp.ExecuteQMPCapabilities(q.qmpMonitorCh.ctx)
 	if err != nil {
-		virtLog.Errorf("Unable to send qmp_capabilities command: %v", err)
+		q.Logger().WithError(err).Error(qmpCapErrMsg)
 		return
 	}
 
@@ -687,16 +703,16 @@ func (q *qemu) stopPod() error {
 	q.qmpControlCh.disconnectCh = make(chan struct{})
 	const timeout = time.Duration(10) * time.Second
 
-	virtLog.Info("Stopping Pod")
+	q.Logger().Info("Stopping Pod")
 	qmp, _, err := ciaoQemu.QMPStart(q.qmpControlCh.ctx, q.qmpControlCh.path, cfg, q.qmpControlCh.disconnectCh)
 	if err != nil {
-		virtLog.Errorf("Failed to connect to QEMU instance %v", err)
+		q.Logger().WithError(err).Error("Failed to connect to QEMU instance")
 		return err
 	}
 
 	err = qmp.ExecuteQMPCapabilities(q.qmpMonitorCh.ctx)
 	if err != nil {
-		virtLog.Errorf("Failed to negotiate capabilities with QEMU %v", err)
+		q.Logger().WithError(err).Error(qmpCapErrMsg)
 		return err
 	}
 
@@ -729,7 +745,7 @@ func (q *qemu) togglePausePod(pause bool) error {
 
 	qmp, _, err := ciaoQemu.QMPStart(q.qmpControlCh.ctx, q.qmpControlCh.path, cfg, disconnectCh)
 	if err != nil {
-		virtLog.Errorf("Failed to connect to QEMU instance %v", err)
+		q.Logger().WithError(err).Error("Failed to connect to QEMU instance")
 		return err
 	}
 
@@ -737,7 +753,7 @@ func (q *qemu) togglePausePod(pause bool) error {
 
 	err = qmp.ExecuteQMPCapabilities(q.qmpMonitorCh.ctx)
 	if err != nil {
-		virtLog.Errorf("Failed to negotiate capabilities with QEMU %v", err)
+		q.Logger().WithError(err).Error(qmpCapErrMsg)
 		return err
 	}
 
@@ -762,13 +778,13 @@ func (q *qemu) qmpSetup() (*ciaoQemu.QMP, error) {
 
 	qmp, _, err := ciaoQemu.QMPStart(q.qmpControlCh.ctx, q.qmpControlCh.path, cfg, disconnectCh)
 	if err != nil {
-		virtLog.Errorf("Failed to connect to QEMU instance %v", err)
+		q.Logger().WithError(err).Error("Failed to connect to QEMU instance")
 		return nil, err
 	}
 
 	err = qmp.ExecuteQMPCapabilities(q.qmpMonitorCh.ctx)
 	if err != nil {
-		virtLog.Errorf("Failed to negotiate capabilities with QEMU %v", err)
+		q.Logger().WithError(err).Error(qmpCapErrMsg)
 		return nil, err
 	}
 

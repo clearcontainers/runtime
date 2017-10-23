@@ -24,6 +24,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 // controlSocket is the pod control socket.
@@ -419,6 +421,14 @@ func (p *Pod) ID() string {
 	return p.id
 }
 
+// Logger returns a logrus logger appropriate for logging Pod messages
+func (p *Pod) Logger() *logrus.Entry {
+	return virtLog.WithFields(logrus.Fields{
+		"subsystem": "pod",
+		"pod-id":    p.id,
+	})
+}
+
 // Annotations returns any annotation that a user could have stored through the pod.
 func (p *Pod) Annotations(key string) (string, error) {
 	value, exist := p.config.Annotations[key]
@@ -481,18 +491,14 @@ func (p *Pod) GetContainer(containerID string) VCContainer {
 }
 
 func (p *Pod) createSetStates() error {
-	podState := State{
-		State: StateReady,
-		// retain existing URL value
-		URL: p.state.URL,
-	}
+	p.state.State = StateReady
 
-	err := p.setPodState(podState)
+	err := p.setPodState(p.state)
 	if err != nil {
 		return err
 	}
 
-	err = p.setContainersState(podState.State)
+	err = p.setContainersState(p.state.State)
 	if err != nil {
 		return err
 	}
@@ -525,15 +531,6 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 	// Passthrough devices
 	if err := p.attachDevices(); err != nil {
 		return nil, err
-	}
-
-	// fetch agent capabilities and call addDrives if the agent has support
-	// for block devices.
-	caps := p.agent.capabilities()
-	if caps.isBlockDeviceSupported() {
-		if err := p.addDrives(); err != nil {
-			return nil, err
-		}
 	}
 
 	if err := p.createSetStates(); err != nil {
@@ -631,7 +628,7 @@ func (p *Pod) storePod() error {
 }
 
 // fetchPod fetches a pod config from a pod ID and returns a pod.
-func fetchPod(podID string) (*Pod, error) {
+func fetchPod(podID string) (pod *Pod, err error) {
 	if podID == "" {
 		return nil, errNeedPodID
 	}
@@ -642,9 +639,12 @@ func fetchPod(podID string) (*Pod, error) {
 		return nil, err
 	}
 
-	virtLog.Debugf("Pod config: %+v", config)
+	pod, err = createPod(config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create pod with config %+v: %v", config, err)
+	}
 
-	return createPod(config)
+	return pod, nil
 }
 
 // delete deletes an already created pod.
@@ -693,13 +693,9 @@ func (p *Pod) startCheckStates() error {
 }
 
 func (p *Pod) startSetState() error {
-	podState := State{
-		State: StateRunning,
-		// retain existing URL value
-		URL: p.state.URL,
-	}
+	p.state.State = StateRunning
 
-	err := p.setPodState(podState)
+	err := p.setPodState(p.state)
 	if err != nil {
 		return err
 	}
@@ -714,7 +710,8 @@ func (p *Pod) startVM(netNsPath string) error {
 	vmStoppedCh := make(chan struct{})
 	const timeout = time.Duration(10) * time.Second
 
-	virtLog.Info("Starting VM")
+	l := p.Logger()
+	l.Info("Starting VM")
 
 	go func() {
 		p.network.run(netNsPath, func() error {
@@ -731,7 +728,7 @@ func (p *Pod) startVM(netNsPath string) error {
 		return fmt.Errorf("Did not receive the pod started notification (timeout %ds)", timeout)
 	}
 
-	virtLog.Infof("VM started")
+	l.Info("VM started")
 
 	return nil
 }
@@ -757,6 +754,7 @@ func (p *Pod) startShims() error {
 		return err
 	}
 
+	shimCount := 0
 	for idx := range p.containers {
 		shimParams := ShimParams{
 			Container: p.containers[idx].id,
@@ -771,6 +769,8 @@ func (p *Pod) startShims() error {
 			return err
 		}
 
+		shimCount++
+
 		p.containers[idx].process = newProcess(proxyInfos[idx].Token, pid)
 
 		if err := p.containers[idx].storeProcess(); err != nil {
@@ -778,7 +778,7 @@ func (p *Pod) startShims() error {
 		}
 	}
 
-	virtLog.Infof("Shim(s) started")
+	p.Logger().WithField("shim-count", shimCount).Info("Started shims")
 
 	return nil
 }
@@ -810,24 +810,20 @@ func (p *Pod) start() error {
 		}
 	}
 
-	virtLog.Infof("Started Pod %s", p.ID())
+	p.Logger().Info("started")
 
 	return nil
 }
 
 func (p *Pod) stopSetStates() error {
-	podState := State{
-		State: StateStopped,
-		// retain existing URL value
-		URL: p.state.URL,
-	}
+	p.state.State = StateStopped
 
-	err := p.setContainersState(podState.State)
+	err := p.setContainersState(p.state.State)
 	if err != nil {
 		return err
 	}
 
-	err = p.setPodState(podState)
+	err = p.setPodState(p.state)
 	if err != nil {
 		return err
 	}
@@ -838,32 +834,32 @@ func (p *Pod) stopSetStates() error {
 // stopShims stops all remaining shims corresponfing to not started/stopped
 // containers.
 func (p *Pod) stopShims() error {
+	shimCount := 0
+
 	for _, c := range p.containers {
 		if err := stopShim(c.process.Pid); err != nil {
 			return err
 		}
+
+		shimCount++
 	}
 
-	virtLog.Infof("Shim(s) stopped")
+	p.Logger().WithField("shim-count", shimCount).Info("Stopped shims")
 
 	return nil
 }
 
 func (p *Pod) pauseSetStates() error {
-	state := State{
-		State: StatePaused,
-		URL:   p.state.URL,
-	}
-
 	// XXX: When a pod is paused, all its containers are forcibly
 	// paused too.
+	p.state.State = StatePaused
 
-	err := p.setContainersState(state.State)
+	err := p.setContainersState(p.state.State)
 	if err != nil {
 		return err
 	}
 
-	err = p.setPodState(state)
+	err = p.setPodState(p.state)
 	if err != nil {
 		return err
 	}
@@ -872,19 +868,16 @@ func (p *Pod) pauseSetStates() error {
 }
 
 func (p *Pod) resumeSetStates() error {
-	state := State{
-		State: StateRunning,
-		URL:   p.state.URL,
-	}
-
 	// XXX: Resuming a paused pod puts all containers back into the
 	// running state.
-	err := p.setContainersState(state.State)
+	p.state.State = StateRunning
+
+	err := p.setContainersState(p.state.State)
 	if err != nil {
 		return err
 	}
 
-	err = p.setPodState(state)
+	err = p.setPodState(p.state)
 	if err != nil {
 		return err
 	}
@@ -894,7 +887,7 @@ func (p *Pod) resumeSetStates() error {
 
 // stopVM stops the agent inside the VM and shut down the VM itself.
 func (p *Pod) stopVM() error {
-	virtLog.Info("Stopping VM")
+	p.Logger().Info("Stopping VM")
 
 	if _, _, err := p.proxy.connect(*p, false); err != nil {
 		return err
@@ -1183,17 +1176,23 @@ func (p *Pod) detachDevices() error {
 	return nil
 }
 
-// addDrives can be used to pass block storage devices to the hypervisor in case of devicemapper storage.
+// hotplugDrives can be used to pass block storage devices to the hypervisor in case of devicemapper storage.
 // The container then uses the block device as its rootfs instead of overlay.
 // The container fstype is assigned the file system type of the block device to indicate this.
-func (p *Pod) addDrives() error {
+func (p *Pod) hotplugDrives() error {
+	// fetch agent capabilities and hotplug if the agent has support
+	// for block devices.
+	caps := p.agent.capabilities()
+	if !caps.isBlockDeviceSupported() {
+		return nil
+	}
 
 	if p.config.HypervisorConfig.DisableBlockDeviceUse {
 		return nil
 	}
 
 	for _, c := range p.containers {
-		if err := c.addDrive(true); err != nil {
+		if err := c.hotplugDrive(); err != nil {
 			return err
 		}
 	}

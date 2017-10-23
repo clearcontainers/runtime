@@ -22,6 +22,8 @@ import (
 	"path/filepath"
 	"syscall"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 // Process gathers data related to a container process.
@@ -125,6 +127,15 @@ type Container struct {
 // ID returns the container identifier string.
 func (c *Container) ID() string {
 	return c.id
+}
+
+// Logger returns a logrus logger appropriate for logging Container messages
+func (c *Container) Logger() *logrus.Entry {
+	return virtLog.WithFields(logrus.Fields{
+		"subsystem":    "container",
+		"container-id": c.id,
+		"pod-id":       c.podID,
+	})
 }
 
 // Pod returns the pod handler related to this container.
@@ -271,7 +282,7 @@ func fetchContainer(pod *Pod, containerID string) (*Container, error) {
 		return nil, err
 	}
 
-	virtLog.Debugf("Container config: %+v", config)
+	pod.Logger().WithField("config", config).Debug("Container config")
 
 	return createContainer(pod, config)
 }
@@ -510,7 +521,7 @@ func (c *Container) start() error {
 		hypervisorCaps := c.pod.hypervisor.capabilities()
 
 		if agentCaps.isBlockDeviceSupported() && hypervisorCaps.isBlockDeviceHotplugSupported() {
-			if err := c.addDrive(false); err != nil {
+			if err := c.hotplugDrive(); err != nil {
 				return err
 			}
 		}
@@ -522,14 +533,13 @@ func (c *Container) start() error {
 	}
 
 	if err = c.pod.agent.startContainer(*(c.pod), *c); err != nil {
-		virtLog.Error("Failed to start container: ", err)
+		c.Logger().WithError(err).Error("Failed to start container")
 
 		if err := c.stop(); err != nil {
-			virtLog.Warn("failed to stop container: ", err)
+			c.Logger().WithError(err).Warn("Failed to stop container")
 		}
 		return err
 	}
-
 	c.storeMounts()
 	c.storeDevices()
 
@@ -552,7 +562,7 @@ func (c *Container) stop() error {
 	// someone try to stop the container, and we don't want to issue an
 	// error in that case. This should be a no-op.
 	if state.State == StateStopped {
-		virtLog.Info("Container already stopped, nothing to do")
+		c.Logger().Info("Container already stopped")
 		return nil
 	}
 
@@ -569,9 +579,10 @@ func (c *Container) stop() error {
 		// If shim is still running something went wrong
 		// Make sure we stop the shim process
 		if running, _ := isShimRunning(c.process.Pid); running {
-			virtLog.Warn("Failed to stop container, stopping dangling shim")
+			l := c.Logger()
+			l.Warn("Failed to stop container so stopping dangling shim")
 			if err := stopShim(c.process.Pid); err != nil {
-				virtLog.Warn("failed to stop shim: ", err)
+				l.WithError(err).Warn("failed to stop shim")
 			}
 		}
 
@@ -662,7 +673,7 @@ func (c *Container) kill(signal syscall.Signal, all bool) error {
 	// and updating the container state, according to the signal.
 	if state.State == StateReady {
 		if signal != syscall.SIGTERM && signal != syscall.SIGKILL {
-			virtLog.Infof("Container ready, sending signal %s is a no-op", signal)
+			c.Logger().WithField("signal", signal).Info("Not sending singal as container already ready")
 			return nil
 		}
 
@@ -727,7 +738,7 @@ func newProcess(token string, pid int) Process {
 	}
 }
 
-func (c *Container) addDrive(create bool) error {
+func (c *Container) hotplugDrive() error {
 	defer func() {
 		c.setStateRootfsBlockChecked(true)
 	}()
@@ -742,7 +753,11 @@ func (c *Container) addDrive(create bool) error {
 		return err
 	}
 
-	virtLog.Infof("Device details for container %s: Major:%d, Minor:%d, MountPoint:%s", c.id, dev.major, dev.minor, dev.mountPoint)
+	c.Logger().WithFields(logrus.Fields{
+		"device-major": dev.major,
+		"device-minor": dev.minor,
+		"mount-point":  dev.mountPoint,
+	}).Info("device details")
 
 	isDM, err := checkStorageDriver(dev.major, dev.minor)
 	if err != nil {
@@ -759,7 +774,10 @@ func (c *Container) addDrive(create bool) error {
 		return err
 	}
 
-	virtLog.Infof("Block Device path %s detected for container with fstype : %s\n", devicePath, c.id, fsType)
+	c.Logger().WithFields(logrus.Fields{
+		"device-path": devicePath,
+		"fs-type":     fsType,
+	}).Info("Block device detected")
 
 	// Add drive with id as container id
 	devID := fmt.Sprintf("drive-%s", c.id)
@@ -769,18 +787,10 @@ func (c *Container) addDrive(create bool) error {
 		ID:     devID,
 	}
 
-	// if pod in create stage
-	if create {
-		if err := c.pod.hypervisor.addDevice(drive, blockDev); err != nil {
-			return err
-		}
-		c.setStateHotpluggedDrive(false)
-	} else {
-		if err := c.pod.hypervisor.hotplugAddDevice(drive, blockDev); err != nil {
-			return err
-		}
-		c.setStateHotpluggedDrive(true)
+	if err := c.pod.hypervisor.hotplugAddDevice(drive, blockDev); err != nil {
+		return err
 	}
+	c.setStateHotpluggedDrive(true)
 
 	driveIndex, err := c.pod.getAndSetPodBlockIndex()
 	if err != nil {
@@ -808,15 +818,18 @@ func (c *Container) isDriveUsed() bool {
 
 func (c *Container) removeDrive() (err error) {
 	if c.isDriveUsed() && c.state.HotpluggedDrive {
-		virtLog.Infof("Unplugging block device for container %s", c.id)
+		c.Logger().Info("unplugging block device")
 
 		devID := fmt.Sprintf("drive-%s", c.id)
 		drive := Drive{
 			ID: devID,
 		}
 
+		l := c.Logger().WithField("device-id", devID)
+		l.Info("Unplugging block device")
+
 		if err := c.pod.hypervisor.hotplugRemoveDevice(drive, blockDev); err != nil {
-			virtLog.Errorf("Error while unplugging block device : %s", err)
+			l.WithError(err).Info("Failed to unplug block device")
 			return err
 		}
 	}

@@ -1,4 +1,5 @@
-[![Build Status](https://travis-ci.org/clearcontainers/proxy.svg?branch=master)](https://travis-ci.org/clearcontainers/proxy)
+[![Build Status](http://cc-jenkins-ci.westus2.cloudapp.azure.com/job/clear-containers-proxy-azure-ubuntu-16-04/badge/icon)](http://cc-jenkins-ci.westus2.cloudapp.azure.com/job/clear-containers-proxy-azure-ubuntu-16-04/)
+[![Build Status](http://cc-jenkins-ci.westus2.cloudapp.azure.com/job/clear-containers-proxy-azure-ubuntu-17-04/badge/icon)](http://cc-jenkins-ci.westus2.cloudapp.azure.com/job/clear-containers-proxy-azure-ubuntu-17-04/)
 [![Go Report Card](https://goreportcard.com/badge/github.com/clearcontainers/proxy)](https://goreportcard.com/report/github.com/clearcontainers/proxy)
 [![Coverage Status](https://coveralls.io/repos/github/clearcontainers/proxy/badge.svg?branch=master)](https://coveralls.io/github/clearcontainers/proxy?branch=master)
 [![GoDoc](https://godoc.org/github.com/clearcontainers/proxy?status.svg)](https://godoc.org/github.com/clearcontainers/proxy/api)
@@ -11,28 +12,28 @@ https://github.com/clearcontainers/runtime) and [shim](
 https://github.com/clearcontainers/shim) to provide a VM-based [OCI runtime](
 https://www.opencontainers.org/) solution.
 
-`cc-proxy` is a daemon offering access to the [`hyperstart`](
-https://github.com/hyperhq/hyperstart) VM agent to both the runtime and shim
+`cc-proxy` is a daemon offering access to the [`agent`](
+https://github.com/clearcontainers/agent) to both the runtime and shim
 processes. Only a single instance of `cc-proxy` per host is necessary as it can
 be used for several different VMs.
 
 ![High-level Architecture Diagram](docs/high-level-overview.png)
 
-- The `hyperstart` interface consists of:
-    - A control channel on which the [`hyperstart` API](
-      https://github.com/hyperhq/runv/tree/master/hyperstart/api/json) is
+- The `agent` interface consists of:
+    - A control channel on which the [`agent` API](
+      https://github.com/clearcontainers/agent/tree/master/api) is
       delivered.
     - An I/O channel with the stdin/stout/stderr streams of the processes
       running inside the VM multiplexed onto.
 - `cc-proxy`'s main role is to:
-    - Arbitrate access to the `hyperstart` control channel between all the
+    - Arbitrate access to the `agent` control channel between all the
       instances of the OCI runtimes and `cc-shim`.
-    - Route the I/O streams between the various shim instances and `hyperstart`.
+    - Route the I/O streams between the various shim instances and `agent`.
  
 
-`cc-proxy` itself has an API to setup the route to the hypervisor/hyperstart
-and to forward `hyperstart` commands. This API is done with a small JSON RPC
-protocol on an `AF_UNIX` located at: `${localstatesdir}/run/cc-oci-runtime/proxy.sock`
+`cc-proxy` itself has an API to setup the route to the hypervisor/agent
+and to forward `agent` commands. This API is done with a small JSON RPC
+protocol on an `AF_UNIX` located at: `${localstatesdir}/run/clear-containers/proxy.sock`
 
 ## Protocol
 
@@ -124,4 +125,4 @@ The log level defines how verbose logging will be:
    interface and during the lifetime of a pod.
   - Level "debug" will dump the raw data going over the I/O channel and
    display the VM console logs. With clear VM images, this will show
-   hyperstart's stdout and stderr.
+   agent's stdout and stderr.

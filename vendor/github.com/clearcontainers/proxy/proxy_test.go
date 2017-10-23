@@ -34,6 +34,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const unixURLPrefix = "unix:"
+
 type testRig struct {
 	t  *testing.T
 	wg sync.WaitGroup
@@ -63,7 +65,7 @@ func newTestRig(t *testing.T) *testRig {
 	proto.HandleCommand(api.CmdHyper, hyper)
 	proto.HandleCommand(api.CmdConnectShim, connectShim)
 	proto.HandleCommand(api.CmdDisconnectShim, disconnectShim)
-	proto.HandleCommand(api.CmdSignal, signal)
+	proto.HandleCommand(api.CmdSignal, cmdSignal)
 	proto.HandleStream(api.StreamStdin, forwardStdin)
 	proto.HandleStream(api.StreamLog, handleLogEntry)
 
@@ -342,7 +344,7 @@ func TestRegisterVMAllocateTokens(t *testing.T) {
 		&goapi.RegisterVMOptions{NumIOStreams: 2})
 	assert.Nil(t, err)
 	assert.NotNil(t, ret)
-	assert.True(t, strings.HasPrefix(ret.IO.URL, "unix://"))
+	assert.True(t, strings.HasPrefix(ret.IO.URL, unixURLPrefix))
 	assert.Equal(t, 2, len(ret.IO.Tokens))
 
 	// This test shouldn't send anything to hyperstart.
@@ -365,7 +367,7 @@ func TestAttachVMAllocateTokens(t *testing.T) {
 	ret, err := rig.Client.AttachVM(testContainerID, &goapi.AttachVMOptions{NumIOStreams: 2})
 	assert.Nil(t, err)
 	assert.NotNil(t, ret)
-	assert.True(t, strings.HasPrefix(ret.IO.URL, "unix://"))
+	assert.True(t, strings.HasPrefix(ret.IO.URL, unixURLPrefix))
 	assert.Equal(t, 2, len(ret.IO.Tokens))
 
 	// Cleanup
@@ -768,6 +770,52 @@ func TestShimSendStdinAfterExeccmd(t *testing.T) {
 	rig.Stop()
 }
 
+// This test ensures that a shim will receive the exit code signal even if
+// the process inside the corresponding container has not been started.
+// This case occurs when a container has been created and it receives a KILL
+// or TERM signal. We don't forward the signal to hyperstart because nothing
+// runs inside the VM, but we still need to remove the shim which is seen as
+// the container process from any orchestrator.
+func testShimSignalProcessNotStarted(t *testing.T, signal syscall.Signal, expectFail bool) {
+	rig := newTestRig(t)
+	rig.Start()
+
+	token := rig.RegisterVM()
+	shim := rig.ServeNewShim(token)
+	session := peekIOSession(rig.proxy, token)
+
+	session.containerID = testContainerID
+
+	// Don't close session.processStarted because we want to simulate
+	// a case where the container has been created but not started.
+
+	// Send signal and check the shim receives an exit code.
+	err := shim.client.Kill(signal)
+
+	if expectFail {
+		assert.NotNil(t, err)
+	} else {
+		assert.Nil(t, err)
+	}
+
+	// Cleanup
+	shim.close()
+
+	rig.Stop()
+}
+
+func TestShimKillSignalProcessNotStarted(t *testing.T) {
+	testShimSignalProcessNotStarted(t, syscall.SIGKILL, false)
+}
+
+func TestShimTermSignalProcessNotStarted(t *testing.T) {
+	testShimSignalProcessNotStarted(t, syscall.SIGTERM, false)
+}
+
+func TestShimUsr1SignalProcessNotStarted(t *testing.T) {
+	testShimSignalProcessNotStarted(t, syscall.SIGUSR1, true)
+}
+
 func TestValidateLogEntry(t *testing.T) {
 	tests := []struct {
 		payload api.LogEntry
@@ -853,4 +901,31 @@ func TestHyperstartResponse(t *testing.T) {
 	assert.Equal(t, msgData, data)
 
 	rig.Stop()
+}
+
+func TestGetSocketPath(t *testing.T) {
+	p, err := getSocketPath()
+	assert.Nil(t, err)
+	assert.Equal(t, p, legacySocketPath)
+
+	// Test for default socket path
+	DefaultSocketPath = "/proxy/socket/path"
+	p, err = getSocketPath()
+	assert.Nil(t, err, err)
+	assert.Equal(t, p, DefaultSocketPath)
+
+	// Test that a passed socket path takes precedence
+	var cliSocketPath = "/cli/proxy/socket/path"
+	ArgSocketPath = &cliSocketPath
+	p, err = getSocketPath()
+	assert.Nil(t, err, err)
+	assert.Equal(t, p, cliSocketPath)
+
+	// Test for too long socket paths
+	longPath := make([]byte, socketPathMaxLength+1)
+	cliSocketPath = string(longPath)
+	ArgSocketPath = &cliSocketPath
+	p, err = getSocketPath()
+	assert.NotNil(t, err, err)
+	assert.Equal(t, p, "")
 }

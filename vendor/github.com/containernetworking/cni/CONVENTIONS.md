@@ -23,7 +23,7 @@ Additional conventions can be created by creating PRs which modify this document
 [Plugin specific fields](https://github.com/containernetworking/cni/blob/master/SPEC.md#network-configuration) formed part of the original CNI spec and have been present since the initial release.
 > Plugins may define additional fields that they accept and may generate an error if called with unknown fields. The exception to this is the args field may be used to pass arbitrary data which may be ignored by plugins.
 
-A plugin can define any additional fields it needs to work properly. It is expected that it will return an error if it can't act on fields that were expected or where the field values were malformed.
+A plugin can define any additional fields it needs to work properly. It should return an error if it can't act on fields that were expected or where the field values were malformed.
 
 This method of passing information to a plugin is recommended when the following conditions hold
 * The configuration has specific meaning to the plugin (i.e. it's not just general meta data)
@@ -89,6 +89,7 @@ For example:
 | Area  | Purpose| Spec and Example | Runtime implementations | Plugin Implementations |
 | ----- | ------ | ------------     | ----------------------- | ---------------------- |
 | labels | Pass`key=value` labels to plugins | <pre>"labels" : [<br />  { "key" : "app", "value" : "myapp" },<br />  { "key" : "env", "value" : "prod" }<br />] </pre> | none | none |
+| ips   | Request static IPs | <pre>"ips": ["10.2.2.42", "2001:db8::5"]</pre> | none | host-local |
 
 ## CNI_ARGS
 CNI_ARGS formed part of the original CNI spec and have been present since the initial release.
@@ -99,4 +100,10 @@ The use of `CNI_ARGS` is deprecated and "args" should be used instead.
 | Field  | Purpose| Spec and Example | Runtime implementations | Plugin Implementations |
 | ------ | ------ | ---------------- | ----------------------- | ---------------------- |
 | IP     | Request a specific IP from IPAM plugins | IP=192.168.10.4 | *rkt* supports passing additional arguments to plugins and the [documentation](https://coreos.com/rkt/docs/latest/networking/overriding-defaults.html) suggests IP can be used. | host-local (since version v0.2.0) supports the field for IPv4 only - [documentation](https://github.com/containernetworking/cni/blob/master/Documentation/host-local.md#supported-arguments).|
-                                                                                                                  
+
+## Chained Plugins
+If plugins are agnostic about the type of interface created, they SHOULD work in a chained mode and configure existing interfaces. Plugins MAY also create the desired interface when not run in a chain.
+
+For example, the `bridge` plugin adds the host-side interface to a bridge. So, it should accept any previous result that includes a host-side interface, including `tap` devices. If not called as a chained plugin, it creates a `veth` pair first.
+
+Plugins that meet this convention are usable by a larger set of runtimes and interfaces, including hypervisors and DPDK providers.

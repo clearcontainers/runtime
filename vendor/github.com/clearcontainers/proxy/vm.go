@@ -439,6 +439,9 @@ func (vm *vm) SendMessage(hyper *api.Hyper) ([]byte, error) {
 	}
 
 	response, err := vm.hyperHandler.SendCtlMessage(hyper.HyperName, hyper.Data)
+	if err != nil {
+		return nil, err
+	}
 
 	if session != nil {
 		// We have now started the process inside the VM, let the shim send stdin
@@ -513,6 +516,16 @@ func (session *ioSession) ForwardStdin(frame *api.Frame) error {
 	vm.dump(msg.Message)
 
 	return vm.hyperHandler.SendIoMessage(msg)
+}
+
+// TerminateShim forces the shim to exit
+func (session *ioSession) TerminateShim() error {
+	exitCode := uint8(0)
+	frame := api.NewFrame(api.TypeNotification, int(api.NotificationProcessExited), []byte{exitCode})
+
+	session.vm.logIO.Infof("proxy terminating the shim")
+
+	return api.WriteFrame(session.client, frame)
 }
 
 // windowSizeMessage07 is the hyperstart 0.7 winsize message payload for the

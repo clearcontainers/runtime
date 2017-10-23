@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/mitchellh/mapstructure"
+	"github.com/sirupsen/logrus"
 )
 
 // ShimType describes a shim type.
@@ -103,12 +104,16 @@ func newShimConfig(config PodConfig) interface{} {
 	}
 }
 
+func shimLogger() *logrus.Entry {
+	return virtLog.WithField("subsystem", "shim")
+}
+
 func stopShim(pid int) error {
 	if pid <= 0 {
 		return nil
 	}
 
-	virtLog.Infof("Stopping shim PID %d", pid)
+	shimLogger().WithField("shim-pid", pid).Info("Stopping shim")
 
 	if err := syscall.Kill(pid, syscall.SIGKILL); err != nil && err != syscall.ESRCH {
 		return err
