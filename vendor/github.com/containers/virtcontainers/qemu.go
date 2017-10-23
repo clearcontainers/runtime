@@ -130,7 +130,11 @@ type qmpLogger struct {
 	logger *logrus.Entry
 }
 
-var qmpLog = virtLog.WithField("subsystem", "qmp")
+func newQMPLogger() qmpLogger {
+	return qmpLogger{
+		logger: virtLog.WithField("subsystem", "qmp"),
+	}
+}
 
 func (l qmpLogger) V(level int32) bool {
 	if level != 0 {
@@ -141,15 +145,15 @@ func (l qmpLogger) V(level int32) bool {
 }
 
 func (l qmpLogger) Infof(format string, v ...interface{}) {
-	qmpLog.Infof(format, v...)
+	l.logger.Infof(format, v...)
 }
 
 func (l qmpLogger) Warningf(format string, v ...interface{}) {
-	qmpLog.Warnf(format, v...)
+	l.logger.Warnf(format, v...)
 }
 
 func (l qmpLogger) Errorf(format string, v ...interface{}) {
-	qmpLog.Errorf(format, v...)
+	l.logger.Errorf(format, v...)
 }
 
 var kernelDefaultParams = []Param{
@@ -505,7 +509,7 @@ func (q *qemu) qmpMonitor(connectedCh chan struct{}) {
 		q.qmpMonitorCh.wg.Done()
 	}(q)
 
-	cfg := ciaoQemu.QMPConfig{Logger: qmpLogger{}}
+	cfg := ciaoQemu.QMPConfig{Logger: newQMPLogger()}
 	qmp, ver, err := ciaoQemu.QMPStart(q.qmpMonitorCh.ctx, q.qmpMonitorCh.path, cfg, q.qmpMonitorCh.disconnectCh)
 	if err != nil {
 		q.Logger().WithError(err).Error("Failed to connect to QEMU instance")
@@ -684,7 +688,7 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 
 // startPod will start the Pod's VM.
 func (q *qemu) startPod(startCh, stopCh chan struct{}) error {
-	strErr, err := ciaoQemu.LaunchQemu(q.qemuConfig, qmpLogger{})
+	strErr, err := ciaoQemu.LaunchQemu(q.qemuConfig, newQMPLogger())
 	if err != nil {
 		return fmt.Errorf("%s", strErr)
 	}
@@ -699,7 +703,7 @@ func (q *qemu) startPod(startCh, stopCh chan struct{}) error {
 
 // stopPod will stop the Pod's VM.
 func (q *qemu) stopPod() error {
-	cfg := ciaoQemu.QMPConfig{Logger: qmpLogger{}}
+	cfg := ciaoQemu.QMPConfig{Logger: newQMPLogger()}
 	q.qmpControlCh.disconnectCh = make(chan struct{})
 	const timeout = time.Duration(10) * time.Second
 
@@ -738,7 +742,7 @@ func (q *qemu) togglePausePod(pause bool) error {
 		}
 	}(q)
 
-	cfg := ciaoQemu.QMPConfig{Logger: qmpLogger{}}
+	cfg := ciaoQemu.QMPConfig{Logger: newQMPLogger()}
 
 	// Auto-closed by QMPStart().
 	disconnectCh := make(chan struct{})
@@ -771,7 +775,7 @@ func (q *qemu) togglePausePod(pause bool) error {
 }
 
 func (q *qemu) qmpSetup() (*ciaoQemu.QMP, error) {
-	cfg := ciaoQemu.QMPConfig{Logger: qmpLogger{}}
+	cfg := ciaoQemu.QMPConfig{Logger: newQMPLogger()}
 
 	// Auto-closed by QMPStart().
 	disconnectCh := make(chan struct{})

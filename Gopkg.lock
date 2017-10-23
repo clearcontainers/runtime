@@ -30,7 +30,7 @@
 [[projects]]
   name = "github.com/containers/virtcontainers"
   packages = [".","pkg/cni","pkg/hyperstart","pkg/oci","pkg/vcMock"]
-  revision = "1.0.4"
+  revision = "db99bdff3281c93adee501b614db1047f5f9d2ee"
 
 [[projects]]
   branch = "master"
@@ -116,6 +116,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "41923e3b7fac440eb333a825d1d870f1f7eeee1a9e5a85947155a12e5b381fb0"
+  inputs-digest = "1318039f3ee04cbef43d8dedba63912121d81a389d1ca545c71a6c2ec6713ef5"
   solver-name = "gps-cdcl"
   solver-version = 1
