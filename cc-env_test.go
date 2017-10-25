@@ -432,6 +432,68 @@ func TestCCEnvGetEnvInfo(t *testing.T) {
 	assert.Equal(t, expectedCCEnv, ccEnv)
 }
 
+func TestCCEnvGetEnvInfoNoHypervisorVersion(t *testing.T) {
+	assert := assert.New(t)
+
+	tmpdir, err := ioutil.TempDir("", "")
+	assert.NoError(err)
+	defer os.RemoveAll(tmpdir)
+
+	const logFile = "/tmp/file.log"
+
+	configFile, config, err := makeRuntimeConfig(tmpdir)
+	assert.NoError(err)
+
+	expectedCCEnv, err := getExpectedSettings(config, tmpdir, configFile, logFile)
+	assert.NoError(err)
+
+	err = os.Remove(config.HypervisorConfig.HypervisorPath)
+	assert.NoError(err)
+
+	expectedCCEnv.Hypervisor.Version = unknown
+
+	ccEnv, err := getEnvInfo(configFile, logFile, config)
+	assert.NoError(err)
+
+	assert.Equal(expectedCCEnv, ccEnv)
+}
+
+func TestCCEnvGetEnvInfoShimError(t *testing.T) {
+	assert := assert.New(t)
+
+	tmpdir, err := ioutil.TempDir("", "")
+	assert.NoError(err)
+	defer os.RemoveAll(tmpdir)
+
+	const logFile = "/tmp/file.log"
+
+	configFile, config, err := makeRuntimeConfig(tmpdir)
+	assert.NoError(err)
+
+	config.ShimConfig = "invalid shim config"
+
+	_, err = getEnvInfo(configFile, logFile, config)
+	assert.Error(err)
+}
+
+func TestCCEnvGetEnvInfoAgentError(t *testing.T) {
+	assert := assert.New(t)
+
+	tmpdir, err := ioutil.TempDir("", "")
+	assert.NoError(err)
+	defer os.RemoveAll(tmpdir)
+
+	const logFile = "/tmp/file.log"
+
+	configFile, config, err := makeRuntimeConfig(tmpdir)
+	assert.NoError(err)
+
+	config.AgentConfig = "invalid agent config"
+
+	_, err = getEnvInfo(configFile, logFile, config)
+	assert.Error(err)
+}
+
 func TestCCEnvGetEnvInfoNoOSRelease(t *testing.T) {
 	tmpdir, err := ioutil.TempDir("", "")
 	if err != nil {
@@ -855,6 +917,68 @@ func TestCCEnvHandleSettings(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestCCEnvHandleSettingsInvalidShimConfig(t *testing.T) {
+	assert := assert.New(t)
+
+	tmpdir, err := ioutil.TempDir("", "")
+	assert.NoError(err)
+	defer os.RemoveAll(tmpdir)
+
+	const logFile = "/tmp/file.log"
+
+	configFile, config, err := makeRuntimeConfig(tmpdir)
+	assert.NoError(err)
+
+	_, err = getExpectedSettings(config, tmpdir, configFile, logFile)
+	assert.NoError(err)
+
+	config.ShimConfig = "invalid shim config"
+
+	m := map[string]interface{}{
+		"configFile":    configFile,
+		"logfilePath":   logFile,
+		"runtimeConfig": config,
+	}
+
+	tmpfile, err := ioutil.TempFile("", "")
+	assert.NoError(err)
+	defer os.Remove(tmpfile.Name())
+
+	err = handleSettings(tmpfile, m)
+	assert.Error(err)
+}
+
+func TestCCEnvHandleSettingsInvalidAgentConfig(t *testing.T) {
+	assert := assert.New(t)
+
+	tmpdir, err := ioutil.TempDir("", "")
+	assert.NoError(err)
+	defer os.RemoveAll(tmpdir)
+
+	const logFile = "/tmp/file.log"
+
+	configFile, config, err := makeRuntimeConfig(tmpdir)
+	assert.NoError(err)
+
+	_, err = getExpectedSettings(config, tmpdir, configFile, logFile)
+	assert.NoError(err)
+
+	config.AgentConfig = "invalid shim config"
+
+	m := map[string]interface{}{
+		"configFile":    configFile,
+		"logfilePath":   logFile,
+		"runtimeConfig": config,
+	}
+
+	tmpfile, err := ioutil.TempFile("", "")
+	assert.NoError(err)
+	defer os.Remove(tmpfile.Name())
+
+	err = handleSettings(tmpfile, m)
+	assert.Error(err)
+}
+
 func TestCCEnvHandleSettingsInvalidParams(t *testing.T) {
 	err := handleSettings(nil, map[string]interface{}{})
 	assert.Error(t, err)
@@ -1005,6 +1129,11 @@ func TestGetHypervisorInfo(t *testing.T) {
 	assert.NoError(err)
 
 	info := getHypervisorInfo(config)
-
 	assert.Equal(info.Version, testHypervisorVersion)
+
+	err = os.Remove(config.HypervisorConfig.HypervisorPath)
+	assert.NoError(err)
+
+	info = getHypervisorInfo(config)
+	assert.Equal(info.Version, unknown)
 }

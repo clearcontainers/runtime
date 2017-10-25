@@ -487,6 +487,90 @@ func TestCheckCheckKernelModulesNoUnrestrictedGuest(t *testing.T) {
 	assert.NotEmpty(matches)
 }
 
+func TestCheckCheckKernelModulesNoNesting(t *testing.T) {
+	assert := assert.New(t)
+
+	dir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	savedSysModuleDir := sysModuleDir
+	savedProcCPUInfo := procCPUInfo
+
+	cpuInfoFile := filepath.Join(dir, "cpuinfo")
+
+	// XXX: override
+	sysModuleDir = filepath.Join(dir, "sys/module")
+	procCPUInfo = cpuInfoFile
+
+	defer func() {
+		sysModuleDir = savedSysModuleDir
+		procCPUInfo = savedProcCPUInfo
+	}()
+
+	err = os.MkdirAll(sysModuleDir, testDirMode)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	requiredModules := map[string]kernelModule{
+		"kvm_intel": {
+			desc: "Intel KVM",
+			parameters: map[string]string{
+				"nested":             "Y",
+				"unrestricted_guest": "Y",
+			},
+		},
+	}
+
+	actualModuleData := []testModuleData{
+		{filepath.Join(sysModuleDir, "kvm"), true, ""},
+		{filepath.Join(sysModuleDir, "kvm_intel"), true, ""},
+		{filepath.Join(sysModuleDir, "kvm_intel/parameters/unrestricted_guest"), false, "Y"},
+
+		// XXX: force a warning
+		{filepath.Join(sysModuleDir, "kvm_intel/parameters/nested"), false, "N"},
+	}
+
+	vendor := "GenuineIntel"
+	flags := "vmx lm sse4_1 hypervisor"
+
+	_, err = checkKernelModules(requiredModules)
+	// no cpuInfoFile yet
+	assert.Error(err)
+
+	createModules(assert, cpuInfoFile, actualModuleData)
+
+	err = makeCPUInfoFile(cpuInfoFile, vendor, flags)
+	assert.NoError(err)
+
+	count, err := checkKernelModules(requiredModules)
+	assert.NoError(err)
+	assert.Equal(count, uint32(0))
+
+	// create buffer to save logger output
+	buf := &bytes.Buffer{}
+
+	savedLogOutput := ccLog.Logger.Out
+
+	defer func() {
+		ccLog.Logger.Out = savedLogOutput
+	}()
+
+	ccLog.Logger.Out = buf
+
+	count, err = checkKernelModules(requiredModules)
+
+	assert.NoError(err)
+	assert.Equal(count, uint32(0))
+
+	re := regexp.MustCompile(`\bwarning\b.*\bnested\b`)
+	matches := re.FindAllStringSubmatch(buf.String(), -1)
+	assert.NotEmpty(matches)
+}
+
 func TestCheckCheckKernelModulesUnreadableFile(t *testing.T) {
 	assert := assert.New(t)
 

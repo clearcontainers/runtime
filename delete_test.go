@@ -501,3 +501,103 @@ func TestDeleteCLIFunction(t *testing.T) {
 	assert.Error(err)
 	assert.True(vcMock.IsMockError(err))
 }
+
+func TestDeleteCLIFunctionSuccess(t *testing.T) {
+	assert := assert.New(t)
+
+	pod := &vcMock.Pod{
+		MockID: testPodID,
+	}
+
+	pod.MockContainers = []*vcMock.Container{
+		{
+			MockID:  testContainerID,
+			MockPod: pod,
+		},
+	}
+
+	configPath := testConfigSetup(t)
+	configJSON, err := readOCIConfigJSON(configPath)
+	assert.NoError(err)
+
+	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
+		return []vc.PodStatus{
+			{
+				ID: pod.ID(),
+				ContainersStatus: []vc.ContainerStatus{
+					{
+						ID: pod.ID(),
+						Annotations: map[string]string{
+							oci.ContainerTypeKey: string(vc.PodSandbox),
+							oci.ConfigJSONKey:    configJSON,
+						},
+						State: vc.State{
+							State: "ready",
+						},
+					},
+				},
+			},
+		}, nil
+	}
+
+	testingImpl.StopPodFunc = func(podID string) (vc.VCPod, error) {
+		return pod, nil
+	}
+
+	testingImpl.DeletePodFunc = func(podID string) (vc.VCPod, error) {
+		return pod, nil
+	}
+
+	defer func() {
+		testingImpl.ListPodFunc = nil
+		testingImpl.StopPodFunc = nil
+		testingImpl.DeletePodFunc = nil
+	}()
+
+	flagSet := &flag.FlagSet{}
+	app := cli.NewApp()
+
+	ctx := cli.NewContext(app, flagSet, nil)
+
+	fn, ok := deleteCLICommand.Action.(func(context *cli.Context) error)
+	assert.True(ok)
+
+	err = fn(ctx)
+	assert.Error(err)
+	assert.False(vcMock.IsMockError(err))
+
+	flagSet = flag.NewFlagSet("container-id", flag.ContinueOnError)
+	flagSet.Parse([]string{pod.ID()})
+	ctx = cli.NewContext(app, flagSet, nil)
+	assert.NotNil(ctx)
+
+	err = fn(ctx)
+	assert.NoError(err)
+}
+
+func TestRemoveCGroupsPath(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip(testDisabledNeedNonRoot)
+	}
+
+	assert := assert.New(t)
+
+	tmpdir, err := ioutil.TempDir("", "")
+	assert.NoError(err)
+	defer os.RemoveAll(tmpdir)
+
+	dir := filepath.Join(tmpdir, "dir")
+
+	err = os.Mkdir(dir, testDirMode)
+	assert.NoError(err)
+
+	// make directory unreadable by non-root user
+	err = os.Chmod(tmpdir, 0000)
+	assert.NoError(err)
+	defer func() {
+		_ = os.Chmod(tmpdir, 0755)
+	}()
+
+	err = removeCgroupsPath("foo", []string{dir})
+	assert.Error(err)
+}
