@@ -154,7 +154,6 @@ func TestCheckCheckCPUFlags(t *testing.T) {
 	type testData struct {
 		cpuflags    string
 		required    map[string]string
-		expectError bool
 		expectCount uint32
 	}
 
@@ -162,7 +161,6 @@ func TestCheckCheckCPUFlags(t *testing.T) {
 		{
 			"",
 			map[string]string{},
-			true,
 			0,
 		},
 		{
@@ -170,7 +168,6 @@ func TestCheckCheckCPUFlags(t *testing.T) {
 			map[string]string{
 				"a": "A flag",
 			},
-			true,
 			0,
 		},
 		{
@@ -179,7 +176,6 @@ func TestCheckCheckCPUFlags(t *testing.T) {
 				"a": "A flag",
 				"b": "B flag",
 			},
-			true,
 			0,
 		},
 		{
@@ -187,7 +183,6 @@ func TestCheckCheckCPUFlags(t *testing.T) {
 			map[string]string{
 				"b": "B flag",
 			},
-			false,
 			0,
 		},
 		{
@@ -197,19 +192,12 @@ func TestCheckCheckCPUFlags(t *testing.T) {
 				"y": "Y flag",
 				"z": "Z flag",
 			},
-			false,
 			3,
 		},
 	}
 
 	for _, d := range data {
-		count, err := checkCPUFlags(d.cpuflags, d.required)
-		if d.expectError {
-			assert.Errorf(err, "%+v", d)
-		} else {
-			assert.NoError(err, "%+v", d)
-		}
-
+		count := checkCPUFlags(d.cpuflags, d.required)
 		assert.Equal(d.expectCount, count, "%+v", d)
 	}
 }
@@ -220,7 +208,6 @@ func TestCheckCheckCPUAttribs(t *testing.T) {
 	type testData struct {
 		cpuinfo     string
 		required    map[string]string
-		expectError bool
 		expectCount uint32
 	}
 
@@ -228,7 +215,6 @@ func TestCheckCheckCPUAttribs(t *testing.T) {
 		{
 			"",
 			map[string]string{},
-			true,
 			0,
 		},
 		{
@@ -236,7 +222,6 @@ func TestCheckCheckCPUAttribs(t *testing.T) {
 			map[string]string{
 				"a": "",
 			},
-			true,
 			0,
 		},
 		{
@@ -244,7 +229,6 @@ func TestCheckCheckCPUAttribs(t *testing.T) {
 			map[string]string{
 				"b": "B attribute",
 			},
-			false,
 			0,
 		},
 		{
@@ -252,7 +236,6 @@ func TestCheckCheckCPUAttribs(t *testing.T) {
 			map[string]string{
 				"b": "B attribute",
 			},
-			false,
 			0,
 		},
 		{
@@ -262,7 +245,6 @@ func TestCheckCheckCPUAttribs(t *testing.T) {
 				"c": "C attribute",
 				"d": "D attribute",
 			},
-			false,
 			2,
 		},
 		{
@@ -272,19 +254,12 @@ func TestCheckCheckCPUAttribs(t *testing.T) {
 				"d": "D attribute",
 				"f": "F attribute",
 			},
-			false,
 			0,
 		},
 	}
 
 	for _, d := range data {
-		count, err := checkCPUAttribs(d.cpuinfo, d.required)
-		if d.expectError {
-			assert.Errorf(err, "%+v", d)
-		} else {
-			assert.NoError(err, "%+v", d)
-		}
-
+		count := checkCPUAttribs(d.cpuinfo, d.required)
 		assert.Equal(d.expectCount, count, "%+v", d)
 	}
 }
