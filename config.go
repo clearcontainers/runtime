@@ -226,12 +226,6 @@ func newQemuHypervisorConfig(h hypervisor) (vc.HypervisorConfig, error) {
 	kernelParams := h.kernelParams()
 	machineType := h.machineType()
 
-	for _, file := range []string{hypervisor, kernel, image} {
-		if !fileExists(file) {
-			return vc.HypervisorConfig{},
-				fmt.Errorf("File does not exist: %v", file)
-		}
-	}
 	return vc.HypervisorConfig{
 		HypervisorPath:        hypervisor,
 		KernelPath:            kernel,
