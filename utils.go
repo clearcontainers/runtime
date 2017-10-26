@@ -196,9 +196,11 @@ func writeFile(filePath string, data string, fileMode os.FileMode) error {
 	if filePath == "" {
 		return fmt.Errorf("no such file for %s", filePath)
 	}
+
 	if err := ioutil.WriteFile(filePath, []byte(data), fileMode); err != nil {
 		return fmt.Errorf("failed to write %v to %v: %v", data, filePath, err)
 	}
+
 	return nil
 }
 

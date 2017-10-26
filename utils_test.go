@@ -401,3 +401,22 @@ func TestUtilsRunCommandInvalidCmds(t *testing.T) {
 		assert.Equal(t, "", output)
 	}
 }
+
+func TestWriteFileErrWriteFail(t *testing.T) {
+	assert := assert.New(t)
+
+	err := writeFile("", "", 0000)
+	assert.Error(err)
+}
+
+func TestWriteFileErrNoPath(t *testing.T) {
+	assert := assert.New(t)
+
+	dir, err := ioutil.TempDir(testDir, "")
+	assert.NoError(err)
+	defer os.RemoveAll(dir)
+
+	// attempt to write a file over an existing directory
+	err = writeFile(dir, "", 0000)
+	assert.Error(err)
+}

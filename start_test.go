@@ -199,3 +199,57 @@ func TestStartCLIFunction(t *testing.T) {
 	assert.Error(err)
 	assert.True(vcMock.IsMockError(err))
 }
+
+func TestStartCLIFunctionSuccess(t *testing.T) {
+	assert := assert.New(t)
+
+	pod := &vcMock.Pod{
+		MockID: testPodID,
+	}
+
+	pod.MockContainers = []*vcMock.Container{
+		{
+			MockID:  testContainerID,
+			MockPod: pod,
+		},
+	}
+
+	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
+		return []vc.PodStatus{
+			{
+				ID: pod.ID(),
+				ContainersStatus: []vc.ContainerStatus{
+					{
+						ID: testContainerID,
+						Annotations: map[string]string{
+							oci.ContainerTypeKey: string(vc.PodContainer),
+						},
+					},
+				},
+			},
+		}, nil
+	}
+
+	testingImpl.StartContainerFunc = func(podID, containerID string) (vc.VCContainer, error) {
+		return pod.MockContainers[0], nil
+	}
+
+	defer func() {
+		testingImpl.ListPodFunc = nil
+		testingImpl.StartContainerFunc = nil
+	}()
+
+	flagSet := &flag.FlagSet{}
+	app := cli.NewApp()
+
+	fn, ok := startCLICommand.Action.(func(context *cli.Context) error)
+	assert.True(ok)
+
+	flagSet = flag.NewFlagSet("test", 0)
+	flagSet.Parse([]string{testContainerID})
+	ctx := cli.NewContext(app, flagSet, nil)
+	assert.NotNil(ctx)
+
+	err := fn(ctx)
+	assert.NoError(err)
+}

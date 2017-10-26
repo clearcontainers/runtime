@@ -142,9 +142,9 @@ func haveKernelModule(module string) bool {
 // checkCPU checks all required CPU attributes modules and returns a count of
 // the number of CPU attribute errors (all of which are logged by this
 // function). Only fatal errors result in an error return.
-func checkCPU(tag, cpuinfo string, attribs map[string]string) (count uint32, err error) {
+func checkCPU(tag, cpuinfo string, attribs map[string]string) (count uint32) {
 	if cpuinfo == "" {
-		return 0, fmt.Errorf("Need cpuinfo")
+		return 0
 	}
 
 	for attrib, desc := range attribs {
@@ -165,14 +165,14 @@ func checkCPU(tag, cpuinfo string, attribs map[string]string) (count uint32, err
 		ccLog.WithFields(fields).Infof("CPU property found")
 	}
 
-	return count, nil
+	return count
 }
 
-func checkCPUFlags(cpuflags string, required map[string]string) (uint32, error) {
+func checkCPUFlags(cpuflags string, required map[string]string) uint32 {
 	return checkCPU("flag", cpuflags, required)
 }
 
-func checkCPUAttribs(cpuinfo string, attribs map[string]string) (uint32, error) {
+func checkCPUAttribs(cpuinfo string, attribs map[string]string) uint32 {
 	return checkCPU("attribute", cpuinfo, attribs)
 }
 
@@ -256,17 +256,11 @@ func hostIsClearContainersCapable(cpuinfoFile string) error {
 	// have been performed!
 	errorCount := uint32(0)
 
-	count, err := checkCPUAttribs(cpuinfo, requiredCPUAttribs)
-	if err != nil {
-		return err
-	}
+	count := checkCPUAttribs(cpuinfo, requiredCPUAttribs)
 
 	errorCount += count
 
-	count, err = checkCPUFlags(cpuFlags, requiredCPUFlags)
-	if err != nil {
-		return err
-	}
+	count = checkCPUFlags(cpuFlags, requiredCPUFlags)
 
 	errorCount += count
 

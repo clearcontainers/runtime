@@ -589,3 +589,66 @@ func TestRunContainerStartFail(t *testing.T) {
 	err, ok := err.(*cli.ExitError)
 	assert.False(ok, "error should not be a cli.ExitError: %s", err)
 }
+
+func TestRunContainerStartFailNoContainers(t *testing.T) {
+	assert := assert.New(t)
+
+	listCallCount := 0
+
+	d := testRunContainerSetup(t)
+	defer os.RemoveAll(d.tmpDir)
+
+	pod := &vcMock.Pod{
+		MockID: testPodID,
+	}
+
+	pod.MockContainers = []*vcMock.Container{
+		{
+			MockID:  testContainerID,
+			MockPod: pod,
+		},
+	}
+
+	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
+		listCallCount++
+
+		if listCallCount == 1 {
+			return []vc.PodStatus{}, nil
+		}
+
+		return []vc.PodStatus{
+			{
+				ID: pod.ID(),
+				ContainersStatus: []vc.ContainerStatus{
+					{
+						ID: testContainerID,
+						Annotations: map[string]string{
+							oci.ContainerTypeKey: string(vc.PodSandbox),
+						},
+					},
+				},
+			},
+		}, nil
+	}
+
+	testingImpl.CreatePodFunc = func(podConfig vc.PodConfig) (vc.VCPod, error) {
+		return pod, nil
+	}
+
+	testingImpl.StartPodFunc = func(podID string) (vc.VCPod, error) {
+		// force no containers
+		pod.MockContainers = nil
+
+		return pod, nil
+	}
+
+	defer func() {
+		testingImpl.ListPodFunc = nil
+		testingImpl.CreatePodFunc = nil
+		testingImpl.StartPodFunc = nil
+	}()
+
+	err := run(d.pod.ID(), d.bundlePath, d.consolePath, "", d.pidFilePath, false, d.runtimeConfig)
+	assert.Error(err)
+	assert.False(vcMock.IsMockError(err))
+}
