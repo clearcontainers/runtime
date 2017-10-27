@@ -25,4 +25,3 @@ networking/libsnnet/tests/cncicli/cncicli
 networking/libsnnet/tests/cncli/cncli
 networking/libsnnet/tests/snnetcli/snnetcli
 test-cases/test-cases
-testutil/ciao-down/ciao-down

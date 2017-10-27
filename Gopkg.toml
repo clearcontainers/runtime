@@ -92,7 +92,7 @@
 
 [[constraint]]
   name = "github.com/containers/virtcontainers"
-  revision = "db99bdff3281c93adee501b614db1047f5f9d2ee"
+  revision = "e8b0c3a6c9fd7691e37a6aa73ed6af4c42f42ad1"
 
 [[constraint]]
   branch = "master"

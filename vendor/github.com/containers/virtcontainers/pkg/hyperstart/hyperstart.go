@@ -50,6 +50,7 @@ const (
 	SetupInterface  = "setupinterface"
 	SetupRoute      = "setuproute"
 	RemoveContainer = "removecontainer"
+	PsContainer     = "pscontainer"
 )
 
 // CodeList is the map making the relation between a string command
@@ -73,6 +74,7 @@ var CodeList = map[string]uint32{
 	SetupInterface:  SetupInterfaceCode,
 	SetupRoute:      SetupRouteCode,
 	RemoveContainer: RemoveContainerCode,
+	PsContainer:     PsContainerCode,
 }
 
 // Values related to the communication on control channel.

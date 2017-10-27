@@ -20,9 +20,9 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/01org/ciao/ssntp/uuid"
 	cniTypes "github.com/containernetworking/cni/pkg/types"
 	types "github.com/containernetworking/cni/pkg/types/current"
+	"github.com/containers/virtcontainers/pkg/uuid"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 )

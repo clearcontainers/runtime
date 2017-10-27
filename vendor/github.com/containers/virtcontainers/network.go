@@ -23,9 +23,9 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/01org/ciao/ssntp/uuid"
 	types "github.com/containernetworking/cni/pkg/types/current"
 	"github.com/containernetworking/plugins/pkg/ns"
+	"github.com/containers/virtcontainers/pkg/uuid"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 )

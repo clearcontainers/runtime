@@ -55,11 +55,12 @@ type VCMock struct {
 	StatusPodFunc func(podID string) (vc.PodStatus, error)
 	StopPodFunc   func(podID string) (vc.VCPod, error)
 
-	CreateContainerFunc func(podID string, containerConfig vc.ContainerConfig) (vc.VCPod, vc.VCContainer, error)
-	DeleteContainerFunc func(podID, containerID string) (vc.VCContainer, error)
-	EnterContainerFunc  func(podID, containerID string, cmd vc.Cmd) (vc.VCPod, vc.VCContainer, *vc.Process, error)
-	KillContainerFunc   func(podID, containerID string, signal syscall.Signal, all bool) error
-	StartContainerFunc  func(podID, containerID string) (vc.VCContainer, error)
-	StatusContainerFunc func(podID, containerID string) (vc.ContainerStatus, error)
-	StopContainerFunc   func(podID, containerID string) (vc.VCContainer, error)
+	CreateContainerFunc      func(podID string, containerConfig vc.ContainerConfig) (vc.VCPod, vc.VCContainer, error)
+	DeleteContainerFunc      func(podID, containerID string) (vc.VCContainer, error)
+	EnterContainerFunc       func(podID, containerID string, cmd vc.Cmd) (vc.VCPod, vc.VCContainer, *vc.Process, error)
+	KillContainerFunc        func(podID, containerID string, signal syscall.Signal, all bool) error
+	StartContainerFunc       func(podID, containerID string) (vc.VCContainer, error)
+	StatusContainerFunc      func(podID, containerID string) (vc.ContainerStatus, error)
+	StopContainerFunc        func(podID, containerID string) (vc.VCContainer, error)
+	ProcessListContainerFunc func(podID, containerID string, options vc.ProcessListOptions) (vc.ProcessList, error)
 }

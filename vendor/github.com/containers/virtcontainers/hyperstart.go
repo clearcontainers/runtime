@@ -33,11 +33,8 @@ var defaultChannelTemplate = "sh.hyper.channel.%d"
 var defaultDeviceIDTemplate = "channel%d"
 var defaultIDTemplate = "charch%d"
 var defaultSharedDir = "/tmp/hyper/shared/pods/"
-var defaultPauseBinDir = "/usr/bin/"
 var mountTag = "hyperShared"
 var rootfsDir = "rootfs"
-var pauseBinName = "pause"
-var pauseContainerName = "pause-container"
 var maxHostnameLen = 64
 
 const (
@@ -47,11 +44,10 @@ const (
 // HyperConfig is a structure storing information needed for
 // hyperstart agent initialization.
 type HyperConfig struct {
-	SockCtlName  string
-	SockTtyName  string
-	Volumes      []Volume
-	Sockets      []Socket
-	PauseBinPath string
+	SockCtlName string
+	SockTtyName string
+	Volumes     []Volume
+	Sockets     []Socket
 }
 
 // Logger returns a logrus logger appropriate for logging HyperConfig messages
@@ -84,10 +80,6 @@ func (c *HyperConfig) validate(pod Pod) bool {
 
 	if len(c.Sockets) != 2 {
 		return false
-	}
-
-	if c.PauseBinPath == "" {
-		c.PauseBinPath = filepath.Join(defaultPauseBinDir, pauseBinName)
 	}
 
 	return true
@@ -222,24 +214,6 @@ func (h *hyper) buildNetworkInterfacesAndRoutes(pod Pod) ([]hyperstart.NetworkIf
 	}
 
 	return ifaces, routes, nil
-}
-
-func (h *hyper) copyPauseBinary(podID string) error {
-	pauseDir := filepath.Join(defaultSharedDir, podID, pauseContainerName, rootfsDir)
-
-	if err := os.MkdirAll(pauseDir, dirMode); err != nil {
-		return err
-	}
-
-	pausePath := filepath.Join(pauseDir, pauseBinName)
-
-	return fileCopy(h.config.PauseBinPath, pausePath)
-}
-
-func (h *hyper) removePauseBinary(podID string) error {
-	pauseDir := filepath.Join(defaultSharedDir, podID, pauseContainerName)
-
-	return os.RemoveAll(pauseDir)
 }
 
 func (h *hyper) bindMountContainerRootfs(podID, cID, cRootFs string, readonly bool) error {
@@ -465,56 +439,11 @@ func (h *hyper) startPod(pod Pod) error {
 		return err
 	}
 
-	if err := h.startPauseContainer(pod.id); err != nil {
-		return err
-	}
-
 	return nil
 }
 
 // stopPod is the agent Pod stopping implementation for hyperstart.
 func (h *hyper) stopPod(pod Pod) error {
-	if err := h.stopPauseContainer(pod.id); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// startPauseContainer starts a specific container running the pause binary provided.
-func (h *hyper) startPauseContainer(podID string) error {
-	cmd := Cmd{
-		Args:        []string{fmt.Sprintf("./%s", pauseBinName)},
-		Envs:        []EnvVar{},
-		WorkDir:     "/",
-		Interactive: false,
-	}
-
-	process, err := h.buildHyperContainerProcess(cmd)
-	if err != nil {
-		return err
-	}
-
-	container := hyperstart.Container{
-		ID:      pauseContainerName,
-		Image:   pauseContainerName,
-		Rootfs:  rootfsDir,
-		Process: process,
-	}
-
-	if err := h.copyPauseBinary(podID); err != nil {
-		return err
-	}
-
-	proxyCmd := hyperstartProxyCmd{
-		cmd:     hyperstart.NewContainer,
-		message: container,
-	}
-
-	if _, err := h.proxy.sendCmd(proxyCmd); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -582,18 +511,6 @@ func (h *hyper) startContainer(pod Pod, c Container) error {
 	return h.startOneContainer(pod, c)
 }
 
-func (h *hyper) stopPauseContainer(podID string) error {
-	if err := h.killOneContainer(pauseContainerName, syscall.SIGKILL, true); err != nil {
-		return err
-	}
-
-	if err := h.removePauseBinary(podID); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // stopContainer is the agent Container stopping implementation for hyperstart.
 func (h *hyper) stopContainer(pod Pod, c Container) error {
 	return h.stopOneContainer(pod.id, c)
@@ -648,4 +565,33 @@ func (h *hyper) killOneContainer(cID string, signal syscall.Signal, all bool) er
 	}
 
 	return nil
+}
+
+func (h *hyper) processListContainer(pod Pod, c Container, options ProcessListOptions) (ProcessList, error) {
+	return h.processListOneContainer(pod.id, c.id, options)
+}
+
+func (h *hyper) processListOneContainer(podID, cID string, options ProcessListOptions) (ProcessList, error) {
+	psCmd := hyperstart.PsCommand{
+		Container: cID,
+		Format:    options.Format,
+		PsArgs:    options.Args,
+	}
+
+	proxyCmd := hyperstartProxyCmd{
+		cmd:     hyperstart.PsContainer,
+		message: psCmd,
+	}
+
+	response, err := h.proxy.sendCmd(proxyCmd)
+	if err != nil {
+		return nil, err
+	}
+
+	msg, ok := response.([]byte)
+	if !ok {
+		return nil, fmt.Errorf("failed to get response message from container %s pod %s", cID, podID)
+	}
+
+	return msg, nil
 }

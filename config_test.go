@@ -43,7 +43,7 @@ type testRuntimeConfig struct {
 	LogPath           string
 }
 
-func makeRuntimeConfigFileData(hypervisor, hypervisorPath, kernelPath, imagePath, kernelParams, machineType, shimPath, agentPauseRootPath, proxyURL, logPath string, disableBlock bool) string {
+func makeRuntimeConfigFileData(hypervisor, hypervisorPath, kernelPath, imagePath, kernelParams, machineType, shimPath, proxyURL, logPath string, disableBlock bool) string {
 	return `
 	# Clear Containers runtime configuration file
 
@@ -62,9 +62,6 @@ func makeRuntimeConfigFileData(hypervisor, hypervisorPath, kernelPath, imagePath
 
 	[shim.cc]
 	path = "` + shimPath + `"
-
-	[agent.hyperstart]
-	pause_root_path = "` + agentPauseRootPath + `"
 
         [runtime]
         global_log_path = "` + logPath + `"
@@ -98,15 +95,12 @@ func createAllRuntimeConfigFiles(dir, hypervisor string) (config testRuntimeConf
 	kernelParams := "foo=bar xyz"
 	imagePath := path.Join(dir, "image")
 	shimPath := path.Join(dir, "shim")
-	agentPauseRootPath := path.Join(dir, "agentPauseRoot")
-	agentPauseRootBin := path.Join(agentPauseRootPath, "bin")
-	pauseBinPath := path.Join(agentPauseRootBin, "pause")
 	logDir := path.Join(dir, "logs")
 	logPath := path.Join(logDir, "runtime.log")
 	machineType := "machineType"
 	disableBlockDevice := true
 
-	runtimeConfigFileData := makeRuntimeConfigFileData(hypervisor, hypervisorPath, kernelPath, imagePath, kernelParams, machineType, shimPath, agentPauseRootPath, proxyURL, logPath, disableBlockDevice)
+	runtimeConfigFileData := makeRuntimeConfigFileData(hypervisor, hypervisorPath, kernelPath, imagePath, kernelParams, machineType, shimPath, proxyURL, logPath, disableBlockDevice)
 
 	configPath := path.Join(dir, "runtime.toml")
 	err = createConfig(configPath, runtimeConfigFileData)
@@ -122,12 +116,7 @@ func createAllRuntimeConfigFiles(dir, hypervisor string) (config testRuntimeConf
 		return config, err
 	}
 
-	err = os.MkdirAll(agentPauseRootBin, testDirMode)
-	if err != nil {
-		return config, err
-	}
-
-	files := []string{pauseBinPath, hypervisorPath, kernelPath, imagePath, shimPath}
+	files := []string{hypervisorPath, kernelPath, imagePath, shimPath}
 
 	for _, file := range files {
 		// create the resource
@@ -149,9 +138,7 @@ func createAllRuntimeConfigFiles(dir, hypervisor string) (config testRuntimeConf
 		Mlock: !defaultEnableSwap,
 	}
 
-	agentConfig := vc.HyperConfig{
-		PauseBinPath: filepath.Join(agentPauseRootPath, pauseBinRelativePath),
-	}
+	agentConfig := vc.HyperConfig{}
 
 	proxyConfig := vc.CCProxyConfig{
 		URL: proxyURL,
@@ -318,52 +305,6 @@ func TestConfigLoadConfigurationFailSymLinkLoop(t *testing.T) {
 				}
 
 				expectFail = true
-			}
-
-			return expectFail, nil
-		})
-}
-
-func TestConfigLoadConfigurationFailMissingPauseBinary(t *testing.T) {
-	tmpdir, err := ioutil.TempDir(testDir, "runtime-config-")
-	assert.NoError(t, err)
-	defer os.RemoveAll(tmpdir)
-
-	testLoadConfiguration(t, tmpdir,
-		func(config testRuntimeConfig, configFile string, ignoreLogging bool) (bool, error) {
-			expectFail := true
-
-			hyperConfig, ok := config.RuntimeConfig.AgentConfig.(vc.HyperConfig)
-			if !ok {
-				return expectFail, fmt.Errorf("cannot determine agent config")
-			}
-
-			err = os.Remove(hyperConfig.PauseBinPath)
-			if err != nil {
-				return expectFail, err
-			}
-
-			return expectFail, nil
-		})
-}
-
-func TestConfigLoadConfigurationFailMissingPauseDir(t *testing.T) {
-	tmpdir, err := ioutil.TempDir(testDir, "runtime-config-")
-	assert.NoError(t, err)
-	defer os.RemoveAll(tmpdir)
-
-	testLoadConfiguration(t, tmpdir,
-		func(config testRuntimeConfig, configFile string, ignoreLogging bool) (bool, error) {
-			expectFail := true
-
-			hyperConfig, ok := config.RuntimeConfig.AgentConfig.(vc.HyperConfig)
-			if !ok {
-				return expectFail, fmt.Errorf("cannot determine agent config")
-			}
-
-			err = os.RemoveAll(filepath.Dir(hyperConfig.PauseBinPath))
-			if err != nil {
-				return expectFail, err
 			}
 
 			return expectFail, nil
@@ -613,9 +554,7 @@ func TestMinimalRuntimeConfig(t *testing.T) {
 		Mlock: !defaultEnableSwap,
 	}
 
-	expectedAgentConfig := vc.HyperConfig{
-		PauseBinPath: filepath.Join(defaultPauseRootPath, pauseBinRelativePath),
-	}
+	expectedAgentConfig := vc.HyperConfig{}
 
 	expectedProxyConfig := vc.CCProxyConfig{
 		URL: proxyURL,
@@ -711,57 +650,11 @@ func TestNewQemuHypervisorConfig(t *testing.T) {
 }
 
 func TestNewHyperstartAgentConfig(t *testing.T) {
-	dir, err := ioutil.TempDir(testDir, "hyperstart-agent-config-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
+	agent := agent{}
 
-	agentPauseRootPath := path.Join(dir, "agentPauseRoot")
-	agentPauseRootBin := path.Join(agentPauseRootPath, "bin")
-	pauseBinPath := path.Join(agentPauseRootBin, "pause")
-
-	agent := agent{
-		PauseRootPath: agentPauseRootPath,
-	}
-
-	_, err = newHyperstartAgentConfig(agent)
-	if err == nil {
-		t.Fatalf("Expected newHyperstartAgentConfig to fail as no paths exist")
-	}
-
-	err = os.MkdirAll(agentPauseRootPath, testDirMode)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = newHyperstartAgentConfig(agent)
-	if err == nil {
-		t.Fatalf("Expected newHyperstartAgentConfig to fail as only pause root path exists")
-	}
-
-	err = os.MkdirAll(agentPauseRootBin, testDirMode)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = newHyperstartAgentConfig(agent)
-	if err == nil {
-		t.Fatalf("Expected newHyperstartAgentConfig to fail as only pause bin path exists")
-	}
-
-	err = createEmptyFile(pauseBinPath)
-	if err != nil {
-		t.Error(err)
-	}
-
-	agentConfig, err := newHyperstartAgentConfig(agent)
+	_, err := newHyperstartAgentConfig(agent)
 	if err != nil {
 		t.Fatalf("newHyperstartAgentConfig failed unexpectedly: %v", err)
-	}
-
-	if agentConfig.PauseBinPath != pauseBinPath {
-		t.Errorf("Expected pause bin path %v, got %v", pauseBinPath, agentConfig.PauseBinPath)
 	}
 }
 
@@ -989,42 +882,6 @@ func TestShimDefaults(t *testing.T) {
 	assert.False(s.debug())
 	s.Debug = true
 	assert.True(s.debug())
-}
-
-func TestAgentDefaults(t *testing.T) {
-	assert := assert.New(t)
-
-	tmpdir, err := ioutil.TempDir(testDir, "")
-	assert.NoError(err)
-	defer os.RemoveAll(tmpdir)
-
-	testPauseRootPath := filepath.Join(tmpdir, "pause")
-	testPauseRootLinkPath := filepath.Join(tmpdir, "pause-link")
-
-	err = os.MkdirAll(testPauseRootPath, testDirMode)
-	assert.NoError(err)
-
-	err = syscall.Symlink(testPauseRootPath, testPauseRootLinkPath)
-	assert.NoError(err)
-
-	savedPauseRootPath := defaultPauseRootPath
-
-	defer func() {
-		defaultPauseRootPath = savedPauseRootPath
-	}()
-
-	defaultPauseRootPath = testPauseRootPath
-
-	a := agent{}
-	p, err := a.pauseRootPath()
-	assert.NoError(err)
-	assert.Equal(p, defaultPauseRootPath, "default agent pause root path wrong")
-
-	// test path resolution
-	defaultPauseRootPath = testPauseRootLinkPath
-	p, err = a.pauseRootPath()
-	assert.NoError(err)
-	assert.Equal(p, testPauseRootPath, "default agent pause root path wrong")
 }
 
 func TestGetDefaultConfigFilePaths(t *testing.T) {

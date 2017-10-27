@@ -99,9 +99,6 @@ PROXYCMD := cc-proxy
 PROXYURL := unix://$(PKGRUNDIR)/proxy.sock
 PROXYPATH := $(PKGLIBEXECDIR)/$(PROXYCMD)
 
-PAUSEROOTPATH := $(PKGLIBDIR)/runtime/bundles/pause_bundle
-PAUSEBINRELPATH := bin/pause
-
 GLOBALLOGPATH := $(PKGLIBDIR)/runtime/runtime.log
 
 # Default number of vCPUs
@@ -141,8 +138,6 @@ DESTSYSCONFIG := $(abspath $(DESTSYSCONFDIR)/$(CONFIG_FILE))
 
 DESTSHAREDIR := $(DESTDIR)/$(SHAREDIR)
 
-PAUSEDESTDIR := $(abspath $(DESTDIR)/$(PAUSEROOTPATH)/$(PAUSEBINRELPATH))
-
 BASH_COMPLETIONS := data/completions/bash/cc-runtime
 BASH_COMPLETIONSDIR := $(DESTSHAREDIR)/bash-completion/completions
 
@@ -167,8 +162,6 @@ USER_VARS += KERNELPATH
 USER_VARS += KERNELPARAMS
 USER_VARS += LIBEXECDIR
 USER_VARS += LOCALSTATEDIR
-USER_VARS += PAUSEBINRELPATH
-USER_VARS += PAUSEROOTPATH
 USER_VARS += PKGDATADIR
 USER_VARS += PKGLIBDIR
 USER_VARS += PKGLIBEXECDIR
@@ -182,7 +175,6 @@ USER_VARS += QEMUPATH
 USER_VARS += SHAREDIR
 USER_VARS += SHIMPATH
 USER_VARS += SYSCONFDIR
-USER_VARS += PAUSEDESTDIR
 USER_VARS += DEFVCPUS
 USER_VARS += DEFMEMSZ
 USER_VARS += DEFDISABLEBLOCK
@@ -203,7 +195,7 @@ QUIET_GENERATE = $(Q:@=@echo    '     GENERATE '$@;)
 QUIET_INST     = $(Q:@=@echo    '     INSTALL '$@;)
 QUIET_TEST     = $(Q:@=@echo    '     TEST    '$@;)
 
-default: $(TARGET) $(CONFIG) pause install-git-hooks
+default: $(TARGET) $(CONFIG) install-git-hooks
 .DEFAULT: default
 
 build: default
@@ -226,7 +218,6 @@ var version = "$(VERSION)"
 var defaultHypervisorPath = "$(QEMUPATH)"
 var defaultImagePath = "$(IMAGEPATH)"
 var defaultKernelPath = "$(KERNELPATH)"
-var defaultPauseRootPath = "$(PAUSEROOTPATH)"
 var defaultShimPath = "$(SHIMPATH)"
 
 const defaultKernelParams = "$(KERNELPARAMS)"
@@ -235,7 +226,6 @@ const defaultProxyURL = "$(PROXYURL)"
 const defaultRootDirectory = "$(PKGRUNDIR)"
 const defaultRuntimeLib = "$(PKGLIBDIR)"
 const defaultRuntimeRun = "$(PKGRUNDIR)"
-const pauseBinRelativePath = "$(PAUSEBINRELPATH)"
 
 const defaultVCPUCount uint32 = $(DEFVCPUS)
 const defaultMemSize uint32 = $(DEFMEMSZ) // MiB
@@ -274,9 +264,6 @@ config-generated.go: Makefile VERSION
 $(TARGET): $(EXTRA_DEPS) $(SOURCES) $(GENERATED_GO_FILES) $(GENERATED_FILES) Makefile | show-summary
 	$(QUIET_BUILD)go build -i -o $@ .
 
-pause: pause/pause.go
-	$(QUIET_BUILD)go build -o pause/pause $<
-
 .PHONY: \
 	check \
 	check-go-static \
@@ -285,7 +272,6 @@ pause: pause/pause.go
 	default \
 	install \
 	install-git-hooks \
-	pause \
 	show-header \
 	show-summary \
 	show-variables
@@ -304,7 +290,6 @@ $(GENERATED_FILES): %: %.in Makefile VERSION
 		-e "s|@KERNELPATH@|$(KERNELPATH)|g" \
 		-e "s|@KERNELPARAMS@|$(KERNELPARAMS)|g" \
 		-e "s|@LOCALSTATEDIR@|$(LOCALSTATEDIR)|g" \
-		-e "s|@PAUSEROOTPATH@|$(PAUSEROOTPATH)|g" \
 		-e "s|@PKGLIBEXECDIR@|$(PKGLIBEXECDIR)|g" \
 		-e "s|@PROXYURL@|$(PROXYURL)|g" \
 		-e "s|@QEMUPATH@|$(QEMUPATH)|g" \
@@ -338,9 +323,6 @@ coverage:
 install: default install-completions install-scripts
 	$(QUIET_INST)install -D $(TARGET) $(DESTTARGET)
 	$(QUIET_INST)install -D $(CONFIG) $(DESTCONFIG)
-	@ if [ -e pause/pause ]; then \
-		install -D pause/pause $(PAUSEDESTDIR); \
-	fi
 
 install-completions:
 	$(QUIET_INST)install --mode 0644 -D $(BASH_COMPLETIONS) $(BASH_COMPLETIONSDIR)
@@ -350,7 +332,6 @@ install-scripts:
 
 clean:
 	$(QUIET_CLEAN)rm -f $(TARGET) $(CONFIG) $(GENERATED_GO_FILES) $(GENERATED_FILES)
-	$(QUIET_CLEAN)rm -f pause/pause
 
 show-usage: show-header
 	@printf "• Overview:\n"
@@ -371,7 +352,6 @@ show-usage: show-header
 	@printf "\tgenerate-config   : create configuration file\n"
 	@printf "\tinstall           : install files (equivalent to 'install-cc-system' if CC_SYSTEM_BUILD set)\n"
 	@printf "\tinstall-cc-system : install using standard Clear Containers system paths\n"
-	@printf "\tpause             : build pause binary\n"
 	@printf "\tshow-summary      : show install locations\n"
 	@printf "\n"
 
@@ -407,7 +387,6 @@ show-summary: show-header
 	@printf "\thypervisor path (QEMUPATH)            : %s\n" $(QEMUPATH)
 	@printf "\tassets path (PKGDATADIR)              : %s\n" $(PKGDATADIR)
 	@printf "\tproxy+shim path (PKGLIBEXECDIR)       : %s\n" $(PKGLIBEXECDIR)
-	@printf "\tpause bundle path (PAUSEROOTPATH)     : %s\n" $(PAUSEROOTPATH)
 	@printf "\n"
 
 

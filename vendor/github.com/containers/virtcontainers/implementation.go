@@ -112,3 +112,8 @@ func (impl *VCImpl) StatusContainer(podID, containerID string) (ContainerStatus,
 func (impl *VCImpl) KillContainer(podID, containerID string, signal syscall.Signal, all bool) error {
 	return KillContainer(podID, containerID, signal, all)
 }
+
+// ProcessListContainer implements the VC function of the same name.
+func (impl *VCImpl) ProcessListContainer(podID, containerID string, options ProcessListOptions) (ProcessList, error) {
+	return ProcessListContainer(podID, containerID, options)
+}

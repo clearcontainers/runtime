@@ -678,3 +678,34 @@ func PausePod(podID string) (VCPod, error) {
 func ResumePod(podID string) (VCPod, error) {
 	return togglePausePod(podID, false)
 }
+
+// ProcessListContainer is the virtcontainers entry point to list
+// processes running inside a container
+func ProcessListContainer(podID, containerID string, options ProcessListOptions) (ProcessList, error) {
+	if podID == "" {
+		return nil, errNeedPodID
+	}
+
+	if containerID == "" {
+		return nil, errNeedContainerID
+	}
+
+	lockFile, err := lockPod(podID)
+	if err != nil {
+		return nil, err
+	}
+	defer unlockPod(lockFile)
+
+	p, err := fetchPod(podID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch the container.
+	c, err := fetchContainer(p, containerID)
+	if err != nil {
+		return nil, err
+	}
+
+	return c.processList(options)
+}

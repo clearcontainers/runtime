@@ -3,8 +3,8 @@
 
 [[projects]]
   name = "github.com/01org/ciao"
-  packages = ["qemu","ssntp/uuid"]
-  revision = "44068003db570d97b20b7de0ed0686a9eee0cc0f"
+  packages = ["qemu"]
+  revision = "b2a8a2ecea1318ae28a0861191ec385532491b5a"
 
 [[projects]]
   name = "github.com/clearcontainers/proxy"
@@ -96,6 +96,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "6591a76a4f4863779aa02a026fafbc4c4cfbab78fa139d55d6b81d1e830c42a2"
+  inputs-digest = "52bc4229f63ca78c2086df724034421cf56f51e281edb843f319fb0644af36d3"
   solver-name = "gps-cdcl"
   solver-version = 1

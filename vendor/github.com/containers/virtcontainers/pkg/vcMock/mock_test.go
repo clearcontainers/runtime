@@ -544,3 +544,36 @@ func TestVCMockStopContainer(t *testing.T) {
 	assert.Error(err)
 	assert.True(IsMockError(err))
 }
+
+func TestVCMockProcessListContainer(t *testing.T) {
+	assert := assert.New(t)
+
+	m := &VCMock{}
+	assert.Nil(m.ProcessListContainerFunc)
+
+	options := vc.ProcessListOptions{
+		Format: "json",
+		Args:   []string{"-ef"},
+	}
+
+	_, err := m.ProcessListContainer(testPodID, testContainerID, options)
+	assert.Error(err)
+	assert.True(IsMockError(err))
+
+	processList := vc.ProcessList("hi")
+
+	m.ProcessListContainerFunc = func(podID, containerID string, options vc.ProcessListOptions) (vc.ProcessList, error) {
+		return processList, nil
+	}
+
+	pList, err := m.ProcessListContainer(testPodID, testContainerID, options)
+	assert.NoError(err)
+	assert.Equal(pList, processList)
+
+	// reset
+	m.ProcessListContainerFunc = nil
+
+	_, err = m.ProcessListContainer(testPodID, testContainerID, options)
+	assert.Error(err)
+	assert.True(IsMockError(err))
+}

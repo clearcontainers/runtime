@@ -18,7 +18,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"path/filepath"
 	goruntime "runtime"
 	"strings"
 
@@ -104,7 +103,6 @@ type shim struct {
 }
 
 type agent struct {
-	PauseRootPath string `toml:"pause_root_path"`
 }
 
 func (h hypervisor) path() (string, error) {
@@ -197,16 +195,6 @@ func (s shim) debug() bool {
 	return s.Debug
 }
 
-func (a agent) pauseRootPath() (string, error) {
-	p := a.PauseRootPath
-
-	if p == "" {
-		p = defaultPauseRootPath
-	}
-
-	return resolvePath(p)
-}
-
 func newQemuHypervisorConfig(h hypervisor) (vc.HypervisorConfig, error) {
 	hypervisor, err := h.path()
 	if err != nil {
@@ -244,20 +232,7 @@ func newQemuHypervisorConfig(h hypervisor) (vc.HypervisorConfig, error) {
 }
 
 func newHyperstartAgentConfig(a agent) (vc.HyperConfig, error) {
-	dir, err := a.pauseRootPath()
-	if err != nil {
-		return vc.HyperConfig{}, err
-	}
-
-	path := filepath.Join(dir, pauseBinRelativePath)
-
-	if !fileExists(path) {
-		return vc.HyperConfig{}, fmt.Errorf("File does not exist: %v", path)
-	}
-
-	return vc.HyperConfig{
-		PauseBinPath: path,
-	}, nil
+	return vc.HyperConfig{}, nil
 }
 
 func newCCShimConfig(s shim) (vc.CCShimConfig, error) {
@@ -356,10 +331,7 @@ func loadConfiguration(configPath string, ignoreLogging bool) (resolvedConfigPat
 		DisableNestingChecks:  defaultDisableNestingChecks,
 	}
 
-	defaultAgentConfig := vc.HyperConfig{
-		PauseBinPath: filepath.Join(defaultPauseRootPath,
-			pauseBinRelativePath),
-	}
+	defaultAgentConfig := vc.HyperConfig{}
 
 	config = oci.RuntimeConfig{
 		HypervisorType:   defaultHypervisor,
