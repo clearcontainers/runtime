@@ -36,7 +36,7 @@ $ sudo -E apt-get -y install cc-runtime cc-proxy cc-shim
 $ sudo mkdir -p /etc/systemd/system/docker.service.d/
 $ cat <<EOF | sudo tee /etc/systemd/system/docker.service.d/clear-containers.conf
 [Service]
-ExecStart=
+Type=oneshot
 ExecStart=/usr/bin/dockerd -D --add-runtime cc-runtime=/usr/bin/cc-runtime --default-runtime=cc-runtime
 EOF
 ```
