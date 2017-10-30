@@ -87,6 +87,9 @@ func init() {
 		panic("ERROR: invalid build: defaultRuntimeConfiguration not set")
 	}
 
+	fmt.Printf("INFO: running as actual user %v (effective %v), actual group %v (effective %v)\n",
+		os.Getuid(), os.Geteuid(), os.Getgid(), os.Getegid())
+
 	fmt.Printf("INFO: switching to fake virtcontainers implementation for testing\n")
 	vci = testingImpl
 
