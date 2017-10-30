@@ -103,6 +103,12 @@ func init() {
 
 	fmt.Printf("INFO: test directory is %v\n", testDir)
 
+	fmt.Printf("INFO: ensuring docker is running\n")
+	_, err = runCommand([]string{"docker", "version"})
+	if err != nil {
+		panic(fmt.Sprintf("ERROR: docker daemon is not running: %v", err))
+	}
+
 	// Do this now to avoid hitting the test timeout value due to
 	// slow network response.
 	fmt.Printf("INFO: ensuring required docker image (%v) is available\n", testDockerImage)
