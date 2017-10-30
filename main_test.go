@@ -87,6 +87,9 @@ func init() {
 		panic("ERROR: invalid build: defaultRuntimeConfiguration not set")
 	}
 
+	fmt.Printf("INFO: running as actual user %v (effective %v), actual group %v (effective %v)\n",
+		os.Getuid(), os.Geteuid(), os.Getgid(), os.Getegid())
+
 	fmt.Printf("INFO: switching to fake virtcontainers implementation for testing\n")
 	vci = testingImpl
 
@@ -95,10 +98,16 @@ func init() {
 	fmt.Printf("INFO: creating test directory\n")
 	testDir, err = ioutil.TempDir("", fmt.Sprintf("%s-", name))
 	if err != nil {
-		panic(err)
+		panic(fmt.Sprintf("ERROR: failed to create test directory: %v", err))
 	}
 
 	fmt.Printf("INFO: test directory is %v\n", testDir)
+
+	fmt.Printf("INFO: ensuring docker is running\n")
+	_, err = runCommand([]string{"docker", "version"})
+	if err != nil {
+		panic(fmt.Sprintf("ERROR: docker daemon is not running: %v", err))
+	}
 
 	// Do this now to avoid hitting the test timeout value due to
 	// slow network response.
@@ -118,13 +127,13 @@ func init() {
 	testBundleDir = filepath.Join(testDir, testBundle)
 	err = os.MkdirAll(testBundleDir, testDirMode)
 	if err != nil {
-		panic(err)
+		panic(fmt.Sprintf("ERROR: failed to create bundle directory %v: %v", testBundleDir, err))
 	}
 
 	fmt.Printf("INFO: creating OCI bundle in %v for tests to use\n", testBundleDir)
 	err = realMakeOCIBundle(testBundleDir)
 	if err != nil {
-		panic(err)
+		panic(fmt.Sprintf("ERROR: failed to create OCI bundle: %v", err))
 	}
 }
 
