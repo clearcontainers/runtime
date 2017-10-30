@@ -95,7 +95,7 @@ func init() {
 	fmt.Printf("INFO: creating test directory\n")
 	testDir, err = ioutil.TempDir("", fmt.Sprintf("%s-", name))
 	if err != nil {
-		panic(err)
+		panic(fmt.Sprintf("ERROR: failed to create test directory: %v", err))
 	}
 
 	fmt.Printf("INFO: test directory is %v\n", testDir)
@@ -118,13 +118,13 @@ func init() {
 	testBundleDir = filepath.Join(testDir, testBundle)
 	err = os.MkdirAll(testBundleDir, testDirMode)
 	if err != nil {
-		panic(err)
+		panic(fmt.Sprintf("ERROR: failed to create bundle directory %v: %v", testBundleDir, err))
 	}
 
 	fmt.Printf("INFO: creating OCI bundle in %v for tests to use\n", testBundleDir)
 	err = realMakeOCIBundle(testBundleDir)
 	if err != nil {
-		panic(err)
+		panic(fmt.Sprintf("ERROR: failed to create OCI bundle: %v", err))
 	}
 }
 
