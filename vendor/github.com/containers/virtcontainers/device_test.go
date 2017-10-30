@@ -53,25 +53,18 @@ func TestIsVFIO(t *testing.T) {
 
 func TestIsBlock(t *testing.T) {
 	type testData struct {
-		path     string
+		devType  string
 		expected bool
 	}
 
 	data := []testData{
-		{"/dev/sda", true},
-		{"/dev/sdbb", true},
-		{"/dev/hda", true},
-		{"/dev/hdb", true},
-		{"/dev/vf", false},
-		{"/dev/vdj", true},
-		{"/dev/vdzzz", true},
-		{"/dev/ida", false},
-		{"/dev/ida/", false},
-		{"/dev/ida/c0d0p10", true},
+		{"b", true},
+		{"c", false},
+		{"u", false},
 	}
 
 	for _, d := range data {
-		isBlock := isBlock(d.path)
+		isBlock := isBlock(DeviceInfo{DevType: d.devType})
 		assert.Equal(t, d.expected, isBlock)
 	}
 }
@@ -79,6 +72,7 @@ func TestIsBlock(t *testing.T) {
 func TestCreateDevice(t *testing.T) {
 	devInfo := DeviceInfo{
 		HostPath: "/dev/vfio/8",
+		DevType:  "b",
 	}
 
 	device := createDevice(devInfo)
@@ -91,6 +85,7 @@ func TestCreateDevice(t *testing.T) {
 	assert.True(t, ok)
 
 	devInfo.HostPath = "/dev/tty"
+	devInfo.DevType = "c"
 	device = createDevice(devInfo)
 	_, ok = device.(*GenericDevice)
 	assert.True(t, ok)
@@ -222,7 +217,7 @@ func TestAttachVFIODevice(t *testing.T) {
 	assert.True(t, ok)
 
 	hypervisor := &mockHypervisor{}
-	err = device.attach(hypervisor)
+	err = device.attach(hypervisor, &Container{})
 	assert.Nil(t, err)
 
 	err = device.detach(hypervisor)
@@ -242,7 +237,7 @@ func TestAttachGenericDevice(t *testing.T) {
 	assert.True(t, ok)
 
 	hypervisor := &mockHypervisor{}
-	err := device.attach(hypervisor)
+	err := device.attach(hypervisor, &Container{})
 	assert.Nil(t, err)
 
 	err = device.detach(hypervisor)
@@ -250,19 +245,59 @@ func TestAttachGenericDevice(t *testing.T) {
 }
 
 func TestAttachBlockDevice(t *testing.T) {
-	path := "/dev/hda"
+	fs := &filesystem{}
+	hypervisor := &mockHypervisor{}
+
+	pod := &Pod{
+		id:         testPodID,
+		storage:    fs,
+		hypervisor: hypervisor,
+	}
+
+	contID := "100"
+	container := Container{
+		pod: pod,
+		id:  contID,
+	}
+
+	// create state file
+	path := filepath.Join(runStoragePath, testPodID, container.ID())
+	err := os.MkdirAll(path, dirMode)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer os.RemoveAll(path)
+
+	stateFilePath := filepath.Join(path, stateFile)
+	os.Remove(stateFilePath)
+
+	_, err = os.Create(stateFilePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(stateFilePath)
+
+	path = "/dev/hda"
 	deviceInfo := DeviceInfo{
 		HostPath:      path,
 		ContainerPath: path,
-		DevType:       "c",
+		DevType:       "b",
 	}
 
 	device := createDevice(deviceInfo)
 	_, ok := device.(*BlockDevice)
 	assert.True(t, ok)
 
-	hypervisor := &mockHypervisor{}
-	err := device.attach(hypervisor)
+	container.state.State = ""
+	err = device.attach(hypervisor, &container)
+	assert.Nil(t, err)
+
+	err = device.detach(hypervisor)
+	assert.Nil(t, err)
+
+	container.state.State = StateReady
+	err = device.attach(hypervisor, &container)
 	assert.Nil(t, err)
 
 	err = device.detach(hypervisor)

@@ -17,6 +17,7 @@
 package virtcontainers
 
 import (
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -58,7 +59,7 @@ const (
 
 // Device is the virtcontainers device interface.
 type Device interface {
-	attach(hypervisor) error
+	attach(hypervisor, *Container) error
 	detach(hypervisor) error
 	deviceType() string
 }
@@ -90,6 +91,13 @@ type DeviceInfo struct {
 
 	// id of the device group.
 	GID uint32
+
+	// Hotplugged is used to store device state indicating if the
+	// device was hotplugged.
+	Hotplugged bool
+
+	// ID for the device that is passed to the hypervisor.
+	ID string
 }
 
 // VFIODevice is a vfio device meant to be passed to the hypervisor
@@ -111,7 +119,7 @@ func newVFIODevice(devInfo DeviceInfo) *VFIODevice {
 	}
 }
 
-func (device *VFIODevice) attach(h hypervisor) error {
+func (device *VFIODevice) attach(h hypervisor, c *Container) error {
 	vfioGroup := filepath.Base(device.DeviceInfo.HostPath)
 	iommuDevicesPath := filepath.Join(sysIOMMUPath, vfioGroup, "devices")
 
@@ -157,6 +165,9 @@ func (device *VFIODevice) deviceType() string {
 type BlockDevice struct {
 	DeviceType string
 	DeviceInfo DeviceInfo
+
+	// Path at which the device appears inside the VM, outside of the container mount namespace.
+	VirtPath string
 }
 
 func newBlockDevice(devInfo DeviceInfo) *BlockDevice {
@@ -166,11 +177,86 @@ func newBlockDevice(devInfo DeviceInfo) *BlockDevice {
 	}
 }
 
-func (device *BlockDevice) attach(h hypervisor) error {
+func makeBlockDevIDForHypervisor(deviceID string) string {
+	devID := fmt.Sprintf("drive-%s", deviceID)
+	if len(devID) > maxDevIDSize {
+		devID = string(devID[:maxDevIDSize])
+	}
+
+	return devID
+}
+
+func (device *BlockDevice) attach(h hypervisor, c *Container) (err error) {
+	randBytes, err := generateRandomBytes(8)
+	if err != nil {
+		return err
+	}
+
+	device.DeviceInfo.ID = hex.EncodeToString(randBytes)
+
+	drive := Drive{
+		File:   device.DeviceInfo.HostPath,
+		Format: "raw",
+		ID:     makeBlockDevIDForHypervisor(device.DeviceInfo.ID),
+	}
+
+	// Increment the block index for the pod. This is used to determine the name
+	// for the block device in the case where the block device is used as container
+	// rootfs and the predicted block device name needs to be provided to the agent.
+	index, err := c.pod.getAndSetPodBlockIndex()
+
+	defer func() {
+		if err != nil {
+			c.pod.decrementPodBlockIndex()
+		}
+	}()
+
+	if err != nil {
+		return err
+	}
+
+	driveName, err := getVirtDriveName(index)
+	if err != nil {
+		return err
+	}
+
+	deviceLogger().WithField("device", device.DeviceInfo.HostPath).Info("Attaching block device")
+
+	// We are cold-plugging block devices for now until hot-plugging issues for vfio
+	// devices are fixed. After that we need to move towards  hotplugging all devices.
+	// See https://github.com/containers/virtcontainers/issues/444
+	if c.state.State == "" {
+		if err = h.addDevice(drive, blockDev); err != nil {
+			return err
+		}
+
+		device.DeviceInfo.Hotplugged = false
+	} else {
+		if err = h.hotplugAddDevice(drive, blockDev); err != nil {
+			return err
+		}
+
+		device.DeviceInfo.Hotplugged = true
+	}
+
+	device.VirtPath = filepath.Join("/dev", driveName)
 	return nil
 }
 
 func (device BlockDevice) detach(h hypervisor) error {
+	if device.DeviceInfo.Hotplugged {
+		deviceLogger().WithField("device", device.DeviceInfo.HostPath).Info("Unplugging block device")
+
+		drive := Drive{
+			ID: makeBlockDevIDForHypervisor(device.DeviceInfo.ID),
+		}
+
+		if err := h.hotplugRemoveDevice(drive, blockDev); err != nil {
+			deviceLogger().WithError(err).Error("Failed to unplug block device")
+			return err
+		}
+
+	}
 	return nil
 }
 
@@ -191,7 +277,7 @@ func newGenericDevice(devInfo DeviceInfo) *GenericDevice {
 	}
 }
 
-func (device *GenericDevice) attach(h hypervisor) error {
+func (device *GenericDevice) attach(h hypervisor, c *Container) error {
 	return nil
 }
 
@@ -218,11 +304,9 @@ func isVFIO(hostPath string) bool {
 }
 
 // isBlock checks if the device is a block device.
-func isBlock(hostPath string) bool {
-	for _, blockPath := range blockPaths {
-		if strings.HasPrefix(hostPath, blockPath) && len(hostPath) > len(blockPath) {
-			return true
-		}
+func isBlock(devInfo DeviceInfo) bool {
+	if devInfo.DevType == "b" {
+		return true
 	}
 
 	return false
@@ -233,7 +317,7 @@ func createDevice(devInfo DeviceInfo) Device {
 
 	if isVFIO(path) {
 		return newVFIODevice(devInfo)
-	} else if isBlock(path) {
+	} else if isBlock(devInfo) {
 		return newBlockDevice(devInfo)
 	} else {
 		deviceLogger().WithField("device", path).Info("Device has not been passed to the container")

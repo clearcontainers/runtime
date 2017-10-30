@@ -851,6 +851,10 @@ func (h *Handle) linkModify(link Link, flags int) error {
 		msg.Change |= syscall.IFF_MULTICAST
 		msg.Flags |= syscall.IFF_MULTICAST
 	}
+	if base.Index != 0 {
+		msg.Index = int32(base.Index)
+	}
+
 	req.AddData(msg)
 
 	if base.ParentIndex != 0 {
@@ -1268,6 +1272,8 @@ func LinkDeserialize(hdr *syscall.NlMsghdr, m []byte) (Link, error) {
 			}
 		case syscall.IFLA_OPERSTATE:
 			base.OperState = LinkOperState(uint8(attr.Value[0]))
+		case nl.IFLA_LINK_NETNSID:
+			base.NetNsID = int(native.Uint32(attr.Value[0:4]))
 		}
 	}
 

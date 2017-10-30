@@ -164,7 +164,7 @@ func (h *hyper) buildNetworkInterfacesAndRoutes(pod Pod) ([]hyperstart.NetworkIf
 		return []hyperstart.NetworkIface{}, []hyperstart.Route{}, nil
 	}
 
-	netIfaces, err := getIfacesFromNetNs(networkNS.NetNsPath)
+	netIfaces, err := getIfacesFromNetNsAll(networkNS.NetNsPath)
 	if err != nil {
 		return []hyperstart.NetworkIface{}, []hyperstart.Route{}, err
 	}
@@ -483,6 +483,21 @@ func (h *hyper) startOneContainer(pod Pod, c Container) error {
 	if err != nil {
 		h.bindUnmountAllRootfs(pod)
 		return err
+	}
+
+	// Append container mounts for block devices passed with --device.
+	for _, device := range c.devices {
+		d, ok := device.(*BlockDevice)
+
+		if ok {
+			fsmapDesc := &hyperstart.FsmapDescriptor{
+				Source:       d.VirtPath,
+				Path:         d.DeviceInfo.ContainerPath,
+				AbsolutePath: true,
+				DockerVolume: false,
+			}
+			fsmap = append(fsmap, fsmapDesc)
+		}
 	}
 
 	// Assign fsmap for hyperstart to mount these at the correct location within the container

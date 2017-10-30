@@ -114,7 +114,7 @@
 
 [[constraint]]
   name = "github.com/vishvananda/netlink"
-  revision = "177f1ceba557262b3f1c3aba4df93a29199fb4eb"
+  revision = "b7fbf1f5291ecf8ae5179d3202e914cb98cfe400"
 
 [[constraint]]
   name = "github.com/vishvananda/netns"

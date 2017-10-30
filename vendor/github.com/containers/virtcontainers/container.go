@@ -857,7 +857,7 @@ func (c *Container) removeDrive() (err error) {
 
 func (c *Container) attachDevices() error {
 	for _, device := range c.devices {
-		if err := device.attach(c.pod.hypervisor); err != nil {
+		if err := device.attach(c.pod.hypervisor, c); err != nil {
 			return err
 		}
 	}
