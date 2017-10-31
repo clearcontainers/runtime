@@ -7,7 +7,6 @@
   revision = "b2a8a2ecea1318ae28a0861191ec385532491b5a"
 
 [[projects]]
-  branch = "master"
   name = "github.com/BurntSushi/toml"
   packages = ["."]
   revision = "a368813c5e648fee92e5f6c30e3944ff9d5e8895"
@@ -39,7 +38,6 @@
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
 
 [[projects]]
-  branch = "master"
   name = "github.com/dlespiau/covertool"
   packages = ["pkg/cover"]
   revision = "b82616d290e628437bc08b858b5ecb3d7fe9ea53"
@@ -60,7 +58,6 @@
   revision = "d0303fe809921458f417bcf828397a65db30a7e4"
 
 [[projects]]
-  branch = "master"
   name = "github.com/opencontainers/runc"
   packages = ["libcontainer/utils"]
   revision = "a0159fddcd197a57790b6dd5654802b7dc8f80be"
@@ -82,13 +79,11 @@
   revision = "89742aefa4b206dcf400792f3bd35b542998eb3b"
 
 [[projects]]
-  branch = "master"
   name = "github.com/stretchr/testify"
   packages = ["assert"]
   revision = "890a5c3458b43e6104ff5da8dfa139d013d77544"
 
 [[projects]]
-  branch = "master"
   name = "github.com/urfave/cli"
   packages = ["."]
   revision = "9e5b04886c4bfee2ceba1465b8121057355c4e53"
@@ -116,6 +111,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "d420f5b96ebe118ff1650e702cd485bebe83967b1053d7ae4a999966ba765ac9"
+  inputs-digest = "f3e3b6721567780d5ec707bdc50f3a56e4c25135c12796c867c5c0e20bd3c821"
   solver-name = "gps-cdcl"
   solver-version = 1
