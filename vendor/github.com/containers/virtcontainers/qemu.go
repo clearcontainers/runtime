@@ -310,11 +310,28 @@ func (q *qemu) appendSocket(devices []ciaoQemu.Device, socket Socket) []ciaoQemu
 	return devices
 }
 
+func networkModelToQemuType(model NetInterworkingModel) ciaoQemu.NetDeviceType {
+	switch model {
+	case ModelBridged:
+		return ciaoQemu.TAP
+	case ModelMacVtap:
+		return ciaoQemu.MACVTAP
+	//case ModelEnlightened:
+	// Here the Network plugin will create a VM native interface
+	// which could be MacVtap, IpVtap, SRIOV, veth-tap, vhost-user
+	// In these cases we will determine the interface type here
+	// and pass in the native interface through
+	default:
+		//TAP should work for most other cases
+		return ciaoQemu.TAP
+	}
+}
+
 func (q *qemu) appendNetworks(devices []ciaoQemu.Device, endpoints []Endpoint) []ciaoQemu.Device {
 	for idx, endpoint := range endpoints {
 		devices = append(devices,
 			ciaoQemu.NetDevice{
-				Type:          ciaoQemu.TAP,
+				Type:          networkModelToQemuType(endpoint.NetPair.NetInterworkingModel),
 				Driver:        ciaoQemu.VirtioNetPCI,
 				ID:            fmt.Sprintf("network-%d", idx),
 				IFName:        endpoint.NetPair.TAPIface.Name,
@@ -323,6 +340,7 @@ func (q *qemu) appendNetworks(devices []ciaoQemu.Device, endpoints []Endpoint) [
 				Script:        "no",
 				VHost:         true,
 				DisableModern: q.nestedRun,
+				FDs:           endpoint.NetPair.VMFds,
 			},
 		)
 	}

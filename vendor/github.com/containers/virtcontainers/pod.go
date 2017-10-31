@@ -347,8 +347,26 @@ func (podConfig *PodConfig) valid() bool {
 	return true
 }
 
+const (
+	// R/W lock
+	exclusiveLock = syscall.LOCK_EX
+
+	// Read only lock
+	sharedLock = syscall.LOCK_SH
+)
+
+// rLockPod locks the pod with a shared lock.
+func rLockPod(podID string) (*os.File, error) {
+	return lockPod(podID, sharedLock)
+}
+
+// rwLockPod locks the pod with an exclusive lock.
+func rwLockPod(podID string) (*os.File, error) {
+	return lockPod(podID, exclusiveLock)
+}
+
 // lock locks any pod to prevent it from being accessed by other processes.
-func lockPod(podID string) (*os.File, error) {
+func lockPod(podID string, lockType int) (*os.File, error) {
 	if podID == "" {
 		return nil, errNeedPodID
 	}
@@ -364,8 +382,7 @@ func lockPod(podID string) (*os.File, error) {
 		return nil, err
 	}
 
-	err = syscall.Flock(int(lockFile.Fd()), syscall.LOCK_EX)
-	if err != nil {
+	if err := syscall.Flock(int(lockFile.Fd()), lockType); err != nil {
 		return nil, err
 	}
 
@@ -414,6 +431,8 @@ type Pod struct {
 	lockFile *os.File
 
 	annotationsLock *sync.RWMutex
+
+	wg *sync.WaitGroup
 }
 
 // ID returns the pod identifier string.
@@ -583,6 +602,7 @@ func doFetchPod(podConfig PodConfig) (*Pod, error) {
 		configPath:      filepath.Join(configStoragePath, podConfig.ID),
 		state:           State{},
 		annotationsLock: &sync.RWMutex{},
+		wg:              &sync.WaitGroup{},
 	}
 
 	containers, err := newContainers(p, podConfig.Containers)
@@ -1016,6 +1036,20 @@ func (p *Pod) getAndSetPodBlockIndex() (int, error) {
 	return currentIndex, nil
 }
 
+// decrementPodBlockIndex decrements the current pod block index.
+// This is used to recover from failure while adding a block device.
+func (p *Pod) decrementPodBlockIndex() error {
+	p.state.BlockIndex--
+
+	// update on-disk state
+	err := p.storage.storePodResource(p.id, stateFileType, p.state)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (p *Pod) getContainer(containerID string) (*Container, error) {
 	if containerID == "" {
 		return &Container{}, errNeedContainerID
@@ -1131,7 +1165,7 @@ func togglePausePod(podID string, pause bool) (*Pod, error) {
 		return nil, errNeedPod
 	}
 
-	lockFile, err := lockPod(podID)
+	lockFile, err := rwLockPod(podID)
 	if err != nil {
 		return nil, err
 	}

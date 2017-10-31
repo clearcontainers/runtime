@@ -664,7 +664,7 @@ func TestStatusPodSuccessfulStateRunning(t *testing.T) {
 			{
 				ID: containerID,
 				State: State{
-					State: StateStopped,
+					State: StateRunning,
 					URL:   "",
 				},
 				PID:         1000,
@@ -1462,6 +1462,8 @@ func TestStatusContainerStateReady(t *testing.T) {
 		Annotations: containerAnnotations,
 	}
 
+	defer p2.wg.Wait()
+
 	status, err := statusContainer(p2, contID)
 	if err != nil {
 		t.Fatal(err)
@@ -1526,13 +1528,15 @@ func TestStatusContainerStateRunning(t *testing.T) {
 	expectedStatus := ContainerStatus{
 		ID: contID,
 		State: State{
-			State: StateStopped,
+			State: StateRunning,
 			URL:   "",
 		},
 		PID:         1000,
 		RootFs:      filepath.Join(testDir, testBundle),
 		Annotations: containerAnnotations,
 	}
+
+	defer p2.wg.Wait()
 
 	status, err := statusContainer(p2, contID)
 	if err != nil {

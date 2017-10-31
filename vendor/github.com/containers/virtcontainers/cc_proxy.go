@@ -20,11 +20,19 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"time"
 
 	"github.com/clearcontainers/proxy/client"
+	"github.com/sirupsen/logrus"
 )
 
 var defaultCCProxyURL = "unix:///run/cc-oci-runtime/proxy.sock"
+
+const (
+	// Number of seconds to wait for the proxy to respond to a connection
+	// request.
+	waitForProxyTimeoutSecs = 5.0
+)
 
 type ccProxy struct {
 	client *client.Client
@@ -34,6 +42,58 @@ type ccProxy struct {
 // the Clear Containers proxy initialization.
 type CCProxyConfig struct {
 	URL string
+}
+
+// connectProxyRetry repeatedly tries to connect to the proxy on the specified
+// address until a timeout state is reached, when it will fail.
+func (p *ccProxy) connectProxyRetry(scheme, address string) (conn net.Conn, err error) {
+	attempt := 1
+
+	timeoutSecs := time.Duration(waitForProxyTimeoutSecs * time.Second)
+
+	startTime := time.Now()
+	lastLogTime := startTime
+
+	for {
+		conn, err = net.Dial(scheme, address)
+		if err == nil {
+			// If the initial connection was unsuccessful,
+			// ensure a log message is generated when successfully
+			// connected.
+			if attempt > 1 {
+				proxyLogger().WithField("attempt", fmt.Sprintf("%d", attempt)).Info("Connected to proxy")
+			}
+
+			return conn, nil
+		}
+
+		attempt++
+
+		now := time.Now()
+
+		delta := now.Sub(startTime)
+		remaining := timeoutSecs - delta
+
+		if remaining <= 0 {
+			return nil, fmt.Errorf("failed to connect to proxy after %v: %v", timeoutSecs, err)
+		}
+
+		logDelta := now.Sub(lastLogTime)
+		logDeltaSecs := logDelta / time.Second
+
+		if logDeltaSecs >= 1 {
+			proxyLogger().WithError(err).WithFields(logrus.Fields{
+				"attempt":             fmt.Sprintf("%d", attempt),
+				"proxy-network":       scheme,
+				"proxy-address":       address,
+				"remaining-time-secs": fmt.Sprintf("%2.2f", remaining.Seconds()),
+			}).Warning("Retrying proxy connection")
+
+			lastLogTime = now
+		}
+
+		time.Sleep(time.Duration(100) * time.Millisecond)
+	}
 }
 
 func (p *ccProxy) connectProxy(proxyURL string) (*client.Client, error) {
@@ -59,7 +119,7 @@ func (p *ccProxy) connectProxy(proxyURL string) (*client.Client, error) {
 		address = u.Path
 	}
 
-	conn, err := net.Dial(u.Scheme, address)
+	conn, err := p.connectProxyRetry(u.Scheme, address)
 	if err != nil {
 		return nil, err
 	}

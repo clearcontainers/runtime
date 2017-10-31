@@ -19,6 +19,7 @@ package virtcontainers
 import (
 	"crypto/rand"
 	"fmt"
+	"os"
 	"os/exec"
 )
 
@@ -63,4 +64,17 @@ func reverseString(s string) string {
 	}
 
 	return string(r)
+}
+
+func cleanupFds(fds []*os.File, numFds int) {
+
+	maxFds := len(fds)
+
+	if numFds < maxFds {
+		maxFds = numFds
+	}
+
+	for i := 0; i < maxFds; i++ {
+		_ = fds[i].Close()
+	}
 }

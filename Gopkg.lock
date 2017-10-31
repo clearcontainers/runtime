@@ -30,7 +30,7 @@
 [[projects]]
   name = "github.com/containers/virtcontainers"
   packages = [".","pkg/cni","pkg/hyperstart","pkg/oci","pkg/uuid","pkg/vcMock"]
-  revision = "e8b0c3a6c9fd7691e37a6aa73ed6af4c42f42ad1"
+  revision = "c3c42b5690ce384a26dcb8ac59e922a20dd0ac7a"
 
 [[projects]]
   branch = "master"
@@ -96,7 +96,7 @@
 [[projects]]
   name = "github.com/vishvananda/netlink"
   packages = [".","nl"]
-  revision = "177f1ceba557262b3f1c3aba4df93a29199fb4eb"
+  revision = "b7fbf1f5291ecf8ae5179d3202e914cb98cfe400"
 
 [[projects]]
   name = "github.com/vishvananda/netns"
@@ -116,6 +116,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "3c1e5894ba73555107971ec0b7f8e27019e5f1f8669f8e25ae6fd8f3b345c110"
+  inputs-digest = "d420f5b96ebe118ff1650e702cd485bebe83967b1053d7ae4a999966ba765ac9"
   solver-name = "gps-cdcl"
   solver-version = 1
