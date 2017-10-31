@@ -163,7 +163,8 @@ func resolvePath(path string) (string, error) {
 }
 
 // runCommandFull returns the commands space-trimmed standard output and
-// error on success
+// error on success. Note that if the command fails, the requested output will
+// still be returned, along with an error.
 func runCommandFull(args []string, includeStderr bool) (string, error) {
 	cmd := exec.Command(args[0], args[1:]...)
 	var err error
@@ -175,13 +176,9 @@ func runCommandFull(args []string, includeStderr bool) (string, error) {
 		bytes, err = cmd.Output()
 	}
 
-	if err != nil {
-		return "", err
-	}
-
 	trimmed := strings.TrimSpace(string(bytes))
 
-	return trimmed, nil
+	return trimmed, err
 }
 
 // runCommand returns the commands space-trimmed standard output on success
