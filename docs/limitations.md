@@ -1,5 +1,38 @@
 # Clear Containers known differences and limitations
 
+* [Pending items](#pending-items)
+    * [Networking](#networking)
+        * [Adding networks dynamically](#adding-networks-dynamically)
+    * [Resource management](#resource-management)
+        * [`docker run --cpus=`](#docker-run---cpus)
+        * [`docker run --kernel-memory=`](#docker-run---kernel-memory)
+        * [shm](#shm)
+        * [cgroup constraints](#cgroup-constraints)
+        * [Capabilities](#capabilities)
+        * [sysctl](#sysctl)
+        * [tmpfs](#tmpfs)
+    * [Other](#other)
+        * [checkpoint and restore](#checkpointandrestore)
+        * [`docker stats`](#docker-stats)
+    * [runtime commands](#runtime-commands)
+        * [`ps` command](#pscommand)
+        * [`events` command](#events-command)
+        * [`update` command](#update-command)
+  * [Architectural limitations](#architectural-limitations)
+      * [Networking](#networking)
+        * [Support for joining an existing VM network](#support-for-joining-an-existing-vmnetwork)
+        * [`docker --net=host`](#docker---nethost)
+        * [`docker run --link`](#docker-run---link)
+    * [Host resource sharing](#host-resource-sharing)
+        * [`docker --device`](#docker---device)
+        * [`docker -v /dev/...`](#docker--v-dev)
+        * [`docker run --privileged`](#docker-run---privileged)
+    * [Other](#other)
+        * [Annotations](#annotations)
+    * [runtime commands](#runtime-commands)
+        * [`init` command](#init-command)
+        * [`spec` command](#spec-command)
+
 As Intel® Clear Containers utilises Virtual Machines (VM) to enhance
 security and isolation of container workloads, the `cc-runtime` has a
 number of differences and limitations when compared with the standard
