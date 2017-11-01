@@ -3,8 +3,10 @@ cc_agent_version=0fca1509afbaa18c5a0ddf213f2e377c7b87dcc7
 clear_vm_image_version=18770
 #Kernel configuration and patches from https://github.com/clearcontainers/linux
 clear_container_kernel=v4.9.58-79.container
-#Docker suported version: 
+
+# Supported Docker version
 docker_version=v17.09-ce
+
 #Supported OCI spec: https://github.com/opencontainers/runtime-spec/releases
 oci_spec_version=v1.0.0-rc5
 
