@@ -1,6 +1,7 @@
 # Clear Containers known differences and limitations
 
 * [Pending items](#pending-items)
+    * [Docker swarm support](#docker-swarm-support)
     * [Networking](#networking)
         * [Adding networks dynamically](#adding-networks-dynamically)
     * [Resource management](#resource-management)
@@ -52,6 +53,21 @@ more detailed information.
 ## Pending items
 
 This section lists items that may technically be fixable:
+
+### Docker swarm support
+
+The newest version of Docker supported is specified by the `docker_version`
+variable in the
+[versions.txt](https://github.com/clearcontainers/runtime/blob/master/versions.txt)
+file.
+
+However, if you wish to use Docker's swarm facility, an older version of Docker is
+required. This is specified by the `docker_swarm_version` variable in the
+[versions.txt](https://github.com/clearcontainers/runtime/blob/master/versions.txt)
+file.
+
+See issue [\#771](https://github.com/clearcontainers/runtime/issues/771) for more
+information.
 
 ### Networking
 
