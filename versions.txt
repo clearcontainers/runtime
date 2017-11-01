@@ -4,8 +4,11 @@ clear_vm_image_version=18770
 #Kernel configuration and patches from https://github.com/clearcontainers/linux
 clear_container_kernel=v4.9.58-79.container
 
-# Supported Docker version
+# Supported Docker version (but see docker_swarm_version)
 docker_version=v17.09-ce
+
+# Version of docker required to use Docker's swarm feature
+docker_swarm_version=1.12.1
 
 #Supported OCI spec: https://github.com/opencontainers/runtime-spec/releases
 oci_spec_version=v1.0.0-rc5
