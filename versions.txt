@@ -1,8 +1,8 @@
 cc_agent_version=0fca1509afbaa18c5a0ddf213f2e377c7b87dcc7
 #Clear Containers image from https://download.clearlinux.org/releases/
-clear_vm_image_version=18520
+clear_vm_image_version=18770
 #Kernel configuration and patches from https://github.com/clearcontainers/linux
-clear_container_kernel=v4.9.54-79.container
+clear_container_kernel=v4.9.58-79.container
 #Docker suported version: 
 docker_version=v17.09-ce
 #Supported OCI spec: https://github.com/opencontainers/runtime-spec/releases
