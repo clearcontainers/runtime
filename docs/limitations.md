@@ -36,7 +36,7 @@
 As Intel® Clear Containers utilises Virtual Machines (VM) to enhance
 security and isolation of container workloads, the `cc-runtime` has a
 number of differences and limitations when compared with the standard
-Docker runtime, `runc`. Some of these limitations have potential
+Docker* runtime, `runc`. Some of these limitations have potential
 solutions, whereas others exist due to fundamental architectural
 differences generally related to the use of VMs.
 
