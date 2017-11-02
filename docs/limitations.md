@@ -1,9 +1,43 @@
 # Clear Containers known differences and limitations
 
+* [Pending items](#pending-items)
+    * [Docker swarm support](#docker-swarm-support)
+    * [Networking](#networking)
+        * [Adding networks dynamically](#adding-networks-dynamically)
+    * [Resource management](#resource-management)
+        * [`docker run --cpus=`](#docker-run---cpus)
+        * [`docker run --kernel-memory=`](#docker-run---kernel-memory)
+        * [shm](#shm)
+        * [cgroup constraints](#cgroup-constraints)
+        * [Capabilities](#capabilities)
+        * [sysctl](#sysctl)
+        * [tmpfs](#tmpfs)
+    * [Other](#other)
+        * [checkpoint and restore](#checkpointandrestore)
+        * [`docker stats`](#docker-stats)
+    * [runtime commands](#runtime-commands)
+        * [`ps` command](#pscommand)
+        * [`events` command](#events-command)
+        * [`update` command](#update-command)
+  * [Architectural limitations](#architectural-limitations)
+      * [Networking](#networking)
+        * [Support for joining an existing VM network](#support-for-joining-an-existing-vmnetwork)
+        * [`docker --net=host`](#docker---nethost)
+        * [`docker run --link`](#docker-run---link)
+    * [Host resource sharing](#host-resource-sharing)
+        * [`docker --device`](#docker---device)
+        * [`docker -v /dev/...`](#docker--v-dev)
+        * [`docker run --privileged`](#docker-run---privileged)
+    * [Other](#other)
+        * [Annotations](#annotations)
+    * [runtime commands](#runtime-commands)
+        * [`init` command](#init-command)
+        * [`spec` command](#spec-command)
+
 As Intel® Clear Containers utilises Virtual Machines (VM) to enhance
 security and isolation of container workloads, the `cc-runtime` has a
 number of differences and limitations when compared with the standard
-Docker runtime, `runc`. Some of these limitations have potential
+Docker* runtime, `runc`. Some of these limitations have potential
 solutions, whereas others exist due to fundamental architectural
 differences generally related to the use of VMs.
 
@@ -19,6 +53,21 @@ more detailed information.
 ## Pending items
 
 This section lists items that may technically be fixable:
+
+### Docker swarm support
+
+The newest version of Docker supported is specified by the `docker_version`
+variable in the
+[versions.txt](https://github.com/clearcontainers/runtime/blob/master/versions.txt)
+file.
+
+However, if you wish to use Docker's swarm facility, an older version of Docker is
+required. This is specified by the `docker_swarm_version` variable in the
+[versions.txt](https://github.com/clearcontainers/runtime/blob/master/versions.txt)
+file.
+
+See issue [\#771](https://github.com/clearcontainers/runtime/issues/771) for more
+information.
 
 ### Networking
 
