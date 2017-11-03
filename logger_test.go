@@ -243,3 +243,30 @@ func TestLoggerFire(t *testing.T) {
 	err = ccLog.Logger.Hooks.Fire(logrus.InfoLevel, entry)
 	assert.Error(t, err)
 }
+
+func TestLoggerFormatFields(t *testing.T) {
+	assert := assert.New(t)
+
+	fields := logrus.Fields{
+		"zzz-last-field":  "The End.",
+		"int":             999,
+		"string":          "foo bar",
+		"float":           3.14159,
+		"bool-true":       true,
+		"aaa-first-field": "winner!",
+		"bool-false":      false,
+	}
+
+	expected := ""
+	expected += "aaa-first-field=\"winner!\""
+	expected += " bool-false=\"false\""
+	expected += " bool-true=\"true\""
+	expected += " float=\"3.14159\""
+	expected += " int=\"999\""
+	expected += " string=\"foo bar\""
+	expected += " zzz-last-field=\"The End.\""
+
+	result := formatFields(fields)
+
+	assert.Equal(expected, result)
+}

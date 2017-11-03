@@ -141,8 +141,15 @@ func formatFields(fields map[string]interface{}) string {
 
 	var sorted []string
 
-	for _, k := range keys {
-		sorted = append(sorted, fmt.Sprintf("%s=%q", k, fields[k]))
+	for _, key := range keys {
+		v := fields[key]
+		value, ok := v.(string)
+
+		if !ok {
+			value = fmt.Sprint(v)
+		}
+
+		sorted = append(sorted, fmt.Sprintf("%s=%q", key, value))
 	}
 
 	return strings.Join(sorted, " ")
