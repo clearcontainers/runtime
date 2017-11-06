@@ -52,7 +52,7 @@ NOTES:
 // ccLog is the logger used to record all messages
 var ccLog *logrus.Entry
 
-// originalLoggerLevel is the default log level. It is used to rever the
+// originalLoggerLevel is the default log level. It is used to revert the
 // current log level back to its original value if debug output is not
 // required.
 var originalLoggerLevel logrus.Level
