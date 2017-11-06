@@ -57,6 +57,9 @@ const (
 
 	// supported agent component types
 	hyperstartAgentTableType = "hyperstart"
+
+	// the maximum amount of PCI bridges that can be cold plugged in a VM
+	maxPCIBridges uint32 = 5
 )
 
 var (
@@ -82,6 +85,7 @@ type hypervisor struct {
 	MachineType           string `toml:"machine_type"`
 	DefaultVCPUs          int32  `toml:"default_vcpus"`
 	DefaultMemSz          uint32 `toml:"default_memory"`
+	DefaultBridges        uint32 `toml:"default_bridges"`
 	DisableBlockDeviceUse bool   `toml:"disable_block_device_use"`
 	MemPrealloc           bool   `toml:"enable_mem_prealloc"`
 	HugePages             bool   `toml:"enable_hugepages"`
@@ -203,6 +207,18 @@ func (h hypervisor) defaultMemSz() uint32 {
 	return h.DefaultMemSz
 }
 
+func (h hypervisor) defaultBridges() uint32 {
+	if h.DefaultBridges == 0 {
+		return defaultBridgesCount
+	}
+
+	if h.DefaultBridges > maxPCIBridges {
+		return maxPCIBridges
+	}
+
+	return h.DefaultBridges
+}
+
 func (p proxy) path() string {
 	if p.Path == "" {
 		return defaultProxyPath
@@ -264,6 +280,7 @@ func newQemuHypervisorConfig(h hypervisor) (vc.HypervisorConfig, error) {
 		HypervisorMachineType: machineType,
 		DefaultVCPUs:          h.defaultVCPUs(),
 		DefaultMemSz:          h.defaultMemSz(),
+		DefaultBridges:        h.defaultBridges(),
 		DisableBlockDeviceUse: h.DisableBlockDeviceUse,
 		MemPrealloc:           h.MemPrealloc,
 		HugePages:             h.HugePages,
@@ -369,6 +386,7 @@ func loadConfiguration(configPath string, ignoreLogging bool) (resolvedConfigPat
 		HypervisorMachineType: defaultMachineType,
 		DefaultVCPUs:          defaultVCPUCount,
 		DefaultMemSz:          defaultMemSize,
+		DefaultBridges:        defaultBridgesCount,
 		MemPrealloc:           defaultEnableMemPrealloc,
 		HugePages:             defaultEnableHugePages,
 		Mlock:                 !defaultEnableSwap,
