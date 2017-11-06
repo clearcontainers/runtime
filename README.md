@@ -14,7 +14,6 @@
 * [Community](#community)
 * [Configuration](#configuration)
 * [Debugging](#debugging)
-    * [Global logfile](#global-logfile)
     * [Enabling debug for various components](#enabling-debug-for-various-components)
 * [Limitations](#limitations)
 * [Home Page](#home-page)
@@ -82,40 +81,16 @@ $ cc-runtime cc-env
 
 ## Debugging
 
-### Global logfile
+The runtime provides `--log=` and `--log-format=` options. However, it can
+also be configured to log to the system log (syslog or `journald`) such that
+all log data is sent to both the specified logfile and the system log. The
+latter is useful as it is independent of the lifecycle of each container.
 
-To provide a persistent log of all container activity on the system, the runtime
-offers a global logging facility. By default, this feature is disabled
-but can be enabled with a simple change to the [configuration](#Configuration) file.
-
-First, to determine the configuration file path for your host run:
-
-```bash
-$ cc-runtime cc-env | grep -A 1 Runtime.Config
-```
-
-To enable the global log:
+To view runtime log output,
 
 ```bash
-$ sudo sed -i -e 's/^#\(\[runtime\]\|global_log_path =\)/\1/g' $path_to_your_config_file
+$ sudo journalctl -t cc-runtime
 ```
-
-The path to the global log file can be determined subsequently by running:
-
-```bash
-$ cc-runtime cc-env | grep GlobalLogPath
-```
-
-Note that it is also possible to enable the global log by setting the
-`CC_RUNTIME_GLOBAL_LOG` environment variable to a suitable path. The
-environment variable takes priority over the configuration file.
-
-The global logfile path must be specified as an absolute path. If the
-directory specified by the logfile path does not exist, the runtime will
-attempt to create it.
-
-It is the Administrator's responsibility to ensure there is sufficient
-space for the global log.
 
 ### Enabling debug for various components
 

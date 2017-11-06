@@ -204,6 +204,26 @@ func createEmptyFile(path string) (err error) {
 	return ioutil.WriteFile(path, []byte(""), testFileMode)
 }
 
+func grep(pattern, file string) error {
+	if file == "" {
+		return errors.New("need file")
+	}
+
+	bytes, err := ioutil.ReadFile(file)
+	if err != nil {
+		return err
+	}
+
+	re := regexp.MustCompile(pattern)
+	matches := re.FindAllStringSubmatch(string(bytes), -1)
+
+	if matches == nil {
+		return fmt.Errorf("pattern %q not found in file %q", pattern, file)
+	}
+
+	return nil
+}
+
 // newTestCmd creates a new virtcontainers Cmd to run a shell
 func newTestCmd() vc.Cmd {
 	envs := []vc.EnvVar{

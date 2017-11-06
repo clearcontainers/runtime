@@ -771,8 +771,6 @@ func TestCCCheckCLIFunction(t *testing.T) {
 	}
 	defer os.RemoveAll(dir)
 
-	logfile := filepath.Join(dir, "global.log")
-
 	savedSysModuleDir := sysModuleDir
 	savedProcCPUInfo := procCPUInfo
 
@@ -813,14 +811,7 @@ func TestCCCheckCLIFunction(t *testing.T) {
 		ccLog.Logger.Out = savedLogOutput
 	}()
 
-	assert.False(fileExists(logfile))
-
-	err = handleGlobalLog(logfile)
-	assert.NoError(err)
-
 	setupCheckHostIsClearContainersCapable(assert, cpuInfoFile, cpuData, moduleData)
-
-	assert.True(fileExists(logfile))
 
 	app := cli.NewApp()
 	ctx := cli.NewContext(app, nil, nil)
@@ -830,9 +821,6 @@ func TestCCCheckCLIFunction(t *testing.T) {
 	assert.True(ok)
 
 	err = fn(ctx)
-	assert.NoError(err)
-
-	err = grep(successMessage, logfile)
 	assert.NoError(err)
 }
 

@@ -199,7 +199,7 @@ func beforeSubcommands(context *cli.Context) error {
 		ignoreLogging = true
 	}
 
-	configFile, logfilePath, runtimeConfig, err := loadConfiguration(context.GlobalString("cc-config"), ignoreLogging)
+	configFile, runtimeConfig, err := loadConfiguration(context.GlobalString("cc-config"), ignoreLogging)
 	if err != nil {
 		fatal(err)
 	}
@@ -219,7 +219,6 @@ func beforeSubcommands(context *cli.Context) error {
 	context.App.Metadata = map[string]interface{}{
 		"runtimeConfig": runtimeConfig,
 		"configFile":    configFile,
-		"logfilePath":   logfilePath,
 	}
 
 	return nil

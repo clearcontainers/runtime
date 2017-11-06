@@ -93,8 +93,7 @@ type proxy struct {
 }
 
 type runtime struct {
-	GlobalLogPath string `toml:"global_log_path"`
-	Debug         bool   `toml:"enable_debug"`
+	Debug bool `toml:"enable_debug"`
 }
 
 type shim struct {
@@ -311,12 +310,12 @@ func updateRuntimeConfig(configPath string, tomlConf tomlConfig, config *oci.Run
 // loadConfiguration loads the configuration file and converts it into a
 // runtime configuration.
 //
-// If ignoreLogging is true, the global log will not be initialised nor
+// If ignoreLogging is true, the system logger will not be initialised nor
 // will this function make any log calls.
 //
 // All paths are resolved fully meaning if this function does not return an
 // error, all paths are valid at the time of the call.
-func loadConfiguration(configPath string, ignoreLogging bool) (resolvedConfigPath, logfilePath string, config oci.RuntimeConfig, err error) {
+func loadConfiguration(configPath string, ignoreLogging bool) (resolvedConfigPath string, config oci.RuntimeConfig, err error) {
 	defaultHypervisorConfig := vc.HypervisorConfig{
 		HypervisorPath:        defaultHypervisorPath,
 		KernelPath:            defaultKernelPath,
@@ -351,21 +350,19 @@ func loadConfiguration(configPath string, ignoreLogging bool) (resolvedConfigPat
 	}
 
 	if err != nil {
-		return "", "", config, fmt.Errorf("Cannot find usable config file (%v)", err)
+		return "", config, fmt.Errorf("Cannot find usable config file (%v)", err)
 	}
 
 	configData, err := ioutil.ReadFile(resolved)
 	if err != nil {
-		return "", "", config, err
+		return "", config, err
 	}
 
 	var tomlConf tomlConfig
 	_, err = toml.Decode(string(configData), &tomlConf)
 	if err != nil {
-		return "", "", config, err
+		return "", config, err
 	}
-
-	logfilePath = tomlConf.Runtime.GlobalLogPath
 
 	if !tomlConf.Runtime.Debug {
 		// If debug is not required, switch back to the original
@@ -374,25 +371,22 @@ func loadConfiguration(configPath string, ignoreLogging bool) (resolvedConfigPat
 	}
 
 	if !ignoreLogging {
-		// The configuration file may have enabled global logging,
-		// so handle that before any log calls.
-		err = handleGlobalLog(logfilePath)
+		err = handleSystemLog("", "")
 		if err != nil {
-			return "", "", config, err
+			return "", config, err
 		}
 
 		ccLog.WithFields(
 			logrus.Fields{
-				"file":   logfilePath,
 				"format": "TOML",
 			}).Debugf("loaded configuration")
 	}
 
 	if err := updateRuntimeConfig(resolved, tomlConf, &config); err != nil {
-		return "", "", config, err
+		return "", config, err
 	}
 
-	return resolved, logfilePath, config, nil
+	return resolved, config, nil
 }
 
 // getDefaultConfigFilePaths returns a list of paths that will be
