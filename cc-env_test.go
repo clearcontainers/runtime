@@ -737,28 +737,8 @@ func TestCCEnvGetAgentInfo(t *testing.T) {
 	expectedAgent, err := getExpectedAgentDetails(config)
 	assert.NoError(t, err)
 
-	ccAgent, err := getAgentInfo(config)
-	assert.NoError(t, err)
-
+	ccAgent := getAgentInfo(config)
 	assert.Equal(t, expectedAgent, ccAgent)
-}
-
-func TestCCEnvGetAgentInfoInvalidType(t *testing.T) {
-	tmpdir, err := ioutil.TempDir("", "")
-	if err != nil {
-		panic(err)
-	}
-	defer os.RemoveAll(tmpdir)
-
-	_, config, err := makeRuntimeConfig(tmpdir)
-	assert.NoError(t, err)
-
-	_, err = getExpectedAgentDetails(config)
-	assert.NoError(t, err)
-
-	config.AgentConfig = "foo"
-	_, err = getAgentInfo(config)
-	assert.NoError(t, err)
 }
 
 func testCCEnvShowSettings(t *testing.T, tmpdir string, tmpfile *os.File) error {

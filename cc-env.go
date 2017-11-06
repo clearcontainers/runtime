@@ -246,13 +246,13 @@ func getShimInfo(config oci.RuntimeConfig) (ShimInfo, error) {
 	return ccShim, nil
 }
 
-func getAgentInfo(config oci.RuntimeConfig) (AgentInfo, error) {
+func getAgentInfo(config oci.RuntimeConfig) AgentInfo {
 	ccAgent := AgentInfo{
 		Type:    string(config.AgentType),
 		Version: unknown,
 	}
 
-	return ccAgent, nil
+	return ccAgent
 }
 
 func getHypervisorInfo(config oci.RuntimeConfig) HypervisorInfo {
@@ -290,10 +290,7 @@ func getEnvInfo(configFile, logfilePath string, config oci.RuntimeConfig) (env E
 		return EnvInfo{}, err
 	}
 
-	ccAgent, err := getAgentInfo(config)
-	if err != nil {
-		return EnvInfo{}, err
-	}
+	ccAgent := getAgentInfo(config)
 
 	hypervisor := getHypervisorInfo(config)
 
