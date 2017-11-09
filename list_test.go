@@ -39,21 +39,39 @@ type TestFileWriter struct {
 }
 
 var hypervisorDetails1 = hypervisorDetails{
-	HypervisorPath: "/hypervisor/path",
-	ImagePath:      "/image/path",
-	KernelPath:     "/kernel/path",
+	HypervisorAsset: asset{
+		Path: "/hypervisor/path",
+	},
+	ImageAsset: asset{
+		Path: "/image/path",
+	},
+	KernelAsset: asset{
+		Path: "/kernel/path",
+	},
 }
 
 var hypervisorDetails2 = hypervisorDetails{
-	HypervisorPath: "/hypervisor/path2",
-	ImagePath:      "/image/path2",
-	KernelPath:     "/kernel/path2",
+	HypervisorAsset: asset{
+		Path: "/hypervisor/path2",
+	},
+	ImageAsset: asset{
+		Path: "/image/path2",
+	},
+	KernelAsset: asset{
+		Path: "/kernel/path2",
+	},
 }
 
 var hypervisorDetails3 = hypervisorDetails{
-	HypervisorPath: "/hypervisor/path3",
-	ImagePath:      "/image/path3",
-	KernelPath:     "/kernel/path3",
+	HypervisorAsset: asset{
+		Path: "/hypervisor/path3",
+	},
+	ImageAsset: asset{
+		Path: "/image/path3",
+	},
+	KernelAsset: asset{
+		Path: "/kernel/path3",
+	},
 }
 
 var testStatuses = []fullContainerState{
@@ -269,11 +287,11 @@ func TestStateToTabular(t *testing.T) {
 			regexp.QuoteMeta(status.Bundle),
 			regexp.QuoteMeta(status.Created.Format(time.RFC3339Nano)),
 			regexp.QuoteMeta(status.Owner),
-			regexp.QuoteMeta(status.CurrentHypervisorDetails.HypervisorPath),
-			regexp.QuoteMeta(status.CurrentHypervisorDetails.KernelPath),
-			regexp.QuoteMeta(status.CurrentHypervisorDetails.ImagePath),
-			regexp.QuoteMeta(status.LatestHypervisorDetails.KernelPath),
-			regexp.QuoteMeta(status.LatestHypervisorDetails.ImagePath),
+			regexp.QuoteMeta(status.CurrentHypervisorDetails.HypervisorAsset.Path),
+			regexp.QuoteMeta(status.CurrentHypervisorDetails.KernelAsset.Path),
+			regexp.QuoteMeta(status.CurrentHypervisorDetails.ImageAsset.Path),
+			regexp.QuoteMeta(status.LatestHypervisorDetails.KernelAsset.Path),
+			regexp.QuoteMeta(status.LatestHypervisorDetails.ImageAsset.Path),
 			regexp.QuoteMeta("-"))
 
 		expectedLineRE := regexp.MustCompile(expectedLinePattern)

@@ -27,6 +27,7 @@ import (
 
 	"github.com/urfave/cli"
 
+	vc "github.com/containers/virtcontainers"
 	oci "github.com/containers/virtcontainers/pkg/oci"
 )
 
@@ -55,12 +56,17 @@ type containerState struct {
 	Owner string `json:"owner"`
 }
 
+type asset struct {
+	Path   string `json:"path"`
+	Custom bool   `json:"bool"`
+}
+
 // hypervisorDetails stores details of the hypervisor used to host
 // the container
 type hypervisorDetails struct {
-	HypervisorPath string `json:"hypervisorPath"`
-	ImagePath      string `json:"imagePath"`
-	KernelPath     string `json:"kernelPath"`
+	HypervisorAsset asset `json:"hypervisorAsset"`
+	ImageAsset      asset `json:"imageAsset"`
+	KernelAsset     asset `json:"kernelAsset"`
 }
 
 // fullContainerState specifies the core state plus the hypervisor
@@ -151,12 +157,40 @@ To list containers created using a non-default value for "--root":
 func getStaleAssets(old, new hypervisorDetails) []string {
 	var stale []string
 
-	if old.KernelPath != new.KernelPath {
-		stale = append(stale, "kernel")
+	if old.KernelAsset.Path != new.KernelAsset.Path {
+		if old.KernelAsset.Custom {
+			// The workload kernel asset is a custom one, i.e. it's not coming
+			// from the runtime configuration file. Thus it does not make sense
+			// to compare it against the configured kernel asset.
+			// We assume a custom kernel asset has been updated if the
+			// corresponding path no longer exists, i.e. it's been replaced by
+			// a new kernel, e.g. with a new version name.
+			// Replacing a custom kernel asset binary with exactly the same
+			// binary name won't allow us to detect if it's staled or not.
+			if _, err := os.Stat(old.KernelAsset.Path); os.IsNotExist(err) {
+				stale = append(stale, "kernel")
+			}
+		} else {
+			stale = append(stale, "kernel")
+		}
 	}
 
-	if old.ImagePath != new.ImagePath {
-		stale = append(stale, "image")
+	if old.ImageAsset.Path != new.ImageAsset.Path {
+		if old.ImageAsset.Custom {
+			// The workload image asset is a custom one, i.e. it's not coming
+			// from the runtime configuration file. Thus it does not make sense
+			// to compare it against the configured image asset.
+			// We assume a custom image asset has been updated if the
+			// corresponding path no longer exists, i.e. it's been replaced by
+			// a new image, e.g. with a new version name.
+			// Replacing a custom image asset binary with exactly the same
+			// binary name won't allow us to detect if it's staled or not.
+			if _, err := os.Stat(old.ImageAsset.Path); os.IsNotExist(err) {
+				stale = append(stale, "image")
+			}
+		} else {
+			stale = append(stale, "image")
+		}
 	}
 
 	return stale
@@ -208,15 +242,28 @@ func (f *formatTabular) Write(state []fullContainerState, showAll bool, file *os
 			current := item.CurrentHypervisorDetails
 			latest := item.LatestHypervisorDetails
 
-			fmt.Fprintf(w, "\t%s\t%s\t%s\t%s\t%s\t%s\n",
-				current.HypervisorPath,
-				current.KernelPath,
-				current.ImagePath,
-				latest.KernelPath,
-				latest.ImagePath,
-				stale)
+			all := fmt.Sprintf("\t%s\t%s\t%s",
+				current.HypervisorAsset.Path,
+				current.KernelAsset.Path,
+				current.ImageAsset.Path)
+
+			if !current.KernelAsset.Custom {
+				all += fmt.Sprintf("\t%s", latest.KernelAsset.Path)
+			} else {
+				all += fmt.Sprintf("\t%s", current.KernelAsset.Path)
+			}
+
+			if !current.ImageAsset.Custom {
+				all += fmt.Sprintf("\t%s", latest.ImageAsset.Path)
+			} else {
+				all += fmt.Sprintf("\t%s", current.ImageAsset.Path)
+			}
+
+			all += fmt.Sprintf("\t%s\n", stale)
+
+			fmt.Fprint(w, all)
 		} else {
-			fmt.Fprintf(w, "\n")
+			fmt.Fprint(w, "\n")
 		}
 	}
 
@@ -255,7 +302,7 @@ func getContainers(context *cli.Context) ([]fullContainerState, error) {
 		return nil, errors.New("invalid runtime config")
 	}
 
-	latestHypervisorDetails := getHypervisorDetails(runtimeConfig)
+	latestHypervisorDetails := getHypervisorDetails(&runtimeConfig.HypervisorConfig)
 
 	podList, err := vci.ListPod()
 	if err != nil {
@@ -270,11 +317,7 @@ func getContainers(context *cli.Context) ([]fullContainerState, error) {
 			continue
 		}
 
-		currentHypervisorDetails := hypervisorDetails{
-			HypervisorPath: pod.HypervisorConfig.HypervisorPath,
-			ImagePath:      pod.HypervisorConfig.ImagePath,
-			KernelPath:     pod.HypervisorConfig.KernelPath,
-		}
+		currentHypervisorDetails := getHypervisorDetails(&pod.HypervisorConfig)
 
 		for _, container := range pod.ContainersStatus {
 			ociState := oci.StatusToOCIState(container)
@@ -311,10 +354,34 @@ func getContainers(context *cli.Context) ([]fullContainerState, error) {
 
 // getHypervisorDetails returns details of the latest version of the
 // hypervisor and the associated assets.
-func getHypervisorDetails(runtimeConfig oci.RuntimeConfig) hypervisorDetails {
+func getHypervisorDetails(hypervisorConfig *vc.HypervisorConfig) hypervisorDetails {
+	hypervisorPath, err := hypervisorConfig.HypervisorAssetPath()
+	if err != nil {
+		hypervisorPath = hypervisorConfig.HypervisorPath
+	}
+
+	kernelPath, err := hypervisorConfig.KernelAssetPath()
+	if err != nil {
+		kernelPath = hypervisorConfig.KernelPath
+	}
+
+	imagePath, err := hypervisorConfig.ImageAssetPath()
+	if err != nil {
+		imagePath = hypervisorConfig.ImagePath
+	}
+
 	return hypervisorDetails{
-		HypervisorPath: runtimeConfig.HypervisorConfig.HypervisorPath,
-		KernelPath:     runtimeConfig.HypervisorConfig.KernelPath,
-		ImagePath:      runtimeConfig.HypervisorConfig.ImagePath,
+		HypervisorAsset: asset{
+			Path:   hypervisorPath,
+			Custom: hypervisorConfig.CustomHypervisorAsset(),
+		},
+		KernelAsset: asset{
+			Path:   kernelPath,
+			Custom: hypervisorConfig.CustomKernelAsset(),
+		},
+		ImageAsset: asset{
+			Path:   imagePath,
+			Custom: hypervisorConfig.CustomImageAsset(),
+		},
 	}
 }
