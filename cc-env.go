@@ -30,7 +30,7 @@ import (
 //
 // XXX: Increment for every change to the output format
 // (meaning any change to the EnvInfo type).
-const formatVersion = "1.0.5"
+const formatVersion = "1.0.6"
 
 // MetaInfo stores information on the format of the output itself
 type MetaInfo struct {
@@ -57,8 +57,7 @@ type CPUInfo struct {
 
 // RuntimeConfigInfo stores runtime config details.
 type RuntimeConfigInfo struct {
-	Path          string
-	GlobalLogPath string
+	Path string
 }
 
 // RuntimeInfo stores runtime details.
@@ -137,7 +136,7 @@ func getMetaInfo() MetaInfo {
 	}
 }
 
-func getRuntimeInfo(configFile, logFile string, config oci.RuntimeConfig) RuntimeInfo {
+func getRuntimeInfo(configFile string, config oci.RuntimeConfig) RuntimeInfo {
 	runtimeVersion := RuntimeVersionInfo{
 		Semver: version,
 		Commit: commit,
@@ -145,8 +144,7 @@ func getRuntimeInfo(configFile, logFile string, config oci.RuntimeConfig) Runtim
 	}
 
 	runtimeConfig := RuntimeConfigInfo{
-		GlobalLogPath: logFile,
-		Path:          configFile,
+		Path: configFile,
 	}
 
 	return RuntimeInfo{
@@ -270,10 +268,10 @@ func getHypervisorInfo(config oci.RuntimeConfig) HypervisorInfo {
 	}
 }
 
-func getEnvInfo(configFile, logfilePath string, config oci.RuntimeConfig) (env EnvInfo, err error) {
+func getEnvInfo(configFile string, config oci.RuntimeConfig) (env EnvInfo, err error) {
 	meta := getMetaInfo()
 
-	ccRuntime := getRuntimeInfo(configFile, logfilePath, config)
+	ccRuntime := getRuntimeInfo(configFile, config)
 
 	ccHost, err := getHostInfo()
 	if err != nil {
@@ -344,12 +342,7 @@ func handleSettings(file *os.File, metadata map[string]interface{}) error {
 		return errors.New("cannot determine runtime config")
 	}
 
-	logfilePath, ok := metadata["logfilePath"].(string)
-	if !ok {
-		return errors.New("cannot determine logfile config")
-	}
-
-	ccEnv, err := getEnvInfo(configFile, logfilePath, runtimeConfig)
+	ccEnv, err := getEnvInfo(configFile, runtimeConfig)
 	if err != nil {
 		return err
 	}

@@ -194,29 +194,7 @@ show_runtime_log_details()
 {
 	subheading "Runtime logs"
 
-	local global_log=$($runtime cc-env |\
-		egrep "\<GlobalLogPath\>" |\
-		cut -d= -f2- |\
-		sed 's/^ *//g' |\
-		tr -d '"')
-
-	if [ -n "$global_log" ]; then
-		if [ -e "$global_log" ]; then
-			local problems=$(egrep -i "$problem_pattern" "$global_log"|tail -n ${PROBLEM_LIMIT})
-
-			if [ -n "$problems" ]; then
-				msg "Recent runtime problems found in global log \`$global_log\`:"
-				show_quoted_text "$problems"
-			else
-				msg "No recent runtime problems found in global log \`$global_log\`."
-			fi
-		else
-			msg "Global log \`$global_log\` does not exist."
-		fi
-
-	else
-		msg "Global log not enabled."
-	fi
+	find_system_journal_problems "runtime" "cc-runtime" ""
 }
 
 find_system_journal_problems()

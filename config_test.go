@@ -64,7 +64,6 @@ func makeRuntimeConfigFileData(hypervisor, hypervisorPath, kernelPath, imagePath
 	path = "` + shimPath + `"
 
         [runtime]
-        global_log_path = "` + logPath + `"
 	`
 }
 
@@ -210,7 +209,7 @@ func testLoadConfiguration(t *testing.T, dir string,
 					assert.NoError(t, err)
 				}
 
-				resolvedConfigPath, logfilePath, config, err := loadConfiguration(file, ignoreLogging)
+				resolvedConfigPath, config, err := loadConfiguration(file, ignoreLogging)
 				if expectFail {
 					assert.Error(t, err)
 
@@ -224,17 +223,6 @@ func testLoadConfiguration(t *testing.T, dir string,
 					assert.Equal(t, defaultRuntimeConfiguration, resolvedConfigPath)
 				} else {
 					assert.Equal(t, testConfig.ConfigPath, resolvedConfigPath)
-				}
-
-				assert.NotEqual(t, "", logfilePath)
-				assert.Equal(t, logfilePath, testConfig.LogPath)
-
-				if ignoreLogging {
-					assert.False(t, fileExists(testConfig.LogDir))
-					assert.False(t, fileExists(testConfig.LogPath))
-				} else {
-					assert.True(t, fileExists(testConfig.LogDir))
-					assert.True(t, fileExists(testConfig.LogPath))
 				}
 
 				assert.Equal(t, defaultRuntimeConfiguration, resolvedConfigPath)
@@ -410,44 +398,6 @@ func TestConfigLoadConfigurationFailUnreadableConfig(t *testing.T) {
 		})
 }
 
-func TestConfigLoadConfigurationFailInvalidLogPath(t *testing.T) {
-	if os.Geteuid() == 0 {
-		t.Skip(testDisabledNeedNonRoot)
-	}
-
-	tmpdir, err := ioutil.TempDir(testDir, "runtime-config-")
-	assert.NoError(t, err)
-	defer os.RemoveAll(tmpdir)
-
-	testLoadConfiguration(t, tmpdir,
-		func(config testRuntimeConfig, configFile string, ignoreLogging bool) (bool, error) {
-			if ignoreLogging {
-				return false, nil
-			}
-
-			expectFail := true
-
-			err := os.RemoveAll(config.LogDir)
-			if err != nil {
-				return expectFail, err
-			}
-
-			parentDir := filepath.Dir(config.LogDir)
-
-			err = os.MkdirAll(parentDir, testDirMode)
-			if err != nil {
-				return expectFail, err
-			}
-
-			err = createEmptyFile(config.LogDir)
-			if err != nil {
-				return expectFail, err
-			}
-
-			return expectFail, nil
-		})
-}
-
 func TestConfigLoadConfigurationFailTOMLConfigFileInvalidContents(t *testing.T) {
 	if os.Geteuid() == 0 {
 		t.Skip(testDisabledNeedNonRoot)
@@ -528,7 +478,7 @@ func TestMinimalRuntimeConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, _, config, err := loadConfiguration(configPath, false)
+	_, config, err := loadConfiguration(configPath, false)
 	if err == nil {
 		t.Fatalf("Expected loadConfiguration to fail as shim path does not exist: %+v", config)
 	}
@@ -538,7 +488,7 @@ func TestMinimalRuntimeConfig(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, _, config, err = loadConfiguration(configPath, false)
+	_, config, err = loadConfiguration(configPath, false)
 	if err != nil {
 		t.Fatal(err)
 	}

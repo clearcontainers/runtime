@@ -52,7 +52,7 @@ NOTES:
 // ccLog is the logger used to record all messages
 var ccLog *logrus.Entry
 
-// originalLoggerLevel is the default log level. It is used to rever the
+// originalLoggerLevel is the default log level. It is used to revert the
 // current log level back to its original value if debug output is not
 // required.
 var originalLoggerLevel logrus.Level
@@ -199,7 +199,7 @@ func beforeSubcommands(context *cli.Context) error {
 		ignoreLogging = true
 	}
 
-	configFile, logfilePath, runtimeConfig, err := loadConfiguration(context.GlobalString("cc-config"), ignoreLogging)
+	configFile, runtimeConfig, err := loadConfiguration(context.GlobalString("cc-config"), ignoreLogging)
 	if err != nil {
 		fatal(err)
 	}
@@ -219,7 +219,6 @@ func beforeSubcommands(context *cli.Context) error {
 	context.App.Metadata = map[string]interface{}{
 		"runtimeConfig": runtimeConfig,
 		"configFile":    configFile,
-		"logfilePath":   logfilePath,
 	}
 
 	return nil

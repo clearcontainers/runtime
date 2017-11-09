@@ -117,7 +117,7 @@ func makeRuntimeConfig(prefixDir string) (configFile string, config oci.RuntimeC
 		return "", oci.RuntimeConfig{}, err
 	}
 
-	_, _, config, err = loadConfiguration(configFile, true)
+	_, config, err = loadConfiguration(configFile, true)
 	if err != nil {
 		return "", oci.RuntimeConfig{}, err
 	}
@@ -252,7 +252,7 @@ func getExpectedKernel(config oci.RuntimeConfig) KernelInfo {
 	}
 }
 
-func getExpectedRuntimeDetails(configFile, logFile string) RuntimeInfo {
+func getExpectedRuntimeDetails(configFile string) RuntimeInfo {
 	return RuntimeInfo{
 		Version: RuntimeVersionInfo{
 			Semver: version,
@@ -260,16 +260,15 @@ func getExpectedRuntimeDetails(configFile, logFile string) RuntimeInfo {
 			OCI:    specs.Version,
 		},
 		Config: RuntimeConfigInfo{
-			GlobalLogPath: logFile,
-			Path:          configFile,
+			Path: configFile,
 		},
 	}
 }
 
-func getExpectedSettings(config oci.RuntimeConfig, tmpdir, configFile, logFile string) (EnvInfo, error) {
+func getExpectedSettings(config oci.RuntimeConfig, tmpdir, configFile string) (EnvInfo, error) {
 	meta := getExpectedMetaInfo()
 
-	runtime := getExpectedRuntimeDetails(configFile, logFile)
+	runtime := getExpectedRuntimeDetails(configFile)
 
 	proxy, err := getExpectedProxyDetails(config)
 	if err != nil {
@@ -398,15 +397,13 @@ func TestCCEnvGetEnvInfo(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpdir)
 
-	const logFile = "/tmp/file.log"
-
 	configFile, config, err := makeRuntimeConfig(tmpdir)
 	assert.NoError(t, err)
 
-	expectedCCEnv, err := getExpectedSettings(config, tmpdir, configFile, logFile)
+	expectedCCEnv, err := getExpectedSettings(config, tmpdir, configFile)
 	assert.NoError(t, err)
 
-	ccEnv, err := getEnvInfo(configFile, logFile, config)
+	ccEnv, err := getEnvInfo(configFile, config)
 	assert.NoError(t, err)
 
 	assert.Equal(t, expectedCCEnv, ccEnv)
@@ -419,12 +416,10 @@ func TestCCEnvGetEnvInfoNoHypervisorVersion(t *testing.T) {
 	assert.NoError(err)
 	defer os.RemoveAll(tmpdir)
 
-	const logFile = "/tmp/file.log"
-
 	configFile, config, err := makeRuntimeConfig(tmpdir)
 	assert.NoError(err)
 
-	expectedCCEnv, err := getExpectedSettings(config, tmpdir, configFile, logFile)
+	expectedCCEnv, err := getExpectedSettings(config, tmpdir, configFile)
 	assert.NoError(err)
 
 	err = os.Remove(config.HypervisorConfig.HypervisorPath)
@@ -432,7 +427,7 @@ func TestCCEnvGetEnvInfoNoHypervisorVersion(t *testing.T) {
 
 	expectedCCEnv.Hypervisor.Version = unknown
 
-	ccEnv, err := getEnvInfo(configFile, logFile, config)
+	ccEnv, err := getEnvInfo(configFile, config)
 	assert.NoError(err)
 
 	assert.Equal(expectedCCEnv, ccEnv)
@@ -445,14 +440,12 @@ func TestCCEnvGetEnvInfoShimError(t *testing.T) {
 	assert.NoError(err)
 	defer os.RemoveAll(tmpdir)
 
-	const logFile = "/tmp/file.log"
-
 	configFile, config, err := makeRuntimeConfig(tmpdir)
 	assert.NoError(err)
 
 	config.ShimConfig = "invalid shim config"
 
-	_, err = getEnvInfo(configFile, logFile, config)
+	_, err = getEnvInfo(configFile, config)
 	assert.Error(err)
 }
 
@@ -463,14 +456,12 @@ func TestCCEnvGetEnvInfoAgentError(t *testing.T) {
 	assert.NoError(err)
 	defer os.RemoveAll(tmpdir)
 
-	const logFile = "/tmp/file.log"
-
 	configFile, config, err := makeRuntimeConfig(tmpdir)
 	assert.NoError(err)
 
 	config.AgentConfig = "invalid agent config"
 
-	_, err = getEnvInfo(configFile, logFile, config)
+	_, err = getEnvInfo(configFile, config)
 	assert.Error(err)
 }
 
@@ -481,18 +472,16 @@ func TestCCEnvGetEnvInfoNoOSRelease(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpdir)
 
-	const logFile = "/tmp/file.log"
-
 	configFile, config, err := makeRuntimeConfig(tmpdir)
 	assert.NoError(t, err)
 
-	_, err = getExpectedSettings(config, tmpdir, configFile, logFile)
+	_, err = getExpectedSettings(config, tmpdir, configFile)
 	assert.NoError(t, err)
 
 	err = os.Remove(osRelease)
 	assert.NoError(t, err)
 
-	_, err = getEnvInfo(configFile, logFile, config)
+	_, err = getEnvInfo(configFile, config)
 	assert.Error(t, err)
 }
 
@@ -503,18 +492,16 @@ func TestCCEnvGetEnvInfoNoProcCPUInfo(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpdir)
 
-	const logFile = "/tmp/file.log"
-
 	configFile, config, err := makeRuntimeConfig(tmpdir)
 	assert.NoError(t, err)
 
-	_, err = getExpectedSettings(config, tmpdir, configFile, logFile)
+	_, err = getExpectedSettings(config, tmpdir, configFile)
 	assert.NoError(t, err)
 
 	err = os.Remove(procCPUInfo)
 	assert.NoError(t, err)
 
-	_, err = getEnvInfo(configFile, logFile, config)
+	_, err = getEnvInfo(configFile, config)
 	assert.Error(t, err)
 }
 
@@ -525,18 +512,16 @@ func TestCCEnvGetEnvInfoNoProcVersion(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpdir)
 
-	const logFile = "/tmp/file.log"
-
 	configFile, config, err := makeRuntimeConfig(tmpdir)
 	assert.NoError(t, err)
 
-	_, err = getExpectedSettings(config, tmpdir, configFile, logFile)
+	_, err = getExpectedSettings(config, tmpdir, configFile)
 	assert.NoError(t, err)
 
 	err = os.Remove(procVersion)
 	assert.NoError(t, err)
 
-	_, err = getEnvInfo(configFile, logFile, config)
+	_, err = getEnvInfo(configFile, config)
 	assert.Error(t, err)
 }
 
@@ -548,14 +533,12 @@ func TestCCEnvGetEnvInfoInvalidProxy(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpdir)
 
-	const logFile = "/tmp/file.log"
-
 	configFile, config, err := makeRuntimeConfig(tmpdir)
 	assert.NoError(t, err)
 
 	// Not directly used, *BUT* must be called as it sets
 	// procVersion!
-	_, err = getExpectedSettings(config, tmpdir, configFile, logFile)
+	_, err = getExpectedSettings(config, tmpdir, configFile)
 	assert.NoError(t, err)
 
 	configData, err := getFileContents(configFile)
@@ -571,10 +554,10 @@ func TestCCEnvGetEnvInfoInvalidProxy(t *testing.T) {
 	assert.NoError(t, err)
 
 	// reload the now invalid config file
-	_, _, newConfig, err := loadConfiguration(configFile, true)
+	_, newConfig, err := loadConfiguration(configFile, true)
 	assert.NoError(t, err)
 
-	_, err = getEnvInfo(configFile, logFile, newConfig)
+	_, err = getEnvInfo(configFile, newConfig)
 	assert.Error(t, err)
 }
 
@@ -588,11 +571,9 @@ func TestCCEnvGetRuntimeInfo(t *testing.T) {
 	configFile, config, err := makeRuntimeConfig(tmpdir)
 	assert.NoError(t, err)
 
-	const logFile = "/log/file/path/foo.log"
+	expectedRuntime := getExpectedRuntimeDetails(configFile)
 
-	expectedRuntime := getExpectedRuntimeDetails(configFile, logFile)
-
-	ccRuntime := getRuntimeInfo(configFile, logFile, config)
+	ccRuntime := getRuntimeInfo(configFile, config)
 
 	assert.Equal(t, expectedRuntime, ccRuntime)
 }
@@ -849,17 +830,14 @@ func TestCCEnvHandleSettings(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpdir)
 
-	const logFile = "/tmp/file.log"
-
 	configFile, config, err := makeRuntimeConfig(tmpdir)
 	assert.NoError(t, err)
 
-	_, err = getExpectedSettings(config, tmpdir, configFile, logFile)
+	_, err = getExpectedSettings(config, tmpdir, configFile)
 	assert.NoError(t, err)
 
 	m := map[string]interface{}{
 		"configFile":    configFile,
-		"logfilePath":   logFile,
 		"runtimeConfig": config,
 	}
 
@@ -883,19 +861,16 @@ func TestCCEnvHandleSettingsInvalidShimConfig(t *testing.T) {
 	assert.NoError(err)
 	defer os.RemoveAll(tmpdir)
 
-	const logFile = "/tmp/file.log"
-
 	configFile, config, err := makeRuntimeConfig(tmpdir)
 	assert.NoError(err)
 
-	_, err = getExpectedSettings(config, tmpdir, configFile, logFile)
+	_, err = getExpectedSettings(config, tmpdir, configFile)
 	assert.NoError(err)
 
 	config.ShimConfig = "invalid shim config"
 
 	m := map[string]interface{}{
 		"configFile":    configFile,
-		"logfilePath":   logFile,
 		"runtimeConfig": config,
 	}
 
@@ -920,7 +895,6 @@ func TestCCEnvHandleSettingsEmptyMap(t *testing.T) {
 func TestCCEnvHandleSettingsInvalidFile(t *testing.T) {
 	m := map[string]interface{}{
 		"configFile":    "foo",
-		"logfilePath":   "bar",
 		"runtimeConfig": oci.RuntimeConfig{},
 	}
 
@@ -931,18 +905,6 @@ func TestCCEnvHandleSettingsInvalidFile(t *testing.T) {
 func TestCCEnvHandleSettingsInvalidConfigFileType(t *testing.T) {
 	m := map[string]interface{}{
 		"configFile":    123,
-		"logfilePath":   "bar",
-		"runtimeConfig": oci.RuntimeConfig{},
-	}
-
-	err := handleSettings(os.Stderr, m)
-	assert.Error(t, err)
-}
-
-func TestCCEnvHandleSettingsInvalidLogfileType(t *testing.T) {
-	m := map[string]interface{}{
-		"configFile":    "/some/where",
-		"logfilePath":   42,
 		"runtimeConfig": oci.RuntimeConfig{},
 	}
 
@@ -953,7 +915,6 @@ func TestCCEnvHandleSettingsInvalidLogfileType(t *testing.T) {
 func TestCCEnvHandleSettingsInvalidRuntimeConfigType(t *testing.T) {
 	m := map[string]interface{}{
 		"configFile":    "/some/where",
-		"logfilePath":   "some/where/else",
 		"runtimeConfig": true,
 	}
 
@@ -968,12 +929,10 @@ func TestCCEnvCLIFunction(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpdir)
 
-	const logFile = "/tmp/file.log"
-
 	configFile, config, err := makeRuntimeConfig(tmpdir)
 	assert.NoError(t, err)
 
-	_, err = getExpectedSettings(config, tmpdir, configFile, logFile)
+	_, err = getExpectedSettings(config, tmpdir, configFile)
 	assert.NoError(t, err)
 
 	app := cli.NewApp()
@@ -982,7 +941,6 @@ func TestCCEnvCLIFunction(t *testing.T) {
 
 	ctx.App.Metadata = map[string]interface{}{
 		"configFile":    configFile,
-		"logfilePath":   logFile,
 		"runtimeConfig": config,
 	}
 
@@ -1011,12 +969,10 @@ func TestCCEnvCLIFunctionFail(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpdir)
 
-	const logFile = "/tmp/file.log"
-
 	configFile, config, err := makeRuntimeConfig(tmpdir)
 	assert.NoError(t, err)
 
-	_, err = getExpectedSettings(config, tmpdir, configFile, logFile)
+	_, err = getExpectedSettings(config, tmpdir, configFile)
 	assert.NoError(t, err)
 
 	app := cli.NewApp()
@@ -1025,7 +981,6 @@ func TestCCEnvCLIFunctionFail(t *testing.T) {
 
 	ctx.App.Metadata = map[string]interface{}{
 		"configFile":    configFile,
-		"logfilePath":   logFile,
 		"runtimeConfig": config,
 	}
 
@@ -1050,8 +1005,6 @@ func TestGetHypervisorInfo(t *testing.T) {
 	tmpdir, err := ioutil.TempDir("", "")
 	assert.NoError(err)
 	defer os.RemoveAll(tmpdir)
-
-	const logFile = "/tmp/file.log"
 
 	_, config, err := makeRuntimeConfig(tmpdir)
 	assert.NoError(err)
