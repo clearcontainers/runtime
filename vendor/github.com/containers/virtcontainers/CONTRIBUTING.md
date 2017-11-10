@@ -46,6 +46,28 @@ Note, that the body of the message should not just be a continuation of the subj
 
 It is recommended that each of your patches fixes one thing. Smaller patches are easier to review, and are thus more likely to be accepted and merged, and problems are more likely to be picked up during review.
 
+### Breaking compatibility
+
+In case the patch you submit will break virtcontainers CI, because Clear Containers runtime compatibility is tested through the CI, you have to specify which repository and which pull request it depends on.
+
+Using a simple tag `Depends-on:` in your commit message will allow virtcontainers CI to run properly. Notice that this tag is parsed from the latest commit of the pull request.
+
+For example:
+
+```
+    pod: Remove token from Cmd structure
+    
+    The token and pid data will be hold by the new Process structure and
+    they are related to a container.
+    
+    Depends-on: github.com/clearcontainers/runtime#75
+    
+    Signed-off-by: Sebastien Boeuf <sebastien.boeuf@intel.com>
+```
+
+In this example, we want our CI scripts to fetch the pull request 75 of the runtime repository.
+
+
 ## Pull requests
 
 We accept [github pull requests](https://github.com/containers/virtcontainers/pulls).

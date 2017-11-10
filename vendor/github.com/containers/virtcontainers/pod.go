@@ -525,12 +525,36 @@ func (p *Pod) createSetStates() error {
 	return nil
 }
 
+func createAssets(podConfig *PodConfig) error {
+	kernel, err := newAsset(podConfig, kernelAsset)
+	if err != nil {
+		return err
+	}
+
+	image, err := newAsset(podConfig, imageAsset)
+	if err != nil {
+		return err
+	}
+
+	for _, a := range []*asset{kernel, image} {
+		if err := podConfig.HypervisorConfig.addCustomAsset(a); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // createPod creates a pod from a pod description, the containers list, the hypervisor
 // and the agent passed through the Config structure.
 // It will create and store the pod structure, and then ask the hypervisor
 // to physically create that pod i.e. starts a VM for that pod to eventually
 // be started.
 func createPod(podConfig PodConfig) (*Pod, error) {
+	if err := createAssets(&podConfig); err != nil {
+		return nil, err
+	}
+
 	p, err := doFetchPod(podConfig)
 	if err != nil {
 		return nil, err

@@ -139,10 +139,64 @@ func TestCreateDeleteNetNS(t *testing.T) {
 	}
 }
 
-func TestCreateNetworkEndpoint(t *testing.T) {
+func testEndpointTypeSet(t *testing.T, value string, expected EndpointType) {
+	//var netModel NetworkModel
+	var endpointType EndpointType
+
+	err := endpointType.Set(value)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if endpointType != expected {
+		t.Fatal()
+	}
+}
+
+func TestPhysicalEndpointTypeSet(t *testing.T) {
+	testEndpointTypeSet(t, "physical", PhysicalEndpointType)
+}
+
+func TestVirtualEndpointTypeSet(t *testing.T) {
+	testEndpointTypeSet(t, "virtual", VirtualEndpointType)
+}
+
+func TestEndpointTypeSetFailure(t *testing.T) {
+	var endpointType EndpointType
+
+	err := endpointType.Set("wrong-value")
+	if err == nil {
+		t.Fatal(err)
+	}
+}
+
+func testEndpointTypeString(t *testing.T, endpointType *EndpointType, expected string) {
+	result := endpointType.String()
+
+	if result != expected {
+		t.Fatal()
+	}
+}
+
+func TestPhysicalEndpointTypeString(t *testing.T) {
+	endpointType := PhysicalEndpointType
+	testEndpointTypeString(t, &endpointType, string(PhysicalEndpointType))
+}
+
+func TestVirtualEndpointTypeString(t *testing.T) {
+	endpointType := VirtualEndpointType
+	testEndpointTypeString(t, &endpointType, string(VirtualEndpointType))
+}
+
+func TestIncorrectEndpointTypeString(t *testing.T) {
+	var endpointType EndpointType
+	testEndpointTypeString(t, &endpointType, "")
+}
+
+func TestCreateVirtualNetworkEndpoint(t *testing.T) {
 	macAddr := net.HardwareAddr{0x02, 0x00, 0xCA, 0xFE, 0x00, 0x04}
 
-	expected := Endpoint{
+	expected := &VirtualEndpoint{
 		NetPair: NetworkInterfacePair{
 			ID:   "uniqueTestID-4",
 			Name: "br4",
@@ -154,9 +208,10 @@ func TestCreateNetworkEndpoint(t *testing.T) {
 				Name: "tap4",
 			},
 		},
+		EndpointType: VirtualEndpointType,
 	}
 
-	result, err := createNetworkEndpoint(4, "uniqueTestID", "")
+	result, err := createVirtualNetworkEndpoint(4, "uniqueTestID", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,10 +221,10 @@ func TestCreateNetworkEndpoint(t *testing.T) {
 	}
 }
 
-func TestCreateNetworkEndpointChooseIfaceName(t *testing.T) {
+func TestCreateVirtualNetworkEndpointChooseIfaceName(t *testing.T) {
 	macAddr := net.HardwareAddr{0x02, 0x00, 0xCA, 0xFE, 0x00, 0x04}
 
-	expected := Endpoint{
+	expected := &VirtualEndpoint{
 		NetPair: NetworkInterfacePair{
 			ID:   "uniqueTestID-4",
 			Name: "br4",
@@ -181,9 +236,10 @@ func TestCreateNetworkEndpointChooseIfaceName(t *testing.T) {
 				Name: "tap4",
 			},
 		},
+		EndpointType: VirtualEndpointType,
 	}
 
-	result, err := createNetworkEndpoint(4, "uniqueTestID", "eth1")
+	result, err := createVirtualNetworkEndpoint(4, "uniqueTestID", "eth1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,7 +249,7 @@ func TestCreateNetworkEndpointChooseIfaceName(t *testing.T) {
 	}
 }
 
-func TestCreateNetworkEndpointInvalidArgs(t *testing.T) {
+func TestCreateVirtualNetworkEndpointInvalidArgs(t *testing.T) {
 	type endpointValues struct {
 		idx      int
 		uniqueID string
@@ -213,7 +269,7 @@ func TestCreateNetworkEndpointInvalidArgs(t *testing.T) {
 	}
 
 	for _, d := range failingValues {
-		result, err := createNetworkEndpoint(d.idx, d.uniqueID, d.ifName)
+		result, err := createVirtualNetworkEndpoint(d.idx, d.uniqueID, d.ifName)
 		if err == nil {
 			t.Fatalf("expected invalid endpoint for %v, got %v", d, result)
 		}
@@ -246,6 +302,63 @@ func TestCreateNetworkEndpointsFailure(t *testing.T) {
 func TestGetIfacesFromNetNsFailureEmptyNetNsPath(t *testing.T) {
 	if _, err := getIfacesFromNetNs(""); err == nil {
 		t.Fatal("Should fail because network namespace is empty")
+	}
+}
+
+func TestIsPhysicalIface(t *testing.T) {
+	testNetIface := "testIface0"
+	testMTU := 1500
+	testMACAddr := "00:00:00:00:00:01"
+
+	hwAddr, err := net.ParseMAC(testMACAddr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	link := &netlink.Bridge{
+		LinkAttrs: netlink.LinkAttrs{
+			Name:         testNetIface,
+			MTU:          testMTU,
+			HardwareAddr: hwAddr,
+			TxQLen:       -1,
+		},
+	}
+
+	n, err := ns.NewNS()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer n.Close()
+
+	netnsHandle, err := netns.GetFromPath(n.Path())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer netnsHandle.Close()
+
+	netlinkHandle, err := netlink.NewHandleAt(netnsHandle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer netlinkHandle.Delete()
+
+	if err := netlinkHandle.LinkAdd(link); err != nil {
+		t.Fatal(err)
+	}
+
+	var isPhysical bool
+	err = doNetNS(n.Path(), func(_ ns.NetNS) error {
+		var err error
+		isPhysical, err = isPhysicalIface(testNetIface)
+		return err
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if isPhysical == true {
+		t.Fatalf("Got %+v\nExpecting %+v", isPhysical, false)
 	}
 }
 

@@ -28,14 +28,14 @@
 
 [[projects]]
   name = "github.com/containers/virtcontainers"
-  packages = [".","pkg/cni","pkg/hyperstart","pkg/oci","pkg/uuid","pkg/vcMock"]
-  revision = "c3c42b5690ce384a26dcb8ac59e922a20dd0ac7a"
+  packages = [".","pkg/annotations","pkg/cni","pkg/ethtool","pkg/hyperstart","pkg/oci","pkg/uuid","pkg/vcMock"]
+  revision = "c4884ba98baf1b82840a63aefd306cc46c61f879"
 
 [[projects]]
-  branch = "master"
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
+  version = "v1.1.0"
 
 [[projects]]
   name = "github.com/dlespiau/covertool"
@@ -111,6 +111,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "d7d480b60cce2c367f643db135a30085489d1b4766cb73af048c99ab111b99ea"
+  inputs-digest = "a8735b7a46f0cc45f26750a50252307207c1e44c7a07b2a721287773d36fcde1"
   solver-name = "gps-cdcl"
   solver-version = 1

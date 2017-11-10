@@ -22,7 +22,9 @@ import (
 
 	cniTypes "github.com/containernetworking/cni/pkg/types"
 	types "github.com/containernetworking/cni/pkg/types/current"
+	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/containers/virtcontainers/pkg/uuid"
+	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 )
@@ -30,6 +32,10 @@ import (
 // cnm is a network implementation for the CNM plugin.
 type cnm struct {
 	config NetworkConfig
+}
+
+func cnmLogger() *logrus.Entry {
+	return virtLog.WithField("subsystem", "cnm")
 }
 
 func (n *cnm) getNetIfaceRoutesWithinNetNs(networkNSPath string, ifaceName string) ([]netlink.Route, error) {
@@ -136,11 +142,28 @@ func (n *cnm) createEndpointsFromScan(networkNSPath string) ([]Endpoint, error) 
 
 		if netIface.iface.Name == "lo" {
 			continue
-		} else {
-			endpoint, err = createNetworkEndpoint(idx, uniqueID, netIface.iface.Name)
+		}
+
+		err := doNetNS(networkNSPath, func(_ ns.NetNS) error {
+			// Check if interface is a physical interface. Do not create
+			// tap interface/bridge if it is.
+			isPhysical, err := isPhysicalIface(netIface.iface.Name)
 			if err != nil {
-				return []Endpoint{}, err
+				return err
 			}
+
+			if isPhysical {
+				cnmLogger().WithField("interface", netIface.iface.Name).Info("Physical network interface found")
+				endpoint, err = createPhysicalEndpoint(netIface.iface.Name)
+			} else {
+				endpoint, err = createVirtualNetworkEndpoint(idx, uniqueID, netIface.iface.Name)
+			}
+
+			return err
+		})
+
+		if err != nil {
+			return []Endpoint{}, err
 		}
 
 		routes, err := n.getNetIfaceRoutesWithinNetNs(networkNSPath, netIface.iface.Name)
@@ -148,11 +171,12 @@ func (n *cnm) createEndpointsFromScan(networkNSPath string) ([]Endpoint, error) 
 			return []Endpoint{}, err
 		}
 
-		endpoint.Properties, err = n.createResult(netIface.iface, netIface.addrs, routes)
+		properties, err := n.createResult(netIface.iface, netIface.addrs, routes)
 		if err != nil {
 			return []Endpoint{}, err
 		}
 
+		endpoint.SetProperties(properties)
 		endpoints = append(endpoints, endpoint)
 
 		idx++
