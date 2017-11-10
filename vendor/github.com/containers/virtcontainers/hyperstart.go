@@ -19,6 +19,7 @@ package virtcontainers
 import (
 	"encoding/hex"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -172,13 +173,18 @@ func (h *hyper) buildNetworkInterfacesAndRoutes(pod Pod) ([]hyperstart.NetworkIf
 	var ifaces []hyperstart.NetworkIface
 	var routes []hyperstart.Route
 	for _, endpoint := range networkNS.Endpoints {
-		netIface, err := getNetIfaceByName(endpoint.NetPair.VirtIface.Name, netIfaces)
-		if err != nil {
-			return []hyperstart.NetworkIface{}, []hyperstart.Route{}, err
+		var netIface net.Interface
+
+		switch ep := endpoint.(type) {
+		case *VirtualEndpoint:
+			netIface, err = getNetIfaceByName(ep.Name(), netIfaces)
+			if err != nil {
+				return []hyperstart.NetworkIface{}, []hyperstart.Route{}, err
+			}
 		}
 
 		var ipAddrs []hyperstart.IPAddress
-		for _, ipConfig := range endpoint.Properties.IPs {
+		for _, ipConfig := range endpoint.Properties().IPs {
 			// Skip IPv6 because not supported by hyperstart
 			if ipConfig.Version == "6" || ipConfig.Address.IP.To4() == nil {
 				continue
@@ -195,16 +201,22 @@ func (h *hyper) buildNetworkInterfacesAndRoutes(pod Pod) ([]hyperstart.NetworkIf
 		}
 
 		iface := hyperstart.NetworkIface{
-			NewDevice:   endpoint.NetPair.VirtIface.Name,
+			NewDevice:   endpoint.Name(),
 			IPAddresses: ipAddrs,
-			MTU:         netIface.MTU,
-			MACAddr:     endpoint.NetPair.TAPIface.HardAddr,
+			MACAddr:     endpoint.HardwareAddr(),
+		}
+
+		switch ep := endpoint.(type) {
+		case *VirtualEndpoint:
+			iface.MTU = netIface.MTU
+		case *PhysicalEndpoint:
+			iface.MTU = ep.MTU
 		}
 
 		ifaces = append(ifaces, iface)
 
-		for _, r := range endpoint.Properties.Routes {
-			route := h.processHyperRoute(r, endpoint.NetPair.VirtIface.Name)
+		for _, r := range endpoint.Properties().Routes {
+			route := h.processHyperRoute(r, endpoint.Name())
 			if route == nil {
 				continue
 			}

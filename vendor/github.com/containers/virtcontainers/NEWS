@@ -1,3 +1,16 @@
+1.0.6:
+	Added SRIOV support
+	Added Multi-OS support
+	Removed Travis CI
+
+1.0.5:
+	Added full CI (unit, functional and integration tests)
+	Added docker ps command support
+	Added multi-queue macvtap to the list of networking models
+	Added --device support for block devices (emulated)
+	Added pod shared locks for more efficient locking
+	Removed the ciao uuid package dependency
+
 1.0.4:
 	Added shim debug output
 	Added support for custom qemu accelerators

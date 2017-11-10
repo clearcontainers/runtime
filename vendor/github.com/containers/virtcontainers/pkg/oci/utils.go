@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	vc "github.com/containers/virtcontainers"
+	vcAnnotations "github.com/containers/virtcontainers/pkg/annotations"
 	"github.com/kubernetes-incubator/cri-o/pkg/annotations"
 	spec "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
@@ -389,6 +390,25 @@ func vmConfig(ocispec CompatOCISpec, config RuntimeConfig) (vc.Resources, error)
 	return resources, nil
 }
 
+func addAssetAnnotations(ocispec CompatOCISpec, config *vc.PodConfig) {
+	assetAnnotations := []string{
+		vcAnnotations.KernelPath,
+		vcAnnotations.ImagePath,
+		vcAnnotations.KernelHash,
+		vcAnnotations.ImageHash,
+		vcAnnotations.AssetHashType,
+	}
+
+	for _, a := range assetAnnotations {
+		value, ok := ocispec.Annotations[a]
+		if !ok {
+			continue
+		}
+
+		config.Annotations[a] = value
+	}
+}
+
 // PodConfig converts an OCI compatible runtime configuration file
 // to a virtcontainers pod configuration structure.
 func PodConfig(ocispec CompatOCISpec, runtime RuntimeConfig, bundlePath, cid, console string, detach bool) (vc.PodConfig, error) {
@@ -443,6 +463,8 @@ func PodConfig(ocispec CompatOCISpec, runtime RuntimeConfig, bundlePath, cid, co
 			BundlePathKey: bundlePath,
 		},
 	}
+
+	addAssetAnnotations(ocispec, &podConfig)
 
 	return podConfig, nil
 }

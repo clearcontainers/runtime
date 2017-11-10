@@ -19,7 +19,10 @@ package virtcontainers
 import (
 	"io/ioutil"
 	"os"
+	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestFileCopySuccessful(t *testing.T) {
@@ -136,4 +139,26 @@ func TestRevereString(t *testing.T) {
 	if reversed != "rtstseT" {
 		t.Fatal("Incorrect String Reversal")
 	}
+}
+
+func TestWriteToFile(t *testing.T) {
+	err := writeToFile("/file-does-not-exist", []byte("test-data"))
+	assert.NotNil(t, err)
+
+	tmpFile, err := ioutil.TempFile("", "test_append_file")
+	assert.Nil(t, err)
+
+	filename := tmpFile.Name()
+	defer os.Remove(filename)
+
+	tmpFile.Close()
+
+	testData := []byte("test-data")
+	err = writeToFile(filename, testData)
+	assert.Nil(t, err)
+
+	data, err := ioutil.ReadFile(filename)
+	assert.Nil(t, err)
+
+	assert.True(t, reflect.DeepEqual(testData, data))
 }

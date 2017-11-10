@@ -282,9 +282,12 @@ func fetchContainer(pod *Pod, containerID string) (*Container, error) {
 		return nil, err
 	}
 
-	pod.Logger().WithField("config", config).Debug("Container config")
+	container, err := createContainer(pod, config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create container with config %v in pod %v: %v", config, pod.id, err)
+	}
 
-	return createContainer(pod, config)
+	return container, nil
 }
 
 // storeContainer stores a container config.

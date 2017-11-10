@@ -17,17 +17,23 @@
 package virtcontainers
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"math/rand"
 	"net"
 	"os"
+	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	types "github.com/containernetworking/cni/pkg/types/current"
 	"github.com/containernetworking/plugins/pkg/ns"
+	"github.com/containers/virtcontainers/pkg/ethtool"
 	"github.com/containers/virtcontainers/pkg/uuid"
+	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 )
@@ -96,10 +102,173 @@ type NetworkConfig struct {
 	NumInterfaces int
 }
 
-// Endpoint gathers a network pair and its properties.
-type Endpoint struct {
-	NetPair    NetworkInterfacePair
-	Properties types.Result
+// Endpoint represents a physical or virtual network interface.
+type Endpoint interface {
+	Properties() types.Result
+	Name() string
+	HardwareAddr() string
+	Type() EndpointType
+
+	SetProperties(types.Result)
+	Attach(hypervisor) error
+	Detach() error
+}
+
+// VirtualEndpoint gathers a network pair and its properties.
+type VirtualEndpoint struct {
+	NetPair            NetworkInterfacePair
+	EndpointProperties types.Result
+	Physical           bool
+	EndpointType       EndpointType
+}
+
+// PhysicalEndpoint gathers a physical network interface and its properties
+type PhysicalEndpoint struct {
+	IfaceName          string
+	HardAddr           string
+	MTU                int
+	EndpointProperties types.Result
+	EndpointType       EndpointType
+	BDF                string
+	Driver             string
+	VendorDeviceID     string
+}
+
+// Properties returns properties for the veth interface in the network pair.
+func (endpoint *VirtualEndpoint) Properties() types.Result {
+	return endpoint.EndpointProperties
+}
+
+// Name returns name of the veth interface in the network pair.
+func (endpoint *VirtualEndpoint) Name() string {
+	return endpoint.NetPair.VirtIface.Name
+}
+
+// HardwareAddr returns the mac address that is assigned to the tap interface
+// in th network pair.
+func (endpoint *VirtualEndpoint) HardwareAddr() string {
+	return endpoint.NetPair.TAPIface.HardAddr
+}
+
+// Type identifies the endpoint as a virtual endpoint.
+func (endpoint *VirtualEndpoint) Type() EndpointType {
+	return endpoint.EndpointType
+}
+
+// SetProperties sets the properties for the endpoint.
+func (endpoint *VirtualEndpoint) SetProperties(properties types.Result) {
+	endpoint.EndpointProperties = properties
+}
+
+func networkLogger() *logrus.Entry {
+	return virtLog.WithField("subsystem", "network")
+}
+
+// Attach for virtual endpoint bridges the network pair and adds the
+// tap interface of the network pair to the hypervisor.
+func (endpoint *VirtualEndpoint) Attach(h hypervisor) error {
+	networkLogger().Info("Attaching virtual endpoint")
+	if err := xconnectVMNetwork(&(endpoint.NetPair), true); err != nil {
+		networkLogger().WithError(err).Error("Error bridging virtual ep")
+		return err
+	}
+
+	return h.addDevice(endpoint, netDev)
+}
+
+// Detach for the virtual endpoint tears down the tap and bridge
+// created for the veth interface.
+func (endpoint *VirtualEndpoint) Detach() error {
+	networkLogger().Info("Detaching virtual endpoint")
+	return xconnectVMNetwork(&(endpoint.NetPair), false)
+}
+
+// Properties returns the properties of the physical interface.
+func (endpoint *PhysicalEndpoint) Properties() types.Result {
+	return endpoint.EndpointProperties
+}
+
+// HardwareAddr returns the mac address of the physical network interface.
+func (endpoint *PhysicalEndpoint) HardwareAddr() string {
+	return endpoint.HardAddr
+}
+
+// Name returns name of the physical interface.
+func (endpoint *PhysicalEndpoint) Name() string {
+	return endpoint.IfaceName
+}
+
+// Type indentifies the endpoint as a physical endpoint.
+func (endpoint *PhysicalEndpoint) Type() EndpointType {
+	return endpoint.EndpointType
+}
+
+// SetProperties sets the properties of the physical endpoint.
+func (endpoint *PhysicalEndpoint) SetProperties(properties types.Result) {
+	endpoint.EndpointProperties = properties
+}
+
+// Attach for physical endpoint binds the physical network interface to
+// vfio-pci and adds device to the hypervisor with vfio-passthrough.
+func (endpoint *PhysicalEndpoint) Attach(h hypervisor) error {
+	networkLogger().Info("Attaching physical endpoint")
+
+	// Unbind physical interface from host driver and bind to vfio
+	// so that it can be passed to qemu.
+	if err := bindNICToVFIO(endpoint); err != nil {
+		return err
+	}
+
+	d := VFIODevice{
+		BDF: endpoint.BDF,
+	}
+
+	return h.addDevice(d, vfioDev)
+}
+
+// Detach for physical endpoint unbinds the physical network interface from vfio-pci
+// and binds it back to the saved host driver.
+func (endpoint *PhysicalEndpoint) Detach() error {
+	// Bind back the physical network interface to host.
+	networkLogger().Info("Detaching physical endpoint")
+	return bindNICToHost(endpoint)
+}
+
+// EndpointType identifies the type of the network endpoint.
+type EndpointType string
+
+const (
+	// PhysicalEndpointType is the physical network interface.
+	PhysicalEndpointType EndpointType = "physical"
+
+	// VirtualEndpointType is the virtual network interface.
+	VirtualEndpointType EndpointType = "virtual"
+)
+
+// Set sets an endpoint type based on the input string.
+func (endpointType *EndpointType) Set(value string) error {
+	switch value {
+	case "physical":
+		*endpointType = PhysicalEndpointType
+		return nil
+	case "virtual":
+		*endpointType = VirtualEndpointType
+		return nil
+	default:
+		return fmt.Errorf("Unknown endpoint type %s", value)
+	}
+}
+
+// String converts an endpoint type to a string.
+func (endpointType *EndpointType) String() string {
+	switch *endpointType {
+	case PhysicalEndpointType:
+		return string(PhysicalEndpointType)
+	case VirtualEndpointType:
+		return string(VirtualEndpointType)
+	default:
+		return ""
+	}
 }
 
 // NetworkNamespace contains all data related to its network namespace.
@@ -107,6 +276,102 @@ type NetworkNamespace struct {
 	NetNsPath    string
 	NetNsCreated bool
 	Endpoints    []Endpoint
+}
+
+// TypedJSONEndpoint is used as an intermediate representation for
+// marshalling and unmarshalling Endpoint objects.
+type TypedJSONEndpoint struct {
+	Type EndpointType
+	Data json.RawMessage
+}
+
+// MarshalJSON is the custom NetworkNamespace JSON marshalling routine.
+// This is needed to properly marshall Endpoints array.
+func (n NetworkNamespace) MarshalJSON() ([]byte, error) {
+	// We need a shadow structure in order to prevent json from
+	// entering a recursive loop when only calling json.Marshal().
+	type shadow struct {
+		NetNsPath    string
+		NetNsCreated bool
+		Endpoints    []TypedJSONEndpoint
+	}
+
+	s := &shadow{
+		NetNsPath:    n.NetNsPath,
+		NetNsCreated: n.NetNsCreated,
+	}
+
+	var typedEndpoints []TypedJSONEndpoint
+	for _, endpoint := range n.Endpoints {
+		tempJSON, _ := json.Marshal(endpoint)
+
+		t := TypedJSONEndpoint{
+			Type: endpoint.Type(),
+			Data: tempJSON,
+		}
+
+		typedEndpoints = append(typedEndpoints, t)
+	}
+
+	s.Endpoints = typedEndpoints
+
+	b, err := json.Marshal(s)
+	return b, err
+}
+
+// UnmarshalJSON is the custom NetworkNamespace unmarshalling routine.
+// This is needed for unmarshalling the Endpoints interfaces array.
+func (n *NetworkNamespace) UnmarshalJSON(b []byte) error {
+	type tmp NetworkNamespace
+	var s struct {
+		NetNsPath    string
+		NetNsCreated bool
+		Endpoints    json.RawMessage
+	}
+
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+
+	(*n).NetNsPath = s.NetNsPath
+	(*n).NetNsCreated = s.NetNsCreated
+
+	var typedEndpoints []TypedJSONEndpoint
+	if err := json.Unmarshal([]byte(string(s.Endpoints)), &typedEndpoints); err != nil {
+		return err
+	}
+
+	var endpoints []Endpoint
+
+	for _, e := range typedEndpoints {
+		switch e.Type {
+		case PhysicalEndpointType:
+			var endpoint PhysicalEndpoint
+			err := json.Unmarshal(e.Data, &endpoint)
+			if err != nil {
+				return err
+			}
+
+			endpoints = append(endpoints, &endpoint)
+			virtLog.Infof("Physical endpoint unmarshalled [%v]", endpoint)
+
+		case VirtualEndpointType:
+			var endpoint VirtualEndpoint
+			err := json.Unmarshal(e.Data, &endpoint)
+			if err != nil {
+				return err
+			}
+
+			endpoints = append(endpoints, &endpoint)
+			virtLog.Infof("Virtual endpoint unmarshalled [%v]", endpoint)
+
+		default:
+			virtLog.Errorf("Unknown endpoint type received %s\n", e.Type)
+		}
+	}
+
+	(*n).Endpoints = endpoints
+	return nil
 }
 
 // NetworkModel describes the type of network specification.
@@ -193,26 +458,22 @@ func runNetworkCommon(networkNSPath string, cb func() error) error {
 
 func addNetworkCommon(pod Pod, networkNS *NetworkNamespace) error {
 	err := doNetNS(networkNS.NetNsPath, func(_ ns.NetNS) error {
-		for idx := range networkNS.Endpoints {
-			if err := xconnectVMNetwork(&(networkNS.Endpoints[idx].NetPair), true); err != nil {
+		for _, endpoint := range networkNS.Endpoints {
+			if err := endpoint.Attach(pod.hypervisor); err != nil {
 				return err
 			}
 		}
 
 		return nil
 	})
-	if err != nil {
-		return err
-	}
 
-	return addNetDevHypervisor(pod, networkNS.Endpoints)
+	return err
 }
 
 func removeNetworkCommon(networkNS NetworkNamespace) error {
 	return doNetNS(networkNS.NetNsPath, func(_ ns.NetNS) error {
 		for _, endpoint := range networkNS.Endpoints {
-			err := xconnectVMNetwork(&(endpoint.NetPair), false)
-			if err != nil {
+			if err := endpoint.Detach(); err != nil {
 				return err
 			}
 		}
@@ -704,17 +965,17 @@ func deleteNetNS(netNSPath string, mounted bool) error {
 	return nil
 }
 
-func createNetworkEndpoint(idx int, uniqueID string, ifName string) (Endpoint, error) {
+func createVirtualNetworkEndpoint(idx int, uniqueID string, ifName string) (*VirtualEndpoint, error) {
 	if idx < 0 {
-		return Endpoint{}, fmt.Errorf("invalid network endpoint index: %d", idx)
+		return &VirtualEndpoint{}, fmt.Errorf("invalid network endpoint index: %d", idx)
 	}
 	if uniqueID == "" {
-		return Endpoint{}, errors.New("uniqueID cannot be blank")
+		return &VirtualEndpoint{}, errors.New("uniqueID cannot be blank")
 	}
 
 	hardAddr := net.HardwareAddr{0x02, 0x00, 0xCA, 0xFE, byte(idx >> 8), byte(idx)}
 
-	endpoint := Endpoint{
+	endpoint := &VirtualEndpoint{
 		NetPair: NetworkInterfacePair{
 			ID:   fmt.Sprintf("%s-%d", uniqueID, idx),
 			Name: fmt.Sprintf("br%d", idx),
@@ -726,6 +987,7 @@ func createNetworkEndpoint(idx int, uniqueID string, ifName string) (Endpoint, e
 				Name: fmt.Sprintf("tap%d", idx),
 			},
 		},
+		EndpointType: VirtualEndpointType,
 	}
 
 	if ifName != "" {
@@ -743,7 +1005,7 @@ func createNetworkEndpoints(numOfEndpoints int) (endpoints []Endpoint, err error
 	uniqueID := uuid.Generate().String()
 
 	for i := 0; i < numOfEndpoints; i++ {
-		endpoint, err := createNetworkEndpoint(i, uniqueID, "")
+		endpoint, err := createVirtualNetworkEndpoint(i, uniqueID, "")
 		if err != nil {
 			return nil, err
 		}
@@ -820,8 +1082,108 @@ func getNetIfaceByName(name string, netIfaces []netIfaceAddrs) (net.Interface, e
 	return net.Interface{}, fmt.Errorf("Could not find the interface %s in the list", name)
 }
 
-func addNetDevHypervisor(pod Pod, endpoints []Endpoint) error {
-	return pod.hypervisor.addDevice(endpoints, netDev)
+// isPhysicalIface checks if an interface is a physical device.
+// We use ethtool here to not rely on device sysfs inside the network namespace.
+func isPhysicalIface(ifaceName string) (bool, error) {
+	if ifaceName == "lo" {
+		return false, nil
+	}
+
+	ethHandle, err := ethtool.NewEthtool()
+	if err != nil {
+		return false, err
+	}
+
+	bus, err := ethHandle.BusInfo(ifaceName)
+	if err != nil {
+		return false, nil
+	}
+
+	// Check for a pci bus format
+	tokens := strings.Split(bus, ":")
+	if len(tokens) != 3 {
+		return false, nil
+	}
+
+	return true, nil
+}
+
+var sysPCIDevicesPath = "/sys/bus/pci/devices"
+
+func createPhysicalEndpoint(ifaceName string) (*PhysicalEndpoint, error) {
+	// Get ethtool handle to derive driver and bus
+	ethHandle, err := ethtool.NewEthtool()
+	if err != nil {
+		return nil, err
+	}
+
+	// Get BDF
+	bdf, err := ethHandle.BusInfo(ifaceName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get Driver
+	driver, err := ethHandle.DriverName(ifaceName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get vendor and device id from pci space (sys/bus/pci/devices/$bdf)
+
+	ifaceDevicePath := filepath.Join(sysPCIDevicesPath, bdf, "device")
+	contents, err := ioutil.ReadFile(ifaceDevicePath)
+	if err != nil {
+		return nil, err
+	}
+
+	deviceID := strings.TrimSpace(string(contents))
+
+	// Vendor id
+	ifaceVendorPath := filepath.Join(sysPCIDevicesPath, bdf, "vendor")
+	contents, err = ioutil.ReadFile(ifaceVendorPath)
+	if err != nil {
+		return nil, err
+	}
+
+	vendorID := strings.TrimSpace(string(contents))
+	vendorDeviceID := fmt.Sprintf("%s %s", vendorID, deviceID)
+	vendorDeviceID = strings.TrimSpace(vendorDeviceID)
+
+	// Get mac address
+	netHandle, err := netlink.NewHandle()
+	if err != nil {
+		return nil, err
+	}
+	defer netHandle.Delete()
+
+	link, err := netHandle.LinkByName(ifaceName)
+	if err != nil {
+		return nil, err
+	}
+
+	mac := link.Attrs().HardwareAddr.String()
+	MTU := link.Attrs().MTU
+
+	physicalEndpoint := &PhysicalEndpoint{
+		IfaceName:      ifaceName,
+		HardAddr:       mac,
+		MTU:            MTU,
+		VendorDeviceID: vendorDeviceID,
+		EndpointType:   PhysicalEndpointType,
+		Driver:         driver,
+		BDF:            bdf,
+	}
+
+	return physicalEndpoint, nil
+}
+
+func bindNICToVFIO(endpoint *PhysicalEndpoint) error {
+	return bindDevicetoVFIO(endpoint.BDF, endpoint.Driver, endpoint.VendorDeviceID)
+}
+
+func bindNICToHost(endpoint *PhysicalEndpoint) error {
+	return bindDevicetoHost(endpoint.BDF, endpoint.Driver, endpoint.VendorDeviceID)
 }
 
 // network is the virtcontainers network interface.

@@ -25,6 +25,8 @@ import (
 
 const cpBinaryName = "cp"
 
+const fileMode0755 = os.FileMode(0755)
+
 func fileCopy(srcPath, dstPath string) error {
 	if srcPath == "" {
 		return fmt.Errorf("Source path cannot be empty")
@@ -77,4 +79,20 @@ func cleanupFds(fds []*os.File, numFds int) {
 	for i := 0; i < maxFds; i++ {
 		_ = fds[i].Close()
 	}
+}
+
+// writeToFile opens a file in write only mode and writes bytes to it
+func writeToFile(path string, data []byte) error {
+	f, err := os.OpenFile(path, os.O_WRONLY, fileMode0755)
+	if err != nil {
+		return err
+	}
+
+	defer f.Close()
+
+	if _, err := f.Write(data); err != nil {
+		return err
+	}
+
+	return nil
 }

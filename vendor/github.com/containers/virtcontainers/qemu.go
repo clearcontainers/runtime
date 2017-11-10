@@ -327,22 +327,26 @@ func networkModelToQemuType(model NetInterworkingModel) ciaoQemu.NetDeviceType {
 	}
 }
 
-func (q *qemu) appendNetworks(devices []ciaoQemu.Device, endpoints []Endpoint) []ciaoQemu.Device {
-	for idx, endpoint := range endpoints {
+var networkIndex = 0
+
+func (q *qemu) appendNetwork(devices []ciaoQemu.Device, endpoint Endpoint) []ciaoQemu.Device {
+	switch ep := endpoint.(type) {
+	case *VirtualEndpoint:
 		devices = append(devices,
 			ciaoQemu.NetDevice{
-				Type:          networkModelToQemuType(endpoint.NetPair.NetInterworkingModel),
+				Type:          networkModelToQemuType(ep.NetPair.NetInterworkingModel),
 				Driver:        ciaoQemu.VirtioNetPCI,
-				ID:            fmt.Sprintf("network-%d", idx),
-				IFName:        endpoint.NetPair.TAPIface.Name,
-				MACAddress:    endpoint.NetPair.TAPIface.HardAddr,
+				ID:            fmt.Sprintf("network-%d", networkIndex),
+				IFName:        ep.NetPair.TAPIface.Name,
+				MACAddress:    ep.NetPair.TAPIface.HardAddr,
 				DownScript:    "no",
 				Script:        "no",
 				VHost:         true,
 				DisableModern: q.nestedRun,
-				FDs:           endpoint.NetPair.VMFds,
+				FDs:           ep.NetPair.VMFds,
 			},
 		)
+		networkIndex++
 	}
 
 	return devices
@@ -401,7 +405,12 @@ func (q *qemu) appendConsoles(devices []ciaoQemu.Device, podConfig PodConfig) []
 }
 
 func (q *qemu) appendImage(devices []ciaoQemu.Device, podConfig PodConfig) ([]ciaoQemu.Device, error) {
-	imageFile, err := os.Open(q.config.ImagePath)
+	imagePath, err := q.config.ImageAssetPath()
+	if err != nil {
+		return nil, err
+	}
+
+	imageFile, err := os.Open(imagePath)
 	if err != nil {
 		return nil, err
 	}
@@ -417,7 +426,7 @@ func (q *qemu) appendImage(devices []ciaoQemu.Device, podConfig PodConfig) ([]ci
 		Type:     ciaoQemu.MemoryBackendFile,
 		DeviceID: "nv0",
 		ID:       "mem0",
-		MemPath:  q.config.ImagePath,
+		MemPath:  imagePath,
 		Size:     (uint64)(imageStat.Size()),
 	}
 
@@ -457,7 +466,11 @@ func (q *qemu) getMachine(name string) (ciaoQemu.Machine, error) {
 
 // Build the QEMU binary path
 func (q *qemu) buildPath() error {
-	p := q.config.HypervisorPath
+	p, err := q.config.HypervisorAssetPath()
+	if err != nil {
+		return err
+	}
+
 	if p != "" {
 		q.path = p
 		return nil
@@ -633,8 +646,13 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 		Mlock:        q.config.Mlock,
 	}
 
+	kernelPath, err := q.config.KernelAssetPath()
+	if err != nil {
+		return err
+	}
+
 	kernel := ciaoQemu.Kernel{
-		Path:   q.config.KernelPath,
+		Path:   kernelPath,
 		Params: strings.Join(q.kernelParams, " "),
 	}
 
@@ -680,6 +698,11 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 		cpuModel += ",pmu=off"
 	}
 
+	firmwarePath, err := podConfig.HypervisorConfig.FirmwareAssetPath()
+	if err != nil {
+		return err
+	}
+
 	qemuConfig := ciaoQemu.Config{
 		Name:        fmt.Sprintf("pod-%s", podConfig.ID),
 		UUID:        q.forceUUIDFormat(podConfig.ID),
@@ -696,7 +719,7 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 		Knobs:       knobs,
 		VGA:         "none",
 		GlobalParam: "kvm-pit.lost_tick_policy=discard",
-		Bios:        podConfig.HypervisorConfig.FirmwarePath,
+		Bios:        firmwarePath,
 	}
 
 	q.qemuConfig = qemuConfig
@@ -887,8 +910,8 @@ func (q *qemu) addDevice(devInfo interface{}, devType deviceType) error {
 		socket := devInfo.(Socket)
 		q.qemuConfig.Devices = q.appendSocket(q.qemuConfig.Devices, socket)
 	case netDev:
-		endpoints := devInfo.([]Endpoint)
-		q.qemuConfig.Devices = q.appendNetworks(q.qemuConfig.Devices, endpoints)
+		endpoint := devInfo.(Endpoint)
+		q.qemuConfig.Devices = q.appendNetwork(q.qemuConfig.Devices, endpoint)
 	case blockDev:
 		drive := devInfo.(Drive)
 		q.qemuConfig.Devices = q.appendBlockDevice(q.qemuConfig.Devices, drive)

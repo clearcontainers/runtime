@@ -26,6 +26,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/containers/virtcontainers/pkg/annotations"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -1288,4 +1289,54 @@ func TestPodAttachDevicesVFIO(t *testing.T) {
 
 	err = pod.detachDevices()
 	assert.Nil(t, err, "Error while detaching devices %s", err)
+}
+
+func TestPodCreateAssets(t *testing.T) {
+	assert := assert.New(t)
+
+	tmpfile, err := ioutil.TempFile("", "virtcontainers-test-")
+	assert.Nil(err)
+
+	defer func() {
+		tmpfile.Close()
+		os.Remove(tmpfile.Name()) // clean up
+	}()
+
+	_, err = tmpfile.Write(assetContent)
+	assert.Nil(err)
+
+	originalKernelPath := filepath.Join(testDir, testKernel)
+
+	hc := HypervisorConfig{
+		KernelPath: originalKernelPath,
+		ImagePath:  filepath.Join(testDir, testImage),
+	}
+
+	p := &PodConfig{
+		Annotations: map[string]string{
+			annotations.KernelPath: tmpfile.Name(),
+			annotations.KernelHash: assetContentHash,
+		},
+
+		HypervisorConfig: hc,
+	}
+
+	err = createAssets(p)
+	assert.Nil(err)
+
+	a, ok := p.HypervisorConfig.customAssets[kernelAsset]
+	assert.True(ok)
+	assert.Equal(a.path, tmpfile.Name())
+
+	p = &PodConfig{
+		Annotations: map[string]string{
+			annotations.KernelPath: tmpfile.Name(),
+			annotations.KernelHash: assetContentWrongHash,
+		},
+
+		HypervisorConfig: hc,
+	}
+
+	err = createAssets(p)
+	assert.NotNil(err)
 }
