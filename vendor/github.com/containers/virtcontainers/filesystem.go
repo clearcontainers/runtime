@@ -242,7 +242,7 @@ func (fs *filesystem) storeDeviceFile(file string, data interface{}) error {
 	return nil
 }
 
-func (fs *filesystem) fetchFile(file string, data interface{}) error {
+func (fs *filesystem) fetchFile(file string, resource podResource, data interface{}) error {
 	if file == "" {
 		return errNeedFile
 	}
@@ -252,29 +252,23 @@ func (fs *filesystem) fetchFile(file string, data interface{}) error {
 		return err
 	}
 
-	err = json.Unmarshal([]byte(string(fileData)), data)
-	if err != nil {
-		return err
+	switch resource {
+	case devicesFileType:
+		devices, ok := data.(*[]Device)
+		if !ok {
+			return fmt.Errorf("Could not cast %v into *[]Device type", data)
+		}
+
+		return fs.fetchDeviceFile(fileData, devices)
 	}
 
-	return nil
+	return json.Unmarshal(fileData, data)
 }
 
 // fetchDeviceFile is used for custom unmarshalling of device interface objects.
-func (fs *filesystem) fetchDeviceFile(file string, devices *[]Device) error {
-	if file == "" {
-		return errNeedFile
-	}
-
-	fileData, err := ioutil.ReadFile(file)
-	if err != nil {
-		return err
-	}
-
+func (fs *filesystem) fetchDeviceFile(fileData []byte, devices *[]Device) error {
 	var typedDevices []TypedDevice
-	err = json.Unmarshal([]byte(string(fileData)), &typedDevices)
-
-	if err != nil {
+	if err := json.Unmarshal(fileData, &typedDevices); err != nil {
 		return err
 	}
 
@@ -286,8 +280,7 @@ func (fs *filesystem) fetchDeviceFile(file string, devices *[]Device) error {
 		switch d.Type {
 		case DeviceVFIO:
 			var device VFIODevice
-			err := json.Unmarshal(d.Data, &device)
-			if err != nil {
+			if err := json.Unmarshal(d.Data, &device); err != nil {
 				return err
 			}
 			tempDevices = append(tempDevices, &device)
@@ -295,8 +288,7 @@ func (fs *filesystem) fetchDeviceFile(file string, devices *[]Device) error {
 
 		case DeviceBlock:
 			var device BlockDevice
-			err := json.Unmarshal(d.Data, &device)
-			if err != nil {
+			if err := json.Unmarshal(d.Data, &device); err != nil {
 				return err
 			}
 			tempDevices = append(tempDevices, &device)
@@ -304,8 +296,7 @@ func (fs *filesystem) fetchDeviceFile(file string, devices *[]Device) error {
 
 		case DeviceGeneric:
 			var device GenericDevice
-			err := json.Unmarshal(d.Data, &device)
-			if err != nil {
+			if err := json.Unmarshal(d.Data, &device); err != nil {
 				return err
 			}
 			tempDevices = append(tempDevices, &device)
@@ -434,6 +425,17 @@ func (fs *filesystem) commonResourceChecks(podSpecific bool, podID, containerID 
 		return errNeedContainerID
 	}
 
+	switch resource {
+	case configFileType:
+	case stateFileType:
+	case networkFileType:
+	case processFileType:
+	case mountsFileType:
+	case devicesFileType:
+	default:
+		return errInvalidResource
+	}
+
 	return nil
 }
 
@@ -545,88 +547,21 @@ func (fs *filesystem) storeResource(podSpecific bool, podID, containerID string,
 	}
 }
 
-func (fs *filesystem) fetchResource(podSpecific bool, podID, containerID string, resource podResource) (interface{}, error) {
+func (fs *filesystem) fetchResource(podSpecific bool, podID, containerID string, resource podResource, data interface{}) error {
 	if err := fs.commonResourceChecks(podSpecific, podID, containerID, resource); err != nil {
-		return nil, err
+		return err
 	}
 
 	path, _, err := fs.resourceURI(podSpecific, podID, containerID, resource)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return fs.doFetchResource(containerID, path, resource)
-}
-
-func (fs *filesystem) doFetchResource(containerID, path string, resource podResource) (interface{}, error) {
-	var err error
-
-	switch resource {
-	case configFileType:
-		if containerID == "" {
-			config := PodConfig{}
-			err = fs.fetchFile(path, &config)
-			if err != nil {
-				return nil, err
-			}
-
-			return config, nil
-		}
-
-		config := ContainerConfig{}
-		err = fs.fetchFile(path, &config)
-		if err != nil {
-			return nil, err
-		}
-
-		return config, nil
-
-	case stateFileType:
-		state := State{}
-		err = fs.fetchFile(path, &state)
-		if err != nil {
-			return nil, err
-		}
-
-		return state, nil
-
-	case networkFileType:
-		networkNS := NetworkNamespace{}
-		err = fs.fetchFile(path, &networkNS)
-		if err != nil {
-			return nil, err
-		}
-
-		return networkNS, nil
-
-	case processFileType:
-		process := Process{}
-		err = fs.fetchFile(path, &process)
-		if err != nil {
-			return nil, err
-		}
-
-		return process, nil
-
-	case mountsFileType:
-		mounts := []Mount{}
-		err = fs.fetchFile(path, &mounts)
-		if err != nil {
-			return nil, err
-		}
-
-		return mounts, nil
-
-	case devicesFileType:
-		devices := []Device{}
-		err = fs.fetchDeviceFile(path, &devices)
-		if err != nil {
-			return nil, err
-		}
-
-		return devices, nil
+	if err := fs.fetchFile(path, resource, data); err != nil {
+		return err
 	}
-	return nil, errInvalidResource
+
+	return nil
 }
 
 func (fs *filesystem) storePodResource(podID string, resource podResource, data interface{}) error {
@@ -634,45 +569,33 @@ func (fs *filesystem) storePodResource(podID string, resource podResource, data 
 }
 
 func (fs *filesystem) fetchPodConfig(podID string) (PodConfig, error) {
-	data, err := fs.fetchResource(true, podID, "", configFileType)
-	if err != nil {
+	var podConfig PodConfig
+
+	if err := fs.fetchResource(true, podID, "", configFileType, &podConfig); err != nil {
 		return PodConfig{}, err
 	}
 
-	switch config := data.(type) {
-	case PodConfig:
-		return config, nil
-	}
-
-	return PodConfig{}, fmt.Errorf("Unknown config type")
+	return podConfig, nil
 }
 
 func (fs *filesystem) fetchPodState(podID string) (State, error) {
-	data, err := fs.fetchResource(true, podID, "", stateFileType)
-	if err != nil {
+	var state State
+
+	if err := fs.fetchResource(true, podID, "", stateFileType, &state); err != nil {
 		return State{}, err
 	}
 
-	switch state := data.(type) {
-	case State:
-		return state, nil
-	}
-
-	return State{}, fmt.Errorf("Unknown state type")
+	return state, nil
 }
 
 func (fs *filesystem) fetchPodNetwork(podID string) (NetworkNamespace, error) {
-	data, err := fs.fetchResource(true, podID, "", networkFileType)
-	if err != nil {
+	var networkNS NetworkNamespace
+
+	if err := fs.fetchResource(true, podID, "", networkFileType, &networkNS); err != nil {
 		return NetworkNamespace{}, err
 	}
 
-	switch networkNS := data.(type) {
-	case NetworkNamespace:
-		return networkNS, nil
-	}
-
-	return NetworkNamespace{}, fmt.Errorf("Unknown network type")
+	return networkNS, nil
 }
 
 func (fs *filesystem) storePodNetwork(podID string, networkNS NetworkNamespace) error {
@@ -712,69 +635,33 @@ func (fs *filesystem) storeContainerResource(podID, containerID string, resource
 }
 
 func (fs *filesystem) fetchContainerConfig(podID, containerID string) (ContainerConfig, error) {
-	if podID == "" {
-		return ContainerConfig{}, errNeedPodID
-	}
+	var config ContainerConfig
 
-	if containerID == "" {
-		return ContainerConfig{}, errNeedContainerID
-	}
-
-	data, err := fs.fetchResource(false, podID, containerID, configFileType)
-	if err != nil {
+	if err := fs.fetchResource(false, podID, containerID, configFileType, &config); err != nil {
 		return ContainerConfig{}, err
 	}
 
-	switch config := data.(type) {
-	case ContainerConfig:
-		return config, nil
-	}
-
-	return ContainerConfig{}, fmt.Errorf("Unknown config type")
+	return config, nil
 }
 
 func (fs *filesystem) fetchContainerState(podID, containerID string) (State, error) {
-	if podID == "" {
-		return State{}, errNeedPodID
-	}
+	var state State
 
-	if containerID == "" {
-		return State{}, errNeedContainerID
-	}
-
-	data, err := fs.fetchResource(false, podID, containerID, stateFileType)
-	if err != nil {
+	if err := fs.fetchResource(false, podID, containerID, stateFileType, &state); err != nil {
 		return State{}, err
 	}
 
-	switch state := data.(type) {
-	case State:
-		return state, nil
-	}
-
-	return State{}, fmt.Errorf("Unknown state type")
+	return state, nil
 }
 
 func (fs *filesystem) fetchContainerProcess(podID, containerID string) (Process, error) {
-	if podID == "" {
-		return Process{}, errNeedPodID
-	}
+	var process Process
 
-	if containerID == "" {
-		return Process{}, errNeedContainerID
-	}
-
-	data, err := fs.fetchResource(false, podID, containerID, processFileType)
-	if err != nil {
+	if err := fs.fetchResource(false, podID, containerID, processFileType, &process); err != nil {
 		return Process{}, err
 	}
 
-	switch process := data.(type) {
-	case Process:
-		return process, nil
-	}
-
-	return Process{}, fmt.Errorf("Unknown process type")
+	return process, nil
 }
 
 func (fs *filesystem) storeContainerProcess(podID, containerID string, process Process) error {
@@ -782,47 +669,23 @@ func (fs *filesystem) storeContainerProcess(podID, containerID string, process P
 }
 
 func (fs *filesystem) fetchContainerMounts(podID, containerID string) ([]Mount, error) {
-	if podID == "" {
-		return []Mount{}, errNeedPodID
-	}
+	var mounts []Mount
 
-	if containerID == "" {
-		return []Mount{}, errNeedContainerID
-	}
-
-	data, err := fs.fetchResource(false, podID, containerID, mountsFileType)
-	if err != nil {
+	if err := fs.fetchResource(false, podID, containerID, mountsFileType, &mounts); err != nil {
 		return []Mount{}, err
 	}
 
-	switch mounts := data.(type) {
-	case []Mount:
-		return mounts, nil
-	default:
-		return []Mount{}, fmt.Errorf("Unknown mounts type : [%T]", mounts)
-	}
+	return mounts, nil
 }
 
 func (fs *filesystem) fetchContainerDevices(podID, containerID string) ([]Device, error) {
-	if podID == "" {
-		return []Device{}, errNeedPodID
-	}
+	var devices []Device
 
-	if containerID == "" {
-		return []Device{}, errNeedContainerID
-	}
-
-	data, err := fs.fetchResource(false, podID, containerID, devicesFileType)
-	if err != nil {
+	if err := fs.fetchResource(false, podID, containerID, devicesFileType, &devices); err != nil {
 		return []Device{}, err
 	}
 
-	switch devices := data.(type) {
-	case []Device:
-		return devices, nil
-	default:
-		return []Device{}, fmt.Errorf("Unknown devices type : [%T]", devices)
-	}
+	return devices, nil
 }
 
 func (fs *filesystem) storeContainerMounts(podID, containerID string, mounts []Mount) error {

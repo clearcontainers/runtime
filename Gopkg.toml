@@ -86,7 +86,7 @@
 
 [[constraint]]
   name = "github.com/containers/virtcontainers"
-  revision = "c4884ba98baf1b82840a63aefd306cc46c61f879"
+  revision = "506f076ba79c77ae00da9daf60e4fed747cd8ab3"
 
 [[constraint]]
   name = "github.com/davecgh/go-spew"

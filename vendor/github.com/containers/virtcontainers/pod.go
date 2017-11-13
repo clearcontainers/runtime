@@ -67,9 +67,6 @@ type State struct {
 	// File system of the rootfs incase it is block device
 	Fstype string `json:"fstype"`
 
-	// Bool to indicate if container rootfs has been checked for block storage.
-	RootfsBlockChecked bool `json:"rootfsBlockChecked"`
-
 	// Bool to indicate if the drive for a container was hotplugged.
 	HotpluggedDrive bool `json:"hotpluggedDrive"`
 }
@@ -1227,30 +1224,6 @@ func (p *Pod) attachDevices() error {
 func (p *Pod) detachDevices() error {
 	for _, container := range p.containers {
 		if err := container.detachDevices(); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// hotplugDrives can be used to pass block storage devices to the hypervisor in case of devicemapper storage.
-// The container then uses the block device as its rootfs instead of overlay.
-// The container fstype is assigned the file system type of the block device to indicate this.
-func (p *Pod) hotplugDrives() error {
-	// fetch agent capabilities and hotplug if the agent has support
-	// for block devices.
-	caps := p.agent.capabilities()
-	if !caps.isBlockDeviceSupported() {
-		return nil
-	}
-
-	if p.config.HypervisorConfig.DisableBlockDeviceUse {
-		return nil
-	}
-
-	for _, c := range p.containers {
-		if err := c.hotplugDrive(); err != nil {
 			return err
 		}
 	}

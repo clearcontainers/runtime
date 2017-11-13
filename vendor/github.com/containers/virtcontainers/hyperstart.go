@@ -19,14 +19,13 @@ package virtcontainers
 import (
 	"encoding/hex"
 	"fmt"
-	"net"
 	"os"
 	"path/filepath"
 	"syscall"
 
-	cniTypes "github.com/containernetworking/cni/pkg/types"
 	"github.com/containers/virtcontainers/pkg/hyperstart"
 	"github.com/sirupsen/logrus"
+	"github.com/vishvananda/netlink"
 )
 
 var defaultSockPathTemplates = []string{"%s/%s/hyper.sock", "%s/%s/tty.sock"}
@@ -128,24 +127,29 @@ func (h *hyper) buildHyperContainerProcess(cmd Cmd) (*hyperstart.Process, error)
 	return process, nil
 }
 
-func (h *hyper) processHyperRoute(route *cniTypes.Route, deviceName string) *hyperstart.Route {
-	gateway := route.GW.String()
+func (h *hyper) processHyperRoute(route netlink.Route, deviceName string) *hyperstart.Route {
+	gateway := route.Gw.String()
 	if gateway == "<nil>" {
 		gateway = ""
 	}
 
-	destination := route.Dst.String()
-	if destination == defaultRouteDest {
-		destination = defaultRouteLabel
-	}
+	var destination string
+	if route.Dst == nil {
+		destination = ""
+	} else {
+		destination = route.Dst.String()
+		if destination == defaultRouteDest {
+			destination = defaultRouteLabel
+		}
 
-	// Skip IPv6 because not supported by hyperstart
-	if destination != defaultRouteDest && route.Dst.IP.To4() == nil {
-		h.Logger().WithFields(logrus.Fields{
-			"unsupported-route-type": "ipv6",
-			"destination":            destination,
-		}).Warn("unsupported route")
-		return nil
+		// Skip IPv6 because not supported by hyperstart
+		if route.Dst.IP.To4() == nil {
+			h.Logger().WithFields(logrus.Fields{
+				"unsupported-route-type": "ipv6",
+				"destination":            destination,
+			}).Warn("unsupported route")
+			return nil
+		}
 	}
 
 	return &hyperstart.Route{
@@ -165,52 +169,32 @@ func (h *hyper) buildNetworkInterfacesAndRoutes(pod Pod) ([]hyperstart.NetworkIf
 		return []hyperstart.NetworkIface{}, []hyperstart.Route{}, nil
 	}
 
-	netIfaces, err := getIfacesFromNetNsAll(networkNS.NetNsPath)
-	if err != nil {
-		return []hyperstart.NetworkIface{}, []hyperstart.Route{}, err
-	}
-
 	var ifaces []hyperstart.NetworkIface
 	var routes []hyperstart.Route
 	for _, endpoint := range networkNS.Endpoints {
-		var netIface net.Interface
-
-		switch ep := endpoint.(type) {
-		case *VirtualEndpoint:
-			netIface, err = getNetIfaceByName(ep.Name(), netIfaces)
-			if err != nil {
-				return []hyperstart.NetworkIface{}, []hyperstart.Route{}, err
-			}
-		}
-
-		var ipAddrs []hyperstart.IPAddress
-		for _, ipConfig := range endpoint.Properties().IPs {
-			// Skip IPv6 because not supported by hyperstart
-			if ipConfig.Version == "6" || ipConfig.Address.IP.To4() == nil {
+		var ipAddresses []hyperstart.IPAddress
+		for _, addr := range endpoint.Properties().Addrs {
+			// Skip IPv6 because not supported by hyperstart.
+			// Skip localhost interface.
+			if addr.IP.To4() == nil || addr.IP.IsLoopback() {
 				continue
 			}
 
-			netMask, _ := ipConfig.Address.Mask.Size()
+			netMask, _ := addr.Mask.Size()
 
-			ipAddr := hyperstart.IPAddress{
-				IPAddress: ipConfig.Address.IP.String(),
+			ipAddress := hyperstart.IPAddress{
+				IPAddress: addr.IP.String(),
 				NetMask:   fmt.Sprintf("%d", netMask),
 			}
 
-			ipAddrs = append(ipAddrs, ipAddr)
+			ipAddresses = append(ipAddresses, ipAddress)
 		}
 
 		iface := hyperstart.NetworkIface{
 			NewDevice:   endpoint.Name(),
-			IPAddresses: ipAddrs,
+			IPAddresses: ipAddresses,
+			MTU:         endpoint.Properties().Iface.MTU,
 			MACAddr:     endpoint.HardwareAddr(),
-		}
-
-		switch ep := endpoint.(type) {
-		case *VirtualEndpoint:
-			iface.MTU = netIface.MTU
-		case *PhysicalEndpoint:
-			iface.MTU = ep.MTU
 		}
 
 		ifaces = append(ifaces, iface)

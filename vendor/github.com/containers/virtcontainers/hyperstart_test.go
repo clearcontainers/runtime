@@ -21,8 +21,8 @@ import (
 	"reflect"
 	"testing"
 
-	cniTypes "github.com/containernetworking/cni/pkg/types"
 	"github.com/containers/virtcontainers/pkg/hyperstart"
+	"github.com/vishvananda/netlink"
 )
 
 var testRouteDest = "192.168.10.1/32"
@@ -78,7 +78,7 @@ func TestHyperstartValidateNSocketSuccessful(t *testing.T) {
 	testHyperstartValidateNSocket(t, 2, true)
 }
 
-func testProcessHyperRoute(t *testing.T, route *cniTypes.Route, deviceName string, expected *hyperstart.Route) {
+func testProcessHyperRoute(t *testing.T, route netlink.Route, deviceName string, expected *hyperstart.Route) {
 	h := &hyper{}
 	hyperRoute := h.processHyperRoute(route, deviceName)
 
@@ -108,9 +108,9 @@ func TestProcessHyperRouteEmptyGWSuccessful(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	route := &cniTypes.Route{
-		Dst: *dest,
-		GW:  net.IP{},
+	route := netlink.Route{
+		Dst: dest,
+		Gw:  net.IP{},
 	}
 
 	testProcessHyperRoute(t, route, testRouteDeviceName, expected)
@@ -128,9 +128,9 @@ func TestProcessHyperRouteEmptyDestSuccessful(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	route := &cniTypes.Route{
-		Dst: *dest,
-		GW:  net.ParseIP(testRouteGateway),
+	route := netlink.Route{
+		Dst: dest,
+		Gw:  net.ParseIP(testRouteGateway),
 	}
 
 	testProcessHyperRoute(t, route, testRouteDeviceName, expected)
@@ -142,9 +142,9 @@ func TestProcessHyperRouteDestIPv6Failure(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	route := &cniTypes.Route{
-		Dst: *dest,
-		GW:  net.IP{},
+	route := netlink.Route{
+		Dst: dest,
+		Gw:  net.IP{},
 	}
 
 	testProcessHyperRoute(t, route, testRouteDeviceName, nil)

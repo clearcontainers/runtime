@@ -14,12 +14,12 @@
 [[projects]]
   name = "github.com/containernetworking/cni"
   packages = ["libcni","pkg/invoke","pkg/types","pkg/types/020","pkg/types/current","pkg/version"]
-  revision = "ff7c3e02e3c212f63a642ad64a5ed22ee54450bd"
+  revision = "384d8c0b5288c25b9f1da901c66ea5155e6c567d"
 
 [[projects]]
   name = "github.com/containernetworking/plugins"
   packages = ["pkg/ns"]
-  revision = "e256564546e8d1ca8a36911f8445c11929043221"
+  revision = "7f98c94613021d8b57acfa1a2f0c8d0f6fd7ae5a"
 
 [[projects]]
   name = "github.com/davecgh/go-spew"
@@ -96,6 +96,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "82781172d7b56c5605cb416f72f21b8cd71ae5f49ef87cfe940e8f7b3d0f3c21"
+  inputs-digest = "994d700042628b236cd8df93ab4ffa54afe9222dc6d774902aee7353676fc590"
   solver-name = "gps-cdcl"
   solver-version = 1
