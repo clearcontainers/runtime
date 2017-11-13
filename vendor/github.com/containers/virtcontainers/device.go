@@ -187,6 +187,15 @@ func makeBlockDevIDForHypervisor(deviceID string) string {
 }
 
 func (device *BlockDevice) attach(h hypervisor, c *Container) (err error) {
+	// If VM has not been launched yet, return immediately.
+	// This is because we always want to hotplug block devices.
+	// Eventually attachDevices will be called only after VM is launched,
+	// and this check can be taken out.
+	// See https://github.com/containers/virtcontainers/issues/444
+	if c.state.State == "" {
+		return nil
+	}
+
 	randBytes, err := generateRandomBytes(8)
 	if err != nil {
 		return err
@@ -222,22 +231,11 @@ func (device *BlockDevice) attach(h hypervisor, c *Container) (err error) {
 
 	deviceLogger().WithField("device", device.DeviceInfo.HostPath).Info("Attaching block device")
 
-	// We are cold-plugging block devices for now until hot-plugging issues for vfio
-	// devices are fixed. After that we need to move towards  hotplugging all devices.
-	// See https://github.com/containers/virtcontainers/issues/444
-	if c.state.State == "" {
-		if err = h.addDevice(drive, blockDev); err != nil {
-			return err
-		}
-
-		device.DeviceInfo.Hotplugged = false
-	} else {
-		if err = h.hotplugAddDevice(drive, blockDev); err != nil {
-			return err
-		}
-
-		device.DeviceInfo.Hotplugged = true
+	if err = h.hotplugAddDevice(drive, blockDev); err != nil {
+		return err
 	}
+
+	device.DeviceInfo.Hotplugged = true
 
 	device.VirtPath = filepath.Join("/dev", driveName)
 	return nil

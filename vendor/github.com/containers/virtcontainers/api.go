@@ -82,12 +82,6 @@ func CreatePod(podConfig PodConfig) (VCPod, error) {
 		return nil, err
 	}
 
-	// Hotplug all pod containers rootfs if the hypervisor supports it
-	err = p.hotplugDrives()
-	if err != nil {
-		return nil, err
-	}
-
 	// Start shims
 	if err := p.startShims(); err != nil {
 		return nil, err

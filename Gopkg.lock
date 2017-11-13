@@ -19,17 +19,17 @@
 [[projects]]
   name = "github.com/containernetworking/cni"
   packages = ["libcni","pkg/invoke","pkg/types","pkg/types/020","pkg/types/current","pkg/version"]
-  revision = "ff7c3e02e3c212f63a642ad64a5ed22ee54450bd"
+  revision = "384d8c0b5288c25b9f1da901c66ea5155e6c567d"
 
 [[projects]]
   name = "github.com/containernetworking/plugins"
   packages = ["pkg/ns"]
-  revision = "e256564546e8d1ca8a36911f8445c11929043221"
+  revision = "7f98c94613021d8b57acfa1a2f0c8d0f6fd7ae5a"
 
 [[projects]]
   name = "github.com/containers/virtcontainers"
   packages = [".","pkg/annotations","pkg/cni","pkg/ethtool","pkg/hyperstart","pkg/oci","pkg/uuid","pkg/vcMock"]
-  revision = "c4884ba98baf1b82840a63aefd306cc46c61f879"
+  revision = "506f076ba79c77ae00da9daf60e4fed747cd8ab3"
 
 [[projects]]
   name = "github.com/davecgh/go-spew"
@@ -111,6 +111,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "a8735b7a46f0cc45f26750a50252307207c1e44c7a07b2a721287773d36fcde1"
+  inputs-digest = "bee732b22990fc7ebc0225845b8cf7648e9a76a813deec226fdbfebff948ad51"
   solver-name = "gps-cdcl"
   solver-version = 1

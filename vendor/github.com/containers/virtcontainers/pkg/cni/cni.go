@@ -21,7 +21,7 @@ import (
 	"sort"
 
 	"github.com/containernetworking/cni/libcni"
-	types "github.com/containernetworking/cni/pkg/types/current"
+	types "github.com/containernetworking/cni/pkg/types"
 )
 
 // CNI default values to find plugins and configurations.
@@ -132,7 +132,7 @@ func buildRuntimeConf(podID, podNetNSPath, ifName string) *libcni.RuntimeConf {
 }
 
 // AddNetwork calls the CNI plugin to create a network between the host and the network namespace.
-func (plugin *NetworkPlugin) AddNetwork(podID, netNSPath, ifName string) (*types.Result, error) {
+func (plugin *NetworkPlugin) AddNetwork(podID, netNSPath, ifName string) (types.Result, error) {
 	rt := buildRuntimeConf(podID, netNSPath, ifName)
 
 	_, err := plugin.loNetwork.cniConfig.AddNetwork(plugin.loNetwork.networkConfig, rt)
@@ -145,12 +145,7 @@ func (plugin *NetworkPlugin) AddNetwork(podID, netNSPath, ifName string) (*types
 		return nil, err
 	}
 
-	res, err := types.GetResult(ifaceResult)
-	if err != nil {
-		return nil, err
-	}
-
-	return res, nil
+	return ifaceResult, nil
 }
 
 // RemoveNetwork calls the CNI plugin to remove a specific network previously created between

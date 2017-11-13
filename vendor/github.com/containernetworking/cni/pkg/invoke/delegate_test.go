@@ -71,10 +71,15 @@ var _ = Describe("Delegate", func() {
 		os.Setenv("CNI_PATH", filepath.Dir(pathToPlugin))
 		os.Setenv("CNI_NETNS", "/tmp/some/netns/path")
 		os.Setenv("CNI_IFNAME", "eth7")
+		os.Setenv("CNI_CONTAINERID", "container")
 	})
 
 	AfterEach(func() {
 		os.RemoveAll(debugFileName)
+
+		for _, k := range []string{"CNI_COMMAND", "CNI_ARGS", "CNI_PATH", "CNI_NETNS", "CNI_IFNAME"} {
+			os.Unsetenv(k)
+		}
 	})
 
 	Describe("DelegateAdd", func() {

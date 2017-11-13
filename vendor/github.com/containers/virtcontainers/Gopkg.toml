@@ -70,11 +70,11 @@
 
 [[constraint]]
   name = "github.com/containernetworking/cni"
-  revision = "ff7c3e02e3c212f63a642ad64a5ed22ee54450bd"
+  revision = "384d8c0b5288c25b9f1da901c66ea5155e6c567d"
 
 [[constraint]]
   name = "github.com/containernetworking/plugins"
-  revision = "e256564546e8d1ca8a36911f8445c11929043221"
+  revision = "7f98c94613021d8b57acfa1a2f0c8d0f6fd7ae5a"
 
 [[constraint]]
   name = "github.com/davecgh/go-spew"

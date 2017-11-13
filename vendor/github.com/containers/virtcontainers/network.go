@@ -29,12 +29,12 @@ import (
 	"strings"
 	"time"
 
-	types "github.com/containernetworking/cni/pkg/types/current"
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/containers/virtcontainers/pkg/ethtool"
 	"github.com/containers/virtcontainers/pkg/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
 )
 
@@ -74,9 +74,27 @@ const (
 	defaultQueues     = 8
 )
 
-type netIfaceAddrs struct {
-	iface net.Interface
-	addrs []net.Addr
+// DNSInfo describes the DNS setup related to a network interface.
+type DNSInfo struct {
+	Servers  []string
+	Domain   string
+	Searches []string
+	Options  []string
+}
+
+// NetlinkIface describes fully a network interface.
+type NetlinkIface struct {
+	netlink.LinkAttrs
+	Type string
+}
+
+// NetworkInfo gathers all information related to a network interface.
+// It can be used to store the description of the underlying network.
+type NetworkInfo struct {
+	Iface  NetlinkIface
+	Addrs  []netlink.Addr
+	Routes []netlink.Route
+	DNS    DNSInfo
 }
 
 // NetworkInterface defines a network interface.
@@ -104,12 +122,12 @@ type NetworkConfig struct {
 
 // Endpoint represents a physical or virtual network interface.
 type Endpoint interface {
-	Properties() types.Result
+	Properties() NetworkInfo
 	Name() string
 	HardwareAddr() string
 	Type() EndpointType
 
-	SetProperties(types.Result)
+	SetProperties(NetworkInfo)
 	Attach(hypervisor) error
 	Detach() error
 }
@@ -117,7 +135,7 @@ type Endpoint interface {
 // VirtualEndpoint gathers a network pair and its properties.
 type VirtualEndpoint struct {
 	NetPair            NetworkInterfacePair
-	EndpointProperties types.Result
+	EndpointProperties NetworkInfo
 	Physical           bool
 	EndpointType       EndpointType
 }
@@ -126,8 +144,7 @@ type VirtualEndpoint struct {
 type PhysicalEndpoint struct {
 	IfaceName          string
 	HardAddr           string
-	MTU                int
-	EndpointProperties types.Result
+	EndpointProperties NetworkInfo
 	EndpointType       EndpointType
 	BDF                string
 	Driver             string
@@ -135,7 +152,7 @@ type PhysicalEndpoint struct {
 }
 
 // Properties returns properties for the veth interface in the network pair.
-func (endpoint *VirtualEndpoint) Properties() types.Result {
+func (endpoint *VirtualEndpoint) Properties() NetworkInfo {
 	return endpoint.EndpointProperties
 }
 
@@ -156,7 +173,7 @@ func (endpoint *VirtualEndpoint) Type() EndpointType {
 }
 
 // SetProperties sets the properties for the endpoint.
-func (endpoint *VirtualEndpoint) SetProperties(properties types.Result) {
+func (endpoint *VirtualEndpoint) SetProperties(properties NetworkInfo) {
 	endpoint.EndpointProperties = properties
 }
 
@@ -184,7 +201,7 @@ func (endpoint *VirtualEndpoint) Detach() error {
 }
 
 // Properties returns the properties of the physical interface.
-func (endpoint *PhysicalEndpoint) Properties() types.Result {
+func (endpoint *PhysicalEndpoint) Properties() NetworkInfo {
 	return endpoint.EndpointProperties
 }
 
@@ -204,7 +221,7 @@ func (endpoint *PhysicalEndpoint) Type() EndpointType {
 }
 
 // SetProperties sets the properties of the physical endpoint.
-func (endpoint *PhysicalEndpoint) SetProperties(properties types.Result) {
+func (endpoint *PhysicalEndpoint) SetProperties(properties NetworkInfo) {
 	endpoint.EndpointProperties = properties
 }
 
@@ -1015,71 +1032,113 @@ func createNetworkEndpoints(numOfEndpoints int) (endpoints []Endpoint, err error
 	return endpoints, nil
 }
 
-func getIfacesFromNetNsFilter(networkNSPath string, ipFilter bool) ([]netIfaceAddrs, error) {
-	var netIfaces []netIfaceAddrs
-
-	if networkNSPath == "" {
-		return []netIfaceAddrs{}, fmt.Errorf("Network namespace path cannot be empty")
+func networkInfoFromLink(handle *netlink.Handle, link netlink.Link) (NetworkInfo, error) {
+	addrs, err := handle.AddrList(link, netlink.FAMILY_ALL)
+	if err != nil {
+		return NetworkInfo{}, err
 	}
 
-	err := doNetNS(networkNSPath, func(_ ns.NetNS) error {
-		ifaces, err := net.Interfaces()
+	routes, err := handle.RouteList(link, netlink.FAMILY_ALL)
+	if err != nil {
+		return NetworkInfo{}, err
+	}
+
+	return NetworkInfo{
+		Iface: NetlinkIface{
+			LinkAttrs: *(link.Attrs()),
+			Type:      link.Type(),
+		},
+		Addrs:  addrs,
+		Routes: routes,
+	}, nil
+}
+
+func networkInfoListFromNetworkScan(handle *netlink.Handle) ([]NetworkInfo, error) {
+	var netInfoList []NetworkInfo
+
+	linkList, err := handle.LinkList()
+	if err != nil {
+		return []NetworkInfo{}, err
+	}
+
+	for _, link := range linkList {
+		netInfo, err := networkInfoFromLink(handle, link)
 		if err != nil {
-			return err
+			return []NetworkInfo{}, err
 		}
 
-		for _, iface := range ifaces {
-			addrs, err := iface.Addrs()
+		// Ignore unconfigured network interfaces. These are
+		// either base tunnel devices that are not namespaced
+		// like gre0, gretap0, sit0, ipip0, tunl0 or incorrectly
+		// setup interfaces.
+		if len(netInfo.Addrs) == 0 {
+			continue
+		}
+
+		netInfoList = append(netInfoList, netInfo)
+	}
+
+	return netInfoList, nil
+}
+
+func createEndpointsFromScan(networkNSPath string) ([]Endpoint, error) {
+	var endpoints []Endpoint
+
+	netnsHandle, err := netns.GetFromPath(networkNSPath)
+	if err != nil {
+		return []Endpoint{}, err
+	}
+	defer netnsHandle.Close()
+
+	netlinkHandle, err := netlink.NewHandleAt(netnsHandle)
+	if err != nil {
+		return []Endpoint{}, err
+	}
+	defer netlinkHandle.Delete()
+
+	netInfoList, err := networkInfoListFromNetworkScan(netlinkHandle)
+	if err != nil {
+		return []Endpoint{}, err
+	}
+
+	uniqueID := uuid.Generate().String()
+
+	idx := 0
+	for _, netInfo := range netInfoList {
+		var endpoint Endpoint
+
+		// Skip any loopback interface.
+		if (netInfo.Iface.Flags & net.FlagLoopback) != 0 {
+			continue
+		}
+
+		if err := doNetNS(networkNSPath, func(_ ns.NetNS) error {
+			// Check if interface is a physical interface. Do not create
+			// tap interface/bridge if it is.
+			isPhysical, err := isPhysicalIface(netInfo.Iface.Name)
 			if err != nil {
 				return err
 			}
 
-			if ipFilter {
-				// Ignore unconfigured network interfaces
-				// These are either base tunnel devices
-				// that are not namespaced like
-				// gre0, gretap0, sit0, ipip0, tunl0
-				// or incorrectly setup interfaces
-				if (addrs == nil) || (len(addrs) == 0) {
-					continue
-				}
+			if isPhysical {
+				cnmLogger().WithField("interface", netInfo.Iface.Name).Info("Physical network interface found")
+				endpoint, err = createPhysicalEndpoint(netInfo)
+			} else {
+				endpoint, err = createVirtualNetworkEndpoint(idx, uniqueID, netInfo.Iface.Name)
 			}
 
-			netIface := netIfaceAddrs{
-				iface: iface,
-				addrs: addrs,
-			}
-
-			netIfaces = append(netIfaces, netIface)
+			return err
+		}); err != nil {
+			return []Endpoint{}, err
 		}
 
-		return nil
-	})
-	if err != nil {
-		return []netIfaceAddrs{}, err
+		endpoint.SetProperties(netInfo)
+		endpoints = append(endpoints, endpoint)
+
+		idx++
 	}
 
-	return netIfaces, nil
-}
-
-func getIfacesFromNetNsAll(networkNSPath string) ([]netIfaceAddrs, error) {
-	// get all interfaces, even those without IP
-	return getIfacesFromNetNsFilter(networkNSPath, false)
-}
-
-func getIfacesFromNetNs(networkNSPath string) ([]netIfaceAddrs, error) {
-	// get only the interfaces with valid IP addrsses
-	return getIfacesFromNetNsFilter(networkNSPath, true)
-}
-
-func getNetIfaceByName(name string, netIfaces []netIfaceAddrs) (net.Interface, error) {
-	for _, netIface := range netIfaces {
-		if netIface.iface.Name == name {
-			return netIface.iface, nil
-		}
-	}
-
-	return net.Interface{}, fmt.Errorf("Could not find the interface %s in the list", name)
+	return endpoints, nil
 }
 
 // isPhysicalIface checks if an interface is a physical device.
@@ -1110,7 +1169,7 @@ func isPhysicalIface(ifaceName string) (bool, error) {
 
 var sysPCIDevicesPath = "/sys/bus/pci/devices"
 
-func createPhysicalEndpoint(ifaceName string) (*PhysicalEndpoint, error) {
+func createPhysicalEndpoint(netInfo NetworkInfo) (*PhysicalEndpoint, error) {
 	// Get ethtool handle to derive driver and bus
 	ethHandle, err := ethtool.NewEthtool()
 	if err != nil {
@@ -1118,13 +1177,13 @@ func createPhysicalEndpoint(ifaceName string) (*PhysicalEndpoint, error) {
 	}
 
 	// Get BDF
-	bdf, err := ethHandle.BusInfo(ifaceName)
+	bdf, err := ethHandle.BusInfo(netInfo.Iface.Name)
 	if err != nil {
 		return nil, err
 	}
 
 	// Get Driver
-	driver, err := ethHandle.DriverName(ifaceName)
+	driver, err := ethHandle.DriverName(netInfo.Iface.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -1150,25 +1209,9 @@ func createPhysicalEndpoint(ifaceName string) (*PhysicalEndpoint, error) {
 	vendorDeviceID := fmt.Sprintf("%s %s", vendorID, deviceID)
 	vendorDeviceID = strings.TrimSpace(vendorDeviceID)
 
-	// Get mac address
-	netHandle, err := netlink.NewHandle()
-	if err != nil {
-		return nil, err
-	}
-	defer netHandle.Delete()
-
-	link, err := netHandle.LinkByName(ifaceName)
-	if err != nil {
-		return nil, err
-	}
-
-	mac := link.Attrs().HardwareAddr.String()
-	MTU := link.Attrs().MTU
-
 	physicalEndpoint := &PhysicalEndpoint{
-		IfaceName:      ifaceName,
-		HardAddr:       mac,
-		MTU:            MTU,
+		IfaceName:      netInfo.Iface.Name,
+		HardAddr:       netInfo.Iface.HardwareAddr.String(),
 		VendorDeviceID: vendorDeviceID,
 		EndpointType:   PhysicalEndpointType,
 		Driver:         driver,
