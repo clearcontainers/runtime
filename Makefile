@@ -79,6 +79,8 @@ PKGLIBEXECDIR := $(LIBEXECDIR)/$(CCDIR)
 
 KERNELPATH := $(PKGDATADIR)/vmlinuz.container
 IMAGEPATH := $(PKGDATADIR)/clear-containers.img
+FIRMWAREPATH :=
+MACHINEACCELERATORS :=
 
 KERNELPARAMS :=
 
@@ -86,11 +88,11 @@ KERNELPARAMS :=
 ifeq (,$(filter-out centos rhel,$(distro)))
 QEMUCMD := qemu-system-x86_64
 else
-QEMUCMD := qemu-lite-system-x86_64
+QEMUCMD := qemu-cc-system-x86_64
 endif
 
 QEMUPATH := $(QEMUBINDIR)/$(QEMUCMD)
-MACHINETYPE := pc
+MACHINETYPE := q35
 
 SHIMCMD := cc-shim
 SHIMPATH := $(PKGLIBEXECDIR)/$(SHIMCMD)
@@ -156,6 +158,8 @@ USER_VARS += DESTTARGET
 USER_VARS += IMAGEPATH
 USER_VARS += MACHINETYPE
 USER_VARS += KERNELPATH
+USER_VARS += FIRMWAREPATH
+USER_VARS += MACHINEACCELERATORS
 USER_VARS += KERNELPARAMS
 USER_VARS += LIBEXECDIR
 USER_VARS += LOCALSTATEDIR
@@ -215,6 +219,8 @@ var version = "$(VERSION)"
 var defaultHypervisorPath = "$(QEMUPATH)"
 var defaultImagePath = "$(IMAGEPATH)"
 var defaultKernelPath = "$(KERNELPATH)"
+var defaultFirmwarePath = "$(FIRMWAREPATH)"
+var defaultMachineAccelerators = "$(MACHINEACCELERATORS)"
 var defaultShimPath = "$(SHIMPATH)"
 
 const defaultKernelParams = "$(KERNELPARAMS)"
@@ -285,6 +291,8 @@ $(GENERATED_FILES): %: %.in Makefile VERSION
 		-e "s|@CONFIG_IN@|$(CONFIG_IN)|g" \
 		-e "s|@IMAGEPATH@|$(IMAGEPATH)|g" \
 		-e "s|@KERNELPATH@|$(KERNELPATH)|g" \
+		-e "s|@FIRMWAREPATH@|$(FIRMWAREPATH)|g" \
+		-e "s|@MACHINEACCELERATORS@|$(MACHINEACCELERATORS)|g" \
 		-e "s|@KERNELPARAMS@|$(KERNELPARAMS)|g" \
 		-e "s|@LOCALSTATEDIR@|$(LOCALSTATEDIR)|g" \
 		-e "s|@PKGLIBEXECDIR@|$(PKGLIBEXECDIR)|g" \

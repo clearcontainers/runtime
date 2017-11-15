@@ -899,3 +899,32 @@ func TestGetDefaultConfigFile(t *testing.T) {
 	_, err = getDefaultConfigFile()
 	assert.Error(err)
 }
+
+func TestDefaultFirmware(t *testing.T) {
+	assert := assert.New(t)
+
+	f, err := ioutil.TempFile(os.TempDir(), "qboot.bin")
+	assert.NoError(err)
+	assert.NoError(f.Close())
+	defer os.RemoveAll(f.Name())
+
+	h := hypervisor{}
+	defaultFirmwarePath = ""
+	p, err := h.firmware()
+	assert.NoError(err)
+	assert.Empty(p)
+
+	defaultFirmwarePath = f.Name()
+	p, err = h.firmware()
+	assert.NoError(err)
+	assert.NotEmpty(p)
+}
+
+func TestDefaultMachineAccelerators(t *testing.T) {
+	assert := assert.New(t)
+	const machineAccelerators = "abc,123,rgb"
+
+	h := hypervisor{MachineAccelerators: machineAccelerators}
+
+	assert.Equal(machineAccelerators, h.machineAccelerators())
+}
