@@ -225,11 +225,7 @@ func (c *Container) startShim() error {
 
 	c.process = *process
 
-	if err := c.storeProcess(); err != nil {
-		return err
-	}
-
-	return nil
+	return c.storeProcess()
 }
 
 func (c *Container) storeProcess() error {
@@ -806,11 +802,7 @@ func (c *Container) hotplugDrive() error {
 		return err
 	}
 
-	if err := c.setStateFstype(fsType); err != nil {
-		return err
-	}
-
-	return nil
+	return c.setStateFstype(fsType)
 }
 
 // isDriveUsed checks if a drive has been used for container rootfs

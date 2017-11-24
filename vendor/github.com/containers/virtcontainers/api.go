@@ -38,6 +38,10 @@ func SetLogger(logger logrus.FieldLogger) {
 // CreatePod is the virtcontainers pod creation entry point.
 // CreatePod creates a pod and its containers. It does not start them.
 func CreatePod(podConfig PodConfig) (VCPod, error) {
+	return createPodFromConfig(podConfig)
+}
+
+func createPodFromConfig(podConfig PodConfig) (*Pod, error) {
 	// Create the pod.
 	p, err := createPod(podConfig)
 	if err != nil {
@@ -168,8 +172,12 @@ func StartPod(podID string) (VCPod, error) {
 		return nil, err
 	}
 
+	return startPod(p)
+}
+
+func startPod(p *Pod) (*Pod, error) {
 	// Start it
-	err = p.start()
+	err := p.start()
 	if err != nil {
 		return nil, err
 	}
@@ -214,14 +222,7 @@ func StopPod(podID string) (VCPod, error) {
 // RunPod is the virtcontainers pod running entry point.
 // RunPod creates a pod and its containers and then it starts them.
 func RunPod(podConfig PodConfig) (VCPod, error) {
-	// Create the pod.
-	p, err := createPod(podConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	// Store it.
-	err = p.storePod()
+	p, err := createPodFromConfig(podConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -232,59 +233,7 @@ func RunPod(podConfig PodConfig) (VCPod, error) {
 	}
 	defer unlockPod(lockFile)
 
-	// Initialize the network.
-	netNsPath, netNsCreated, err := p.network.init(p.config.NetworkConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	// Execute prestart hooks inside netns
-	err = p.network.run(netNsPath, func() error {
-		return p.config.Hooks.preStartHooks()
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	// Add the network
-	networkNS, err := p.network.add(*p, p.config.NetworkConfig, netNsPath, netNsCreated)
-	if err != nil {
-		return nil, err
-	}
-
-	// Store the network
-	err = p.storage.storePodNetwork(p.id, networkNS)
-	if err != nil {
-		return nil, err
-	}
-
-	// Start the VM
-	err = p.startVM(netNsPath)
-	if err != nil {
-		return nil, err
-	}
-
-	// Start shims
-	if err := p.startShims(); err != nil {
-		return nil, err
-	}
-
-	// Start the pod
-	err = p.start()
-	if err != nil {
-		p.delete()
-		return nil, err
-	}
-
-	// Execute poststart hooks inside netns
-	err = p.network.run(networkNS.NetNsPath, func() error {
-		return p.config.Hooks.postStartHooks()
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return p, nil
+	return startPod(p)
 }
 
 // ListPod is the virtcontainers pod listing entry point.

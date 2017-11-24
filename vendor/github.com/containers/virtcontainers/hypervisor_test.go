@@ -179,6 +179,7 @@ func TestHypervisorConfigDefaults(t *testing.T) {
 		HypervisorPath: "",
 		DefaultVCPUs:   defaultVCPUs,
 		DefaultMemSz:   defaultMemSzMiB,
+		DefaultBridges: defaultBridges,
 	}
 	if reflect.DeepEqual(hypervisorConfig, hypervisorConfigDefaultsExpected) == false {
 		t.Fatal()

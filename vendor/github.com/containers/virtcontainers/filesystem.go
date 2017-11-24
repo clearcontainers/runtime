@@ -42,6 +42,9 @@ const (
 	// networkFileType represents a network file type (pod only)
 	networkFileType
 
+	// hypervisorFileType represents a hypervisor file type (pod only)
+	hypervisorFileType
+
 	// processFileType represents a process file type
 	processFileType
 
@@ -63,6 +66,9 @@ const stateFile = "state.json"
 
 // networkFile is the file name storing a pod network.
 const networkFile = "network.json"
+
+// hypervisorFile is the file name storing a hypervisor's state.
+const hypervisorFile = "hypervisor.json"
 
 // processFile is the file name storing a container process.
 const processFile = "process.json"
@@ -108,6 +114,10 @@ type resourceStorage interface {
 	fetchPodState(podID string) (State, error)
 	fetchPodNetwork(podID string) (NetworkNamespace, error)
 	storePodNetwork(podID string, networkNS NetworkNamespace) error
+
+	// Hypervisor resources
+	fetchHypervisorState(podID string, state interface{}) error
+	storeHypervisorState(podID string, state interface{}) error
 
 	// Container resources
 	storeContainerResource(podID, containerID string, resource podResource, data interface{}) error
@@ -319,7 +329,7 @@ func (fs *filesystem) fetchDeviceFile(fileData []byte, devices *[]Device) error 
 func resourceNeedsContainerID(podSpecific bool, resource podResource) bool {
 
 	switch resource {
-	case lockFileType, networkFileType:
+	case lockFileType, networkFileType, hypervisorFileType:
 		// pod-specific resources
 		return false
 	default:
@@ -342,7 +352,7 @@ func resourceDir(podSpecific bool, podID, containerID string, resource podResour
 	case configFileType:
 		path = configStoragePath
 		break
-	case stateFileType, networkFileType, processFileType, lockFileType, mountsFileType, devicesFileType:
+	case stateFileType, networkFileType, processFileType, lockFileType, mountsFileType, devicesFileType, hypervisorFileType:
 		path = runStoragePath
 		break
 	default:
@@ -378,6 +388,8 @@ func (fs *filesystem) resourceURI(podSpecific bool, podID, containerID string, r
 		filename = stateFile
 	case networkFileType:
 		filename = networkFile
+	case hypervisorFileType:
+		filename = hypervisorFile
 	case processFileType:
 		filename = processFile
 	case lockFileType:
@@ -429,6 +441,7 @@ func (fs *filesystem) commonResourceChecks(podSpecific bool, podID, containerID 
 	case configFileType:
 	case stateFileType:
 	case networkFileType:
+	case hypervisorFileType:
 	case processFileType:
 	case mountsFileType:
 	case devicesFileType:
@@ -557,11 +570,7 @@ func (fs *filesystem) fetchResource(podSpecific bool, podID, containerID string,
 		return err
 	}
 
-	if err := fs.fetchFile(path, resource, data); err != nil {
-		return err
-	}
-
-	return nil
+	return fs.fetchFile(path, resource, data)
 }
 
 func (fs *filesystem) storePodResource(podID string, resource podResource, data interface{}) error {
@@ -598,8 +607,21 @@ func (fs *filesystem) fetchPodNetwork(podID string) (NetworkNamespace, error) {
 	return networkNS, nil
 }
 
+func (fs *filesystem) fetchHypervisorState(podID string, state interface{}) error {
+	return fs.fetchResource(true, podID, "", hypervisorFileType, state)
+}
+
 func (fs *filesystem) storePodNetwork(podID string, networkNS NetworkNamespace) error {
 	return fs.storePodResource(podID, networkFileType, networkNS)
+}
+
+func (fs *filesystem) storeHypervisorState(podID string, state interface{}) error {
+	hypervisorFile, _, err := fs.resourceURI(true, podID, "", hypervisorFileType)
+	if err != nil {
+		return err
+	}
+
+	return fs.storeFile(hypervisorFile, state)
 }
 
 func (fs *filesystem) deletePodResources(podID string, resources []podResource) error {

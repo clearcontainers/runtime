@@ -19,8 +19,8 @@ package virtcontainers
 type mockHypervisor struct {
 }
 
-func (m *mockHypervisor) init(config HypervisorConfig) error {
-	valid, err := config.valid()
+func (m *mockHypervisor) init(pod *Pod) error {
+	valid, err := pod.config.HypervisorConfig.valid()
 	if valid == false || err != nil {
 		return err
 	}
@@ -36,9 +36,11 @@ func (m *mockHypervisor) createPod(podConfig PodConfig) error {
 	return nil
 }
 
-func (m *mockHypervisor) startPod(startCh, stopCh chan struct{}) error {
-	var msg struct{}
-	startCh <- msg
+func (m *mockHypervisor) startPod() error {
+	return nil
+}
+
+func (m *mockHypervisor) waitPod(timeout int) error {
 	return nil
 }
 
@@ -68,4 +70,8 @@ func (m *mockHypervisor) hotplugRemoveDevice(devInfo interface{}, devType device
 
 func (m *mockHypervisor) getPodConsole(podID string) string {
 	return ""
+}
+
+func (m *mockHypervisor) getState() interface{} {
+	return nil
 }

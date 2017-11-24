@@ -123,7 +123,7 @@ func (n *cni) updateEndpointsFromScan(networkNS *NetworkNamespace) error {
 		return err
 	}
 
-	for idx, endpoint := range endpoints {
+	for _, endpoint := range endpoints {
 		for _, ep := range networkNS.Endpoints {
 			if ep.Name() == endpoint.Name() {
 				// Update endpoint properties with info from
@@ -131,8 +131,12 @@ func (n *cni) updateEndpointsFromScan(networkNS *NetworkNamespace) error {
 				// cannot provide it.
 				prop := endpoint.Properties()
 				prop.DNS = ep.Properties().DNS
-				ep.SetProperties(prop)
-				endpoints[idx] = ep
+				endpoint.SetProperties(prop)
+
+				switch e := endpoint.(type) {
+				case *VirtualEndpoint:
+					e.NetPair = ep.(*VirtualEndpoint).NetPair
+				}
 				break
 			}
 		}

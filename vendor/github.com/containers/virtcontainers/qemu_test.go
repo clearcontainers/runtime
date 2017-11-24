@@ -34,6 +34,7 @@ func newQemuConfig() HypervisorConfig {
 		HypervisorPath: testQemuPath,
 		DefaultVCPUs:   defaultVCPUs,
 		DefaultMemSz:   defaultMemSzMiB,
+		DefaultBridges: defaultBridges,
 	}
 }
 
@@ -375,8 +376,25 @@ func TestQemuInit(t *testing.T) {
 	qemuConfig := newQemuConfig()
 	q := &qemu{}
 
-	err := q.init(qemuConfig)
-	if err != nil {
+	pod := &Pod{
+		id:      "testPod",
+		storage: &filesystem{},
+		config: &PodConfig{
+			HypervisorConfig: qemuConfig,
+		},
+	}
+
+	// Create parent dir path for hypervisor.json
+	parentDir := filepath.Join(runStoragePath, pod.id)
+	if err := os.MkdirAll(parentDir, dirMode); err != nil {
+		t.Fatalf("Could not create parent directory %s: %v", parentDir, err)
+	}
+
+	if err := q.init(pod); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.RemoveAll(parentDir); err != nil {
 		t.Fatal(err)
 	}
 
@@ -393,6 +411,29 @@ func TestQemuInit(t *testing.T) {
 
 	if strings.Join(q.kernelParams, " ") != testQemuKernelParamsDefault {
 		t.Fatal()
+	}
+}
+
+func TestQemuInitMissingParentDirFail(t *testing.T) {
+	qemuConfig := newQemuConfig()
+	q := &qemu{}
+
+	pod := &Pod{
+		id:      "testPod",
+		storage: &filesystem{},
+		config: &PodConfig{
+			HypervisorConfig: qemuConfig,
+		},
+	}
+
+	// Ensure parent dir path for hypervisor.json does not exist.
+	parentDir := filepath.Join(runStoragePath, pod.id)
+	if err := os.RemoveAll(parentDir); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := q.init(pod); err == nil {
+		t.Fatal("Qemu init() expected to fail because of missing parent directory for storage")
 	}
 }
 

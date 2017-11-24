@@ -85,10 +85,6 @@
   revision = "e256564546e8d1ca8a36911f8445c11929043221"
 
 [[constraint]]
-  name = "github.com/containers/virtcontainers"
-  revision = "506f076ba79c77ae00da9daf60e4fed747cd8ab3"
-
-[[constraint]]
   name = "github.com/davecgh/go-spew"
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
 
@@ -147,3 +143,7 @@
 [[constraint]]
   name = "golang.org/x/sys"
   revision = "314a259e304ff91bd6985da2a7149bbf91237993"
+
+[[constraint]]
+  name = "github.com/containers/virtcontainers"
+  revision = "4589f5bbf82318dac126d75c6aaeb78428dfa551"
