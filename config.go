@@ -89,7 +89,8 @@ type hypervisor struct {
 }
 
 type proxy struct {
-	URL string `toml:"url"`
+	Path  string `toml:"path"`
+	Debug bool   `toml:"enable_debug"`
 }
 
 type runtime struct {
@@ -172,12 +173,16 @@ func (h hypervisor) defaultMemSz() uint32 {
 	return h.DefaultMemSz
 }
 
-func (p proxy) url() string {
-	if p.URL == "" {
-		return defaultProxyURL
+func (p proxy) path() string {
+	if p.Path == "" {
+		return defaultProxyPath
 	}
 
-	return p.URL
+	return p.Path
+}
+
+func (p proxy) debug() bool {
+	return p.Debug
 }
 
 func (s shim) path() (string, error) {
@@ -265,7 +270,8 @@ func updateRuntimeConfig(configPath string, tomlConf tomlConfig, config *oci.Run
 		switch k {
 		case ccProxyTableType:
 			pConfig := vc.CCProxyConfig{
-				URL: proxy.url(),
+				Path:  proxy.path(),
+				Debug: proxy.debug(),
 			}
 
 			config.ProxyType = vc.CCProxyType

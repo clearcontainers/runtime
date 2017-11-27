@@ -72,6 +72,9 @@ type State struct {
 
 	// Bool to indicate if the drive for a container was hotplugged.
 	HotpluggedDrive bool `json:"hotpluggedDrive"`
+
+	// Process ID of the pods proxy instance
+	ProxyPid int
 }
 
 // valid checks that the pod state is valid.
@@ -757,6 +760,29 @@ func (p *Pod) startVM(netNsPath string) error {
 	})
 }
 
+// startProxy starts a proxy instance for the pod.
+//
+// Note that there is no corresponding stopProxy() since the proxy
+// stops itself.
+func (p *Pod) startProxy() error {
+	pid, uri, err := p.proxy.start(*p)
+	if err != nil {
+		return err
+	}
+
+	// save state
+	p.state.URL = uri
+	p.state.ProxyPid = pid
+
+	if err := p.setPodState(p.state); err != nil {
+		return err
+	}
+
+	p.Logger().WithField("proxy-pid", pid).Info("proxy started")
+
+	return nil
+}
+
 // startShims registers all containers to the proxy and starts one
 // shim per container.
 func (p *Pod) startShims() error {
@@ -771,11 +797,6 @@ func (p *Pod) startShims() error {
 
 	if len(proxyInfos) != len(p.containers) {
 		return fmt.Errorf("Retrieved %d proxy infos, expecting %d", len(proxyInfos), len(p.containers))
-	}
-
-	p.state.URL = url
-	if err := p.setPodState(p.state); err != nil {
-		return err
 	}
 
 	shimCount := 0
@@ -802,7 +823,11 @@ func (p *Pod) startShims() error {
 		}
 	}
 
-	p.Logger().WithField("shim-count", shimCount).Info("Started shims")
+	if shimCount > 0 {
+		p.Logger().WithField("shim-count", shimCount).Info("Started shims")
+	} else {
+		p.Logger().Info("No containers, so no shims started")
+	}
 
 	return nil
 }

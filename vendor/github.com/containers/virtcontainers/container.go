@@ -714,7 +714,7 @@ func (c *Container) processList(options ProcessListOptions) (ProcessList, error)
 
 func (c *Container) createShimProcess(token, url string, cmd Cmd) (*Process, error) {
 	if c.pod.state.URL != url {
-		return &Process{}, fmt.Errorf("Pod URL %s and URL from proxy %s MUST be identical", c.pod.state.URL, url)
+		return &Process{}, fmt.Errorf("Pod URL %q and URL from proxy %q MUST be identical", c.pod.state.URL, url)
 	}
 
 	shimParams := ShimParams{

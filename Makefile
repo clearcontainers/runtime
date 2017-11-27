@@ -96,7 +96,6 @@ SHIMCMD := cc-shim
 SHIMPATH := $(PKGLIBEXECDIR)/$(SHIMCMD)
 
 PROXYCMD := cc-proxy
-PROXYURL := unix://$(PKGRUNDIR)/proxy.sock
 PROXYPATH := $(PKGLIBEXECDIR)/$(PROXYCMD)
 
 # Default number of vCPUs
@@ -165,7 +164,6 @@ USER_VARS += PKGLIBEXECDIR
 USER_VARS += PKGRUNDIR
 USER_VARS += PREFIX
 USER_VARS += PROXYPATH
-USER_VARS += PROXYURL
 USER_VARS += QEMUBINDIR
 USER_VARS += QEMUCMD
 USER_VARS += QEMUPATH
@@ -219,7 +217,6 @@ var defaultShimPath = "$(SHIMPATH)"
 
 const defaultKernelParams = "$(KERNELPARAMS)"
 const defaultMachineType = "$(MACHINETYPE)"
-const defaultProxyURL = "$(PROXYURL)"
 const defaultRootDirectory = "$(PKGRUNDIR)"
 const defaultRuntimeLib = "$(PKGLIBDIR)"
 const defaultRuntimeRun = "$(PKGRUNDIR)"
@@ -288,7 +285,7 @@ $(GENERATED_FILES): %: %.in Makefile VERSION
 		-e "s|@KERNELPARAMS@|$(KERNELPARAMS)|g" \
 		-e "s|@LOCALSTATEDIR@|$(LOCALSTATEDIR)|g" \
 		-e "s|@PKGLIBEXECDIR@|$(PKGLIBEXECDIR)|g" \
-		-e "s|@PROXYURL@|$(PROXYURL)|g" \
+		-e "s|@PROXYPATH@|$(PROXYPATH)|g" \
 		-e "s|@QEMUPATH@|$(QEMUPATH)|g" \
 		-e "s|@MACHINETYPE@|$(MACHINETYPE)|g" \
 		-e "s|@SHIMPATH@|$(SHIMPATH)|g" \

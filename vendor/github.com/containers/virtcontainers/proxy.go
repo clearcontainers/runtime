@@ -93,7 +93,7 @@ func newProxyConfig(config PodConfig) interface{} {
 	}
 }
 
-// ProxyInfo holds the token and url returned by the proxy.
+// ProxyInfo holds the token returned by the proxy.
 // Each ProxyInfo relates to a process running inside a container.
 type ProxyInfo struct {
 	Token string
@@ -101,6 +101,10 @@ type ProxyInfo struct {
 
 // proxy is the virtcontainers proxy interface.
 type proxy interface {
+	// start launches a proxy instance for the specified pod, returning
+	// the PID of the process and the URL used to connect to it.
+	start(pod Pod) (int, string, error)
+
 	// register connects and registers the proxy to the given VM.
 	// It also returns information related to containers workloads.
 	register(pod Pod) ([]ProxyInfo, string, error)
