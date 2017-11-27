@@ -29,7 +29,7 @@
 [[projects]]
   name = "github.com/containers/virtcontainers"
   packages = [".","pkg/annotations","pkg/cni","pkg/ethtool","pkg/hyperstart","pkg/oci","pkg/uuid","pkg/vcMock"]
-  revision = "506f076ba79c77ae00da9daf60e4fed747cd8ab3"
+  revision = "4589f5bbf82318dac126d75c6aaeb78428dfa551"
 
 [[projects]]
   name = "github.com/davecgh/go-spew"
@@ -111,6 +111,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "bee732b22990fc7ebc0225845b8cf7648e9a76a813deec226fdbfebff948ad51"
+  inputs-digest = "9f3cee761a2dfac357203a6e56bb8ce8235cbdcc9347681e083d2ca9cc7137a0"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -23,7 +23,6 @@ import (
 	"strings"
 	"sync"
 	"syscall"
-	"time"
 
 	"github.com/sirupsen/logrus"
 )
@@ -38,6 +37,10 @@ const controlSocket = "ctrl.sock"
 // This is a socket that any monitoring entity will listen to in order
 // to understand if the VM is still alive or not.
 const monitorSocket = "monitor.sock"
+
+// vmStartTimeout represents the time in seconds a pod can wait before
+// to consider the VM starting operation failed.
+const vmStartTimeout = 10
 
 // stateString is a string representing a pod state.
 type stateString string
@@ -593,10 +596,6 @@ func doFetchPod(podConfig PodConfig) (*Pod, error) {
 		return nil, err
 	}
 
-	if err := hypervisor.init(podConfig.HypervisorConfig); err != nil {
-		return nil, err
-	}
-
 	proxy, err := newProxy(podConfig.ProxyType)
 	if err != nil {
 		return nil, err
@@ -634,6 +633,11 @@ func doFetchPod(podConfig PodConfig) (*Pod, error) {
 	p.containers = containers
 
 	if err := p.storage.createAllResources(*p); err != nil {
+		return nil, err
+	}
+
+	if err := p.hypervisor.init(p); err != nil {
+		p.storage.deletePodResources(p.id, nil)
 		return nil, err
 	}
 
@@ -744,34 +748,13 @@ func (p *Pod) startSetState() error {
 	return nil
 }
 
-// startVM starts the VM, ensuring it is started before it returns or issuing
-// an error in case of timeout. Then it connects to the agent inside the VM.
+// startVM starts the VM.
 func (p *Pod) startVM(netNsPath string) error {
-	vmStartedCh := make(chan struct{})
-	vmStoppedCh := make(chan struct{})
-	const timeout = time.Duration(10) * time.Second
+	p.Logger().Info("Starting VM")
 
-	l := p.Logger()
-	l.Info("Starting VM")
-
-	go func() {
-		p.network.run(netNsPath, func() error {
-			err := p.hypervisor.startPod(vmStartedCh, vmStoppedCh)
-			return err
-		})
-	}()
-
-	// Wait for the pod started notification
-	select {
-	case <-vmStartedCh:
-		break
-	case <-time.After(timeout):
-		return fmt.Errorf("Did not receive the pod started notification (timeout %ds)", timeout)
-	}
-
-	l.Info("VM started")
-
-	return nil
+	return p.network.run(netNsPath, func() error {
+		return p.hypervisor.startPod()
+	})
 }
 
 // startShims registers all containers to the proxy and starts one
@@ -831,6 +814,14 @@ func (p *Pod) start() error {
 		return err
 	}
 
+	l := p.Logger()
+
+	if err := p.hypervisor.waitPod(vmStartTimeout); err != nil {
+		return err
+	}
+
+	l.Info("VM started")
+
 	if _, _, err := p.proxy.connect(*p, false); err != nil {
 		return err
 	}
@@ -851,7 +842,7 @@ func (p *Pod) start() error {
 		}
 	}
 
-	p.Logger().Info("started")
+	l.Info("started")
 
 	return nil
 }
@@ -942,11 +933,7 @@ func (p *Pod) stopVM() error {
 		return err
 	}
 
-	if err := p.hypervisor.stopPod(); err != nil {
-		return err
-	}
-
-	return nil
+	return p.hypervisor.stopPod()
 }
 
 // stop stops a pod. The containers that are making the pod
@@ -983,11 +970,7 @@ func (p *Pod) stop() error {
 		return err
 	}
 
-	if err := p.stopSetStates(); err != nil {
-		return err
-	}
-
-	return nil
+	return p.stopSetStates()
 }
 
 func (p *Pod) pause() error {
@@ -995,11 +978,7 @@ func (p *Pod) pause() error {
 		return err
 	}
 
-	if err := p.pauseSetStates(); err != nil {
-		return err
-	}
-
-	return nil
+	return p.pauseSetStates()
 }
 
 func (p *Pod) resume() error {
@@ -1007,11 +986,7 @@ func (p *Pod) resume() error {
 		return err
 	}
 
-	if err := p.resumeSetStates(); err != nil {
-		return err
-	}
-
-	return nil
+	return p.resumeSetStates()
 }
 
 // list lists all pod running on the host.
@@ -1097,11 +1072,7 @@ func (p *Pod) setContainerState(containerID string, state stateString) error {
 
 	// Let container handle its state update
 	cImpl := c.(*Container)
-	if err := cImpl.setContainerState(state); err != nil {
-		return err
-	}
-
-	return nil
+	return cImpl.setContainerState(state)
 }
 
 func (p *Pod) setContainersState(state stateString) error {

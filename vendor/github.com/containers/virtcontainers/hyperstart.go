@@ -365,11 +365,7 @@ func (h *hyper) createPod(pod *Pod) (err error) {
 		return err
 	}
 
-	if err := pod.hypervisor.addDevice(sharedVolume, fsDev); err != nil {
-		return err
-	}
-
-	return nil
+	return pod.hypervisor.addDevice(sharedVolume, fsDev)
 }
 
 func (h *hyper) capabilities() capabilities {
@@ -440,6 +436,15 @@ func (h *hyper) startPod(pod Pod) error {
 
 // stopPod is the agent Pod stopping implementation for hyperstart.
 func (h *hyper) stopPod(pod Pod) error {
+	proxyCmd := hyperstartProxyCmd{
+		cmd:     hyperstart.DestroyPod,
+		message: nil,
+	}
+
+	if _, err := h.proxy.sendCmd(proxyCmd); err != nil {
+		return err
+	}
+
 	return nil
 }
 

@@ -477,9 +477,5 @@ func bindDevicetoHost(bdf, hostDriver, vendorDeviceID string) error {
 		"driver-path": bindDriverPath,
 	}).Info("Binding back device to host driver")
 
-	if err := writeToFile(bindDriverPath, []byte(bdf)); err != nil {
-		return err
-	}
-
-	return nil
+	return writeToFile(bindDriverPath, []byte(bdf))
 }

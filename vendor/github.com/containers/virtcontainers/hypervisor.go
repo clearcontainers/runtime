@@ -44,6 +44,8 @@ const (
 	defaultVCPUs = 1
 	// 2 GiB
 	defaultMemSzMiB = 2048
+
+	defaultBridges = 1
 )
 
 // deviceType describes a virtualized device type.
@@ -161,6 +163,10 @@ type HypervisorConfig struct {
 	// Pod configuration VMConfig.Memory overwrites this.
 	DefaultMemSz uint32
 
+	// DefaultBridges specifies default number of bridges for the VM.
+	// Bridges can be used to hot plug devices
+	DefaultBridges uint32
+
 	// MemPrealloc specifies if the memory should be pre-allocated
 	MemPrealloc bool
 
@@ -201,6 +207,10 @@ func (conf *HypervisorConfig) valid() (bool, error) {
 
 	if conf.DefaultMemSz == 0 {
 		conf.DefaultMemSz = defaultMemSzMiB
+	}
+
+	if conf.DefaultBridges == 0 {
+		conf.DefaultBridges = defaultBridges
 	}
 
 	return true, nil
@@ -434,9 +444,10 @@ func RunningOnVMM(cpuInfoPath string) (bool, error) {
 // hypervisor is the virtcontainers hypervisor interface.
 // The default hypervisor implementation is Qemu.
 type hypervisor interface {
-	init(config HypervisorConfig) error
+	init(pod *Pod) error
 	createPod(podConfig PodConfig) error
-	startPod(startCh, stopCh chan struct{}) error
+	startPod() error
+	waitPod(timeout int) error
 	stopPod() error
 	pausePod() error
 	resumePod() error
@@ -445,4 +456,5 @@ type hypervisor interface {
 	hotplugRemoveDevice(devInfo interface{}, devType deviceType) error
 	getPodConsole(podID string) string
 	capabilities() capabilities
+	getState() interface{}
 }
