@@ -2,7 +2,7 @@
 
 
 [[projects]]
-  name = "github.com/01org/ciao"
+  name = "github.com/ciao-project/ciao"
   packages = ["qemu"]
   revision = "b2a8a2ecea1318ae28a0861191ec385532491b5a"
 
@@ -96,6 +96,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "994d700042628b236cd8df93ab4ffa54afe9222dc6d774902aee7353676fc590"
+  inputs-digest = "df84d7436c0ebb8c62d2b6184e9e7e26d85d2c6350283d6a0c1e9e0bb44ea629"
   solver-name = "gps-cdcl"
   solver-version = 1

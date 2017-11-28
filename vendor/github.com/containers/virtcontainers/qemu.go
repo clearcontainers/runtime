@@ -25,7 +25,7 @@ import (
 	"sync"
 	"time"
 
-	ciaoQemu "github.com/01org/ciao/qemu"
+	ciaoQemu "github.com/ciao-project/ciao/qemu"
 	"github.com/containers/virtcontainers/pkg/uuid"
 	"github.com/sirupsen/logrus"
 )

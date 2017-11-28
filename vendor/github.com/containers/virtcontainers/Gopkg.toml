@@ -134,5 +134,5 @@
 
 
 [[constraint]]
-  name = "github.com/01org/ciao"
+  name = "github.com/ciao-project/ciao"
   revision = "b2a8a2ecea1318ae28a0861191ec385532491b5a"

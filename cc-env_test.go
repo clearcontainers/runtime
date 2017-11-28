@@ -134,7 +134,8 @@ func getExpectedProxyDetails(config oci.RuntimeConfig) (ProxyInfo, error) {
 	return ProxyInfo{
 		Type:    string(config.ProxyType),
 		Version: testProxyVersion,
-		URL:     proxyConfig.URL,
+		Path:    proxyConfig.Path,
+		Debug:   proxyConfig.Debug,
 	}, nil
 }
 
@@ -743,7 +744,8 @@ func testCCEnvShowSettings(t *testing.T, tmpdir string, tmpfile *os.File) error 
 	ccProxy := ProxyInfo{
 		Type:    "proxy-type",
 		Version: "proxy-version",
-		URL:     "file:///proxy-url",
+		Path:    "file:///proxy-url",
+		Debug:   false,
 	}
 
 	ccShim := ShimInfo{

@@ -20,6 +20,12 @@ type noopProxy struct{}
 
 var noopProxyURL = "noopProxyURL"
 
+// register is the proxy start implementation for testing purpose.
+// It does nothing.
+func (p *noopProxy) start(pod Pod) (int, string, error) {
+	return 0, noopProxyURL, nil
+}
+
 // register is the proxy register implementation for testing purpose.
 // It does nothing.
 func (p *noopProxy) register(pod Pod) ([]ProxyInfo, string, error) {

@@ -603,8 +603,9 @@ func TestStatusPodSuccessfulStateReady(t *testing.T) {
 	expectedStatus := PodStatus{
 		ID: testPodID,
 		State: State{
-			State: StateReady,
-			URL:   "noopProxyURL",
+			State:    StateReady,
+			URL:      "noopProxyURL",
+			ProxyPid: 0,
 		},
 		Hypervisor:       MockHypervisor,
 		HypervisorConfig: hypervisorConfig,

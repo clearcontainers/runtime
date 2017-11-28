@@ -70,7 +70,11 @@ disable_block_device_use = @DEFDISABLEBLOCK@
 #disable_nesting_checks = true
 
 [proxy.cc]
-url = "@PROXYURL@"
+path = "@PROXYPATH@"
+
+# If enabled, proxy messages will be sent to the system log
+# (default: disabled)
+#enable_debug = true
 
 [shim.cc]
 path = "@SHIMPATH@"
