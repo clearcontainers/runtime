@@ -76,6 +76,8 @@ type hypervisor struct {
 	Path                  string `toml:"path"`
 	Kernel                string `toml:"kernel"`
 	Image                 string `toml:"image"`
+	Firmware              string `toml:"firmware"`
+	MachineAccelerators   string `toml:"machine_accelerators"`
 	KernelParams          string `toml:"kernel_params"`
 	MachineType           string `toml:"machine_type"`
 	DefaultVCPUs          int32  `toml:"default_vcpus"`
@@ -132,6 +134,34 @@ func (h hypervisor) image() (string, error) {
 	}
 
 	return resolvePath(p)
+}
+
+func (h hypervisor) firmware() (string, error) {
+	p := h.Firmware
+
+	if p == "" {
+		if defaultFirmwarePath == "" {
+			return "", nil
+		}
+		p = defaultFirmwarePath
+	}
+
+	return resolvePath(p)
+}
+
+func (h hypervisor) machineAccelerators() string {
+	var machineAccelerators string
+	accelerators := strings.Split(h.MachineAccelerators, ",")
+	acceleratorsLen := len(accelerators)
+	for i := 0; i < acceleratorsLen; i++ {
+		if accelerators[i] != "" {
+			machineAccelerators += strings.Trim(accelerators[i], "\r\t\n ") + ","
+		}
+	}
+
+	machineAccelerators = strings.Trim(machineAccelerators, ",")
+
+	return machineAccelerators
 }
 
 func (h hypervisor) kernelParams() string {
@@ -210,6 +240,12 @@ func newQemuHypervisorConfig(h hypervisor) (vc.HypervisorConfig, error) {
 		return vc.HypervisorConfig{}, err
 	}
 
+	firmware, err := h.firmware()
+	if err != nil {
+		return vc.HypervisorConfig{}, err
+	}
+
+	machineAccelerators := h.machineAccelerators()
 	kernelParams := h.kernelParams()
 	machineType := h.machineType()
 
@@ -217,6 +253,8 @@ func newQemuHypervisorConfig(h hypervisor) (vc.HypervisorConfig, error) {
 		HypervisorPath:        hypervisor,
 		KernelPath:            kernel,
 		ImagePath:             image,
+		FirmwarePath:          firmware,
+		MachineAccelerators:   machineAccelerators,
 		KernelParams:          vc.DeserializeParams(strings.Fields(kernelParams)),
 		HypervisorMachineType: machineType,
 		DefaultVCPUs:          h.defaultVCPUs(),
@@ -320,6 +358,8 @@ func loadConfiguration(configPath string, ignoreLogging bool) (resolvedConfigPat
 		HypervisorPath:        defaultHypervisorPath,
 		KernelPath:            defaultKernelPath,
 		ImagePath:             defaultImagePath,
+		FirmwarePath:          defaultFirmwarePath,
+		MachineAccelerators:   defaultMachineAccelerators,
 		HypervisorMachineType: defaultMachineType,
 		DefaultVCPUs:          defaultVCPUCount,
 		DefaultMemSz:          defaultMemSize,
