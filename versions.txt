@@ -1,7 +1,10 @@
-cc_agent_version=0fca1509afbaa18c5a0ddf213f2e377c7b87dcc7
+cc_agent_version=b1d92e2aa14d915680e8fe770745a511857ac7ff
+
 #Clear Containers image from https://download.clearlinux.org/releases/
-clear_vm_image_version=19070
-#Kernel configuration and patches from https://github.com/clearcontainers/linux
+clear_vm_image_version=19350
+
+#Kernel configuration and patches from
+#https://github.com/clearcontainers/linux
 clear_container_kernel=v4.9.60-80.container
 
 # Supported Docker version (but see docker_swarm_version)
