@@ -1,11 +1,18 @@
+# Clear Containers agent commit
 cc_agent_version=b1d92e2aa14d915680e8fe770745a511857ac7ff
 
-#Clear Containers image from https://download.clearlinux.org/releases/
+# Clear Containers image from https://download.clearlinux.org/releases/
 clear_vm_image_version=19350
 
-#Kernel configuration and patches from
-#https://github.com/clearcontainers/linux
+# Clear Containers Kernel version
+# Kernel configuration and patches from
+# https://github.com/clearcontainers/linux
 clear_container_kernel=v4.9.60-80.container
+clear_kernel_release=19360
+
+# Qemu-lite version
+qemu_lite_clear_release=19360
+qemu_lite_sha=741f430a960b5b67745670e8270db91aeb083c5f-29
 
 # Supported Docker version (but see docker_swarm_version)
 docker_version=v17.09-ce
@@ -13,8 +20,24 @@ docker_version=v17.09-ce
 # Version of docker required to use Docker's swarm feature
 docker_swarm_version=1.12.1
 
-#Supported OCI spec: https://github.com/opencontainers/runtime-spec/releases
+# Supported CRI-O version
+crio_version=v1.0.4
+
+# Runc version compatible with crio_version
+runc_version=84a082bfef6f932de921437815355186db37aeb1
+
+# Supported Kubernetes version
+kubernetes_version=1.8.3-00
+
+# Supported Openshift Origin version
+openshift_origin_version=v3.6.0
+openshift_origin_commit=c4dd4cf
+
+# Supported OCI spec: https://github.com/opencontainers/runtime-spec/releases
 oci_spec_version=v1.0.0-rc5
+
+# Go version used for building and testing Clear Containers
+go_version=1.8.3
 
 # Package versions required for CentOS 7 installation.
 gcc_version=6.2.0
