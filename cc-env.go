@@ -64,6 +64,7 @@ type RuntimeConfigInfo struct {
 type RuntimeInfo struct {
 	Version RuntimeVersionInfo
 	Config  RuntimeConfigInfo
+	Debug   bool
 }
 
 // RuntimeVersionInfo stores details of the runtime version
@@ -78,13 +79,15 @@ type HypervisorInfo struct {
 	MachineType string
 	Version     string
 	Path        string
+	Debug       bool
 }
 
 // ProxyInfo stores proxy details
 type ProxyInfo struct {
 	Type    string
 	Version string
-	URL     string
+	Path    string
+	Debug   bool
 }
 
 // ShimInfo stores shim details
@@ -92,6 +95,7 @@ type ShimInfo struct {
 	Type    string
 	Version string
 	Path    string
+	Debug   bool
 }
 
 // AgentInfo stores agent details
@@ -202,8 +206,6 @@ func getProxyInfo(config oci.RuntimeConfig) (ProxyInfo, error) {
 		return ProxyInfo{}, errors.New("cannot determine proxy config")
 	}
 
-	proxyURL := proxyConfig.URL
-
 	version, err := getCommandVersion(defaultProxyPath)
 	if err != nil {
 		version = unknown
@@ -212,7 +214,8 @@ func getProxyInfo(config oci.RuntimeConfig) (ProxyInfo, error) {
 	ccProxy := ProxyInfo{
 		Type:    string(config.ProxyType),
 		Version: version,
-		URL:     proxyURL,
+		Path:    proxyConfig.Path,
+		Debug:   proxyConfig.Debug,
 	}
 
 	return ccProxy, nil
@@ -239,6 +242,7 @@ func getShimInfo(config oci.RuntimeConfig) (ShimInfo, error) {
 		Type:    string(config.ShimType),
 		Version: version,
 		Path:    shimPath,
+		Debug:   shimConfig.Debug,
 	}
 
 	return ccShim, nil

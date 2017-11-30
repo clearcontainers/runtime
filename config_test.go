@@ -32,8 +32,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const proxyURL = "foo:///foo/clear-containers/proxy.sock"
-
 type testRuntimeConfig struct {
 	RuntimeConfig     oci.RuntimeConfig
 	RuntimeConfigFile string
@@ -43,7 +41,7 @@ type testRuntimeConfig struct {
 	LogPath           string
 }
 
-func makeRuntimeConfigFileData(hypervisor, hypervisorPath, kernelPath, imagePath, kernelParams, machineType, shimPath, proxyURL, logPath string, disableBlock bool) string {
+func makeRuntimeConfigFileData(hypervisor, hypervisorPath, kernelPath, imagePath, kernelParams, machineType, shimPath, proxyPath, logPath string, disableBlock bool) string {
 	return `
 	# Clear Containers runtime configuration file
 
@@ -58,7 +56,7 @@ func makeRuntimeConfigFileData(hypervisor, hypervisorPath, kernelPath, imagePath
 	disable_block_device_use =  ` + strconv.FormatBool(disableBlock) + `
 
 	[proxy.cc]
-	url = "` + proxyURL + `"
+	path = "` + proxyPath + `"
 
 	[shim.cc]
 	path = "` + shimPath + `"
@@ -94,12 +92,13 @@ func createAllRuntimeConfigFiles(dir, hypervisor string) (config testRuntimeConf
 	kernelParams := "foo=bar xyz"
 	imagePath := path.Join(dir, "image")
 	shimPath := path.Join(dir, "shim")
+	proxyPath := path.Join(dir, "proxy")
 	logDir := path.Join(dir, "logs")
 	logPath := path.Join(logDir, "runtime.log")
 	machineType := "machineType"
 	disableBlockDevice := true
 
-	runtimeConfigFileData := makeRuntimeConfigFileData(hypervisor, hypervisorPath, kernelPath, imagePath, kernelParams, machineType, shimPath, proxyURL, logPath, disableBlockDevice)
+	runtimeConfigFileData := makeRuntimeConfigFileData(hypervisor, hypervisorPath, kernelPath, imagePath, kernelParams, machineType, shimPath, proxyPath, logPath, disableBlockDevice)
 
 	configPath := path.Join(dir, "runtime.toml")
 	err = createConfig(configPath, runtimeConfigFileData)
@@ -115,7 +114,7 @@ func createAllRuntimeConfigFiles(dir, hypervisor string) (config testRuntimeConf
 		return config, err
 	}
 
-	files := []string{hypervisorPath, kernelPath, imagePath, shimPath}
+	files := []string{hypervisorPath, kernelPath, imagePath, shimPath, proxyPath}
 
 	for _, file := range files {
 		// create the resource
@@ -140,7 +139,7 @@ func createAllRuntimeConfigFiles(dir, hypervisor string) (config testRuntimeConf
 	agentConfig := vc.HyperConfig{}
 
 	proxyConfig := vc.CCProxyConfig{
-		URL: proxyURL,
+		Path: proxyPath,
 	}
 
 	shimConfig := vc.CCShimConfig{
@@ -461,12 +460,13 @@ func TestMinimalRuntimeConfig(t *testing.T) {
 	defer os.RemoveAll(dir)
 
 	shimPath := path.Join(dir, "shim")
+	proxyPath := path.Join(dir, "proxy")
 
 	runtimeMinimalConfig := `
 	# Clear Containers runtime configuration file
 
 	[proxy.cc]
-	url = "` + proxyURL + `"
+	path = "` + proxyPath + `"
 
 	[shim.cc]
 	path = "` + shimPath + `"
@@ -484,6 +484,11 @@ func TestMinimalRuntimeConfig(t *testing.T) {
 	}
 
 	err = createEmptyFile(shimPath)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = createEmptyFile(proxyPath)
 	if err != nil {
 		t.Error(err)
 	}
@@ -507,7 +512,7 @@ func TestMinimalRuntimeConfig(t *testing.T) {
 	expectedAgentConfig := vc.HyperConfig{}
 
 	expectedProxyConfig := vc.CCProxyConfig{
-		URL: proxyURL,
+		Path: proxyPath,
 	}
 
 	expectedShimConfig := vc.CCShimConfig{
@@ -786,12 +791,11 @@ func TestHypervisorDefaultsImage(t *testing.T) {
 func TestProxyDefaults(t *testing.T) {
 	p := proxy{}
 
-	assert.Equal(t, p.url(), defaultProxyURL, "default proxy url wrong")
+	assert.Equal(t, p.path(), defaultProxyPath, "default proxy path wrong")
 
-	url := "unix:///hello/world.sock"
-	p.URL = url
-	assert.Equal(t, p.url(), url, "custom proxy url wrong")
-
+	path := "/foo/bar/baz/proxy"
+	p.Path = path
+	assert.Equal(t, p.path(), path, "custom proxy path wrong")
 }
 
 func TestShimDefaults(t *testing.T) {

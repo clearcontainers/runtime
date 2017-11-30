@@ -24,7 +24,7 @@ import (
 	"strings"
 	"testing"
 
-	ciaoQemu "github.com/01org/ciao/qemu"
+	ciaoQemu "github.com/ciao-project/ciao/qemu"
 )
 
 func newQemuConfig() HypervisorConfig {
