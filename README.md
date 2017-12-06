@@ -86,7 +86,7 @@ also be configured to log to the system log (syslog or `journald`) such that
 all log data is sent to both the specified logfile and the system log. The
 latter is useful as it is independent of the lifecycle of each container.
 
-To view runtime log output,
+To view runtime log output:
 
 ```bash
 $ sudo journalctl -t cc-runtime
