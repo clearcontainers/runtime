@@ -133,7 +133,8 @@ func createAllRuntimeConfigFiles(dir, hypervisor string) (config testRuntimeConf
 		DefaultVCPUs:          defaultVCPUCount,
 		DefaultMemSz:          defaultMemSize,
 		DisableBlockDeviceUse: disableBlockDevice,
-		Mlock: !defaultEnableSwap,
+		DefaultBridges:        defaultBridgesCount,
+		Mlock:                 !defaultEnableSwap,
 	}
 
 	agentConfig := vc.HyperConfig{}
@@ -506,7 +507,8 @@ func TestMinimalRuntimeConfig(t *testing.T) {
 		DefaultVCPUs:          defaultVCPUCount,
 		DefaultMemSz:          defaultMemSize,
 		DisableBlockDeviceUse: defaultDisableBlockDeviceUse,
-		Mlock: !defaultEnableSwap,
+		DefaultBridges:        defaultBridgesCount,
+		Mlock:                 !defaultEnableSwap,
 	}
 
 	expectedAgentConfig := vc.HyperConfig{}
@@ -902,6 +904,23 @@ func TestGetDefaultConfigFile(t *testing.T) {
 
 	_, err = getDefaultConfigFile()
 	assert.Error(err)
+}
+
+func TestDefaultBridges(t *testing.T) {
+	assert := assert.New(t)
+
+	h := hypervisor{DefaultBridges: 0}
+
+	bridges := h.defaultBridges()
+	assert.Equal(defaultBridgesCount, bridges)
+
+	h.DefaultBridges = maxPCIBridges + 1
+	bridges = h.defaultBridges()
+	assert.Equal(maxPCIBridges, bridges)
+
+	h.DefaultBridges = maxPCIBridges
+	bridges = h.defaultBridges()
+	assert.Equal(maxPCIBridges, bridges)
 }
 
 func TestDefaultFirmware(t *testing.T) {

@@ -26,6 +26,19 @@ machine_accelerators="@MACHINEACCELERATORS@"
 # > 255            --> will be set to 255
 default_vcpus = -1
 
+
+# Bridges can be used to hot plug devices.
+# Limitations:
+# * Currently only pci bridges are supported
+# * Until 30 devices per bridge can be hot plugged.
+# * Until 5 PCI bridges can be cold plugged per VM.
+#   This limitation could be a bug in qemu or in the kernel
+# Default number of bridges per POD/VM:
+# unspecified or 0   --> will be set to @DEFBRIDGES@
+# > 1 <= 5           --> will be set to the specified number
+# > 5                --> will be set to 5
+default_bridges = @DEFBRIDGES@
+
 # Default memory size in MiB for POD/VM.
 # If unspecified then it will be set @DEFMEMSZ@ MiB.
 #default_memory = @DEFMEMSZ@
