@@ -13,8 +13,8 @@
 * [Quick start for developers](#quick-start-for-developers)
 * [Community](#community)
 * [Configuration](#configuration)
+* [Logging](#logging)
 * [Debugging](#debugging)
-    * [Enabling debug for various components](#enabling-debug-for-various-components)
 * [Limitations](#limitations)
 * [Home Page](#home-page)
 
@@ -79,7 +79,7 @@ To see details of your systems runtime environment (including the location of th
 $ cc-runtime cc-env
 ```
 
-## Debugging
+## Logging
 
 The runtime provides `--log=` and `--log-format=` options. However, it can
 also be configured to log to the system log (syslog or `journald`) such that
@@ -92,13 +92,35 @@ To view runtime log output:
 $ sudo journalctl -t cc-runtime
 ```
 
-### Enabling debug for various components
+To view shim log output:
 
-The runtime, the shim (`cc-shim`), and the hypervisor all have separate debug
-options in the [configuration file](#Configuration).
+```bash
+$ sudo journalctl -t cc-shim
+```
 
-The proxy (`cc-proxy`) has a command-line option to enable debug output. See
-the [proxy documentation](https://github.com/clearcontainers/proxy#debugging) for further details.
+To view proxy log output:
+
+```bash
+$ sudo journalctl -t cc-proxy
+```
+
+Note that the proxy log entries also include output from the agent (`cc-agent`) and the
+hypervisor (which includes the guest kernel boot-time messages).
+
+## Debugging
+
+The runtime, the shim (`cc-shim`), the proxy (`cc-proxy`) and the hypervisor all have separate `enable_debug=` debug
+options in the [configuration file](#Configuration). By default, all these
+debug options are disabled. Look at the comments in the installed
+configuration file for further details.
+
+If you wish to enable debug for all components, assuming a standard configuration file path, run:
+
+```bash
+$ sudo sed -i -e 's/^#\(enable_debug\).*=.*$/\1 = true/g' /usr/share/defaults/clear-containers/configuration.toml
+```
+
+For further details, see the [agent debug document](docs/debug-agent.md) and the [kernel debug document](docs/debug-kernel.md).
 
 ## Limitations
 
