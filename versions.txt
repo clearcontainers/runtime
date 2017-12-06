@@ -1,14 +1,14 @@
 # Clear Containers agent commit
-cc_agent_version=b1d92e2aa14d915680e8fe770745a511857ac7ff
+cc_agent_version=a074983f12ce3c50b8655659bcd81a6c81e4126c-18
 
 # Clear Containers image from https://download.clearlinux.org/releases/
-clear_vm_image_version=19350
+clear_vm_image_version=19490
 
 # Clear Containers Kernel version
 # Kernel configuration and patches from
 # https://github.com/clearcontainers/linux
-clear_container_kernel=v4.9.60-80.container
-clear_kernel_release=19360
+clear_container_kernel=v4.9.60-81.container
+clear_kernel_release=19490
 
 # Qemu-lite version
 qemu_lite_clear_release=19360
