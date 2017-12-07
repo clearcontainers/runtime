@@ -12,14 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +build linux
+
 package main
+
+/*
+#include <linux/kvm.h>
+
+const int ioctl_KVM_CREATE_VM = KVM_CREATE_VM;
+*/
+import "C"
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"syscall"
 
 	vc "github.com/containers/virtcontainers"
 	"github.com/sirupsen/logrus"
@@ -37,7 +48,8 @@ type kernelModule struct {
 const (
 	moduleParamDir        = "parameters"
 	cpuFlagsTag           = "flags"
-	successMessage        = "System is capable of running " + project
+	successMessageCapable = "System is capable of running " + project
+	successMessageCreate  = "System can currently create " + project
 	failMessage           = "System is not capable of running " + project
 	kernelPropertyCorrect = "Kernel property value correct"
 )
@@ -47,6 +59,7 @@ var (
 	procCPUInfo  = "/proc/cpuinfo"
 	sysModuleDir = "/sys/module"
 	modInfoCmd   = "modinfo"
+	kvmDevice    = "/dev/kvm"
 )
 
 // requiredCPUFlags maps a CPU flag value to search for and a
@@ -278,6 +291,38 @@ func hostIsClearContainersCapable(cpuinfoFile string) error {
 	return fmt.Errorf("ERROR: %s", failMessage)
 }
 
+// kvmIsUsable determines if it will be possible to create a virtual machine.
+func kvmIsUsable() error {
+	flags := syscall.O_RDWR | syscall.O_CLOEXEC
+
+	f, err := syscall.Open(kvmDevice, flags, 0)
+	if err != nil {
+		return err
+	}
+	defer syscall.Close(f)
+
+	fieldLogger := ccLog.WithField("check-type", "full")
+
+	fieldLogger.WithField("device", kvmDevice).Info("device available")
+
+	vm, _, errno := syscall.Syscall(syscall.SYS_IOCTL,
+		uintptr(f),
+		uintptr(C.ioctl_KVM_CREATE_VM),
+		0)
+	if errno != 0 {
+		if errno == syscall.EBUSY {
+			fieldLogger.WithField("reason", "another hypervisor running").Error("cannot create VM")
+		}
+
+		return errno
+	}
+	defer syscall.Close(int(vm))
+
+	fieldLogger.WithField("feature", "create-vm").Info("feature available")
+
+	return nil
+}
+
 var ccCheckCLICommand = cli.Command{
 	Name:  "cc-check",
 	Usage: "tests if system can run " + project,
@@ -287,7 +332,18 @@ var ccCheckCLICommand = cli.Command{
 			return err
 		}
 
-		ccLog.Info(successMessage)
+		ccLog.Info(successMessageCapable)
+
+		if os.Geteuid() == 0 {
+			// If running as the superuser, perform additional
+			// checks.
+			err = kvmIsUsable()
+			if err != nil {
+				return err
+			}
+		}
+
+		ccLog.Info(successMessageCreate)
 
 		return nil
 	},
