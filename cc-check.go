@@ -341,9 +341,9 @@ var ccCheckCLICommand = cli.Command{
 			if err != nil {
 				return err
 			}
-		}
 
-		ccLog.Info(successMessageCreate)
+			ccLog.Info(successMessageCreate)
+		}
 
 		return nil
 	},
