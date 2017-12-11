@@ -46,6 +46,15 @@ The runtime has a built-in command to determine if your host system is capable o
 $ cc-runtime cc-check
 ```
 
+Note:
+
+If you run the command above as the `root` user, further checks will be
+performed (e.g. check if another incompatible hypervisor is running):
+
+```bash
+$ sudo cc-runtime cc-check
+```
+
 ## Quick start for users
 
 See the [installation guides](docs/) available for various operating systems.
