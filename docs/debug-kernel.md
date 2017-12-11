@@ -12,7 +12,8 @@ to enable kernel boot logs using the configuration file.
 
 1. Enable kernel boot messages
 
-   Set the `enable_debug=` option in the `[proxy.cc]` section to `true` (assumes a standard configuration file path):
+   Set the `enable_debug=` option in the `[proxy.cc]` section to `true`, which
+   assumes a standard configuration file path:
 
    ```
    $ sudo awk '{if (/^\[proxy\.cc\]/) {got=1}; if (got == 1 && /^#enable_debug/) {print "enable_debug = true"; got=0; next; } else {print}}' /usr/share/defaults/clear-containers/configuration.toml
