@@ -91,7 +91,7 @@
 [[projects]]
   name = "github.com/vishvananda/netlink"
   packages = [".","nl"]
-  revision = "b7fbf1f5291ecf8ae5179d3202e914cb98cfe400"
+  revision = "c2a3de3b38bd00f07290c3c5e12b4dbc04ec8666"
 
 [[projects]]
   name = "github.com/vishvananda/netns"
