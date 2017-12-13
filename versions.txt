@@ -2,7 +2,7 @@
 cc_agent_version=a074983f12ce3c50b8655659bcd81a6c81e4126c-18
 
 # Clear Containers image from https://download.clearlinux.org/releases/
-clear_vm_image_version=19490
+clear_vm_image_version=19350
 
 # Clear Containers Kernel version
 # Kernel configuration and patches from
