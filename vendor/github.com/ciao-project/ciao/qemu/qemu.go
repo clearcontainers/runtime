@@ -31,6 +31,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"context"
 )
@@ -425,7 +426,8 @@ type NetDevice struct {
 
 	// FDs represents the list of already existing file descriptors to be used.
 	// This is mostly useful for mq support.
-	FDs []*os.File
+	FDs      []*os.File
+	VhostFDs []*os.File
 
 	// VHost enables virtio device emulation from the host kernel instead of from qemu.
 	VHost bool
@@ -511,8 +513,17 @@ func (netdev NetDevice) QemuNetdevParams(config *Config) []string {
 
 	netdevParams = append(netdevParams, netdev.Type.QemuNetdevParam())
 	netdevParams = append(netdevParams, fmt.Sprintf(",id=%s", netdev.ID))
+
 	if netdev.VHost == true {
 		netdevParams = append(netdevParams, ",vhost=on")
+		if len(netdev.VhostFDs) > 0 {
+			var fdParams []string
+			qemuFDs := config.appendFDs(netdev.VhostFDs)
+			for _, fd := range qemuFDs {
+				fdParams = append(fdParams, fmt.Sprintf("%d", fd))
+			}
+			netdevParams = append(netdevParams, fmt.Sprintf(",vhostfds=%s", strings.Join(fdParams, ":")))
+		}
 	}
 
 	if len(netdev.FDs) > 0 {
@@ -689,6 +700,78 @@ func (blkdev BlockDevice) QemuParams(config *Config) []string {
 
 	qemuParams = append(qemuParams, "-drive")
 	qemuParams = append(qemuParams, strings.Join(blkParams, ""))
+
+	return qemuParams
+}
+
+// VhostUserDeviceType is a qemu networking device type.
+type VhostUserDeviceType string
+
+const (
+	//VhostUserSCSI represents a SCSI vhostuser device type
+	VhostUserSCSI = "vhost-user-scsi-pci"
+	//VhostUserNet represents a net vhostuser device type
+	VhostUserNet = "virtio-net-pci"
+)
+
+// VhostUserDevice represents a qemu vhost-user network device meant to be passed
+// in to the guest
+type VhostUserDevice struct {
+	SocketPath    string //path to vhostuser socket on host
+	CharDevID     string
+	TypeDevID     string //id (SCSI) or netdev (net) device parameter
+	MacAddress    string //only valid if device type is  VhostUserNet
+	VhostUserType VhostUserDeviceType
+}
+
+// Valid returns true if there is a valid socket path defined for VhostUserDevice
+func (vhostuserDev VhostUserDevice) Valid() bool {
+	if vhostuserDev.SocketPath == "" || vhostuserDev.CharDevID == "" ||
+		vhostuserDev.TypeDevID == "" ||
+		(vhostuserDev.VhostUserType == VhostUserNet && vhostuserDev.MacAddress == "") {
+		return false
+	}
+
+	return true
+}
+
+// QemuParams returns the qemu parameters built out of this vhostuser device.
+func (vhostuserDev VhostUserDevice) QemuParams(config *Config) []string {
+	var qemuParams []string
+	var charParams []string
+	var netParams []string
+	var devParams []string
+
+	charParams = append(charParams, "socket")
+	charParams = append(charParams, fmt.Sprintf("id=%s", vhostuserDev.CharDevID))
+	charParams = append(charParams, fmt.Sprintf("path=%s", vhostuserDev.SocketPath))
+
+	// if network based vhost device:
+	if vhostuserDev.VhostUserType == VhostUserNet {
+		netParams = append(netParams, "type=vhost-user")
+		netParams = append(netParams, fmt.Sprintf("id=%s", vhostuserDev.TypeDevID))
+		netParams = append(netParams, fmt.Sprintf("chardev=%s", vhostuserDev.CharDevID))
+		netParams = append(netParams, "vhostforce")
+
+		devParams = append(devParams, VhostUserNet)
+		devParams = append(devParams, fmt.Sprintf("netdev=%s", vhostuserDev.TypeDevID))
+		devParams = append(devParams, fmt.Sprintf("mac=%s", vhostuserDev.MacAddress))
+	} else {
+		devParams = append(devParams, VhostUserSCSI)
+		devParams = append(devParams, fmt.Sprintf("id=%s", vhostuserDev.TypeDevID))
+		devParams = append(devParams, fmt.Sprintf("chardev=%s", vhostuserDev.CharDevID))
+	}
+
+	qemuParams = append(qemuParams, "-chardev")
+	qemuParams = append(qemuParams, strings.Join(charParams, ","))
+
+	// if network based vhost device:
+	if vhostuserDev.VhostUserType == VhostUserNet {
+		qemuParams = append(qemuParams, "-netdev")
+		qemuParams = append(qemuParams, strings.Join(netParams, ","))
+	}
+	qemuParams = append(qemuParams, "-device")
+	qemuParams = append(qemuParams, strings.Join(devParams, ","))
 
 	return qemuParams
 }
@@ -1286,7 +1369,8 @@ func LaunchQemu(config Config, logger QMPLog) (string, error) {
 	config.appendKernel()
 	config.appendBios()
 
-	return LaunchCustomQemu(config.Ctx, config.Path, config.qemuParams, config.fds, logger)
+	return LaunchCustomQemu(config.Ctx, config.Path, config.qemuParams,
+		config.fds, nil, logger)
 }
 
 // LaunchCustomQemu can be used to launch a new qemu instance.
@@ -1297,16 +1381,19 @@ func LaunchQemu(config Config, logger QMPLog) (string, error) {
 // signature of this function will not need to change when launch cancellation
 // is implemented.
 //
-// config.qemuParams is a slice of options to pass to qemu-system-x86_64 and fds is a
+// params is a slice of options to pass to qemu-system-x86_64 and fds is a
 // list of open file descriptors that are to be passed to the spawned qemu
-// process.
+// process.  The attrs parameter can be used to control aspects of the
+// newly created qemu process, such as the user and group under which it
+// runs.  It may be nil.
 //
 // This function writes its log output via logger parameter.
 //
 // The function will block until the launched qemu process exits.  "", nil
 // will be returned if the launch succeeds.  Otherwise a string containing
 // the contents of stderr + a Go error object will be returned.
-func LaunchCustomQemu(ctx context.Context, path string, params []string, fds []*os.File, logger QMPLog) (string, error) {
+func LaunchCustomQemu(ctx context.Context, path string, params []string, fds []*os.File,
+	attr *syscall.SysProcAttr, logger QMPLog) (string, error) {
 	if logger == nil {
 		logger = qmpNullLogger{}
 	}
@@ -1322,6 +1409,8 @@ func LaunchCustomQemu(ctx context.Context, path string, params []string, fds []*
 		logger.Infof("Adding extra file %v", fds)
 		cmd.ExtraFiles = fds
 	}
+
+	cmd.SysProcAttr = attr
 
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr

@@ -323,7 +323,7 @@ func (q *qemu) appendSocket(devices []ciaoQemu.Device, socket Socket) []ciaoQemu
 func networkModelToQemuType(model NetInterworkingModel) ciaoQemu.NetDeviceType {
 	switch model {
 	case ModelBridged:
-		return ciaoQemu.TAP
+		return ciaoQemu.MACVTAP //TODO: We should rename MACVTAP to .NET_FD
 	case ModelMacVtap:
 		return ciaoQemu.MACVTAP
 	//case ModelEnlightened:
@@ -354,6 +354,7 @@ func (q *qemu) appendNetwork(devices []ciaoQemu.Device, endpoint Endpoint) []cia
 				VHost:         true,
 				DisableModern: q.nestedRun,
 				FDs:           ep.NetPair.VMFds,
+				VhostFDs:      ep.NetPair.VhostFds,
 			},
 		)
 		networkIndex++
@@ -363,25 +364,6 @@ func (q *qemu) appendNetwork(devices []ciaoQemu.Device, endpoint Endpoint) []cia
 }
 
 func (q *qemu) appendFSDevices(devices []ciaoQemu.Device, podConfig PodConfig) []ciaoQemu.Device {
-	// Add the containers rootfs
-	for idx, c := range podConfig.Containers {
-		if c.RootFs == "" || c.ID == "" {
-			continue
-		}
-
-		devices = append(devices,
-			ciaoQemu.FSDevice{
-				Driver:        ciaoQemu.Virtio9P,
-				FSDriver:      ciaoQemu.Local,
-				ID:            fmt.Sprintf("ctr-9p-%d", idx),
-				Path:          c.RootFs,
-				MountTag:      fmt.Sprintf("ctr-rootfs-%d", idx),
-				SecurityModel: ciaoQemu.None,
-				DisableModern: q.nestedRun,
-			},
-		)
-	}
-
 	// Add the shared volumes
 	for _, v := range podConfig.Volumes {
 		devices = q.appendVolume(devices, v)

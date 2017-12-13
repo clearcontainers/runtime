@@ -86,7 +86,7 @@
 	},
 	"github.com/vishvananda/netlink": {
 		"url": "https://github.com/vishvananda/netlink.git",
-		"version": "1890b34",
+		"version": "c2a3de3",
 		"license": "Apache v2.0"
 	},
 	"github.com/vishvananda/netns": {
@@ -102,6 +102,16 @@
 	"golang.org/x/net": {
 		"url": "https://go.googlesource.com/net",
 		"version": "198e27a",
+		"license": "BSD (3 clause)"
+	},
+	"golang.org/x/net/html": {
+		"url": "https://github.com/golang/net.git",
+		"version": "a8b9294",
+		"license": "BSD (3 Clause)"
+	},
+	"golang.org/x/sys/unix": {
+		"url": "https://github.com/golang/sys",
+		"version": "665f652",
 		"license": "BSD (3 clause)"
 	},
 	"gopkg.in/yaml.v2": {

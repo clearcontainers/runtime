@@ -111,7 +111,8 @@ type NetworkInterfacePair struct {
 	VirtIface NetworkInterface
 	TAPIface  NetworkInterface
 	NetInterworkingModel
-	VMFds []*os.File
+	VMFds    []*os.File
+	VhostFds []*os.File
 }
 
 // NetworkConfig is the network configuration related to a network.
@@ -499,8 +500,9 @@ func removeNetworkCommon(networkNS NetworkNamespace) error {
 	})
 }
 
-func createLink(netHandle *netlink.Handle, name string, expectedLink netlink.Link) (netlink.Link, error) {
+func createLink(netHandle *netlink.Handle, name string, expectedLink netlink.Link) (netlink.Link, []*os.File, error) {
 	var newLink netlink.Link
+	var fds []*os.File
 
 	switch expectedLink.Type() {
 	case (&netlink.Bridge{}).Type():
@@ -512,6 +514,8 @@ func createLink(netHandle *netlink.Handle, name string, expectedLink netlink.Lin
 		newLink = &netlink.Tuntap{
 			LinkAttrs: netlink.LinkAttrs{Name: name},
 			Mode:      netlink.TUNTAP_MODE_TAP,
+			Queues:    defaultQueues,
+			Flags:     netlink.TUNTAP_MULTI_QUEUE_DEFAULTS | netlink.TUNTAP_VNET_HDR,
 		}
 	case (&netlink.Macvtap{}).Type():
 		qlen := expectedLink.Attrs().TxQLen
@@ -530,14 +534,20 @@ func createLink(netHandle *netlink.Handle, name string, expectedLink netlink.Lin
 			},
 		}
 	default:
-		return nil, fmt.Errorf("Unsupported link type %s", expectedLink.Type())
+		return nil, fds, fmt.Errorf("Unsupported link type %s", expectedLink.Type())
 	}
 
 	if err := netHandle.LinkAdd(newLink); err != nil {
-		return nil, fmt.Errorf("LinkAdd() failed for %s name %s: %s", expectedLink.Type(), name, err)
+		return nil, fds, fmt.Errorf("LinkAdd() failed for %s name %s: %s", expectedLink.Type(), name, err)
 	}
 
-	return getLinkByName(netHandle, name, expectedLink)
+	tuntapLink, ok := newLink.(*netlink.Tuntap)
+	if ok {
+		fds = tuntapLink.Fds
+	}
+
+	newLink, err := getLinkByName(netHandle, name, expectedLink)
+	return newLink, fds, err
 }
 
 func getLinkByName(netHandle *netlink.Handle, name string, expectedLink netlink.Link) (netlink.Link, error) {
@@ -592,21 +602,26 @@ func xconnectVMNetwork(netPair *NetworkInterfacePair, connect bool) error {
 }
 
 func createMacvtapFds(linkIndex int, queues int) ([]*os.File, error) {
-	fds := make([]*os.File, queues)
+	tapDev := fmt.Sprintf("/dev/tap%d", linkIndex)
+	return createFds(tapDev, queues)
+}
 
-	//mq support
-	for q := 0; q < queues; q++ {
+func createVhostFds(numFds int) ([]*os.File, error) {
+	vhostDev := "/dev/vhost-net"
+	return createFds(vhostDev, numFds)
+}
 
-		tapDev := fmt.Sprintf("/dev/tap%d", linkIndex)
+func createFds(device string, numFds int) ([]*os.File, error) {
+	fds := make([]*os.File, numFds)
 
-		f, err := os.OpenFile(tapDev, os.O_RDWR, defaultFilePerms)
+	for i := 0; i < numFds; i++ {
+		f, err := os.OpenFile(device, os.O_RDWR, defaultFilePerms)
 		if err != nil {
-			cleanupFds(fds, q)
+			cleanupFds(fds, i)
 			return nil, err
 		}
-		fds[q] = f
+		fds[i] = f
 	}
-
 	return fds, nil
 }
 
@@ -629,7 +644,7 @@ const macvtapWorkaround = true
 func createMacVtap(netHandle *netlink.Handle, name string, link netlink.Link) (taplink netlink.Link, err error) {
 
 	if !macvtapWorkaround {
-		taplink, err = createLink(netHandle, name, link)
+		taplink, _, err = createLink(netHandle, name, link)
 		return
 	}
 
@@ -638,7 +653,7 @@ func createMacVtap(netHandle *netlink.Handle, name string, link netlink.Link) (t
 	for i := 0; i < linkRetries; i++ {
 		index := hostLinkOffset + (r.Int() & linkRange)
 		link.Attrs().Index = index
-		taplink, err = createLink(netHandle, name, link)
+		taplink, _, err = createLink(netHandle, name, link)
 		if err == nil {
 			break
 		}
@@ -754,6 +769,12 @@ func tapNetworkPair(netPair *NetworkInterfacePair) error {
 		return fmt.Errorf("Could not setup macvtap fds %s: %s", netPair.TAPIface, err)
 	}
 
+	vhostFds, err := createVhostFds(defaultQueues)
+	if err != nil {
+		return fmt.Errorf("Could not setup vhost fds %s : %s", netPair.VirtIface.Name, err)
+	}
+	netPair.VhostFds = vhostFds
+
 	return nil
 }
 
@@ -764,10 +785,17 @@ func bridgeNetworkPair(netPair *NetworkInterfacePair) error {
 	}
 	defer netHandle.Delete()
 
-	tapLink, err := createLink(netHandle, netPair.TAPIface.Name, &netlink.Tuntap{})
+	tapLink, fds, err := createLink(netHandle, netPair.TAPIface.Name, &netlink.Tuntap{})
 	if err != nil {
 		return fmt.Errorf("Could not create TAP interface: %s", err)
 	}
+	netPair.VMFds = fds
+
+	vhostFds, err := createVhostFds(defaultQueues)
+	if err != nil {
+		return fmt.Errorf("Could not setup vhost fds %s : %s", netPair.VirtIface.Name, err)
+	}
+	netPair.VhostFds = vhostFds
 
 	vethLink, err := getLinkByName(netHandle, netPair.VirtIface.Name, &netlink.Veth{})
 	if err != nil {
@@ -797,7 +825,7 @@ func bridgeNetworkPair(netPair *NetworkInterfacePair) error {
 	}
 
 	mcastSnoop := false
-	bridgeLink, err := createLink(netHandle, netPair.Name, &netlink.Bridge{MulticastSnooping: &mcastSnoop})
+	bridgeLink, _, err := createLink(netHandle, netPair.Name, &netlink.Bridge{MulticastSnooping: &mcastSnoop})
 	if err != nil {
 		return fmt.Errorf("Could not create bridge: %s", err)
 	}
@@ -846,7 +874,7 @@ func untapNetworkPair(netPair NetworkInterfacePair) error {
 	vethLink, err := getLinkByName(netHandle, netPair.VirtIface.Name, &netlink.Veth{})
 	if err != nil {
 		// The veth pair is not totally managed by virtcontainers
-		virtLog.Warn("Could not get veth interface %s: %s", netPair.VirtIface.Name, err)
+		virtLog.Warnf("Could not get veth interface %s: %s", netPair.VirtIface.Name, err)
 	} else {
 		if err := netHandle.LinkSetDown(vethLink); err != nil {
 			return fmt.Errorf("Could not disable veth %s: %s", netPair.VirtIface.Name, err)

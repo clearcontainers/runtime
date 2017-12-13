@@ -271,7 +271,7 @@ func TestWriteCtlMessage(t *testing.T) {
 			continue
 		}
 
-		err = h.CheckReturnedCode(reply.Code, AckCode)
+		err = h.CheckReturnedCode(reply, AckCode)
 		if err != nil {
 			t.Fatal()
 		}
@@ -471,10 +471,10 @@ func TestCodeFromCmdUnknown(t *testing.T) {
 	}
 }
 
-func testCheckReturnedCode(t *testing.T, code, refCode uint32) {
+func testCheckReturnedCode(t *testing.T, recvMsg *DecodedMessage, refCode uint32) {
 	h := &Hyperstart{}
 
-	err := h.CheckReturnedCode(code, refCode)
+	err := h.CheckReturnedCode(recvMsg, refCode)
 	if err != nil {
 		t.Fatal()
 	}
@@ -482,14 +482,15 @@ func testCheckReturnedCode(t *testing.T, code, refCode uint32) {
 
 func TestCheckReturnedCodeList(t *testing.T) {
 	for _, code := range CodeList {
-		testCheckReturnedCode(t, code, code)
+		recvMsg := DecodedMessage{Code: code}
+		testCheckReturnedCode(t, &recvMsg, code)
 	}
 }
 
-func testCheckReturnedCodeFailure(t *testing.T, code, refCode uint32) {
+func testCheckReturnedCodeFailure(t *testing.T, recvMsg *DecodedMessage, refCode uint32) {
 	h := &Hyperstart{}
 
-	err := h.CheckReturnedCode(code, refCode)
+	err := h.CheckReturnedCode(recvMsg, refCode)
 	if err == nil {
 		t.Fatal()
 	}
@@ -497,10 +498,11 @@ func testCheckReturnedCodeFailure(t *testing.T, code, refCode uint32) {
 
 func TestCheckReturnedCodeListWrong(t *testing.T) {
 	for _, code := range CodeList {
+		msg := DecodedMessage{Code: code}
 		if code != ReadyCode {
-			testCheckReturnedCodeFailure(t, code, ReadyCode)
+			testCheckReturnedCodeFailure(t, &msg, ReadyCode)
 		} else {
-			testCheckReturnedCodeFailure(t, code, PingCode)
+			testCheckReturnedCodeFailure(t, &msg, PingCode)
 		}
 	}
 }
