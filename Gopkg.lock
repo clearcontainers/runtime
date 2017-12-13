@@ -9,7 +9,7 @@
 [[projects]]
   name = "github.com/ciao-project/ciao"
   packages = ["qemu"]
-  revision = "b2a8a2ecea1318ae28a0861191ec385532491b5a"
+  revision = "239f5bc3e8e5fe18e6b4df31dcd692db5692c55f"
 
 [[projects]]
   name = "github.com/clearcontainers/proxy"
@@ -29,7 +29,7 @@
 [[projects]]
   name = "github.com/containers/virtcontainers"
   packages = [".","pkg/annotations","pkg/cni","pkg/ethtool","pkg/hyperstart","pkg/oci","pkg/uuid","pkg/vcMock"]
-  revision = "9294388c472093f39c5913f087d154e5741a8849"
+  revision = "2687abf41549ad806f2bf955b06467254219da5e"
 
 [[projects]]
   name = "github.com/davecgh/go-spew"
@@ -111,6 +111,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "12bdab886d9aebbd0e0c1d3bbce6df1f9ede25ee950ac775903e4dc1846b53f1"
+  inputs-digest = "48db09a1650036d6ed8846385358b2f04ec6379577595f63366a1166df864cb2"
   solver-name = "gps-cdcl"
   solver-version = 1

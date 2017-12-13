@@ -66,7 +66,7 @@ func convertCNIResult(cniResult cniTypes.Result) (NetworkInfo, error) {
 	}
 }
 
-func (n *cni) addVirtInterfaces(networkNS *NetworkNamespace) error {
+func (n *cni) addVirtInterfaces(pod Pod, networkNS *NetworkNamespace) error {
 	netPlugin, err := cniPlugin.NewNetworkPlugin()
 	if err != nil {
 		return err
@@ -78,7 +78,7 @@ func (n *cni) addVirtInterfaces(networkNS *NetworkNamespace) error {
 			continue
 		}
 
-		result, err := netPlugin.AddNetwork(virtualEndpoint.NetPair.ID, networkNS.NetNsPath, virtualEndpoint.Name())
+		result, err := netPlugin.AddNetwork(pod.id, networkNS.NetNsPath, virtualEndpoint.Name())
 		if err != nil {
 			return err
 		}
@@ -96,7 +96,7 @@ func (n *cni) addVirtInterfaces(networkNS *NetworkNamespace) error {
 	return nil
 }
 
-func (n *cni) deleteVirtInterfaces(networkNS NetworkNamespace) error {
+func (n *cni) deleteVirtInterfaces(pod Pod, networkNS NetworkNamespace) error {
 	netPlugin, err := cniPlugin.NewNetworkPlugin()
 	if err != nil {
 		return err
@@ -108,7 +108,7 @@ func (n *cni) deleteVirtInterfaces(networkNS NetworkNamespace) error {
 			continue
 		}
 
-		err := netPlugin.RemoveNetwork(virtualEndpoint.NetPair.ID, networkNS.NetNsPath, virtualEndpoint.NetPair.VirtIface.Name)
+		err := netPlugin.RemoveNetwork(pod.id, networkNS.NetNsPath, virtualEndpoint.NetPair.VirtIface.Name)
 		if err != nil {
 			return err
 		}
@@ -170,7 +170,7 @@ func (n *cni) add(pod Pod, config NetworkConfig, netNsPath string, netNsCreated 
 		Endpoints:    endpoints,
 	}
 
-	if err := n.addVirtInterfaces(&networkNS); err != nil {
+	if err := n.addVirtInterfaces(pod, &networkNS); err != nil {
 		return NetworkNamespace{}, err
 	}
 
@@ -192,7 +192,7 @@ func (n *cni) remove(pod Pod, networkNS NetworkNamespace) error {
 		return err
 	}
 
-	if err := n.deleteVirtInterfaces(networkNS); err != nil {
+	if err := n.deleteVirtInterfaces(pod, networkNS); err != nil {
 		return err
 	}
 

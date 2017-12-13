@@ -438,13 +438,13 @@ func (h *Hyperstart) CodeFromCmd(cmd string) (uint32, error) {
 }
 
 // CheckReturnedCode ensures we did not receive an ERROR code.
-func (h *Hyperstart) CheckReturnedCode(recvCode, expectedCode uint32) error {
-	if recvCode != expectedCode {
-		if recvCode == ErrorCode {
-			return fmt.Errorf("ERROR received from VM agent")
+func (h *Hyperstart) CheckReturnedCode(recvMsg *DecodedMessage, expectedCode uint32) error {
+	if recvMsg.Code != expectedCode {
+		if recvMsg.Code == ErrorCode {
+			return fmt.Errorf("ERROR received from VM agent, control msg received : %s", recvMsg.Message)
 		}
 
-		return fmt.Errorf("CMD ID received %d not matching expected %d", recvCode, expectedCode)
+		return fmt.Errorf("CMD ID received %d not matching expected %d, control msg received : %s", recvMsg.Code, expectedCode, recvMsg.Message)
 	}
 
 	return nil
@@ -463,7 +463,7 @@ func (h *Hyperstart) WaitForReady() error {
 
 	msg := <-channel
 
-	err = h.CheckReturnedCode(msg.Code, ReadyCode)
+	err = h.CheckReturnedCode(msg, ReadyCode)
 	if err != nil {
 		return err
 	}
@@ -536,7 +536,7 @@ func (h *Hyperstart) SendCtlMessage(cmd string, data []byte) (*DecodedMessage, e
 
 	msgRecv := <-channel
 
-	err = h.CheckReturnedCode(msgRecv.Code, AckCode)
+	err = h.CheckReturnedCode(msgRecv, AckCode)
 	if err != nil {
 		return nil, err
 	}

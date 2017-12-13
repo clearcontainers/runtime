@@ -4,7 +4,7 @@
 [[projects]]
   name = "github.com/ciao-project/ciao"
   packages = ["qemu"]
-  revision = "b2a8a2ecea1318ae28a0861191ec385532491b5a"
+  revision = "239f5bc3e8e5fe18e6b4df31dcd692db5692c55f"
 
 [[projects]]
   name = "github.com/clearcontainers/proxy"
@@ -76,7 +76,7 @@
 [[projects]]
   name = "github.com/vishvananda/netlink"
   packages = [".","nl"]
-  revision = "b7fbf1f5291ecf8ae5179d3202e914cb98cfe400"
+  revision = "c2a3de3b38bd00f07290c3c5e12b4dbc04ec8666"
 
 [[projects]]
   name = "github.com/vishvananda/netns"
@@ -96,6 +96,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "df84d7436c0ebb8c62d2b6184e9e7e26d85d2c6350283d6a0c1e9e0bb44ea629"
+  inputs-digest = "3fb911fc813d328a7add909dc0eb35d4d9ea8efc1c8710d2cbcce59efd5ae440"
   solver-name = "gps-cdcl"
   solver-version = 1

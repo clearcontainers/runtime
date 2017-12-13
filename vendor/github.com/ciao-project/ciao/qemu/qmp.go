@@ -107,7 +107,8 @@ type QMPEvent struct {
 }
 
 type qmpResult struct {
-	err error
+	response interface{}
+	err      error
 }
 
 type qmpCommand struct {
@@ -137,6 +138,22 @@ type QMPVersion struct {
 	Minor        int
 	Micro        int
 	Capabilities []string
+}
+
+// CPUProperties contains the properties to be used for hotplugging a CPU instance
+type CPUProperties struct {
+	Node   int `json:"node-id"`
+	Socket int `json:"socket-id"`
+	Core   int `json:"core-id"`
+	Thread int `json:"thread-id"`
+}
+
+// HotpluggableCPU represents a hotpluggable CPU
+type HotpluggableCPU struct {
+	Type       string        `json:"type"`
+	VcpusCount int           `json:"vcpus-count"`
+	Properties CPUProperties `json:"props"`
+	QOMPath    string        `json:"qom-path"`
 }
 
 func (q *QMP) readLoop(fromVMCh chan<- []byte) {
@@ -203,14 +220,14 @@ func (q *QMP) processQMPEvent(cmdQueue *list.List, name interface{}, data interf
 	}
 }
 
-func (q *QMP) finaliseCommand(cmdEl *list.Element, cmdQueue *list.List, succeeded bool) {
+func (q *QMP) finaliseCommandWithResponse(cmdEl *list.Element, cmdQueue *list.List, succeeded bool, response interface{}) {
 	cmd := cmdEl.Value.(*qmpCommand)
 	cmdQueue.Remove(cmdEl)
 	select {
 	case <-cmd.ctx.Done():
 	default:
 		if succeeded {
-			cmd.res <- qmpResult{}
+			cmd.res <- qmpResult{response: response}
 		} else {
 			cmd.res <- qmpResult{err: fmt.Errorf("QMP command failed")}
 		}
@@ -218,6 +235,10 @@ func (q *QMP) finaliseCommand(cmdEl *list.Element, cmdQueue *list.List, succeede
 	if cmdQueue.Len() > 0 {
 		q.writeNextQMPCommand(cmdQueue)
 	}
+}
+
+func (q *QMP) finaliseCommand(cmdEl *list.Element, cmdQueue *list.List, succeeded bool) {
+	q.finaliseCommandWithResponse(cmdEl, cmdQueue, succeeded, nil)
 }
 
 func (q *QMP) processQMPInput(line []byte, cmdQueue *list.List) {
@@ -233,7 +254,7 @@ func (q *QMP) processQMPInput(line []byte, cmdQueue *list.List) {
 		return
 	}
 
-	_, succeeded := vmData["return"]
+	response, succeeded := vmData["return"]
 	_, failed := vmData["error"]
 
 	if !succeeded && !failed {
@@ -248,7 +269,7 @@ func (q *QMP) processQMPInput(line []byte, cmdQueue *list.List) {
 	}
 	cmd := cmdEl.Value.(*qmpCommand)
 	if failed || cmd.filter == nil {
-		q.finaliseCommand(cmdEl, cmdQueue, succeeded)
+		q.finaliseCommandWithResponse(cmdEl, cmdQueue, succeeded, response)
 	} else {
 		cmd.resultReceived = true
 	}
@@ -463,9 +484,10 @@ func startQMPLoop(conn io.ReadWriteCloser, cfg QMPConfig,
 	return q
 }
 
-func (q *QMP) executeCommand(ctx context.Context, name string, args map[string]interface{},
-	filter *qmpEventFilter) error {
+func (q *QMP) executeCommandWithResponse(ctx context.Context, name string, args map[string]interface{},
+	filter *qmpEventFilter) (interface{}, error) {
 	var err error
+	var response interface{}
 	resCh := make(chan qmpResult)
 	select {
 	case <-q.disconnectedCh:
@@ -480,16 +502,24 @@ func (q *QMP) executeCommand(ctx context.Context, name string, args map[string]i
 	}
 
 	if err != nil {
-		return err
+		return response, err
 	}
 
 	select {
 	case res := <-resCh:
 		err = res.err
+		response = res.response
 	case <-ctx.Done():
 		err = ctx.Err()
 	}
 
+	return response, err
+}
+
+func (q *QMP) executeCommand(ctx context.Context, name string, args map[string]interface{},
+	filter *qmpEventFilter) error {
+
+	_, err := q.executeCommandWithResponse(ctx, name, args, filter)
 	return err
 }
 
@@ -690,4 +720,72 @@ func (q *QMP) ExecutePCIDeviceAdd(ctx context.Context, blockdevID, devID, driver
 		args["bus"] = bus
 	}
 	return q.executeCommand(ctx, "device_add", args, nil)
+}
+
+// ExecuteVFIODeviceAdd adds a VFIO device to a QEMU instance
+// using the device_add command. devID is the id of the device to add.
+// Must be valid QMP identifier. bdf is the PCI bus-device-function
+// of the pci device.
+func (q *QMP) ExecuteVFIODeviceAdd(ctx context.Context, devID, bdf string) error {
+	args := map[string]interface{}{
+		"id":     devID,
+		"driver": "vfio-pci",
+		"host":   bdf,
+	}
+	return q.executeCommand(ctx, "device_add", args, nil)
+}
+
+// ExecutePCIVFIODeviceAdd adds a VFIO device to a QEMU instance using the device_add command.
+// This function can be used to hot plug VFIO devices on PCI(E) bridges, unlike
+// ExecuteVFIODeviceAdd this function receives the bus and the device address on its parent bus.
+// bus is optional. devID is the id of the device to add.Must be valid QMP identifier. bdf is the
+// PCI bus-device-function of the pci device.
+func (q *QMP) ExecutePCIVFIODeviceAdd(ctx context.Context, devID, bdf, addr, bus string) error {
+	args := map[string]interface{}{
+		"id":     devID,
+		"driver": "vfio-pci",
+		"host":   bdf,
+		"addr":   addr,
+	}
+	if bus != "" {
+		args["bus"] = bus
+	}
+	return q.executeCommand(ctx, "device_add", args, nil)
+}
+
+// ExecuteCPUDeviceAdd adds a CPU to a QEMU instance using the device_add command.
+// driver is the CPU model, cpuID must be a unique ID to identify the CPU, socketID is the socket number within
+// node/board the CPU belongs to, coreID is the core number within socket the CPU belongs to, threadID is the
+// thread number within core the CPU belongs to.
+func (q *QMP) ExecuteCPUDeviceAdd(ctx context.Context, driver, cpuID, socketID, coreID, threadID string) error {
+	args := map[string]interface{}{
+		"driver":    driver,
+		"id":        cpuID,
+		"socket-id": socketID,
+		"core-id":   coreID,
+		"thread-id": threadID,
+	}
+	return q.executeCommand(ctx, "device_add", args, nil)
+}
+
+// ExecuteQueryHotpluggableCPUs returns a slice with the list of hotpluggable CPUs
+func (q *QMP) ExecuteQueryHotpluggableCPUs(ctx context.Context) ([]HotpluggableCPU, error) {
+	response, err := q.executeCommandWithResponse(ctx, "query-hotpluggable-cpus", nil, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// convert response to json
+	data, err := json.Marshal(response)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to extract CPU information: %v", err)
+	}
+
+	var cpus []HotpluggableCPU
+	// convert json to []HotpluggableCPU
+	if err = json.Unmarshal(data, &cpus); err != nil {
+		return nil, fmt.Errorf("Unable to convert json to hotpluggable CPU: %v", err)
+	}
+
+	return cpus, nil
 }

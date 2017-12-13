@@ -1,5 +1,6 @@
 *.patch
 *.o
+*.swp
 /hack/virtc/virtc
 /hook/mock/hook
 /shim/mock/shim
