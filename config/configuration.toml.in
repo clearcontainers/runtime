@@ -66,14 +66,20 @@ disable_block_device_use = @DEFDISABLEBLOCK@
 #enable_swap = true
 
 # Debug changes the default hypervisor and kernel parameters to
-# enable debug output where available.
+# enable debug output where available. Also enable the debug
+# console to be able to connect to the VM for guest debug.
+#
 # Default false
-# these logs can be obtained in the cc-proxy logs  when the 
+#
+# The logs can be obtained in the cc-proxy logs  when the 
 # proxy is set to run in debug mode
 # /usr/libexec/clear-containers/cc-proxy -log debug
 # or by stopping the cc-proxy service and running the cc-proxy 
 # explicitly using the same command line
-# 
+#
+# The console can be accessed typically via
+# /run/virtcontainers/pods/<podid>/console.sock
+#
 #enable_debug = true
 
 # Disable the customizations done in the runtime when it detects

@@ -152,7 +152,15 @@ func create(containerID, bundlePath, console, pidFilePath string, detach bool,
 	return createPIDFile(pidFilePath, process.Pid)
 }
 
-func getKernelParams(containerID string) []vc.Param {
+func getKernelParams(containerID string, runtimeConfig oci.RuntimeConfig) []vc.Param {
+	var systemdTarget string
+
+	if runtimeConfig.HypervisorConfig.Debug {
+		systemdTarget = "clear-containers-debug.target"
+	} else {
+		systemdTarget = "clear-containers.target"
+	}
+
 	return []vc.Param{
 		{
 			Key:   "init",
@@ -160,7 +168,7 @@ func getKernelParams(containerID string) []vc.Param {
 		},
 		{
 			Key:   "systemd.unit",
-			Value: "clear-containers.target",
+			Value: systemdTarget,
 		},
 		{
 			Key:   "systemd.mask",
@@ -179,7 +187,7 @@ func getKernelParams(containerID string) []vc.Param {
 
 func createPod(ociSpec oci.CompatOCISpec, runtimeConfig oci.RuntimeConfig,
 	containerID, bundlePath, console string, disableOutput bool) (vc.Process, error) {
-	ccKernelParams := getKernelParamsFunc(containerID)
+	ccKernelParams := getKernelParamsFunc(containerID, runtimeConfig)
 
 	for _, p := range ccKernelParams {
 		if err := (&runtimeConfig).AddKernelParam(p); err != nil {
