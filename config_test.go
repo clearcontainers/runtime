@@ -139,7 +139,7 @@ func createAllRuntimeConfigFiles(dir, hypervisor string) (config testRuntimeConf
 
 	agentConfig := vc.HyperConfig{}
 
-	proxyConfig := vc.CCProxyConfig{
+	proxyConfig := vc.ProxyConfig{
 		Path: proxyPath,
 	}
 
@@ -513,7 +513,7 @@ func TestMinimalRuntimeConfig(t *testing.T) {
 
 	expectedAgentConfig := vc.HyperConfig{}
 
-	expectedProxyConfig := vc.CCProxyConfig{
+	expectedProxyConfig := vc.ProxyConfig{
 		Path: proxyPath,
 	}
 

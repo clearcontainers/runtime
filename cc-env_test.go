@@ -126,16 +126,11 @@ func makeRuntimeConfig(prefixDir string) (configFile string, config oci.RuntimeC
 }
 
 func getExpectedProxyDetails(config oci.RuntimeConfig) (ProxyInfo, error) {
-	proxyConfig, ok := config.ProxyConfig.(vc.CCProxyConfig)
-	if !ok {
-		return ProxyInfo{}, fmt.Errorf("failed to get proxy config")
-	}
-
 	return ProxyInfo{
 		Type:    string(config.ProxyType),
 		Version: testProxyVersion,
-		Path:    proxyConfig.Path,
-		Debug:   proxyConfig.Debug,
+		Path:    config.ProxyConfig.Path,
+		Debug:   config.ProxyConfig.Debug,
 	}, nil
 }
 
@@ -526,42 +521,6 @@ func TestCCEnvGetEnvInfoNoProcVersion(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestCCEnvGetEnvInfoInvalidProxy(t *testing.T) {
-	tmpdir, err := ioutil.TempDir("", "")
-
-	if err != nil {
-		panic(err)
-	}
-	defer os.RemoveAll(tmpdir)
-
-	configFile, config, err := makeRuntimeConfig(tmpdir)
-	assert.NoError(t, err)
-
-	// Not directly used, *BUT* must be called as it sets
-	// procVersion!
-	_, err = getExpectedSettings(config, tmpdir, configFile)
-	assert.NoError(t, err)
-
-	configData, err := getFileContents(configFile)
-	assert.NoError(t, err)
-
-	// convert to an invalid proxy type
-	replacer := strings.NewReplacer(
-		`proxy.cc`, `proxy.foo`,
-		`url = "`+testProxyURL+`"`, `bar = "wibble"`)
-	newConfigData := replacer.Replace(configData)
-
-	err = createFile(configFile, newConfigData)
-	assert.NoError(t, err)
-
-	// reload the now invalid config file
-	_, newConfig, err := loadConfiguration(configFile, true)
-	assert.NoError(t, err)
-
-	_, err = getEnvInfo(configFile, newConfig)
-	assert.Error(t, err)
-}
-
 func TestCCEnvGetRuntimeInfo(t *testing.T) {
 	tmpdir, err := ioutil.TempDir("", "")
 	if err != nil {
@@ -621,24 +580,6 @@ func TestCCEnvGetProxyInfoNoVersion(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, expectedProxy, ccProxy)
-}
-
-func TestCCEnvGetProxyInfoInvalidType(t *testing.T) {
-	tmpdir, err := ioutil.TempDir("", "")
-	if err != nil {
-		panic(err)
-	}
-	defer os.RemoveAll(tmpdir)
-
-	_, config, err := makeRuntimeConfig(tmpdir)
-	assert.NoError(t, err)
-
-	_, err = getExpectedProxyDetails(config)
-	assert.NoError(t, err)
-
-	config.ProxyConfig = "foo"
-	_, err = getProxyInfo(config)
-	assert.Error(t, err)
 }
 
 func TestCCEnvGetShimInfo(t *testing.T) {

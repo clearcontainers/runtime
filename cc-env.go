@@ -200,12 +200,6 @@ func getHostInfo() (HostInfo, error) {
 }
 
 func getProxyInfo(config oci.RuntimeConfig) (ProxyInfo, error) {
-	proxyConfig, ok := config.ProxyConfig.(vc.CCProxyConfig)
-
-	if !ok {
-		return ProxyInfo{}, errors.New("cannot determine proxy config")
-	}
-
 	version, err := getCommandVersion(defaultProxyPath)
 	if err != nil {
 		version = unknown
@@ -214,8 +208,8 @@ func getProxyInfo(config oci.RuntimeConfig) (ProxyInfo, error) {
 	ccProxy := ProxyInfo{
 		Type:    string(config.ProxyType),
 		Version: version,
-		Path:    proxyConfig.Path,
-		Debug:   proxyConfig.Debug,
+		Path:    config.ProxyConfig.Path,
+		Debug:   config.ProxyConfig.Debug,
 	}
 
 	return ccProxy, nil
@@ -282,10 +276,7 @@ func getEnvInfo(configFile string, config oci.RuntimeConfig) (env EnvInfo, err e
 		return EnvInfo{}, err
 	}
 
-	ccProxy, err := getProxyInfo(config)
-	if err != nil {
-		return EnvInfo{}, err
-	}
+	ccProxy, _ := getProxyInfo(config)
 
 	ccShim, err := getShimInfo(config)
 	if err != nil {
