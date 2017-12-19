@@ -13,8 +13,8 @@
 * [Quick start for developers](#quick-start-for-developers)
 * [Community](#community)
 * [Configuration](#configuration)
+* [Logging](#logging)
 * [Debugging](#debugging)
-    * [Enabling debug for various components](#enabling-debug-for-various-components)
 * [Limitations](#limitations)
 * [Home Page](#home-page)
 
@@ -79,26 +79,51 @@ To see details of your systems runtime environment (including the location of th
 $ cc-runtime cc-env
 ```
 
-## Debugging
+## Logging
 
-The runtime provides `--log=` and `--log-format=` options. However, it can
-also be configured to log to the system log (syslog or `journald`) such that
+The runtime provides `--log=` and `--log-format=` options. However, you can
+also configure it to log to the system log (syslog or `journald`) such that
 all log data is sent to both the specified logfile and the system log. The
 latter is useful as it is independent of the lifecycle of each container.
 
-To view runtime log output,
+To view runtime log output:
 
 ```bash
 $ sudo journalctl -t cc-runtime
 ```
 
-### Enabling debug for various components
+To view shim log output:
 
-The runtime, the shim (`cc-shim`), and the hypervisor all have separate debug
-options in the [configuration file](#Configuration).
+```bash
+$ sudo journalctl -t cc-shim
+```
 
-The proxy (`cc-proxy`) has a command-line option to enable debug output. See
-the [proxy documentation](https://github.com/clearcontainers/proxy#debugging) for further details.
+To view proxy log output:
+
+```bash
+$ sudo journalctl -t cc-proxy
+```
+
+Note:
+
+The proxy log entries also include output from the agent (`cc-agent`) and the
+hypervisor, which includes the guest kernel boot-time messages.
+
+## Debugging
+
+The runtime, the shim (`cc-shim`), the proxy (`cc-proxy`),
+and the hypervisor all have separate `enable_debug=` debug
+options in the [configuration file](#Configuration). All of these debug
+options are disabled by default. See the comments in the installed
+configuration file for further details.
+
+If you want to enable debug for all components, assuming a standard configuration file path, run:
+
+```bash
+$ sudo sed -i -e 's/^#\(enable_debug\).*=.*$/\1 = true/g' /usr/share/defaults/clear-containers/configuration.toml
+```
+
+See the [agent debug document](docs/debug-agent.md) and the [kernel debug document](docs/debug-kernel.md) for further details.
 
 ## Limitations
 
