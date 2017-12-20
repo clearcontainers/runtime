@@ -225,11 +225,17 @@ func execute(context *cli.Context) error {
 		return err
 	}
 
+	user := fmt.Sprintf("%d:%d", params.ociProcess.User.UID, params.ociProcess.User.GID)
+
+	if params.ociProcess.User.Username != "" {
+		user = params.ociProcess.User.Username
+	}
+
 	cmd := vc.Cmd{
 		Args:        params.ociProcess.Args,
 		Envs:        envVars,
 		WorkDir:     params.ociProcess.Cwd,
-		User:        params.ociProcess.User.Username,
+		User:        user,
 		Interactive: params.ociProcess.Terminal,
 		Console:     consolePath,
 		Detach:      noNeedForOutput(params.detach, params.ociProcess.Terminal),
