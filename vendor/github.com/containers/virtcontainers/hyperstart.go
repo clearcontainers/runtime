@@ -32,7 +32,7 @@ var defaultSockPathTemplates = []string{"%s/%s/hyper.sock", "%s/%s/tty.sock"}
 var defaultChannelTemplate = "sh.hyper.channel.%d"
 var defaultDeviceIDTemplate = "channel%d"
 var defaultIDTemplate = "charch%d"
-var defaultSharedDir = "/tmp/hyper/shared/pods/"
+var defaultSharedDir = "/run/hyper/shared/pods/"
 var mountTag = "hyperShared"
 var rootfsDir = "rootfs"
 var maxHostnameLen = 64
@@ -339,6 +339,16 @@ func (h *hyper) init(pod *Pod, config interface{}) (err error) {
 	return nil
 }
 
+// vmURL returns VM URL from hyperstart agent implementation.
+func (h *hyper) vmURL() (string, error) {
+	return "", nil
+}
+
+// setProxyURL sets proxy URL for hyperstart agent implementation.
+func (h *hyper) setProxyURL(url string) error {
+	return nil
+}
+
 func (h *hyper) createPod(pod *Pod) (err error) {
 	for _, volume := range h.config.Volumes {
 		err := pod.hypervisor.addDevice(volume, fsDev)
@@ -460,6 +470,8 @@ func (h *hyper) startOneContainer(pod Pod, c Container) error {
 		Rootfs:  rootfsDir,
 		Process: process,
 	}
+
+	container.SystemMountsInfo.BindMountDev = c.systemMountsInfo.BindMountDev
 
 	if c.state.Fstype != "" {
 		driveName, err := getVirtDriveName(c.state.BlockIndex)

@@ -18,131 +18,23 @@ package virtcontainers
 
 import (
 	"fmt"
-	"net"
-	"net/url"
 	"os/exec"
 	"path/filepath"
-	"time"
 
 	"github.com/clearcontainers/proxy/client"
-	"github.com/sirupsen/logrus"
 )
 
 var defaultCCProxyURL = "unix:///var/run/clear-containers/proxy.sock"
-
-const (
-	// Number of seconds to wait for the proxy to respond to a connection
-	// request.
-	waitForProxyTimeoutSecs = 5.0
-)
 
 type ccProxy struct {
 	client *client.Client
 }
 
-// CCProxyConfig is a structure storing information needed for
-// the Clear Containers proxy initialization.
-type CCProxyConfig struct {
-	Path  string
-	Debug bool
-}
-
-// connectProxyRetry repeatedly tries to connect to the proxy on the specified
-// address until a timeout state is reached, when it will fail.
-func (p *ccProxy) connectProxyRetry(scheme, address string) (conn net.Conn, err error) {
-	attempt := 1
-
-	timeoutSecs := time.Duration(waitForProxyTimeoutSecs * time.Second)
-
-	startTime := time.Now()
-	lastLogTime := startTime
-
-	for {
-		conn, err = net.Dial(scheme, address)
-		if err == nil {
-			// If the initial connection was unsuccessful,
-			// ensure a log message is generated when successfully
-			// connected.
-			if attempt > 1 {
-				proxyLogger().WithField("attempt", fmt.Sprintf("%d", attempt)).Info("Connected to proxy")
-			}
-
-			return conn, nil
-		}
-
-		attempt++
-
-		now := time.Now()
-
-		delta := now.Sub(startTime)
-		remaining := timeoutSecs - delta
-
-		if remaining <= 0 {
-			return nil, fmt.Errorf("failed to connect to proxy after %v: %v", timeoutSecs, err)
-		}
-
-		logDelta := now.Sub(lastLogTime)
-		logDeltaSecs := logDelta / time.Second
-
-		if logDeltaSecs >= 1 {
-			proxyLogger().WithError(err).WithFields(logrus.Fields{
-				"attempt":             fmt.Sprintf("%d", attempt),
-				"proxy-network":       scheme,
-				"proxy-address":       address,
-				"remaining-time-secs": fmt.Sprintf("%2.2f", remaining.Seconds()),
-			}).Warning("Retrying proxy connection")
-
-			lastLogTime = now
-		}
-
-		time.Sleep(time.Duration(100) * time.Millisecond)
-	}
-}
-
-func (p *ccProxy) connectProxy(uri string) (*client.Client, error) {
-	if uri == "" {
-		return nil, fmt.Errorf("no proxy URI")
-	}
-
-	u, err := url.Parse(uri)
-	if err != nil {
-		return nil, err
-	}
-
-	if u.Scheme == "" {
-		return nil, fmt.Errorf("URL scheme cannot be empty")
-	}
-
-	address := u.Host
-	if address == "" {
-		if u.Path == "" {
-			return nil, fmt.Errorf("URL host and path cannot be empty")
-		}
-
-		address = u.Path
-	}
-
-	conn, err := p.connectProxyRetry(u.Scheme, address)
-	if err != nil {
-		return nil, err
-	}
-
-	return client.NewClient(conn), nil
-}
-
 // start is the proxy start implementation for ccProxy.
 func (p *ccProxy) start(pod Pod) (int, string, error) {
-	if pod.config == nil {
-		return -1, "", fmt.Errorf("Pod config cannot be nil")
-	}
-
-	config, ok := newProxyConfig(*(pod.config)).(CCProxyConfig)
-	if !ok {
-		return -1, "", fmt.Errorf("Wrong proxy config type, should be CCProxyConfig type")
-	}
-
-	if config.Path == "" {
-		return -1, "", fmt.Errorf("Proxy path cannot be empty")
+	config, err := newProxyConfig(pod.config)
+	if err != nil {
+		return -1, "", err
 	}
 
 	// construct the socket path the proxy instance will use
@@ -164,13 +56,14 @@ func (p *ccProxy) start(pod Pod) (int, string, error) {
 
 // register is the proxy register implementation for ccProxy.
 func (p *ccProxy) register(pod Pod) ([]ProxyInfo, string, error) {
-	var err error
 	var proxyInfos []ProxyInfo
 
-	p.client, err = p.connectProxy(pod.state.URL)
+	conn, err := connectProxy(pod.state.URL)
 	if err != nil {
 		return []ProxyInfo{}, "", err
 	}
+
+	p.client = client.NewClient(conn)
 
 	hyperConfig, ok := newAgentConfig(*(pod.config)).(HyperConfig)
 	if !ok {
@@ -221,12 +114,12 @@ func (p *ccProxy) unregister(pod Pod) error {
 
 // connect is the proxy connect implementation for ccProxy.
 func (p *ccProxy) connect(pod Pod, createToken bool) (ProxyInfo, string, error) {
-	var err error
-
-	p.client, err = p.connectProxy(pod.state.URL)
+	conn, err := connectProxy(pod.state.URL)
 	if err != nil {
 		return ProxyInfo{}, "", err
 	}
+
+	p.client = client.NewClient(conn)
 
 	// In case we are asked to create a token, this means the caller
 	// expects only one token to be generated.

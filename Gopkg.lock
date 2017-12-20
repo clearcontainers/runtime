@@ -7,11 +7,6 @@
   revision = "a368813c5e648fee92e5f6c30e3944ff9d5e8895"
 
 [[projects]]
-  name = "github.com/ciao-project/ciao"
-  packages = ["qemu"]
-  revision = "239f5bc3e8e5fe18e6b4df31dcd692db5692c55f"
-
-[[projects]]
   name = "github.com/clearcontainers/proxy"
   packages = ["api","client"]
   revision = "1d2a6a3ea132a86abd0731408b7dc34f2fc17d55"
@@ -29,7 +24,7 @@
 [[projects]]
   name = "github.com/containers/virtcontainers"
   packages = [".","pkg/annotations","pkg/cni","pkg/ethtool","pkg/hyperstart","pkg/oci","pkg/uuid","pkg/vcMock"]
-  revision = "2687abf41549ad806f2bf955b06467254219da5e"
+  revision = "d2342c73a2b486736b2f88164b13b542873115dc"
 
 [[projects]]
   name = "github.com/davecgh/go-spew"
@@ -46,6 +41,11 @@
   name = "github.com/go-ini/ini"
   packages = ["."]
   revision = "20b96f641a5ea98f2f8619ff4f3e061cff4833bd"
+
+[[projects]]
+  name = "github.com/intel/govmm"
+  packages = ["qemu"]
+  revision = "064ffdb2b27a49feea45eea8db1a6738f5dc4e09"
 
 [[projects]]
   name = "github.com/kubernetes-incubator/cri-o"
@@ -111,6 +111,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "48db09a1650036d6ed8846385358b2f04ec6379577595f63366a1166df864cb2"
+  inputs-digest = "6560c7f9c400ed49b06e3c945d2e833d49d71af219ac304f1dc7c71000ce781a"
   solver-name = "gps-cdcl"
   solver-version = 1

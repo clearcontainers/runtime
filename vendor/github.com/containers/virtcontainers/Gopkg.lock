@@ -2,11 +2,6 @@
 
 
 [[projects]]
-  name = "github.com/ciao-project/ciao"
-  packages = ["qemu"]
-  revision = "239f5bc3e8e5fe18e6b4df31dcd692db5692c55f"
-
-[[projects]]
   name = "github.com/clearcontainers/proxy"
   packages = ["api","client"]
   revision = "1d2a6a3ea132a86abd0731408b7dc34f2fc17d55"
@@ -31,6 +26,11 @@
   name = "github.com/go-ini/ini"
   packages = ["."]
   revision = "20b96f641a5ea98f2f8619ff4f3e061cff4833bd"
+
+[[projects]]
+  name = "github.com/intel/govmm"
+  packages = ["qemu"]
+  revision = "064ffdb2b27a49feea45eea8db1a6738f5dc4e09"
 
 [[projects]]
   name = "github.com/kubernetes-incubator/cri-o"
@@ -96,6 +96,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "3fb911fc813d328a7add909dc0eb35d4d9ea8efc1c8710d2cbcce59efd5ae440"
+  inputs-digest = "08587dd11560c8b455a1a84351761327aeb6195999805d76057a4a816d0f6536"
   solver-name = "gps-cdcl"
   solver-version = 1

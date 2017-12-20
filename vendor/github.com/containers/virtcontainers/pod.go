@@ -316,7 +316,7 @@ type PodConfig struct {
 	AgentConfig interface{}
 
 	ProxyType   ProxyType
-	ProxyConfig interface{}
+	ProxyConfig ProxyConfig
 
 	ShimType   ShimType
 	ShimConfig interface{}

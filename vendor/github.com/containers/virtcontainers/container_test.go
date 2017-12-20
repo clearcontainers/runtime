@@ -25,6 +25,8 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetAnnotations(t *testing.T) {
@@ -47,6 +49,28 @@ func TestGetAnnotations(t *testing.T) {
 			t.Fatalf("Expecting ['%s']='%s', Got ['%s']='%s'\n", k, annotations[k], k, v)
 		}
 	}
+}
+
+func TestContainerSystemMountsInfo(t *testing.T) {
+	mounts := []Mount{
+		{
+			Source:      "/dev",
+			Destination: "/dev",
+			Type:        "bind",
+		},
+	}
+
+	c := Container{
+		mounts: mounts,
+	}
+
+	assert.False(t, c.systemMountsInfo.BindMountDev)
+	c.getSystemMountInfo()
+	assert.True(t, c.systemMountsInfo.BindMountDev)
+
+	c.mounts[0].Type = "tmpfs"
+	c.getSystemMountInfo()
+	assert.False(t, c.systemMountsInfo.BindMountDev)
 }
 
 func TestContainerPod(t *testing.T) {

@@ -132,7 +132,6 @@
   name = "github.com/sirupsen/logrus"
   revision = "89742aefa4b206dcf400792f3bd35b542998eb3b"
 
-
 [[constraint]]
-  name = "github.com/ciao-project/ciao"
-  revision = "239f5bc3e8e5fe18e6b4df31dcd692db5692c55f"
+  name = "github.com/intel/govmm"
+  revision = "064ffdb2b27a49feea45eea8db1a6738f5dc4e09"

@@ -99,6 +99,16 @@ func (c *ContainerConfig) valid() bool {
 	return true
 }
 
+// SystemMountsInfo describes additional information for system mounts that the agent
+// needs to handle
+type SystemMountsInfo struct {
+	// Indicates if /dev has been passed as a bind mount for the host /dev
+	BindMountDev bool
+
+	// Size of /dev/shm assigned on the host.
+	DevShmSize uint
+}
+
 // Container is composed of a set of containers and a runtime environment.
 // A Container can be created, deleted, started, stopped, listed, entered, paused and restored.
 type Container struct {
@@ -122,6 +132,8 @@ type Container struct {
 	mounts []Mount
 
 	devices []Device
+
+	systemMountsInfo SystemMountsInfo
 }
 
 // ID returns the container identifier string.
@@ -482,6 +494,19 @@ func (c *Container) fetchState(cmd string) (State, error) {
 	return state, nil
 }
 
+func (c *Container) getSystemMountInfo() {
+	// check if /dev needs to be bind mounted from host /dev
+	for _, m := range c.mounts {
+		if m.Source == "/dev" && m.Destination == "/dev" && m.Type == "bind" {
+			c.systemMountsInfo.BindMountDev = true
+		} else {
+			c.systemMountsInfo.BindMountDev = false
+		}
+	}
+
+	// TODO Deduce /dev/shm size. See https://github.com/clearcontainers/runtime/issues/138
+}
+
 func (c *Container) start() error {
 	state, err := c.fetchState("start")
 	if err != nil {
@@ -518,6 +543,10 @@ func (c *Container) start() error {
 	if err := c.attachDevices(); err != nil {
 		return err
 	}
+
+	// Deduce additional system mount info that should be handled by the agent
+	// inside the VM
+	c.getSystemMountInfo()
 
 	if err = c.pod.agent.startContainer(*(c.pod), *c); err != nil {
 		c.Logger().WithError(err).Error("Failed to start container")

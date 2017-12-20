@@ -16,6 +16,8 @@
 
 package virtcontainers
 
+// This is a dummy proxy implementation of the proxy interface, only
+// used for testing purpose.
 type noopProxy struct{}
 
 var noopProxyURL = "noopProxyURL"

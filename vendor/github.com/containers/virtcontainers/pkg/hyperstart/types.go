@@ -173,19 +173,30 @@ type Process struct {
 	Rlimits []Rlimit `json:"rlimits,omitempty"`
 }
 
+// SystemMountsInfo describes additional information for system mounts that the agent
+// needs to handle
+type SystemMountsInfo struct {
+	// Indicates if /dev has been passed as a bind mount for the host /dev
+	BindMountDev bool `json:"bindMountDev"`
+
+	// Size of /dev/shm assigned on the host.
+	DevShmSize int `json:"devShmSize"`
+}
+
 // Container describes a container running on a pod.
 type Container struct {
-	ID            string              `json:"id"`
-	Rootfs        string              `json:"rootfs"`
-	Fstype        string              `json:"fstype,omitempty"`
-	Image         string              `json:"image"`
-	Addr          string              `json:"addr,omitempty"`
-	Volumes       []*VolumeDescriptor `json:"volumes,omitempty"`
-	Fsmap         []*FsmapDescriptor  `json:"fsmap,omitempty"`
-	Sysctl        map[string]string   `json:"sysctl,omitempty"`
-	Process       *Process            `json:"process"`
-	RestartPolicy string              `json:"restartPolicy"`
-	Initialize    bool                `json:"initialize"`
+	ID               string              `json:"id"`
+	Rootfs           string              `json:"rootfs"`
+	Fstype           string              `json:"fstype,omitempty"`
+	Image            string              `json:"image"`
+	Addr             string              `json:"addr,omitempty"`
+	Volumes          []*VolumeDescriptor `json:"volumes,omitempty"`
+	Fsmap            []*FsmapDescriptor  `json:"fsmap,omitempty"`
+	Sysctl           map[string]string   `json:"sysctl,omitempty"`
+	Process          *Process            `json:"process"`
+	RestartPolicy    string              `json:"restartPolicy"`
+	Initialize       bool                `json:"initialize"`
+	SystemMountsInfo SystemMountsInfo    `json:"systemMountsInfo"`
 }
 
 // IPAddress describes an IP address and its network mask.

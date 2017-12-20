@@ -30,6 +30,27 @@ func TestNoopAgentInit(t *testing.T) {
 	}
 }
 
+func TestNoopAgentVmURL(t *testing.T) {
+	n := &noopAgent{}
+
+	url, err := n.vmURL()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if url != "" {
+		t.Fatalf("URL should be empty: %s", url)
+	}
+}
+
+func TestNoopAgentProxyURL(t *testing.T) {
+	n := &noopAgent{}
+
+	if err := n.setProxyURL(""); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestNoopAgentExec(t *testing.T) {
 	n := &noopAgent{}
 	pod := &Pod{}
