@@ -157,6 +157,11 @@ func generateExecParams(context *cli.Context, specProcess *oci.CompatOCIProcess)
 		// Override user
 		if context.String("user") != "" {
 			params.ociProcess.User = specs.User{
+				// This field is a Windows-only field
+				// according to the specification. However, it
+				// is abused here to allow the username
+				// specified in the OCI runtime configuration
+				// file to be overridden by a CLI request.
 				Username: context.String("user"),
 			}
 		}
