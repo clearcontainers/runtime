@@ -30,6 +30,16 @@ func (n *noopAgent) init(pod *Pod, config interface{}) error {
 	return nil
 }
 
+// vmURL returns the VM URL from the Noop agent. It does nothing.
+func (n *noopAgent) vmURL() (string, error) {
+	return "", nil
+}
+
+// setProxyURL sets the URL of the proxy for the Noop agent. It does nothing.
+func (n *noopAgent) setProxyURL(url string) error {
+	return nil
+}
+
 // createPod is the Noop agent pod creation implementation. It does nothing.
 func (n *noopAgent) createPod(pod *Pod) error {
 	return nil

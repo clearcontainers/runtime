@@ -324,7 +324,7 @@ func updateRuntimeConfig(configPath string, tomlConf tomlConfig, config *oci.Run
 	for k, proxy := range tomlConf.Proxy {
 		switch k {
 		case ccProxyTableType:
-			pConfig := vc.CCProxyConfig{
+			pConfig := vc.ProxyConfig{
 				Path:  proxy.path(),
 				Debug: proxy.debug(),
 			}

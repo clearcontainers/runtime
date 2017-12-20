@@ -49,8 +49,7 @@ func TestCCProxyStart(t *testing.T) {
 		{
 			Pod{
 				config: &PodConfig{
-					ProxyType:   "invalid",
-					ProxyConfig: "invalid",
+					ProxyType: "invalid",
 				},
 			}, "", true,
 		},
@@ -58,7 +57,7 @@ func TestCCProxyStart(t *testing.T) {
 			Pod{
 				config: &PodConfig{
 					ProxyType:   CCProxyType,
-					ProxyConfig: CCProxyConfig{
+					ProxyConfig: ProxyConfig{
 					// invalid - no path
 					},
 				},
@@ -68,7 +67,7 @@ func TestCCProxyStart(t *testing.T) {
 			Pod{
 				config: &PodConfig{
 					ProxyType: CCProxyType,
-					ProxyConfig: CCProxyConfig{
+					ProxyConfig: ProxyConfig{
 						Path: invalidPath,
 					},
 				},
@@ -79,7 +78,7 @@ func TestCCProxyStart(t *testing.T) {
 				id: testPodID,
 				config: &PodConfig{
 					ProxyType: CCProxyType,
-					ProxyConfig: CCProxyConfig{
+					ProxyConfig: ProxyConfig{
 						Path: "echo",
 					},
 				},

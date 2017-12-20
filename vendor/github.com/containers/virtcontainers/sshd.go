@@ -105,6 +105,16 @@ func (s *sshd) init(pod *Pod, config interface{}) error {
 	return nil
 }
 
+// vmURL returns VM URL from the sshd agent implementation.
+func (s *sshd) vmURL() (string, error) {
+	return "", nil
+}
+
+// setProxyURL sets proxy URL for the sshd agent implementation.
+func (s *sshd) setProxyURL(url string) error {
+	return nil
+}
+
 // createPod is the agent pod creation implementation for sshd.
 func (s *sshd) createPod(pod *Pod) error {
 	return nil

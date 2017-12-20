@@ -18,20 +18,42 @@ package virtcontainers
 
 import (
 	"fmt"
+	"net"
+	"net/url"
+	"time"
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/sirupsen/logrus"
 )
 
+// ProxyConfig is a structure storing information needed from any
+// proxy in order to be properly initialized.
+type ProxyConfig struct {
+	Path  string
+	Debug bool
+}
+
 // ProxyType describes a proxy type.
 type ProxyType string
 
 const (
+	// NoopProxyType is the noopProxy.
+	NoopProxyType ProxyType = "noopProxy"
+
+	// NoProxyType is the noProxy.
+	NoProxyType ProxyType = "noProxy"
+
 	// CCProxyType is the ccProxy.
 	CCProxyType ProxyType = "ccProxy"
 
-	// NoopProxyType is the noopProxy.
-	NoopProxyType ProxyType = "noopProxy"
+	// KataProxyType is the kataProxy.
+	KataProxyType ProxyType = "kataProxy"
+)
+
+const (
+	// Number of seconds to wait for the proxy to respond to a connection
+	// request.
+	waitForProxyTimeoutSecs = 5.0
 )
 
 func proxyLogger() *logrus.Entry {
@@ -44,8 +66,14 @@ func (pType *ProxyType) Set(value string) error {
 	case "noopProxy":
 		*pType = NoopProxyType
 		return nil
+	case "noProxy":
+		*pType = NoProxyType
+		return nil
 	case "ccProxy":
 		*pType = CCProxyType
+		return nil
+	case "kataProxy":
+		*pType = KataProxyType
 		return nil
 	default:
 		return fmt.Errorf("Unknown proxy type %s", value)
@@ -57,8 +85,12 @@ func (pType *ProxyType) String() string {
 	switch *pType {
 	case NoopProxyType:
 		return string(NoopProxyType)
+	case NoProxyType:
+		return string(NoProxyType)
 	case CCProxyType:
 		return string(CCProxyType)
+	case KataProxyType:
+		return string(KataProxyType)
 	default:
 		return ""
 	}
@@ -69,34 +101,123 @@ func newProxy(pType ProxyType) (proxy, error) {
 	switch pType {
 	case NoopProxyType:
 		return &noopProxy{}, nil
+	case NoProxyType:
+		return &noProxy{}, nil
 	case CCProxyType:
 		return &ccProxy{}, nil
+	case KataProxyType:
+		return &kataProxy{}, nil
 	default:
 		return &noopProxy{}, nil
 	}
 }
 
-// newProxyConfig returns a proxy config from a generic PodConfig interface.
-func newProxyConfig(config PodConfig) interface{} {
-	switch config.ProxyType {
-	case NoopProxyType:
-		return nil
-	case CCProxyType:
-		var ccConfig CCProxyConfig
-		err := mapstructure.Decode(config.ProxyConfig, &ccConfig)
-		if err != nil {
-			return err
-		}
-		return ccConfig
-	default:
-		return nil
+// newProxyConfig returns a proxy config from a generic PodConfig handler,
+// after it properly checked the configuration was valid.
+func newProxyConfig(podConfig *PodConfig) (ProxyConfig, error) {
+	if podConfig == nil {
+		return ProxyConfig{}, fmt.Errorf("Pod config cannot be nil")
 	}
+
+	var config ProxyConfig
+	switch podConfig.ProxyType {
+	case KataProxyType:
+		fallthrough
+	case CCProxyType:
+		if err := mapstructure.Decode(podConfig.ProxyConfig, &config); err != nil {
+			return ProxyConfig{}, err
+		}
+	}
+
+	if config.Path == "" {
+		return ProxyConfig{}, fmt.Errorf("Proxy path cannot be empty")
+	}
+
+	return config, nil
 }
 
 // ProxyInfo holds the token returned by the proxy.
 // Each ProxyInfo relates to a process running inside a container.
 type ProxyInfo struct {
 	Token string
+}
+
+// connectProxyRetry repeatedly tries to connect to the proxy on the specified
+// address until a timeout state is reached, when it will fail.
+func connectProxyRetry(scheme, address string) (conn net.Conn, err error) {
+	attempt := 1
+
+	timeoutSecs := time.Duration(waitForProxyTimeoutSecs * time.Second)
+
+	startTime := time.Now()
+	lastLogTime := startTime
+
+	for {
+		conn, err = net.Dial(scheme, address)
+		if err == nil {
+			// If the initial connection was unsuccessful,
+			// ensure a log message is generated when successfully
+			// connected.
+			if attempt > 1 {
+				proxyLogger().WithField("attempt", fmt.Sprintf("%d", attempt)).Info("Connected to proxy")
+			}
+
+			return conn, nil
+		}
+
+		attempt++
+
+		now := time.Now()
+
+		delta := now.Sub(startTime)
+		remaining := timeoutSecs - delta
+
+		if remaining <= 0 {
+			return nil, fmt.Errorf("failed to connect to proxy after %v: %v", timeoutSecs, err)
+		}
+
+		logDelta := now.Sub(lastLogTime)
+		logDeltaSecs := logDelta / time.Second
+
+		if logDeltaSecs >= 1 {
+			proxyLogger().WithError(err).WithFields(logrus.Fields{
+				"attempt":             fmt.Sprintf("%d", attempt),
+				"proxy-network":       scheme,
+				"proxy-address":       address,
+				"remaining-time-secs": fmt.Sprintf("%2.2f", remaining.Seconds()),
+			}).Warning("Retrying proxy connection")
+
+			lastLogTime = now
+		}
+
+		time.Sleep(time.Duration(100) * time.Millisecond)
+	}
+}
+
+func connectProxy(uri string) (net.Conn, error) {
+	if uri == "" {
+		return nil, fmt.Errorf("no proxy URI")
+	}
+
+	u, err := url.Parse(uri)
+	if err != nil {
+		return nil, err
+	}
+
+	if u.Scheme == "" {
+		return nil, fmt.Errorf("URL scheme cannot be empty")
+	}
+
+	address := u.Host
+	if address == "" {
+		if u.Path == "" {
+			return nil, fmt.Errorf("URL host and path cannot be empty")
+		}
+
+		address = u.Path
+	}
+
+	return connectProxyRetry(u.Scheme, address)
 }
 
 // proxy is the virtcontainers proxy interface.

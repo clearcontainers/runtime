@@ -133,6 +133,22 @@ type agent interface {
 	// to handle all other Agent interface methods.
 	init(pod *Pod, config interface{}) error
 
+	// vmURL returns the agent URL exposed by the hypervisor. This URL has
+	// been previously built from the agent implementation and provided to
+	// the hypervisor through a specific hypervisor interface function. It
+	// represents the entry point to connect to the agent through the VM.
+	// This function is particularly useful in case there is no proxy
+	// needed, meaning the proxy implementation will have to provide this
+	// URL instead of a real proxy URL.
+	vmURL() (string, error)
+
+	// setProxyURL sets the URL virtcontainers should connect in order to
+	// communicate with the agent. This URL can be either the proxy URL
+	// if it actually needs to go through a proxy, or it can be the VM
+	// URL in case no proxy is needed. Both ways, this has to be
+	// transparent for the agent implementation.
+	setProxyURL(url string) error
+
 	// capabilities should return a structure that specifies the capabilities
 	// supported by the agent.
 	capabilities() capabilities

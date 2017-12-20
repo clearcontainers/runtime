@@ -95,7 +95,7 @@ type RuntimeConfig struct {
 	AgentConfig interface{}
 
 	ProxyType   vc.ProxyType
-	ProxyConfig interface{}
+	ProxyConfig vc.ProxyConfig
 
 	ShimType   vc.ShimType
 	ShimConfig interface{}
