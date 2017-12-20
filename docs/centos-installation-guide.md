@@ -6,14 +6,14 @@ cover installation on Red Hat* Enterprise Linux (RHEL).
 
 Note:
 
-If you are installing on a system that already has Clear Containers 2.x
-installed, first read [the upgrading document](upgrading.md).
+If you are installing Clear Containers 3.X on a system that already has
+Clear Containers 2.X installed, first read [the upgrading document](upgrading.md).
 
-## Required Setup
+## Required setup
 
-The installation requires the current user to run the `sudo` command
-without specifying a password. Verify this with the following commands:
-
+You are required to run the `sudo` command without specifying a password
+to set up the Clear Containers 3.X installation. Verify this requirement
+with the following commands:
 ```
 $ su -
 # echo "$some_user ALL=(ALL:ALL) NOPASSWD: ALL" | (EDITOR="tee -a" visudo)
@@ -21,7 +21,7 @@ $ exit
 
 ```
 
-## Installation steps
+## The following steps show you how to install Clear Containers 3.X
 
 1. Ensure the system packages are up-to-date:
 
@@ -53,16 +53,15 @@ $ script -efc ./installation/centos-setup.sh
 
 Note:
 
-- Running the installation script can take a long time as it needs to
-  download source packages and compile them.
+- The installation script might take a long time to run because it
+  must download and compile source packages.
 
-- Although it is not strictly necessary to run the installation
-  script using the `script(1)` command, doing so ensures that a log of the
-  installation is written to the file `typescript`. This is useful for
-  administrators to see what changes were made and can also be used to
-  debug any issues.
+- It is not strictly necessary to run the installation script using the
+  `script(1)` command, but using this command writes a log of the
+  installation to the file `typescript`. This is useful for administrators
+  to see the changes made and for use when debugging issues.
 
-## Verify the installation was successful
+## The following steps show how to verify the Clear Containers 3.X installation is successful:
 
 1. Check the `cc-runtime` version:
 
