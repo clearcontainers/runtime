@@ -285,12 +285,21 @@ show_container_mgr_details()
 
 	if have_cmd "docker"; then
 		subheading "Docker"
+		run_cmd_and_show_quoted_output "docker version"
 		run_cmd_and_show_quoted_output "docker info"
+		run_cmd_and_show_quoted_output "systemctl show docker"
 	fi
 
 	if have_cmd "kubectl"; then
 		subheading "Kubernetes"
+		run_cmd_and_show_quoted_output "kubectl version"
 		run_cmd_and_show_quoted_output "kubectl config view"
+		run_cmd_and_show_quoted_output "systemctl show kubelet"
+
+		if have_cmd "crio"; then
+			run_cmd_and_show_quoted_output "crio --version"
+			run_cmd_and_show_quoted_output "systemctl show crio"
+		fi
 	fi
 
 	separator
@@ -300,7 +309,7 @@ show_meta()
 {
 	heading "Meta details"
 
-	date=$(date '+%Y-%m-%d.%H:%M:%S.%N')
+	date=$(date '+%Y-%m-%d.%H:%M:%S.%N%z')
 	msg "Running \`$script_name\` version \`$script_version\` at \`$date\`."
 
 	separator
