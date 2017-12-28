@@ -19,8 +19,22 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 # Description: This script installs Clear Containers on a
-#   CentOS 7 system.
+#   CentOS 7 and other variants of CentOS system.
 #
+
+# add the -h option to list systems which the script supports
+while getopts "h" opt
+do
+	case $opt in
+	"h")
+		echo -e "The script is designed to work on the following systems:\n(1) centos\n(2) bclinux"
+		exit
+		;;
+	*)
+                echo "Wrong Options"
+		;;	
+	esac
+done	
 
 # all errors are fatal
 set -e
@@ -68,12 +82,12 @@ source /etc/os-release
 
 major_version=$(echo "${VERSION_ID}"|cut -d\. -f1)
 
-if [ "${os_distribution}" = centos ]
+if [ "${os_distribution}" = centos -o "${os_distribution}" = bclinux ]
 then
     distro="CentOS"
 else
     echo >&2 "ERROR: Unrecognised distribution: ${os_distribution}"
-    echo >&2 "ERROR: This script is designed to work on CentOS systems only."
+    echo >&2 "ERROR: This script is designed to work on CentOS system and also applies to other variants of CentOS system."
     exit 1
 fi
 
