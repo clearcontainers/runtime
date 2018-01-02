@@ -114,3 +114,19 @@ path = "@SHIMPATH@"
 # system log
 # (default: disabled)
 #enable_debug = true
+#
+# Internetworking model
+# Determines how the VM should be connected to the
+# the container network interface
+# Options:
+#
+#   - bridged
+#     Uses a linux bridge to interconnect
+#     the container interface to the VM. This is the
+#     safe default that works for most cases except
+#     macvlan and ipvlan.
+#
+#   - macvtap
+#     Used when the Container network
+#     interface can be bridged using macvtap
+internetworking_model="@DEFNETWORKMODEL@"
