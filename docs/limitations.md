@@ -33,6 +33,8 @@
     * [runtime commands](#runtime-commands)
         * [`init` command](#init-command)
         * [`spec` command](#spec-command)
+* [Other notes](#other-notes)
+    * [Host `rdmsr` warnings](#host-rdmsr-warnings)
 
 As Intel® Clear Containers utilises Virtual Machines (VM) to enhance
 security and isolation of container workloads, the `cc-runtime` has a
@@ -341,3 +343,38 @@ a command that generates a JSON-format template specification file that
 is useable by the Clear Containers runtime. The addition of a `spec`
 command to the Clear Containers runtime would just be duplication that
 would likely always be playing catchup with `runc`.
+
+## Other notes
+
+This section contains other useful information realated to limitations,
+warnings, etc. to aid in understanding and diagnosis of what is a known
+problem, a new problem, or not a problem.
+
+### Host `rdmsr` warnings
+
+When you run Clear Containers, you might see some warnings in the host
+`dmesg` log reporting `unhandled rdmsr`, such as:
+
+```
+[  319.406575] kvm [2415]: vcpu0 unhandled rdmsr: 0x1c9
+[  319.483944] kvm [2415]: vcpu0 unhandled rdmsr: 0x64e
+[  319.483966] kvm [2415]: vcpu0 unhandled rdmsr: 0x34
+
+```
+
+These warnings are generated when the Virtual Machine, via `QEMU`, makes
+requests to read `MSR` registers from the VM/host that are not supported
+by `QEMU/KVM`. In the case of Clear Containers, these warnings are
+normally related to unsupported perf event counters.
+
+By default, these benign warnings appear as 'red warnings' in the dmesg
+logs, which can be disconcerting for end users and sysadmins.
+
+A patch has been merged into the `v4.15` kernel that should improve
+this situation:
+
+https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/arch/x86/kvm/x86.c?id=fab0aa3b776f0a3af1db1f50e04f1884015f9082
+
+It might take some time for those changes to be implemented in
+a host distro kernel.
+
