@@ -36,7 +36,7 @@
 * [Other notes](#other-notes)
     * [Host `rdmsr` warnings](#host-rdmsr-warnings)
 
-As Intel® Clear Containers utilises Virtual Machines (VM) to enhance
+As Intel® Clear Containers utilizes Virtual Machines (VM) to enhance
 security and isolation of container workloads, the `cc-runtime` has a
 number of differences and limitations when compared with the standard
 Docker* runtime, `runc`. Some of these limitations have potential
