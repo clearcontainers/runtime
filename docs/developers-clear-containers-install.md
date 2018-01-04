@@ -101,6 +101,17 @@ See [the upgrading document](upgrading.md) for further details.
    $ sudo -E PATH=$PATH make install-cc-system
    ```
 
+   The previous install step will create `/usr/local/bin/cc-runtime`. This
+   ensures the packaged version of the runtime from the `cc-runtime` package is
+   not overwritten. However, since the installation guide configured Docker to
+   call the runtime as `/usr/bin/cc-runtime`, it is necessary to modify the
+   docker configuration to make use of your newly-installed development runtime
+   binary:
+
+   ```bash
+   $ sudo sed -i 's!cc-runtime=/usr/bin/cc-runtime!cc-runtime=/usr/local/bin/cc-runtime!g' /etc/systemd/system/docker.service.d/clear-containers.conf
+   ```
+
    For more details on the runtime's build system, run:
 
    ```bash
