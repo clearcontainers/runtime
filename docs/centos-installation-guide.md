@@ -61,6 +61,11 @@ Note:
   installation to the file `typescript`. This is useful for administrators
   to see the changes made and for use when debugging issues.
 
+- The installation/centos-setup.sh script works for CentOS and selects other variants. To obtain a list of supported variants, please run:
+```
+$ installation/centos-setup.sh -h
+```
+
 ## The following steps show how to verify the Clear Containers 3.X installation is successful:
 
 1. Check the `cc-runtime` version:
