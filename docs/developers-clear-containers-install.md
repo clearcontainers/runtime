@@ -11,12 +11,15 @@ The recommended way to create a development environment is to first install the
 packaged versions of the Clear Containers components to create a working
 system:
 
+  * [CentOS*](centos-installation-guide.md)
+  * [Clear Linux*](clearlinux-installation-guide.md)
   * [Fedora*](fedora-installation-guide.md)
+  * [SLES*](sles-installation-guide.md)
   * [Ubuntu*](ubuntu-installation-guide.md)
 
-The installation guide instructions will install all packaged
-components, plus docker, the hypervisor and the Clear Containers image
-and kernel.
+The installation guide instructions will install all required Clear Containers
+components, plus Docker*, the hypervisor, and the Clear Containers image and
+kernel.
 
 ## Requirements to build individual components
 
