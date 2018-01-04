@@ -78,6 +78,9 @@ See [the upgrading document](upgrading.md) for further details.
    $ sudo make install
    ```
 
+   Note: the previous install step will overwrite any proxy binary installed from
+   the `cc-proxy` package.
+
 2. Shim
 
    ```bash
@@ -86,6 +89,9 @@ See [the upgrading document](upgrading.md) for further details.
    $ make
    $ sudo make install
    ```
+
+   Note: the previous install step will overwrite any shim binary installed from
+   the `cc-shim` package.
 
 3. Runtime
 
