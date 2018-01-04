@@ -23,10 +23,10 @@ kernel.
 
 ## Requirements to build individual components
 
-  * [go 1.8.3](https://golang.org/)
+  * [go 1.8.3](https://golang.org/).
   * [gcc](https://gcc.gnu.org/) and associated C language build tooling
-    such as `make`, `autoconf` and `libtool` which are required
-    to build `cc-shim`
+    (e.g. `make`, `autoconf` and `libtool`) are required
+    to build `cc-shim`.
 
 ## Clear Containers 3.0 components
 
