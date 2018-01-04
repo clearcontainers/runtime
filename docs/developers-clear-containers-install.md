@@ -139,7 +139,7 @@ $ make
 
 The agent is installed inside the root filesystem image
 used by the hypervisor, hence to test a new agent version it is
-necessary to create a custom rootfs image. The example below
+necessary to create a custom rootfs image. The following example
 demonstrates how to do this using the
 	 [osbuilder](https://github.com/clearcontainers/osbuilder) tooling.
 
@@ -170,7 +170,7 @@ image = "/usr/share/clear-containers/container.img"!g' \
 The latest kernel for Clear Linux can be found on
 [the releases page](https://github.com/clearcontainers/linux/releases).
 The Clear Linux kernel can be used to rebuild and modify a custom VM
-container kernel as needed. The example below demonstrates how to do this
+container kernel as needed. The following example demonstrates how to do this
 using the [osbuilder](https://github.com/clearcontainers/osbuilder) tooling.
 
 ```bash
