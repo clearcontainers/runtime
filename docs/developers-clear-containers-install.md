@@ -45,13 +45,13 @@ See [the upgrading document](upgrading.md) for further details.
 
 ### Setup the environment
 
-1. Define GOPATH
+1. Define `GOPATH`
 
    ```bash
    $ export GOPATH=$HOME/go
    ```
 
-2. Create GOPATH Directory
+2. Create `GOPATH` Directory
 
    ```bash
    $ mkdir -p $GOPATH
