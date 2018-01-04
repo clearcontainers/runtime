@@ -5,6 +5,11 @@
 * [Clear Containers 3.0 components](#clear-containers-3.0-components)
     * [Setup the environment](#setup-the-environment)
     * [Build and install components](#build-and-install-components)
+        * [Proxy](#proxy)
+        * [Shim](#shim)
+        * [Runtime](#runtime)
+        * [Agent](#agent)
+        * [Kernel](#kernel)
 * [See Also](#see-also)
 
 This guide is not intended for end-users. Instead, this guide provides
@@ -77,119 +82,119 @@ See [the upgrading document](upgrading.md) for further details.
 
 ### Build and install components
 
-1. Proxy
+#### Proxy
 
-   ```bash
-   $ cd $GOPATH/src/github.com/clearcontainers/proxy
-   $ make
-   $ sudo make install
-   ```
+```bash
+$ cd $GOPATH/src/github.com/clearcontainers/proxy
+$ make
+$ sudo make install
+```
 
-   Note: the previous install step will overwrite any proxy binary installed from
-   the `cc-proxy` package.
+Note: the previous install step will overwrite any proxy binary installed from
+the `cc-proxy` package.
 
-2. Shim
+#### Shim
 
-   ```bash
-   $ cd $GOPATH/src/github.com/clearcontainers/shim
-   $ ./autogen.sh
-   $ make
-   $ sudo make install
-   ```
+```bash
+$ cd $GOPATH/src/github.com/clearcontainers/shim
+$ ./autogen.sh
+$ make
+$ sudo make install
+```
 
-   Note: the previous install step will overwrite any shim binary installed from
-   the `cc-shim` package.
+Note: the previous install step will overwrite any shim binary installed from
+the `cc-shim` package.
 
-3. Runtime
+#### Runtime
 
-   ```bash
-   $ cd $GOPATH/src/github.com/clearcontainers/runtime
-   $ make build-cc-system
-   $ sudo -E PATH=$PATH make install-cc-system
-   ```
+```bash
+$ cd $GOPATH/src/github.com/clearcontainers/runtime
+$ make build-cc-system
+$ sudo -E PATH=$PATH make install-cc-system
+```
 
-   The previous install step will create `/usr/local/bin/cc-runtime`. This
-   ensures the packaged version of the runtime from the `cc-runtime` package is
-   not overwritten. However, since the installation guide configured Docker to
-   call the runtime as `/usr/bin/cc-runtime`, it is necessary to modify the
-   docker configuration to make use of your newly-installed development runtime
-   binary:
+The previous install step will create `/usr/local/bin/cc-runtime`. This
+ensures the packaged version of the runtime from the `cc-runtime` package is
+not overwritten. However, since the installation guide configured Docker to
+call the runtime as `/usr/bin/cc-runtime`, it is necessary to modify the
+docker configuration to make use of your newly-installed development runtime
+binary:
 
-   ```bash
-   $ sudo sed -i 's!cc-runtime=/usr/bin/cc-runtime!cc-runtime=/usr/local/bin/cc-runtime!g' /etc/systemd/system/docker.service.d/clear-containers.conf
-   ```
+```bash
+$ sudo sed -i 's!cc-runtime=/usr/bin/cc-runtime!cc-runtime=/usr/local/bin/cc-runtime!g' /etc/systemd/system/docker.service.d/clear-containers.conf
+```
 
-   For more details on the runtime's build system, run:
+For more details on the runtime's build system, run:
 
-   ```bash
-   $ make help
-   ```
+```bash
+$ make help
+```
 
-4. Agent
+#### Agent
 
-   ```bash
-   $ cd $GOPATH/src/github.com/clearcontainers/agent
-   $ make
-   ```
+```bash
+$ cd $GOPATH/src/github.com/clearcontainers/agent
+$ make
+```
 
-   The agent is installed inside the root filesystem image
-   used by the hypervisor, hence to test a new agent version it is
-   necessary to create a custom rootfs image. The example below
-   demonstrates how to do this using the
+The agent is installed inside the root filesystem image
+used by the hypervisor, hence to test a new agent version it is
+necessary to create a custom rootfs image. The example below
+demonstrates how to do this using the
 	 [osbuilder](https://github.com/clearcontainers/osbuilder) tooling.
 
-   ```bash
-   $ cd $GOPATH/src/github.com/clearcontainers/osbuilder
+```bash
+$ cd $GOPATH/src/github.com/clearcontainers/osbuilder
 
-   $ # Create a rootfs image
-   $ sudo -E make rootfs USE_DOCKER=true
+$ # Create a rootfs image
+$ sudo -E make rootfs USE_DOCKER=true
 
-   $ # Overwrite the default cc-agent binary with a custom built version
-   $ sudo cp $GOPATH/src/github.com/clearcontainers/agent/cc-agent ./workdir/rootfs/usr/bin/cc-agent
+$ # Overwrite the default cc-agent binary with a custom built version
+$ sudo cp $GOPATH/src/github.com/clearcontainers/agent/cc-agent ./workdir/rootfs/usr/bin/cc-agent
 
-   $ # Generate a container.img file
-   $ sudo -E make image USE_DOCKER=true
+$ # Generate a container.img file
+$ sudo -E make image USE_DOCKER=true
 
-   $ # Install the custom image
-   $ sudo install --owner root --group root --mode 0755 workdir/container.img /usr/share/clear-containers/
+$ # Install the custom image
+$ sudo install --owner root --group root --mode 0755 workdir/container.img /usr/share/clear-containers/
 
-   $ # Update the runtime configuration
-   $ # (note that this is only an example using default paths).
-   $ sudo sed -i.bak -e 's!^\(image = ".*"\)!# \1 \
-   image = "/usr/share/clear-containers/container.img"!g' \
-   /usr/share/defaults/clear-containers/configuration.toml
-   ```
+$ # Update the runtime configuration
+$ # (note that this is only an example using default paths).
+$ sudo sed -i.bak -e 's!^\(image = ".*"\)!# \1 \
+image = "/usr/share/clear-containers/container.img"!g' \
+/usr/share/defaults/clear-containers/configuration.toml
+```
 
-5. Kernel
+#### Kernel
 
-   The latest kernel for Clear Linux can be found on
-   [the releases page](https://github.com/clearcontainers/linux/releases).
-   The Clear Linux kernel can be used to rebuild and modify a custom VM
-   container kernel as needed. The example below demonstrates how to do this
-   using the [osbuilder](https://github.com/clearcontainers/osbuilder) tooling.
+The latest kernel for Clear Linux can be found on
+[the releases page](https://github.com/clearcontainers/linux/releases).
+The Clear Linux kernel can be used to rebuild and modify a custom VM
+container kernel as needed. The example below demonstrates how to do this
+using the [osbuilder](https://github.com/clearcontainers/osbuilder) tooling.
 
-   ```bash
-	$ cd $GOPATH/src/github.com/clearcontainers/osbuilder
+```bash
+$ cd $GOPATH/src/github.com/clearcontainers/osbuilder
 
-	$ # Fetch latest kernel sources from github.com/clearcontainers/linux
-	$ make kernel-src
+$ # Fetch latest kernel sources from github.com/clearcontainers/linux
+$ make kernel-src
 
-	$ # Optionally modify kernel sources or config at $PWD/workdir/linux
+$ # Optionally modify kernel sources or config at $PWD/workdir/linux
 
-	$ # build kernel
-	$ make kernel
+$ # build kernel
+$ make kernel
 
-	$ # Install the custom image
-	$ sudo install --owner root --group root --mode 0755 workdir/vmlinuz.container /usr/share/clear-containers/custom-vmlinuz
-	$ sudo install --owner root --group root --mode 0755 workdir/vmlinux.container /usr/share/clear-containers/custom-vmlinux
+$ # Install the custom image
+$ sudo install --owner root --group root --mode 0755 workdir/vmlinuz.container /usr/share/clear-containers/custom-vmlinuz
+$ sudo install --owner root --group root --mode 0755 workdir/vmlinux.container /usr/share/clear-containers/custom-vmlinux
 
-	$ # Update the runtime configuration
-	$ # (note that this is only an example using default paths).
-	$ # Note: vmlinuz is used for pc platform type.
-	$ #       vmlinux is used for pc-lite and q35-lite platform type.
-	$ sudo sed -i.bak -e 's!^\(kernel = ".*"\)!# \1\nkernel = "/usr/share/clear-containers/custom-vmlinuz"!g' \
-	/usr/share/defaults/clear-containers/configuration.toml
-	 ```
+$ # Update the runtime configuration
+$ # (note that this is only an example using default paths).
+$ # Note: vmlinuz is used for pc platform type.
+$ #       vmlinux is used for pc-lite and q35-lite platform type.
+$ sudo sed -i.bak -e 's!^\(kernel = ".*"\)!# \1\nkernel = "/usr/share/clear-containers/custom-vmlinuz"!g' \
+/usr/share/defaults/clear-containers/configuration.toml
+```
 
 ## See Also
 
