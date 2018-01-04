@@ -101,6 +101,12 @@ See [the upgrading document](upgrading.md) for further details.
    $ sudo -E PATH=$PATH make install-cc-system
    ```
 
+   For more details on the runtime's build system, run:
+
+   ```bash
+   $ make help
+   ```
+
 4. Agent
 
    ```bash
@@ -135,12 +141,6 @@ See [the upgrading document](upgrading.md) for further details.
    image = "/usr/share/clear-containers/container.img"!g' \
    /usr/share/defaults/clear-containers/configuration.toml
    ```
-
-For more details on the runtime's build system, run:
-
-```bash
-$ make help
-```
 
 5. Kernel
 
