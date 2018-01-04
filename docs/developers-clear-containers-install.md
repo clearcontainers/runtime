@@ -205,4 +205,3 @@ $ sudo sed -i.bak -e 's!^\(kernel = ".*"\)!# \1\nkernel = "/usr/share/clear-cont
     The repository used to create the packaged versions of Clear Containers
     components for various Linux distributions is:
       * https://github.com/clearcontainers/packaging
-
