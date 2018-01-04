@@ -189,4 +189,8 @@ See [the upgrading document](upgrading.md) for further details.
   * [General Debugging](../README.md#debugging)
   * [Debugging the agent inside the hypervisor](debug-agent.md)
   * [Debugging the kernel inside the hypervisor](https://github.com/clearcontainers/runtime/blob/master/docs/debug-kernel.md)
-  
+  * Packaging
+    The repository used to create the packaged versions of Clear Containers
+    components for various Linux distributions is:
+      * https://github.com/clearcontainers/packaging
+
