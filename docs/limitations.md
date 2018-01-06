@@ -277,7 +277,7 @@ enabling use of `--net=host` when necessary.
 It should be noted, currently passing the `--net=host` option into a
 Clear Container may result in the Clear Container networking setup
 modifying, re-configuring and therefore possibly breaking the host
-networking setup. Do not use `--host=net` with Clear Containers.
+networking setup. Do not use `--net=host` with Clear Containers.
 
 #### `docker run --link`
 
