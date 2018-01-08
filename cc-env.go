@@ -220,7 +220,7 @@ func getCommandVersion(cmd string) (string, error) {
 }
 
 func getShimInfo(config oci.RuntimeConfig) (ShimInfo, error) {
-	shimConfig, ok := config.ShimConfig.(vc.CCShimConfig)
+	shimConfig, ok := config.ShimConfig.(vc.ShimConfig)
 	if !ok {
 		return ShimInfo{}, errors.New("cannot determine shim config")
 	}

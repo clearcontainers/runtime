@@ -27,6 +27,7 @@ import (
 	"time"
 
 	vc "github.com/containers/virtcontainers"
+	vcAnnotations "github.com/containers/virtcontainers/pkg/annotations"
 	"github.com/containers/virtcontainers/pkg/oci"
 	"github.com/containers/virtcontainers/pkg/vcMock"
 	"github.com/opencontainers/runc/libcontainer/utils"
@@ -91,7 +92,7 @@ func TestGetContainerInfo(t *testing.T) {
 	containerStatus := vc.ContainerStatus{
 		ID: containerID,
 		Annotations: map[string]string{
-			oci.ContainerTypeKey: string(vc.PodSandbox),
+			vcAnnotations.ContainerTypeKey: string(vc.PodSandbox),
 		},
 	}
 
@@ -126,7 +127,7 @@ func TestGetContainerInfoMismatch(t *testing.T) {
 	containerStatus := vc.ContainerStatus{
 		ID: containerID,
 		Annotations: map[string]string{
-			oci.ContainerTypeKey: string(vc.PodSandbox),
+			vcAnnotations.ContainerTypeKey: string(vc.PodSandbox),
 		},
 	}
 
@@ -182,13 +183,13 @@ func TestValidCreateParamsContainerIDNotUnique(t *testing.T) {
 					{
 						ID: containerID,
 						Annotations: map[string]string{
-							oci.ContainerTypeKey: string(vc.PodSandbox),
+							vcAnnotations.ContainerTypeKey: string(vc.PodSandbox),
 						},
 					},
 					{
 						ID: containerID,
 						Annotations: map[string]string{
-							oci.ContainerTypeKey: string(vc.PodSandbox),
+							vcAnnotations.ContainerTypeKey: string(vc.PodSandbox),
 						},
 					},
 				},
@@ -223,7 +224,7 @@ func TestValidCreateParamsContainerIDNotUnique2(t *testing.T) {
 					{
 						ID: containerID,
 						Annotations: map[string]string{
-							oci.ContainerTypeKey: string(vc.PodSandbox),
+							vcAnnotations.ContainerTypeKey: string(vc.PodSandbox),
 						},
 					},
 				},

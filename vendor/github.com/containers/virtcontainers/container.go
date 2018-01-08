@@ -23,13 +23,24 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/containers/virtcontainers/pkg/uuid"
 	"github.com/sirupsen/logrus"
 )
 
 // Process gathers data related to a container process.
 type Process struct {
-	Token     string
-	Pid       int
+	// Token is the process execution context ID. It must be
+	// unique per pod.
+	// Token is used to manipulate processes for containers
+	// that have not started yet, and later identify them
+	// uniquely within a pod.
+	Token string
+
+	// Pid is the process ID as seen by the host software
+	// stack, e.g. CRI-O, containerd. This is typically the
+	// shim PID.
+	Pid int
+
 	StartTime time.Time
 }
 
@@ -45,21 +56,6 @@ type ContainerStatus struct {
 	// for example to add additional status values required
 	// to support particular specifications.
 	Annotations map[string]string
-}
-
-// Mount describes a container mount.
-type Mount struct {
-	Source      string
-	Destination string
-
-	// Type specifies the type of filesystem to mount.
-	Type string
-
-	// Options list all the mount options of the filesystem.
-	Options []string
-
-	// HostPath used to store host side bind mount path
-	HostPath string
 }
 
 // ContainerConfig describes one container runtime configuration.
@@ -230,7 +226,7 @@ func (c *Container) startShim() error {
 		return err
 	}
 
-	process, err := c.createShimProcess(proxyInfo.Token, url, c.config.Cmd)
+	process, err := c.createShimProcess(proxyInfo.Token, url, c.config.Cmd, true)
 	if err != nil {
 		return err
 	}
@@ -496,11 +492,11 @@ func (c *Container) fetchState(cmd string) (State, error) {
 
 func (c *Container) getSystemMountInfo() {
 	// check if /dev needs to be bind mounted from host /dev
+	c.systemMountsInfo.BindMountDev = false
+
 	for _, m := range c.mounts {
 		if m.Source == "/dev" && m.Destination == "/dev" && m.Type == "bind" {
 			c.systemMountsInfo.BindMountDev = true
-		} else {
-			c.systemMountsInfo.BindMountDev = false
 		}
 	}
 
@@ -548,7 +544,7 @@ func (c *Container) start() error {
 	// inside the VM
 	c.getSystemMountInfo()
 
-	if err = c.pod.agent.startContainer(*(c.pod), *c); err != nil {
+	if err := c.pod.agent.startContainer(*(c.pod), *c); err != nil {
 		c.Logger().WithError(err).Error("Failed to start container")
 
 		if err := c.stop(); err != nil {
@@ -656,7 +652,7 @@ func (c *Container) enter(cmd Cmd) (*Process, error) {
 	}
 	defer c.pod.proxy.disconnect()
 
-	process, err := c.createShimProcess(proxyInfo.Token, url, cmd)
+	process, err := c.createShimProcess(proxyInfo.Token, url, cmd, false)
 	if err != nil {
 		return nil, err
 	}
@@ -741,9 +737,16 @@ func (c *Container) processList(options ProcessListOptions) (ProcessList, error)
 	return c.pod.agent.processListContainer(*(c.pod), *c, options)
 }
 
-func (c *Container) createShimProcess(token, url string, cmd Cmd) (*Process, error) {
+func (c *Container) createShimProcess(token, url string, cmd Cmd, initProcess bool) (*Process, error) {
 	if c.pod.state.URL != url {
 		return &Process{}, fmt.Errorf("Pod URL %q and URL from proxy %q MUST be identical", c.pod.state.URL, url)
+	}
+
+	var process Process
+	if initProcess {
+		process = newInitProcess(token, c.id)
+	} else {
+		process = newProcess(token)
 	}
 
 	shimParams := ShimParams{
@@ -759,15 +762,36 @@ func (c *Container) createShimProcess(token, url string, cmd Cmd) (*Process, err
 		return &Process{}, err
 	}
 
-	process := newProcess(token, pid)
+	process.Pid = pid
 
 	return &process, nil
 }
 
-func newProcess(token string, pid int) Process {
+func newProcess(token string) Process {
+	if token == "" {
+		// Some proxy implementations will not generate
+		// a process token. In that case virtcontainers
+		// generates one
+		token = uuid.Generate().String()
+	}
+
 	return Process{
 		Token:     token,
-		Pid:       pid,
+		StartTime: time.Now().UTC(),
+	}
+}
+
+func newInitProcess(token, containerID string) Process {
+	if token == "" {
+		// Some proxy implementations will not generate
+		// a process token. In that case virtcontainers
+		// generates one and it re-uses the container ID
+		// for init processes.
+		token = containerID
+	}
+
+	return Process{
+		Token:     token,
 		StartTime: time.Now().UTC(),
 	}
 }

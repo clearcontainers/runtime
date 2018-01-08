@@ -135,7 +135,7 @@ func getExpectedProxyDetails(config oci.RuntimeConfig) (ProxyInfo, error) {
 }
 
 func getExpectedShimDetails(config oci.RuntimeConfig) (ShimInfo, error) {
-	shimConfig, ok := config.ShimConfig.(vc.CCShimConfig)
+	shimConfig, ok := config.ShimConfig.(vc.ShimConfig)
 	if !ok {
 		return ShimInfo{}, fmt.Errorf("failed to get shim config")
 	}

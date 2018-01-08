@@ -26,6 +26,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// CniPrimaryInterface Name chosen for the primary interface
+// If CNI ever support multiple primary interfaces this should be revisited
+const CniPrimaryInterface = "eth0"
+
 // cni is a network implementation for the CNI plugin.
 type cni struct{}
 
@@ -66,84 +70,63 @@ func convertCNIResult(cniResult cniTypes.Result) (NetworkInfo, error) {
 	}
 }
 
-func (n *cni) addVirtInterfaces(pod Pod, networkNS *NetworkNamespace) error {
+func (n *cni) invokePluginsAdd(pod Pod, networkNS *NetworkNamespace) (*NetworkInfo, error) {
+	netPlugin, err := cniPlugin.NewNetworkPlugin()
+	if err != nil {
+		return nil, err
+	}
+
+	// Note: In the case of multus or cni-genie this will return only the results
+	// corresponding to the primary interface. The remaining results need to be
+	// derived
+	result, err := netPlugin.AddNetwork(pod.id, networkNS.NetNsPath, CniPrimaryInterface)
+	if err != nil {
+		return nil, err
+	}
+
+	netInfo, err := convertCNIResult(result)
+	if err != nil {
+		return nil, err
+	}
+
+	// We do not care about this for now but
+	// If present, the CNI DNS result has to be updated in resolv.conf
+	// if the kubelet has not supplied it already
+	n.Logger().Infof("AddNetwork results %s", result.String())
+
+	return &netInfo, nil
+}
+
+func (n *cni) invokePluginsDelete(pod Pod, networkNS NetworkNamespace) error {
 	netPlugin, err := cniPlugin.NewNetworkPlugin()
 	if err != nil {
 		return err
 	}
 
-	for idx, endpoint := range networkNS.Endpoints {
-		virtualEndpoint, ok := endpoint.(*VirtualEndpoint)
-		if !ok {
-			continue
-		}
-
-		result, err := netPlugin.AddNetwork(pod.id, networkNS.NetNsPath, virtualEndpoint.Name())
-		if err != nil {
-			return err
-		}
-
-		netInfo, err := convertCNIResult(result)
-		if err != nil {
-			return err
-		}
-
-		networkNS.Endpoints[idx].SetProperties(netInfo)
-
-		n.Logger().Infof("AddNetwork results %s", result.String())
-	}
-
-	return nil
-}
-
-func (n *cni) deleteVirtInterfaces(pod Pod, networkNS NetworkNamespace) error {
-	netPlugin, err := cniPlugin.NewNetworkPlugin()
+	err = netPlugin.RemoveNetwork(pod.id, networkNS.NetNsPath, CniPrimaryInterface)
 	if err != nil {
 		return err
 	}
 
-	for _, endpoint := range networkNS.Endpoints {
-		virtualEndpoint, ok := endpoint.(*VirtualEndpoint)
-		if !ok {
-			continue
-		}
-
-		err := netPlugin.RemoveNetwork(pod.id, networkNS.NetNsPath, virtualEndpoint.NetPair.VirtIface.Name)
-		if err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
-func (n *cni) updateEndpointsFromScan(networkNS *NetworkNamespace) error {
+func (n *cni) updateEndpointsFromScan(networkNS *NetworkNamespace, netInfo *NetworkInfo) error {
 	endpoints, err := createEndpointsFromScan(networkNS.NetNsPath)
 	if err != nil {
 		return err
 	}
 
 	for _, endpoint := range endpoints {
-		for _, ep := range networkNS.Endpoints {
-			if ep.Name() == endpoint.Name() {
-				// Update endpoint properties with info from
-				// the scan. Do not update DNS since the scan
-				// cannot provide it.
-				prop := endpoint.Properties()
-				prop.DNS = ep.Properties().DNS
-				endpoint.SetProperties(prop)
-
-				switch e := endpoint.(type) {
-				case *VirtualEndpoint:
-					e.NetPair = ep.(*VirtualEndpoint).NetPair
-				}
-				break
-			}
+		if CniPrimaryInterface == endpoint.Name() {
+			prop := endpoint.Properties()
+			prop.DNS = netInfo.DNS
+			endpoint.SetProperties(prop)
+			break
 		}
 	}
 
 	networkNS.Endpoints = endpoints
-
 	return nil
 }
 
@@ -159,22 +142,18 @@ func (n *cni) run(networkNSPath string, cb func() error) error {
 
 // add adds all needed interfaces inside the network namespace for the CNI network.
 func (n *cni) add(pod Pod, config NetworkConfig, netNsPath string, netNsCreated bool) (NetworkNamespace, error) {
-	endpoints, err := createNetworkEndpoints(config.NumInterfaces)
-	if err != nil {
-		return NetworkNamespace{}, err
-	}
 
 	networkNS := NetworkNamespace{
 		NetNsPath:    netNsPath,
 		NetNsCreated: netNsCreated,
-		Endpoints:    endpoints,
 	}
 
-	if err := n.addVirtInterfaces(pod, &networkNS); err != nil {
+	netInfo, err := n.invokePluginsAdd(pod, &networkNS)
+	if err != nil {
 		return NetworkNamespace{}, err
 	}
 
-	if err := n.updateEndpointsFromScan(&networkNS); err != nil {
+	if err := n.updateEndpointsFromScan(&networkNS, netInfo); err != nil {
 		return NetworkNamespace{}, err
 	}
 
@@ -192,7 +171,7 @@ func (n *cni) remove(pod Pod, networkNS NetworkNamespace) error {
 		return err
 	}
 
-	if err := n.deleteVirtInterfaces(pod, networkNS); err != nil {
+	if err := n.invokePluginsDelete(pod, networkNS); err != nil {
 		return err
 	}
 

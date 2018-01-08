@@ -43,10 +43,6 @@
   revision = "a0159fddcd197a57790b6dd5654802b7dc8f80be"
 
 [[constraint]]
-  name = "github.com/opencontainers/runtime-spec"
-  revision = "a8125598b32a65ff55c83214d3c262383178e7fa"
-
-[[constraint]]
   name = "github.com/pmezard/go-difflib"
   revision = "792786c7400a136282c1664665ae0a8db921c6c2"
 
@@ -75,9 +71,5 @@
   revision = "76eec36fa14229c4b25bb894c2d0e591527af429"
 
 [[constraint]]
-  name = "golang.org/x/sys"
-  revision = "314a259e304ff91bd6985da2a7149bbf91237993"
-
-[[constraint]]
   name = "github.com/containers/virtcontainers"
-  revision = "d2342c73a2b486736b2f88164b13b542873115dc"
+  revision = "387abeb4466d86aef1171b054f64ee8c636aa05f"

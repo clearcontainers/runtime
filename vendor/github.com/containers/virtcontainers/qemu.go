@@ -186,6 +186,7 @@ var kernelDefaultParams = []Param{
 	{"iommu", "off"},
 	{"cryptomgr.notests", ""},
 	{"net.ifnames", "0"},
+	{"pci", "lastbus=0"},
 }
 
 // kernelDefaultParamsNonDebug is a list of the default kernel

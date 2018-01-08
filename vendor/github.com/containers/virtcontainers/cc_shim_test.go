@@ -34,14 +34,14 @@ import (
 // These tests don't care about the format of the container ID
 const testContainer = "testContainer"
 
-var testShimPath = "/usr/bin/virtcontainers/bin/test/shim"
+var testCCShimPath = "/usr/bin/virtcontainers/bin/test/cc-shim"
 var testProxyURL = "foo:///foo/clear-containers/proxy.sock"
 var testWrongConsolePath = "/foo/wrong-console"
 var testConsolePath = "tty-console"
 
 func getMockCCShimBinPath() string {
 	if DefaultMockCCShimBinPath == "" {
-		return testShimPath
+		return testCCShimPath
 	}
 
 	return DefaultMockCCShimBinPath
@@ -85,7 +85,7 @@ func TestCCShimStartShimPathEmptyFailure(t *testing.T) {
 	pod := Pod{
 		config: &PodConfig{
 			ShimType:   CCShimType,
-			ShimConfig: CCShimConfig{},
+			ShimConfig: ShimConfig{},
 		},
 	}
 
@@ -96,7 +96,7 @@ func TestCCShimStartShimTypeInvalid(t *testing.T) {
 	pod := Pod{
 		config: &PodConfig{
 			ShimType:   "foo",
-			ShimConfig: CCShimConfig{},
+			ShimConfig: ShimConfig{},
 		},
 	}
 
@@ -107,7 +107,7 @@ func TestCCShimStartParamsTokenEmptyFailure(t *testing.T) {
 	pod := Pod{
 		config: &PodConfig{
 			ShimType: CCShimType,
-			ShimConfig: CCShimConfig{
+			ShimConfig: ShimConfig{
 				Path: getMockCCShimBinPath(),
 			},
 		},
@@ -120,7 +120,7 @@ func TestCCShimStartParamsURLEmptyFailure(t *testing.T) {
 	pod := Pod{
 		config: &PodConfig{
 			ShimType: CCShimType,
-			ShimConfig: CCShimConfig{
+			ShimConfig: ShimConfig{
 				Path: getMockCCShimBinPath(),
 			},
 		},
@@ -137,7 +137,7 @@ func TestCCShimStartParamsContainerEmptyFailure(t *testing.T) {
 	pod := Pod{
 		config: &PodConfig{
 			ShimType: CCShimType,
-			ShimConfig: CCShimConfig{
+			ShimConfig: ShimConfig{
 				Path: getMockCCShimBinPath(),
 			},
 		},
@@ -163,7 +163,7 @@ func TestCCShimStartParamsInvalidCommand(t *testing.T) {
 	pod := Pod{
 		config: &PodConfig{
 			ShimType: CCShimType,
-			ShimConfig: CCShimConfig{
+			ShimConfig: ShimConfig{
 				Path: cmd,
 			},
 		},
@@ -189,7 +189,7 @@ func startCCShimStartWithoutConsoleSuccessful(t *testing.T, detach bool) (*os.Fi
 	pod := Pod{
 		config: &PodConfig{
 			ShimType: CCShimType,
-			ShimConfig: CCShimConfig{
+			ShimConfig: ShimConfig{
 				Path: getMockCCShimBinPath(),
 			},
 		},
@@ -274,7 +274,7 @@ func TestCCShimStartWithConsoleNonExistingFailure(t *testing.T) {
 	pod := Pod{
 		config: &PodConfig{
 			ShimType: CCShimType,
-			ShimConfig: CCShimConfig{
+			ShimConfig: ShimConfig{
 				Path: getMockCCShimBinPath(),
 			},
 		},
@@ -350,7 +350,7 @@ func TestCCShimStartWithConsoleSuccessful(t *testing.T) {
 	pod := Pod{
 		config: &PodConfig{
 			ShimType: CCShimType,
-			ShimConfig: CCShimConfig{
+			ShimConfig: ShimConfig{
 				Path: getMockCCShimBinPath(),
 			},
 		},

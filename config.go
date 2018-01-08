@@ -294,13 +294,13 @@ func newHyperstartAgentConfig(a agent) (vc.HyperConfig, error) {
 	return vc.HyperConfig{}, nil
 }
 
-func newCCShimConfig(s shim) (vc.CCShimConfig, error) {
+func newShimConfig(s shim) (vc.ShimConfig, error) {
 	path, err := s.path()
 	if err != nil {
-		return vc.CCShimConfig{}, err
+		return vc.ShimConfig{}, err
 	}
 
-	return vc.CCShimConfig{
+	return vc.ShimConfig{
 		Path:  path,
 		Debug: s.debug(),
 	}, nil
@@ -353,7 +353,7 @@ func updateRuntimeConfig(configPath string, tomlConf tomlConfig, config *oci.Run
 	for k, shim := range tomlConf.Shim {
 		switch k {
 		case ccShimTableType:
-			shConfig, err := newCCShimConfig(shim)
+			shConfig, err := newShimConfig(shim)
 			if err != nil {
 				return fmt.Errorf("%v: %v", configPath, err)
 			}

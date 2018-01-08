@@ -1,69 +1,3 @@
-
-## Gopkg.toml example (these lines may be deleted)
-
-## "metadata" defines metadata about the project that could be used by other independent
-## systems. The metadata defined here will be ignored by dep.
-# [metadata]
-# key1 = "value that convey data to other systems"
-# system1-data = "value that is used by a system"
-# system2-data = "value that is used by another system"
-
-## "required" lists a set of packages (not projects) that must be included in
-## Gopkg.lock. This list is merged with the set of packages imported by the current
-## project. Use it when your project needs a package it doesn't explicitly import -
-## including "main" packages.
-# required = ["github.com/user/thing/cmd/thing"]
-
-## "ignored" lists a set of packages (not projects) that are ignored when
-## dep statically analyzes source code. Ignored packages can be in this project,
-## or in a dependency.
-# ignored = ["github.com/user/project/badpkg"]
-
-## Constraints are rules for how directly imported projects
-## may be incorporated into the depgraph. They are respected by
-## dep whether coming from the Gopkg.toml of the current project or a dependency.
-# [[constraint]]
-## Required: the root import path of the project being constrained.
-# name = "github.com/user/project"
-#
-## Recommended: the version constraint to enforce for the project.
-## Only one of "branch", "version" or "revision" can be specified.
-# version = "1.0.0"
-# branch = "master"
-# revision = "abc123"
-#
-## Optional: an alternate location (URL or import path) for the project's source.
-# source = "https://github.com/myfork/package.git"
-#
-## "metadata" defines metadata about the dependency or override that could be used
-## by other independent systems. The metadata defined here will be ignored by dep.
-# [metadata]
-# key1 = "value that convey data to other systems"
-# system1-data = "value that is used by a system"
-# system2-data = "value that is used by another system"
-
-## Overrides have the same structure as [[constraint]], but supersede all
-## [[constraint]] declarations from all projects. Only [[override]] from
-## the current project's are applied.
-##
-## Overrides are a sledgehammer. Use them only as a last resort.
-# [[override]]
-## Required: the root import path of the project being constrained.
-# name = "github.com/user/project"
-#
-## Optional: specifying a version constraint override will cause all other
-## constraints on this project to be ignored; only the overridden constraint
-## need be satisfied.
-## Again, only one of "branch", "version" or "revision" can be specified.
-# version = "1.0.0"
-# branch = "master"
-# revision = "abc123"
-#
-## Optional: specifying an alternate source location as an override will
-## enforce that the alternate location is used for that project, regardless of
-## what source location any dependent projects specify.
-# source = "https://github.com/myfork/package.git"
-
 [[constraint]]
   name = "github.com/clearcontainers/proxy"
   revision = "1d2a6a3ea132a86abd0731408b7dc34f2fc17d55"
@@ -98,7 +32,7 @@
 
 [[constraint]]
   name = "github.com/opencontainers/runtime-spec"
-  revision = "a8125598b32a65ff55c83214d3c262383178e7fa"
+  revision = "4e3b9264a330d094b0386c3703c5f379119711e8"
 
 [[constraint]]
   name = "github.com/pmezard/go-difflib"
@@ -126,7 +60,7 @@
 
 [[constraint]]
   name = "golang.org/x/sys"
-  revision = "314a259e304ff91bd6985da2a7149bbf91237993"
+  revision = "1d2aa6dbdea45adaaebb9905d0666e4537563829"
 
 [[constraint]]
   name = "github.com/sirupsen/logrus"
@@ -134,4 +68,12 @@
 
 [[constraint]]
   name = "github.com/intel/govmm"
-  revision = "064ffdb2b27a49feea45eea8db1a6738f5dc4e09"
+  revision = "9250e77eda726cbc468985582ce6de932c868bec"
+
+[[constraint]]
+  name = "github.com/mdlayher/vsock"
+  revision = "7b5c6741e074564cf63927c1a82beda0138e1ed4"
+
+[[constraint]]
+  name = "github.com/kata-containers/agent"
+  revision = "306ee20ff47628fe370012d7e3f9316480e43c2e"

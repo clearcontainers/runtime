@@ -18,6 +18,7 @@ package virtcontainers
 
 import (
 	"bufio"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -25,7 +26,15 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+
+	"github.com/sirupsen/logrus"
 )
+
+var rootfsDir = "rootfs"
+
+func mountLogger() *logrus.Entry {
+	return virtLog.WithField("subsystem", "mount")
+}
 
 // These mounts need to be created by the agent within the VM
 var systemMounts = []string{"/proc", "/dev", "/dev/pts", "/dev/shm", "/dev/mqueue", "/sys", "/sys/fs/cgroup"}
@@ -233,4 +242,161 @@ func getVirtDriveName(index int) (string, error) {
 
 	diskName := prefix + reverseString(string(diskLetters[:i]))
 	return diskName, nil
+}
+
+const mountPerm = os.FileMode(0755)
+
+// bindMount bind mounts a source in to a destination. This will
+// do some bookkeeping:
+// * evaluate all symlinks
+// * ensure the source exists
+// * recursively create the destination
+func bindMount(source, destination string, readonly bool) error {
+	if source == "" {
+		return fmt.Errorf("source must be specified")
+	}
+	if destination == "" {
+		return fmt.Errorf("destination must be specified")
+	}
+
+	absSource, err := filepath.EvalSymlinks(source)
+	if err != nil {
+		return fmt.Errorf("Could not resolve symlink for source %v", source)
+	}
+
+	if err := ensureDestinationExists(absSource, destination); err != nil {
+		return fmt.Errorf("Could not create destination mount point %v: %v", destination, err)
+	} else if err := syscall.Mount(absSource, destination, "bind", syscall.MS_BIND, ""); err != nil {
+		return fmt.Errorf("Could not bind mount %v to %v: %v", absSource, destination, err)
+	}
+
+	// For readonly bind mounts, we need to remount with the readonly flag.
+	// This is needed as only very recent versions of libmount/util-linux support "bind,ro"
+	if readonly {
+		return syscall.Mount(absSource, destination, "bind", uintptr(syscall.MS_BIND|syscall.MS_REMOUNT|syscall.MS_RDONLY), "")
+	}
+
+	return nil
+}
+
+// bindMountContainerRootfs bind mounts a container rootfs into a 9pfs shared
+// directory between the guest and the host.
+func bindMountContainerRootfs(sharedDir, podID, cID, cRootFs string, readonly bool) error {
+	rootfsDest := filepath.Join(sharedDir, podID, cID, rootfsDir)
+
+	return bindMount(cRootFs, rootfsDest, readonly)
+}
+
+// Mount describes a container mount.
+type Mount struct {
+	Source      string
+	Destination string
+
+	// Type specifies the type of filesystem to mount.
+	Type string
+
+	// Options list all the mount options of the filesystem.
+	Options []string
+
+	// HostPath used to store host side bind mount path
+	HostPath string
+
+	// ReadOnly specifies if the mount should be read only or not
+	ReadOnly bool
+}
+
+// bindMountContainerMounts handles bind-mounts by bindmounting to the host shared directory
+// which is mounted through 9pfs in the VM.
+// Hyperstart uses "fsmap" struct to bind mount these mounts in the hypertstart shared directory
+// to the correct mountpoint within the container rootfs.
+func bindMountContainerMounts(sharedDir, podID string, cID string, mounts []Mount) ([]*Mount, error) {
+	if mounts == nil {
+		return nil, nil
+	}
+
+	var newMounts []*Mount
+
+	// TODO: We need to handle system mounts by having the agent create them inside the VM.
+	// Handle just bind mounts for now
+
+	for ind := range mounts {
+		m := &(mounts[ind])
+
+		if isSystemMount(m.Destination) {
+			continue
+		}
+
+		if m.Type != "bind" {
+			continue
+		}
+
+		randBytes, err := generateRandomBytes(8)
+		if err != nil {
+			return nil, err
+		}
+
+		// These mounts are created in the shared dir
+		filename := fmt.Sprintf("%s-%s-%s", cID, hex.EncodeToString(randBytes), filepath.Base(m.Destination))
+		mountDest := filepath.Join(sharedDir, podID, filename)
+
+		err = bindMount(m.Source, mountDest, false)
+		if err != nil {
+			return nil, err
+		}
+
+		m.HostPath = mountDest
+
+		// Check if mount is readonly, let the agent handle the readonly mount within the VM
+		readonly := false
+		for _, flag := range m.Options {
+			if flag == "ro" {
+				readonly = true
+			}
+		}
+
+		newMount := &Mount{
+			Source:      filename,
+			Destination: m.Destination,
+			ReadOnly:    readonly,
+		}
+		newMounts = append(newMounts, newMount)
+	}
+
+	return newMounts, nil
+}
+
+func bindUnmountContainerMounts(mounts []Mount) error {
+	if mounts == nil {
+		return nil
+	}
+
+	for _, m := range mounts {
+		if !isSystemMount(m.Destination) && m.Type == "bind" {
+			err := syscall.Unmount(m.HostPath, 0)
+			mountLogger().WithFields(logrus.Fields{
+				"host-path": m.HostPath,
+				"error":     err,
+			}).Warn("Could not umount")
+			return err
+		}
+	}
+	return nil
+}
+
+func bindUnmountContainerRootfs(sharedDir, podID, cID string) error {
+	rootfsDest := filepath.Join(sharedDir, podID, cID, rootfsDir)
+	syscall.Unmount(rootfsDest, 0)
+
+	return nil
+}
+
+func bindUnmountAllRootfs(sharedDir string, pod Pod) {
+	for _, c := range pod.containers {
+		bindUnmountContainerMounts(c.mounts)
+		if c.state.Fstype == "" {
+			// Need to check for error returned by this call.
+			// See: https://github.com/containers/virtcontainers/issues/295
+			bindUnmountContainerRootfs(sharedDir, pod.id, c.id)
+		}
+	}
 }

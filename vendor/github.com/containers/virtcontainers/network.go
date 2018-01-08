@@ -18,7 +18,6 @@ package virtcontainers
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -580,6 +579,7 @@ func getLinkByName(netHandle *netlink.Handle, name string, expectedLink netlink.
 	return nil, fmt.Errorf("Incorrect link type %s, expecting %s", link.Type(), expectedLink.Type())
 }
 
+// The endpoint type should dictate how the connection needs to be made
 func xconnectVMNetwork(netPair *NetworkInterfacePair, connect bool) error {
 	switch DefaultNetInterworkingModel {
 	case ModelBridged:
@@ -1010,19 +1010,21 @@ func deleteNetNS(netNSPath string, mounted bool) error {
 	return nil
 }
 
-func createVirtualNetworkEndpoint(idx int, uniqueID string, ifName string) (*VirtualEndpoint, error) {
+func createVirtualNetworkEndpoint(idx int, ifName string) (*VirtualEndpoint, error) {
 	if idx < 0 {
 		return &VirtualEndpoint{}, fmt.Errorf("invalid network endpoint index: %d", idx)
 	}
-	if uniqueID == "" {
-		return &VirtualEndpoint{}, errors.New("uniqueID cannot be blank")
-	}
+
+	uniqueID := uuid.Generate().String()
 
 	hardAddr := net.HardwareAddr{0x02, 0x00, 0xCA, 0xFE, byte(idx >> 8), byte(idx)}
 
 	endpoint := &VirtualEndpoint{
+		// TODO This is too specific. We may need to create multiple
+		// end point types here and then decide how to connect them
+		// at the time of hypervisor attach and not here
 		NetPair: NetworkInterfacePair{
-			ID:   fmt.Sprintf("%s-%d", uniqueID, idx),
+			ID:   uniqueID,
 			Name: fmt.Sprintf("br%d", idx),
 			VirtIface: NetworkInterface{
 				Name:     fmt.Sprintf("eth%d", idx),
@@ -1047,10 +1049,8 @@ func createNetworkEndpoints(numOfEndpoints int) (endpoints []Endpoint, err error
 		return endpoints, fmt.Errorf("Invalid number of network endpoints")
 	}
 
-	uniqueID := uuid.Generate().String()
-
 	for i := 0; i < numOfEndpoints; i++ {
-		endpoint, err := createVirtualNetworkEndpoint(i, uniqueID, "")
+		endpoint, err := createVirtualNetworkEndpoint(i, "")
 		if err != nil {
 			return nil, err
 		}
@@ -1081,34 +1081,6 @@ func networkInfoFromLink(handle *netlink.Handle, link netlink.Link) (NetworkInfo
 	}, nil
 }
 
-func networkInfoListFromNetworkScan(handle *netlink.Handle) ([]NetworkInfo, error) {
-	var netInfoList []NetworkInfo
-
-	linkList, err := handle.LinkList()
-	if err != nil {
-		return []NetworkInfo{}, err
-	}
-
-	for _, link := range linkList {
-		netInfo, err := networkInfoFromLink(handle, link)
-		if err != nil {
-			return []NetworkInfo{}, err
-		}
-
-		// Ignore unconfigured network interfaces. These are
-		// either base tunnel devices that are not namespaced
-		// like gre0, gretap0, sit0, ipip0, tunl0 or incorrectly
-		// setup interfaces.
-		if len(netInfo.Addrs) == 0 {
-			continue
-		}
-
-		netInfoList = append(netInfoList, netInfo)
-	}
-
-	return netInfoList, nil
-}
-
 func createEndpointsFromScan(networkNSPath string) ([]Endpoint, error) {
 	var endpoints []Endpoint
 
@@ -1124,23 +1096,40 @@ func createEndpointsFromScan(networkNSPath string) ([]Endpoint, error) {
 	}
 	defer netlinkHandle.Delete()
 
-	netInfoList, err := networkInfoListFromNetworkScan(netlinkHandle)
+	linkList, err := netlinkHandle.LinkList()
 	if err != nil {
 		return []Endpoint{}, err
 	}
 
-	uniqueID := uuid.Generate().String()
-
 	idx := 0
-	for _, netInfo := range netInfoList {
+	for _, link := range linkList {
 		var endpoint Endpoint
 
-		// Skip any loopback interface.
+		netInfo, err := networkInfoFromLink(netlinkHandle, link)
+		if err != nil {
+			return []Endpoint{}, err
+		}
+
+		// Ignore unconfigured network interfaces. These are
+		// either base tunnel devices that are not namespaced
+		// like gre0, gretap0, sit0, ipip0, tunl0 or incorrectly
+		// setup interfaces.
+		if len(netInfo.Addrs) == 0 {
+			continue
+		}
+
+		// Skip any loopback interfaces:
 		if (netInfo.Iface.Flags & net.FlagLoopback) != 0 {
 			continue
 		}
 
 		if err := doNetNS(networkNSPath, func(_ ns.NetNS) error {
+
+			// TODO: This is the incoming interface
+			// based on the incoming interface we should create
+			// an appropriate EndPoint based on interface type
+			// This should be a switch
+
 			// Check if interface is a physical interface. Do not create
 			// tap interface/bridge if it is.
 			isPhysical, err := isPhysicalIface(netInfo.Iface.Name)
@@ -1152,7 +1141,7 @@ func createEndpointsFromScan(networkNSPath string) ([]Endpoint, error) {
 				cnmLogger().WithField("interface", netInfo.Iface.Name).Info("Physical network interface found")
 				endpoint, err = createPhysicalEndpoint(netInfo)
 			} else {
-				endpoint, err = createVirtualNetworkEndpoint(idx, uniqueID, netInfo.Iface.Name)
+				endpoint, err = createVirtualNetworkEndpoint(idx, netInfo.Iface.Name)
 			}
 
 			return err

@@ -211,10 +211,13 @@ func TestCreateVirtualNetworkEndpoint(t *testing.T) {
 		EndpointType: VirtualEndpointType,
 	}
 
-	result, err := createVirtualNetworkEndpoint(4, "uniqueTestID", "")
+	result, err := createVirtualNetworkEndpoint(4, "")
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	// the resulting ID  will be random - so let's overwrite to test the rest of the flow
+	result.NetPair.ID = "uniqueTestID-4"
 
 	if reflect.DeepEqual(result, expected) == false {
 		t.Fatal()
@@ -239,10 +242,13 @@ func TestCreateVirtualNetworkEndpointChooseIfaceName(t *testing.T) {
 		EndpointType: VirtualEndpointType,
 	}
 
-	result, err := createVirtualNetworkEndpoint(4, "uniqueTestID", "eth1")
+	result, err := createVirtualNetworkEndpoint(4, "eth1")
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	// the resulting ID will be random - so let's overwrite to test the rest of the flow
+	result.NetPair.ID = "uniqueTestID-4"
 
 	if reflect.DeepEqual(result, expected) == false {
 		t.Fatal()
@@ -251,25 +257,18 @@ func TestCreateVirtualNetworkEndpointChooseIfaceName(t *testing.T) {
 
 func TestCreateVirtualNetworkEndpointInvalidArgs(t *testing.T) {
 	type endpointValues struct {
-		idx      int
-		uniqueID string
-		ifName   string
+		idx    int
+		ifName string
 	}
 
 	// all elements are expected to result in failure
 	failingValues := []endpointValues{
-		{-1, "foo", "bar"},
-		{-1, "foo", ""},
-		{-3, "foo", "bar"},
-		{-3, "foo", ""},
-		{0, "", "bar"},
-		{0, "", ""},
-		{1, "", "bar"},
-		{1, "", ""},
+		{-1, "bar"},
+		{-1, ""},
 	}
 
 	for _, d := range failingValues {
-		result, err := createVirtualNetworkEndpoint(d.idx, d.uniqueID, d.ifName)
+		result, err := createVirtualNetworkEndpoint(d.idx, d.ifName)
 		if err == nil {
 			t.Fatalf("expected invalid endpoint for %v, got %v", d, result)
 		}

@@ -58,6 +58,11 @@ func TestContainerSystemMountsInfo(t *testing.T) {
 			Destination: "/dev",
 			Type:        "bind",
 		},
+		{
+			Source:      "procfs",
+			Destination: "/proc",
+			Type:        "procfs",
+		},
 	}
 
 	c := Container{

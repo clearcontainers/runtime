@@ -171,6 +171,8 @@ type Process struct {
 	Workdir string `json:"workdir"`
 	// Rlimits specifies rlimit options to apply to the process.
 	Rlimits []Rlimit `json:"rlimits,omitempty"`
+	// NoNewPrivileges indicates that the process should not gain any additional privileges
+	NoNewPrivileges bool `json:"noNewPrivileges"`
 }
 
 // SystemMountsInfo describes additional information for system mounts that the agent
