@@ -28,14 +28,35 @@
   revision = "20b96f641a5ea98f2f8619ff4f3e061cff4833bd"
 
 [[projects]]
+  name = "github.com/gogo/protobuf"
+  packages = ["gogoproto","proto","protoc-gen-gogo/descriptor","sortkeys","types"]
+  revision = "342cbe0a04158f6dcb03ca0079991a51a4248c02"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/golang/protobuf"
+  packages = ["proto","ptypes","ptypes/any","ptypes/duration","ptypes/timestamp"]
+  revision = "1e59b77b52bf8e4b449a57e6f79f21226d571845"
+
+[[projects]]
   name = "github.com/intel/govmm"
   packages = ["qemu"]
-  revision = "064ffdb2b27a49feea45eea8db1a6738f5dc4e09"
+  revision = "9250e77eda726cbc468985582ce6de932c868bec"
+
+[[projects]]
+  name = "github.com/kata-containers/agent"
+  packages = ["protocols/client","protocols/grpc"]
+  revision = "306ee20ff47628fe370012d7e3f9316480e43c2e"
 
 [[projects]]
   name = "github.com/kubernetes-incubator/cri-o"
   packages = ["pkg/annotations"]
   revision = "3394b3b2d6af0e41d185bb695c6378be5dd4d61d"
+
+[[projects]]
+  name = "github.com/mdlayher/vsock"
+  packages = ["."]
+  revision = "738c88d6e4cfd60e8124a5344fa10d205fd828b9"
 
 [[projects]]
   name = "github.com/mitchellh/mapstructure"
@@ -50,7 +71,7 @@
 [[projects]]
   name = "github.com/opencontainers/runtime-spec"
   packages = ["specs-go"]
-  revision = "a8125598b32a65ff55c83214d3c262383178e7fa"
+  revision = "4e3b9264a330d094b0386c3703c5f379119711e8"
 
 [[projects]]
   name = "github.com/pmezard/go-difflib"
@@ -84,18 +105,41 @@
   revision = "86bef332bfc3b59b7624a600bd53009ce91a9829"
 
 [[projects]]
+  branch = "master"
   name = "golang.org/x/crypto"
-  packages = ["curve25519","ed25519","ed25519/internal/edwards25519","ssh","ssh/terminal"]
-  revision = "76eec36fa14229c4b25bb894c2d0e591527af429"
+  packages = ["ssh/terminal"]
+  revision = "0fcca4842a8d74bfddc2c96a073bd2a4d2a7a2e8"
+
+[[projects]]
+  name = "golang.org/x/net"
+  packages = ["context","http2","http2/hpack","idna","internal/timeseries","lex/httplex","trace"]
+  revision = "a8b9294777976932365dabb6640cf1468d95c70f"
 
 [[projects]]
   name = "golang.org/x/sys"
   packages = ["unix","windows"]
-  revision = "314a259e304ff91bd6985da2a7149bbf91237993"
+  revision = "1d2aa6dbdea45adaaebb9905d0666e4537563829"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/text"
+  packages = ["collate","collate/build","internal/colltab","internal/gen","internal/tag","internal/triegen","internal/ucd","language","secure/bidirule","transform","unicode/bidi","unicode/cldr","unicode/norm","unicode/rangetable"]
+  revision = "e19ae1496984b1c655b8044a65c0300a3c878dd3"
+
+[[projects]]
+  branch = "master"
+  name = "google.golang.org/genproto"
+  packages = ["googleapis/rpc/status"]
+  revision = "a8101f21cf983e773d0c1133ebc5424792003214"
+
+[[projects]]
+  name = "google.golang.org/grpc"
+  packages = [".","balancer","balancer/roundrobin","codes","connectivity","credentials","encoding","grpclb/grpc_lb_v1/messages","grpclog","internal","keepalive","metadata","naming","peer","resolver","resolver/dns","resolver/passthrough","stats","status","tap","transport"]
+  revision = "5a9f7b402fe85096d2e1d0383435ee1876e863d0"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "08587dd11560c8b455a1a84351761327aeb6195999805d76057a4a816d0f6536"
+  inputs-digest = "0d9b34864a43e820b4e23f22f92aa15ab2cc6e3345cf215335805f77c348f2df"
   solver-name = "gps-cdcl"
   solver-version = 1

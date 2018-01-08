@@ -27,7 +27,7 @@ import (
 	"time"
 
 	vc "github.com/containers/virtcontainers"
-	"github.com/containers/virtcontainers/pkg/oci"
+	vcAnnotations "github.com/containers/virtcontainers/pkg/annotations"
 	"github.com/containers/virtcontainers/pkg/vcMock"
 	"github.com/stretchr/testify/assert"
 	"github.com/urfave/cli"
@@ -564,7 +564,7 @@ func TestListCLIFunctionFormatFail(t *testing.T) {
 					{
 						ID: pod.ID(),
 						Annotations: map[string]string{
-							oci.ContainerTypeKey: string(vc.PodSandbox),
+							vcAnnotations.ContainerTypeKey: string(vc.PodSandbox),
 						},
 						RootFs: rootfs,
 					},
@@ -667,7 +667,7 @@ func TestListCLIFunctionQuiet(t *testing.T) {
 					{
 						ID: pod.ID(),
 						Annotations: map[string]string{
-							oci.ContainerTypeKey: string(vc.PodSandbox),
+							vcAnnotations.ContainerTypeKey: string(vc.PodSandbox),
 						},
 						RootFs: rootfs,
 					},

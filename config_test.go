@@ -143,7 +143,7 @@ func createAllRuntimeConfigFiles(dir, hypervisor string) (config testRuntimeConf
 		Path: proxyPath,
 	}
 
-	shimConfig := vc.CCShimConfig{
+	shimConfig := vc.ShimConfig{
 		Path: shimPath,
 	}
 
@@ -362,7 +362,7 @@ func TestConfigLoadConfigurationFailMissingShim(t *testing.T) {
 		func(config testRuntimeConfig, configFile string, ignoreLogging bool) (bool, error) {
 			expectFail := true
 
-			shimConfig, ok := config.RuntimeConfig.ShimConfig.(vc.CCShimConfig)
+			shimConfig, ok := config.RuntimeConfig.ShimConfig.(vc.ShimConfig)
 			if !ok {
 				return expectFail, fmt.Errorf("cannot determine shim config")
 			}
@@ -517,7 +517,7 @@ func TestMinimalRuntimeConfig(t *testing.T) {
 		Path: proxyPath,
 	}
 
-	expectedShimConfig := vc.CCShimConfig{
+	expectedShimConfig := vc.ShimConfig{
 		Path: shimPath,
 	}
 
@@ -628,7 +628,7 @@ func TestNewCCShimConfig(t *testing.T) {
 		Path: shimPath,
 	}
 
-	_, err = newCCShimConfig(shim)
+	_, err = newShimConfig(shim)
 	if err == nil {
 		t.Fatalf("Expected newCCShimConfig to fail as no paths exist")
 	}
@@ -638,7 +638,7 @@ func TestNewCCShimConfig(t *testing.T) {
 		t.Error(err)
 	}
 
-	shConfig, err := newCCShimConfig(shim)
+	shConfig, err := newShimConfig(shim)
 	if err != nil {
 		t.Fatalf("newCCShimConfig failed unexpectedly: %v", err)
 	}

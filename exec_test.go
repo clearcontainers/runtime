@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	vc "github.com/containers/virtcontainers"
+	vcAnnotations "github.com/containers/virtcontainers/pkg/annotations"
 	"github.com/containers/virtcontainers/pkg/oci"
 	"github.com/containers/virtcontainers/pkg/vcMock"
 	"github.com/stretchr/testify/assert"
@@ -73,7 +74,7 @@ func TestExecuteErrors(t *testing.T) {
 
 	// Config path missing in annotations
 	annotations := map[string]string{
-		oci.ContainerTypeKey: string(vc.PodSandbox),
+		vcAnnotations.ContainerTypeKey: string(vc.PodSandbox),
 	}
 
 	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
@@ -94,8 +95,8 @@ func TestExecuteErrors(t *testing.T) {
 	assert.NoError(err)
 
 	annotations = map[string]string{
-		oci.ContainerTypeKey: string(vc.PodSandbox),
-		oci.ConfigJSONKey:    configJSON,
+		vcAnnotations.ContainerTypeKey: string(vc.PodSandbox),
+		vcAnnotations.ConfigJSONKey:    configJSON,
 	}
 
 	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
@@ -131,8 +132,8 @@ func TestExecuteErrorReadingProcessJson(t *testing.T) {
 	assert.NoError(err)
 
 	annotations := map[string]string{
-		oci.ContainerTypeKey: string(vc.PodSandbox),
-		oci.ConfigJSONKey:    configJSON,
+		vcAnnotations.ContainerTypeKey: string(vc.PodSandbox),
+		vcAnnotations.ConfigJSONKey:    configJSON,
 	}
 
 	state := vc.State{
@@ -175,8 +176,8 @@ func TestExecuteErrorOpeningConsole(t *testing.T) {
 	assert.NoError(err)
 
 	annotations := map[string]string{
-		oci.ContainerTypeKey: string(vc.PodSandbox),
-		oci.ConfigJSONKey:    configJSON,
+		vcAnnotations.ContainerTypeKey: string(vc.PodSandbox),
+		vcAnnotations.ConfigJSONKey:    configJSON,
 	}
 
 	state := vc.State{
@@ -237,8 +238,8 @@ func TestExecuteWithFlags(t *testing.T) {
 	assert.NoError(err)
 
 	annotations := map[string]string{
-		oci.ContainerTypeKey: string(vc.PodSandbox),
-		oci.ConfigJSONKey:    configJSON,
+		vcAnnotations.ContainerTypeKey: string(vc.PodSandbox),
+		vcAnnotations.ConfigJSONKey:    configJSON,
 	}
 
 	state := vc.State{
@@ -321,8 +322,8 @@ func TestExecuteWithFlagsDetached(t *testing.T) {
 	assert.NoError(err)
 
 	annotations := map[string]string{
-		oci.ContainerTypeKey: string(vc.PodSandbox),
-		oci.ConfigJSONKey:    configJSON,
+		vcAnnotations.ContainerTypeKey: string(vc.PodSandbox),
+		vcAnnotations.ConfigJSONKey:    configJSON,
 	}
 
 	state := vc.State{
@@ -395,8 +396,8 @@ func TestExecuteWithInvalidProcessJson(t *testing.T) {
 	assert.NoError(err)
 
 	annotations := map[string]string{
-		oci.ContainerTypeKey: string(vc.PodSandbox),
-		oci.ConfigJSONKey:    configJSON,
+		vcAnnotations.ContainerTypeKey: string(vc.PodSandbox),
+		vcAnnotations.ConfigJSONKey:    configJSON,
 	}
 
 	state := vc.State{
@@ -442,8 +443,8 @@ func TestExecuteWithValidProcessJson(t *testing.T) {
 	assert.NoError(err)
 
 	annotations := map[string]string{
-		oci.ContainerTypeKey: string(vc.PodContainer),
-		oci.ConfigJSONKey:    configJSON,
+		vcAnnotations.ContainerTypeKey: string(vc.PodContainer),
+		vcAnnotations.ConfigJSONKey:    configJSON,
 	}
 
 	state := vc.State{
@@ -534,8 +535,8 @@ func TestExecuteWithInvalidEnvironment(t *testing.T) {
 	assert.NoError(err)
 
 	annotations := map[string]string{
-		oci.ContainerTypeKey: string(vc.PodContainer),
-		oci.ConfigJSONKey:    configJSON,
+		vcAnnotations.ContainerTypeKey: string(vc.PodContainer),
+		vcAnnotations.ConfigJSONKey:    configJSON,
 	}
 
 	state := vc.State{
@@ -568,7 +569,7 @@ func TestExecuteWithInvalidEnvironment(t *testing.T) {
 	fn, ok := execCLICommand.Action.(func(context *cli.Context) error)
 	assert.True(ok)
 
-	// oci.EnvVars error due to incorrect environment
+	// vcAnnotations.EnvVars error due to incorrect environment
 	err = fn(ctx)
 	assert.Error(err)
 	assert.False(vcMock.IsMockError(err))

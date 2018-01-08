@@ -22,7 +22,7 @@ import (
 	"testing"
 
 	vc "github.com/containers/virtcontainers"
-	"github.com/containers/virtcontainers/pkg/oci"
+	vcAnnotations "github.com/containers/virtcontainers/pkg/annotations"
 	"github.com/containers/virtcontainers/pkg/vcMock"
 	"github.com/stretchr/testify/assert"
 	"github.com/urfave/cli"
@@ -127,7 +127,7 @@ func TestDeleteInvalidConfig(t *testing.T) {
 					{
 						ID: pod.ID(),
 						Annotations: map[string]string{
-							oci.ContainerTypeKey: string(vc.PodSandbox),
+							vcAnnotations.ContainerTypeKey: string(vc.PodSandbox),
 						},
 					},
 				},
@@ -181,8 +181,8 @@ func TestDeletePod(t *testing.T) {
 					{
 						ID: pod.ID(),
 						Annotations: map[string]string{
-							oci.ContainerTypeKey: string(vc.PodSandbox),
-							oci.ConfigJSONKey:    configJSON,
+							vcAnnotations.ContainerTypeKey: string(vc.PodSandbox),
+							vcAnnotations.ConfigJSONKey:    configJSON,
 						},
 						State: vc.State{
 							State: "ready",
@@ -244,8 +244,8 @@ func TestDeleteInvalidContainerType(t *testing.T) {
 					{
 						ID: pod.ID(),
 						Annotations: map[string]string{
-							oci.ContainerTypeKey: "InvalidType",
-							oci.ConfigJSONKey:    configJSON,
+							vcAnnotations.ContainerTypeKey: "InvalidType",
+							vcAnnotations.ConfigJSONKey:    configJSON,
 						},
 						State: vc.State{
 							State: "created",
@@ -285,8 +285,8 @@ func TestDeletePodRunning(t *testing.T) {
 					{
 						ID: pod.ID(),
 						Annotations: map[string]string{
-							oci.ContainerTypeKey: string(vc.PodSandbox),
-							oci.ConfigJSONKey:    configJSON,
+							vcAnnotations.ContainerTypeKey: string(vc.PodSandbox),
+							vcAnnotations.ConfigJSONKey:    configJSON,
 						},
 						State: vc.State{
 							State: "running",
@@ -357,8 +357,8 @@ func TestDeleteRunningContainer(t *testing.T) {
 					{
 						ID: pod.MockContainers[0].ID(),
 						Annotations: map[string]string{
-							oci.ContainerTypeKey: string(vc.PodContainer),
-							oci.ConfigJSONKey:    configJSON,
+							vcAnnotations.ContainerTypeKey: string(vc.PodContainer),
+							vcAnnotations.ConfigJSONKey:    configJSON,
 						},
 						State: vc.State{
 							State: "running",
@@ -433,8 +433,8 @@ func TestDeleteContainer(t *testing.T) {
 					{
 						ID: pod.MockContainers[0].ID(),
 						Annotations: map[string]string{
-							oci.ContainerTypeKey: string(vc.PodContainer),
-							oci.ConfigJSONKey:    configJSON,
+							vcAnnotations.ContainerTypeKey: string(vc.PodContainer),
+							vcAnnotations.ConfigJSONKey:    configJSON,
 						},
 						State: vc.State{
 							State: "ready",
@@ -528,8 +528,8 @@ func TestDeleteCLIFunctionSuccess(t *testing.T) {
 					{
 						ID: pod.ID(),
 						Annotations: map[string]string{
-							oci.ContainerTypeKey: string(vc.PodSandbox),
-							oci.ConfigJSONKey:    configJSON,
+							vcAnnotations.ContainerTypeKey: string(vc.PodSandbox),
+							vcAnnotations.ConfigJSONKey:    configJSON,
 						},
 						State: vc.State{
 							State: "ready",

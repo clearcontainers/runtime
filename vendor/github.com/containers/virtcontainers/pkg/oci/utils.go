@@ -34,15 +34,6 @@ var (
 	// ErrNoLinux is an error for missing Linux sections in the OCI configuration file.
 	ErrNoLinux = errors.New("missing Linux section")
 
-	// ConfigJSONKey is the annotation key to fetch the OCI configuration.
-	ConfigJSONKey = "com.github.containers.virtcontainers.pkg.oci.config"
-
-	// BundlePathKey is the annotation key to fetch the OCI configuration file path.
-	BundlePathKey = "com.github.containers.virtcontainers.pkg.oci.bundle_path"
-
-	// ContainerTypeKey is the annotation key to fetch container type.
-	ContainerTypeKey = "com.github.containers.virtcontainers.pkg.oci.container_type"
-
 	// CRIContainerTypeKeyList lists all the CRI keys that could define
 	// the container type from annotations in the config.json.
 	CRIContainerTypeKeyList = []string{annotations.ContainerType}
@@ -268,6 +259,8 @@ func networkConfig(ocispec CompatOCISpec) (vc.NetworkConfig, error) {
 			continue
 		}
 
+		// Bug: This is not the interface count
+		// It is just an indication that you need networking
 		netConf.NumInterfaces = 1
 		if n.Path != "" {
 			netConf.NetNSPath = n.Path
@@ -304,12 +297,12 @@ func ParseConfigJSON(bundlePath string) (CompatOCISpec, error) {
 // GetContainerType determines which type of container matches the annotations
 // table provided.
 func GetContainerType(annotations map[string]string) (vc.ContainerType, error) {
-	if containerType, ok := annotations[ContainerTypeKey]; ok {
+	if containerType, ok := annotations[vcAnnotations.ContainerTypeKey]; ok {
 		return vc.ContainerType(containerType), nil
 	}
 
 	ociLog.Errorf("Annotations[%s] not found, cannot determine the container type",
-		ContainerTypeKey)
+		vcAnnotations.ContainerTypeKey)
 	return vc.UnknownContainerType, fmt.Errorf("Could not find container type")
 }
 
@@ -351,41 +344,37 @@ func (spec *CompatOCISpec) PodID() (string, error) {
 func vmConfig(ocispec CompatOCISpec, config RuntimeConfig) (vc.Resources, error) {
 	resources := config.VMConfig
 
-	if ocispec.Linux == nil ||
-		ocispec.Linux.Resources == nil ||
-		ocispec.Linux.Resources.Memory == nil ||
-		ocispec.Linux.Resources.Memory.Limit == nil {
+	if ocispec.Linux == nil || ocispec.Linux.Resources == nil {
 		return resources, nil
 	}
 
-	memBytes := *ocispec.Linux.Resources.Memory.Limit
-
-	if memBytes <= 0 {
-		return vc.Resources{}, fmt.Errorf("Invalid OCI memory limit %d", memBytes)
+	if ocispec.Linux.Resources.Memory != nil &&
+		ocispec.Linux.Resources.Memory.Limit != nil {
+		memBytes := *ocispec.Linux.Resources.Memory.Limit
+		if memBytes <= 0 {
+			return vc.Resources{}, fmt.Errorf("Invalid OCI memory limit %d", memBytes)
+		}
+		// round up memory to 1MB
+		resources.Memory = uint((memBytes + (1024*1024 - 1)) / (1024 * 1024))
 	}
 
-	// round up memory to 1MB
-	resources.Memory = uint((memBytes + (1024*1024 - 1)) / (1024 * 1024))
+	if ocispec.Linux.Resources.CPU != nil &&
+		ocispec.Linux.Resources.CPU.Quota != nil &&
+		ocispec.Linux.Resources.CPU.Period != nil {
+		quota := *ocispec.Linux.Resources.CPU.Quota
+		period := *ocispec.Linux.Resources.CPU.Period
 
-	if ocispec.Linux.Resources.CPU == nil ||
-		ocispec.Linux.Resources.CPU.Quota == nil ||
-		ocispec.Linux.Resources.CPU.Period == nil {
-		return resources, nil
+		if quota <= 0 {
+			return vc.Resources{}, fmt.Errorf("Invalid OCI cpu quota %d", quota)
+		}
+
+		if period == 0 {
+			return vc.Resources{}, fmt.Errorf("Invalid OCI cpu period %d", period)
+		}
+
+		// round up to 1 CPU
+		resources.VCPUs = uint((uint64(quota) + (period - 1)) / period)
 	}
-
-	quota := *ocispec.Linux.Resources.CPU.Quota
-	period := *ocispec.Linux.Resources.CPU.Period
-
-	if quota <= 0 {
-		return vc.Resources{}, fmt.Errorf("Invalid OCI cpu quota %d", quota)
-	}
-
-	if period == 0 {
-		return vc.Resources{}, fmt.Errorf("Invalid OCI cpu period %d", period)
-	}
-
-	// round up to 1 CPU
-	resources.VCPUs = uint((uint64(quota) + (period - 1)) / period)
 
 	return resources, nil
 }
@@ -459,8 +448,8 @@ func PodConfig(ocispec CompatOCISpec, runtime RuntimeConfig, bundlePath, cid, co
 		Containers: []vc.ContainerConfig{containerConfig},
 
 		Annotations: map[string]string{
-			ConfigJSONKey: string(ociSpecJSON),
-			BundlePathKey: bundlePath,
+			vcAnnotations.ConfigJSONKey: string(ociSpecJSON),
+			vcAnnotations.BundlePathKey: bundlePath,
 		},
 	}
 
@@ -485,14 +474,15 @@ func ContainerConfig(ocispec CompatOCISpec, bundlePath, cid, console string, det
 	ociLog.Debugf("container rootfs: %s", rootfs)
 
 	cmd := vc.Cmd{
-		Args:         ocispec.Process.Args,
-		Envs:         cmdEnvs(ocispec, []vc.EnvVar{}),
-		WorkDir:      ocispec.Process.Cwd,
-		User:         strconv.FormatUint(uint64(ocispec.Process.User.UID), 10),
-		PrimaryGroup: strconv.FormatUint(uint64(ocispec.Process.User.GID), 10),
-		Interactive:  ocispec.Process.Terminal,
-		Console:      console,
-		Detach:       detach,
+		Args:            ocispec.Process.Args,
+		Envs:            cmdEnvs(ocispec, []vc.EnvVar{}),
+		WorkDir:         ocispec.Process.Cwd,
+		User:            strconv.FormatUint(uint64(ocispec.Process.User.UID), 10),
+		PrimaryGroup:    strconv.FormatUint(uint64(ocispec.Process.User.GID), 10),
+		Interactive:     ocispec.Process.Terminal,
+		Console:         console,
+		Detach:          detach,
+		NoNewPrivileges: ocispec.Process.NoNewPrivileges,
 	}
 
 	cmd.SupplementaryGroups = []string{}
@@ -511,8 +501,8 @@ func ContainerConfig(ocispec CompatOCISpec, bundlePath, cid, console string, det
 		ReadonlyRootfs: ocispec.Spec.Root.Readonly,
 		Cmd:            cmd,
 		Annotations: map[string]string{
-			ConfigJSONKey: string(ociSpecJSON),
-			BundlePathKey: bundlePath,
+			vcAnnotations.ConfigJSONKey: string(ociSpecJSON),
+			vcAnnotations.BundlePathKey: bundlePath,
 		},
 		Mounts:      containerMounts(ocispec),
 		DeviceInfos: deviceInfos,
@@ -523,7 +513,7 @@ func ContainerConfig(ocispec CompatOCISpec, bundlePath, cid, console string, det
 		return vc.ContainerConfig{}, err
 	}
 
-	containerConfig.Annotations[ContainerTypeKey] = string(cType)
+	containerConfig.Annotations[vcAnnotations.ContainerTypeKey] = string(cType)
 
 	return containerConfig, nil
 }
@@ -535,7 +525,7 @@ func StatusToOCIState(status vc.ContainerStatus) spec.State {
 		ID:          status.ID,
 		Status:      StateToOCIState(status.State),
 		Pid:         status.PID,
-		Bundle:      status.Annotations[BundlePathKey],
+		Bundle:      status.Annotations[vcAnnotations.BundlePathKey],
 		Annotations: status.Annotations,
 	}
 }
@@ -594,9 +584,9 @@ func EnvVars(envs []string) ([]vc.EnvVar, error) {
 // GetOCIConfig returns an OCI spec configuration from the annotation
 // stored into the container status.
 func GetOCIConfig(status vc.ContainerStatus) (CompatOCISpec, error) {
-	ociConfigStr, ok := status.Annotations[ConfigJSONKey]
+	ociConfigStr, ok := status.Annotations[vcAnnotations.ConfigJSONKey]
 	if !ok {
-		return CompatOCISpec{}, fmt.Errorf("Annotation[%s] not found", ConfigJSONKey)
+		return CompatOCISpec{}, fmt.Errorf("Annotation[%s] not found", vcAnnotations.ConfigJSONKey)
 	}
 
 	var ociSpec CompatOCISpec

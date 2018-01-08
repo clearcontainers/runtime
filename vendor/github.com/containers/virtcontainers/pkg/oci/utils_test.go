@@ -27,6 +27,7 @@ import (
 	"testing"
 
 	vc "github.com/containers/virtcontainers"
+	vcAnnotations "github.com/containers/virtcontainers/pkg/annotations"
 	"github.com/kubernetes-incubator/cri-o/pkg/annotations"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/stretchr/testify/assert"
@@ -93,6 +94,7 @@ func TestMinimalPodConfig(t *testing.T) {
 		SupplementaryGroups: []string{"10", "29"},
 		Interactive:         true,
 		Console:             consolePath,
+		NoNewPrivileges:     true,
 	}
 
 	expectedMounts := []vc.Mount{
@@ -149,9 +151,9 @@ func TestMinimalPodConfig(t *testing.T) {
 		ReadonlyRootfs: true,
 		Cmd:            expectedCmd,
 		Annotations: map[string]string{
-			ConfigJSONKey:    string(ociSpecJSON),
-			BundlePathKey:    tempBundlePath,
-			ContainerTypeKey: string(vc.PodSandbox),
+			vcAnnotations.ConfigJSONKey:    string(ociSpecJSON),
+			vcAnnotations.BundlePathKey:    tempBundlePath,
+			vcAnnotations.ContainerTypeKey: string(vc.PodSandbox),
 		},
 		Mounts:      expectedMounts,
 		DeviceInfos: expectedDeviceInfo,
@@ -176,8 +178,8 @@ func TestMinimalPodConfig(t *testing.T) {
 		Containers: []vc.ContainerConfig{expectedContainerConfig},
 
 		Annotations: map[string]string{
-			ConfigJSONKey: string(ociSpecJSON),
-			BundlePathKey: tempBundlePath,
+			vcAnnotations.ConfigJSONKey: string(ociSpecJSON),
+			vcAnnotations.BundlePathKey: tempBundlePath,
 		},
 	}
 
@@ -266,6 +268,38 @@ func TestVmConfig(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Got %v\n expecting error", resources)
 	}
+
+	// Test case when Memory is nil
+	ocispec.Spec.Linux.Resources.Memory = nil
+	expectedResources.Memory = config.VMConfig.Memory
+	quota = 50000
+	period = 20000
+	ocispec.Linux.Resources.CPU.Quota = &quota
+	ocispec.Linux.Resources.CPU.Period = &period
+	expectedResources.VCPUs = 3
+	resources, err = vmConfig(ocispec, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if reflect.DeepEqual(resources, expectedResources) == false {
+		t.Fatalf("Got %v\n expecting %v", resources, expectedResources)
+	}
+
+	// Test case when CPU is nil
+	ocispec.Spec.Linux.Resources.CPU = nil
+	expectedResources.VCPUs = config.VMConfig.VCPUs
+	limitBytes = 20
+	ocispec.Linux.Resources.Memory = &specs.LinuxMemory{Limit: &limitBytes}
+	expectedResources.Memory = 1
+	resources, err = vmConfig(ocispec, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if reflect.DeepEqual(resources, expectedResources) == false {
+		t.Fatalf("Got %v\n expecting %v", resources, expectedResources)
+	}
 }
 
 func testStatusToOCIStateSuccessful(t *testing.T, cStatus vc.ContainerStatus, expected specs.State) {
@@ -287,8 +321,8 @@ func TestStatusToOCIStateSuccessfulWithReadyState(t *testing.T) {
 	}
 
 	containerAnnotations := map[string]string{
-		ConfigJSONKey: minimalConfig,
-		BundlePathKey: tempBundlePath,
+		vcAnnotations.ConfigJSONKey: minimalConfig,
+		vcAnnotations.BundlePathKey: tempBundlePath,
 	}
 
 	cStatus := vc.ContainerStatus{
@@ -323,8 +357,8 @@ func TestStatusToOCIStateSuccessfulWithRunningState(t *testing.T) {
 	}
 
 	containerAnnotations := map[string]string{
-		ConfigJSONKey: minimalConfig,
-		BundlePathKey: tempBundlePath,
+		vcAnnotations.ConfigJSONKey: minimalConfig,
+		vcAnnotations.BundlePathKey: tempBundlePath,
 	}
 
 	cStatus := vc.ContainerStatus{
@@ -358,8 +392,8 @@ func TestStatusToOCIStateSuccessfulWithStoppedState(t *testing.T) {
 	}
 
 	containerAnnotations := map[string]string{
-		ConfigJSONKey: minimalConfig,
-		BundlePathKey: tempBundlePath,
+		vcAnnotations.ConfigJSONKey: minimalConfig,
+		vcAnnotations.BundlePathKey: tempBundlePath,
 	}
 
 	cStatus := vc.ContainerStatus{
@@ -389,8 +423,8 @@ func TestStatusToOCIStateSuccessfulWithNoState(t *testing.T) {
 	testRootFs := "testRootFs"
 
 	containerAnnotations := map[string]string{
-		ConfigJSONKey: minimalConfig,
-		BundlePathKey: tempBundlePath,
+		vcAnnotations.ConfigJSONKey: minimalConfig,
+		vcAnnotations.BundlePathKey: tempBundlePath,
 	}
 
 	cStatus := vc.ContainerStatus{
@@ -520,7 +554,7 @@ func testGetContainerTypeSuccessful(t *testing.T, annotations map[string]string,
 
 func TestGetContainerTypePodSandbox(t *testing.T) {
 	annotations := map[string]string{
-		ContainerTypeKey: string(vc.PodSandbox),
+		vcAnnotations.ContainerTypeKey: string(vc.PodSandbox),
 	}
 
 	testGetContainerTypeSuccessful(t, annotations, vc.PodSandbox)
@@ -528,7 +562,7 @@ func TestGetContainerTypePodSandbox(t *testing.T) {
 
 func TestGetContainerTypePodContainer(t *testing.T) {
 	annotations := map[string]string{
-		ContainerTypeKey: string(vc.PodContainer),
+		vcAnnotations.ContainerTypeKey: string(vc.PodContainer),
 	}
 
 	testGetContainerTypeSuccessful(t, annotations, vc.PodContainer)

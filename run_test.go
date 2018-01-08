@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	vc "github.com/containers/virtcontainers"
+	vcAnnotations "github.com/containers/virtcontainers/pkg/annotations"
 	"github.com/containers/virtcontainers/pkg/oci"
 	"github.com/containers/virtcontainers/pkg/vcMock"
 	"github.com/stretchr/testify/assert"
@@ -259,8 +260,8 @@ func TestRunContainerSuccessful(t *testing.T) {
 					{
 						ID: d.pod.ID(),
 						Annotations: map[string]string{
-							oci.ContainerTypeKey: string(vc.PodContainer),
-							oci.ConfigJSONKey:    d.configJSON,
+							vcAnnotations.ContainerTypeKey: string(vc.PodContainer),
+							vcAnnotations.ConfigJSONKey:    d.configJSON,
 						},
 					},
 				},
@@ -335,8 +336,8 @@ func TestRunContainerDetachSuccessful(t *testing.T) {
 					{
 						ID: d.pod.ID(),
 						Annotations: map[string]string{
-							oci.ContainerTypeKey: string(vc.PodContainer),
-							oci.ConfigJSONKey:    d.configJSON,
+							vcAnnotations.ContainerTypeKey: string(vc.PodContainer),
+							vcAnnotations.ConfigJSONKey:    d.configJSON,
 						},
 					},
 				},
@@ -408,8 +409,8 @@ func TestRunContainerDeleteFail(t *testing.T) {
 					{
 						ID: d.pod.ID(),
 						Annotations: map[string]string{
-							oci.ContainerTypeKey: string(vc.PodContainer),
-							oci.ConfigJSONKey:    d.configJSON,
+							vcAnnotations.ContainerTypeKey: string(vc.PodContainer),
+							vcAnnotations.ConfigJSONKey:    d.configJSON,
 						},
 					},
 				},
@@ -484,8 +485,8 @@ func TestRunContainerWaitFail(t *testing.T) {
 					{
 						ID: d.pod.ID(),
 						Annotations: map[string]string{
-							oci.ContainerTypeKey: string(vc.PodContainer),
-							oci.ConfigJSONKey:    d.configJSON,
+							vcAnnotations.ContainerTypeKey: string(vc.PodContainer),
+							vcAnnotations.ConfigJSONKey:    d.configJSON,
 						},
 					},
 				},
@@ -568,8 +569,8 @@ func TestRunContainerStartFail(t *testing.T) {
 					{
 						ID: d.pod.ID(),
 						Annotations: map[string]string{
-							oci.ContainerTypeKey: string(vc.PodContainer),
-							oci.ConfigJSONKey:    d.configJSON,
+							vcAnnotations.ContainerTypeKey: string(vc.PodContainer),
+							vcAnnotations.ConfigJSONKey:    d.configJSON,
 						},
 					},
 				},
@@ -623,7 +624,7 @@ func TestRunContainerStartFailNoContainers(t *testing.T) {
 					{
 						ID: testContainerID,
 						Annotations: map[string]string{
-							oci.ContainerTypeKey: string(vc.PodSandbox),
+							vcAnnotations.ContainerTypeKey: string(vc.PodSandbox),
 						},
 					},
 				},

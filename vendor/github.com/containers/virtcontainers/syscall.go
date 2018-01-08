@@ -21,43 +21,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"syscall"
 )
-
-const mountPerm = os.FileMode(0755)
-
-// bindMount bind mounts a source in to a destination. This will
-// do some bookkeeping:
-// * evaluate all symlinks
-// * ensure the source exists
-// * recursively create the destination
-func bindMount(source, destination string, readonly bool) error {
-	if source == "" {
-		return fmt.Errorf("source must be specified")
-	}
-	if destination == "" {
-		return fmt.Errorf("destination must be specified")
-	}
-
-	absSource, err := filepath.EvalSymlinks(source)
-	if err != nil {
-		return fmt.Errorf("Could not resolve symlink for source %v", source)
-	}
-
-	if err := ensureDestinationExists(absSource, destination); err != nil {
-		return fmt.Errorf("Could not create destination mount point %v: %v", destination, err)
-	} else if err := syscall.Mount(absSource, destination, "bind", syscall.MS_BIND, ""); err != nil {
-		return fmt.Errorf("Could not bind mount %v to %v: %v", absSource, destination, err)
-	}
-
-	// For readonly bind mounts, we need to remount with the readonly flag.
-	// This is needed as only very recent versions of libmount/util-linux support "bind,ro"
-	if readonly {
-		return syscall.Mount(absSource, destination, "bind", uintptr(syscall.MS_BIND|syscall.MS_REMOUNT|syscall.MS_RDONLY), "")
-	}
-
-	return nil
-}
 
 // ensureDestinationExists will recursively create a given mountpoint. If directories
 // are created, their permissions are initialized to mountPerm
