@@ -312,8 +312,6 @@ func updateRuntimeConfig(configPath string, tomlConf tomlConfig, config *oci.Run
 			}
 
 			config.HypervisorConfig = hConfig
-
-			break
 		}
 	}
 
@@ -327,8 +325,6 @@ func updateRuntimeConfig(configPath string, tomlConf tomlConfig, config *oci.Run
 
 			config.ProxyType = vc.CCProxyType
 			config.ProxyConfig = pConfig
-
-			break
 		}
 	}
 
@@ -336,8 +332,6 @@ func updateRuntimeConfig(configPath string, tomlConf tomlConfig, config *oci.Run
 		switch k {
 		case hyperstartAgentTableType:
 			config.AgentConfig = vc.HyperConfig{}
-
-			break
 		}
 	}
 
@@ -351,8 +345,6 @@ func updateRuntimeConfig(configPath string, tomlConf tomlConfig, config *oci.Run
 
 			config.ShimType = vc.CCShimType
 			config.ShimConfig = shConfig
-
-			break
 		}
 	}
 
