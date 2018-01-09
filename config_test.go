@@ -61,6 +61,8 @@ func makeRuntimeConfigFileData(hypervisor, hypervisorPath, kernelPath, imagePath
 	[shim.cc]
 	path = "` + shimPath + `"
 
+	[agent.cc]
+
         [runtime]
 	`
 }
@@ -471,6 +473,8 @@ func TestMinimalRuntimeConfig(t *testing.T) {
 
 	[shim.cc]
 	path = "` + shimPath + `"
+
+	[agent.cc]
 `
 
 	configPath := path.Join(dir, "runtime.toml")
