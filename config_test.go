@@ -610,15 +610,6 @@ func TestNewQemuHypervisorConfig(t *testing.T) {
 
 }
 
-func TestNewHyperstartAgentConfig(t *testing.T) {
-	agent := agent{}
-
-	_, err := newHyperstartAgentConfig(agent)
-	if err != nil {
-		t.Fatalf("newHyperstartAgentConfig failed unexpectedly: %v", err)
-	}
-}
-
 func TestNewCCShimConfig(t *testing.T) {
 	dir, err := ioutil.TempDir(testDir, "shim-config-")
 	if err != nil {

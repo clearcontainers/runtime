@@ -290,10 +290,6 @@ func newQemuHypervisorConfig(h hypervisor) (vc.HypervisorConfig, error) {
 	}, nil
 }
 
-func newHyperstartAgentConfig(a agent) (vc.HyperConfig, error) {
-	return vc.HyperConfig{}, nil
-}
-
 func newShimConfig(s shim) (vc.ShimConfig, error) {
 	path, err := s.path()
 	if err != nil {
@@ -336,15 +332,10 @@ func updateRuntimeConfig(configPath string, tomlConf tomlConfig, config *oci.Run
 		}
 	}
 
-	for k, agent := range tomlConf.Agent {
+	for k := range tomlConf.Agent {
 		switch k {
 		case hyperstartAgentTableType:
-			agentConfig, err := newHyperstartAgentConfig(agent)
-			if err != nil {
-				return fmt.Errorf("%v: %v", configPath, err)
-			}
-
-			config.AgentConfig = agentConfig
+			config.AgentConfig = vc.HyperConfig{}
 
 			break
 		}
