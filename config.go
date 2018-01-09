@@ -50,13 +50,16 @@ const (
 	qemuHypervisorTableType = "qemu"
 
 	// supported proxy component types
-	ccProxyTableType = "cc"
+	ccProxyTableType   = "cc"
+	kataProxyTableType = "kata"
 
 	// supported shim component types
-	ccShimTableType = "cc"
+	ccShimTableType   = "cc"
+	kataShimTableType = "kata"
 
 	// supported agent component types
 	hyperstartAgentTableType = "hyperstart"
+	kataAgentTableType       = "kata"
 
 	// the maximum amount of PCI bridges that can be cold plugged in a VM
 	maxPCIBridges uint32 = 5
@@ -318,13 +321,14 @@ func updateRuntimeConfig(configPath string, tomlConf tomlConfig, config *oci.Run
 	for k, proxy := range tomlConf.Proxy {
 		switch k {
 		case ccProxyTableType:
-			pConfig := vc.ProxyConfig{
-				Path:  proxy.path(),
-				Debug: proxy.debug(),
-			}
-
 			config.ProxyType = vc.CCProxyType
-			config.ProxyConfig = pConfig
+		case kataProxyTableType:
+			config.ProxyType = vc.KataProxyType
+		}
+
+		config.ProxyConfig = vc.ProxyConfig{
+			Path:  proxy.path(),
+			Debug: proxy.debug(),
 		}
 	}
 
@@ -332,20 +336,25 @@ func updateRuntimeConfig(configPath string, tomlConf tomlConfig, config *oci.Run
 		switch k {
 		case hyperstartAgentTableType:
 			config.AgentConfig = vc.HyperConfig{}
+		case kataAgentTableType:
+			config.AgentConfig = vc.KataAgentConfig{}
 		}
 	}
 
 	for k, shim := range tomlConf.Shim {
 		switch k {
 		case ccShimTableType:
-			shConfig, err := newShimConfig(shim)
-			if err != nil {
-				return fmt.Errorf("%v: %v", configPath, err)
-			}
-
 			config.ShimType = vc.CCShimType
-			config.ShimConfig = shConfig
+		case kataShimTableType:
+			config.ShimType = vc.KataShimType
 		}
+
+		shConfig, err := newShimConfig(shim)
+		if err != nil {
+			return fmt.Errorf("%v: %v", configPath, err)
+		}
+
+		config.ShimConfig = shConfig
 	}
 
 	return nil
