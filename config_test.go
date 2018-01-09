@@ -61,6 +61,8 @@ func makeRuntimeConfigFileData(hypervisor, hypervisorPath, kernelPath, imagePath
 	[shim.cc]
 	path = "` + shimPath + `"
 
+	[agent.cc]
+
         [runtime]
 	`
 }
@@ -471,6 +473,8 @@ func TestMinimalRuntimeConfig(t *testing.T) {
 
 	[shim.cc]
 	path = "` + shimPath + `"
+
+	[agent.cc]
 `
 
 	configPath := path.Join(dir, "runtime.toml")
@@ -604,15 +608,6 @@ func TestNewQemuHypervisorConfig(t *testing.T) {
 		t.Errorf("Expected value for disable block usage %v, got %v", disableBlock, config.DisableBlockDeviceUse)
 	}
 
-}
-
-func TestNewHyperstartAgentConfig(t *testing.T) {
-	agent := agent{}
-
-	_, err := newHyperstartAgentConfig(agent)
-	if err != nil {
-		t.Fatalf("newHyperstartAgentConfig failed unexpectedly: %v", err)
-	}
 }
 
 func TestNewCCShimConfig(t *testing.T) {

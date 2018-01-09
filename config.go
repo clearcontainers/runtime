@@ -50,13 +50,16 @@ const (
 	qemuHypervisorTableType = "qemu"
 
 	// supported proxy component types
-	ccProxyTableType = "cc"
+	ccProxyTableType   = "cc"
+	kataProxyTableType = "kata"
 
 	// supported shim component types
-	ccShimTableType = "cc"
+	ccShimTableType   = "cc"
+	kataShimTableType = "kata"
 
 	// supported agent component types
 	hyperstartAgentTableType = "hyperstart"
+	kataAgentTableType       = "kata"
 
 	// the maximum amount of PCI bridges that can be cold plugged in a VM
 	maxPCIBridges uint32 = 5
@@ -290,10 +293,6 @@ func newQemuHypervisorConfig(h hypervisor) (vc.HypervisorConfig, error) {
 	}, nil
 }
 
-func newHyperstartAgentConfig(a agent) (vc.HyperConfig, error) {
-	return vc.HyperConfig{}, nil
-}
-
 func newShimConfig(s shim) (vc.ShimConfig, error) {
 	path, err := s.path()
 	if err != nil {
@@ -316,53 +315,46 @@ func updateRuntimeConfig(configPath string, tomlConf tomlConfig, config *oci.Run
 			}
 
 			config.HypervisorConfig = hConfig
-
-			break
 		}
 	}
 
 	for k, proxy := range tomlConf.Proxy {
 		switch k {
 		case ccProxyTableType:
-			pConfig := vc.ProxyConfig{
-				Path:  proxy.path(),
-				Debug: proxy.debug(),
-			}
-
 			config.ProxyType = vc.CCProxyType
-			config.ProxyConfig = pConfig
+		case kataProxyTableType:
+			config.ProxyType = vc.KataProxyType
+		}
 
-			break
+		config.ProxyConfig = vc.ProxyConfig{
+			Path:  proxy.path(),
+			Debug: proxy.debug(),
 		}
 	}
 
-	for k, agent := range tomlConf.Agent {
+	for k := range tomlConf.Agent {
 		switch k {
 		case hyperstartAgentTableType:
-			agentConfig, err := newHyperstartAgentConfig(agent)
-			if err != nil {
-				return fmt.Errorf("%v: %v", configPath, err)
-			}
-
-			config.AgentConfig = agentConfig
-
-			break
+			config.AgentConfig = vc.HyperConfig{}
+		case kataAgentTableType:
+			config.AgentConfig = vc.KataAgentConfig{}
 		}
 	}
 
 	for k, shim := range tomlConf.Shim {
 		switch k {
 		case ccShimTableType:
-			shConfig, err := newShimConfig(shim)
-			if err != nil {
-				return fmt.Errorf("%v: %v", configPath, err)
-			}
-
 			config.ShimType = vc.CCShimType
-			config.ShimConfig = shConfig
-
-			break
+		case kataShimTableType:
+			config.ShimType = vc.KataShimType
 		}
+
+		shConfig, err := newShimConfig(shim)
+		if err != nil {
+			return fmt.Errorf("%v: %v", configPath, err)
+		}
+
+		config.ShimConfig = shConfig
 	}
 
 	return nil
