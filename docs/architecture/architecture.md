@@ -57,10 +57,10 @@ while the I/O serial device is used to pass I/O streams (`stdout`, `stderr`,
 
 For any given container, both the init process and all potentially executed
 commands within that container, together with their related I/O streams, need
-to go through two virtio serial interfaces exported by QEMU. The [Clear Containers
-proxy (`cc-proxy`)](https://github.com/clearcontainers/proxy) multiplexes and
-demultiplexes those commands and streams for all container virtual machines.
-There is only one `cc-proxy` instance running per Clear Containers host.
+to go through two virtio serial interfaces exported by QEMU. A [Clear Containers
+proxy (`cc-proxy`)](https://github.com/clearcontainers/proxy) instance is
+launched for each virtual machine to handle multiplexing and demultiplexing
+those commands and streams.
 
 On the host, each container process's removal is handled by a reaper in the higher
 layers of the container stack. In the case of Docker it is handled by `containerd-shim`.
@@ -273,15 +273,18 @@ When handling the OCI `create` command, `cc-runtime` goes through the following 
 4. Create and start the virtual machine that will run the container process. The
   VM will run inside the host namespaces created during step 1, and its `systemd`
   instance will spawn the `cc-agent` daemon.
-5. Register the virtual machine with `cc-proxy`.
-6. The `cc-proxy` waits for the agent to signal that it is ready and then returns
+5. Spawn the `cc-proxy` process providing a single argument:
+  `cc-proxy --uri $(uri)`
+   * A UNIX socket URI, used by the `cc-shim` and `cc-agent` processes is used to pass information between them.
+6. Register the virtual machine with `cc-proxy`.
+7. The `cc-proxy` waits for the agent to signal that it is ready and then returns
   a token. This token uniquely identifies a process within a container inside
   the virtual machine.
-7. Spawn the `cc-shim` process providing two arguments:
+8. Spawn the `cc-shim` process providing two arguments:
   `cc-shim --token $(token) --uri $(uri)`
    * The proxy URI, which can be either a UNIX or a TCP socket.
    * The token for the container process it needs to monitor.
-8. The `cc-shim` connects to the proxy and signals which container process it
+9. The `cc-shim` connects to the proxy and signals which container process it
   is going to monitor by passing its token through the `cc-proxy` `connectShim`
   command.
 
@@ -307,7 +310,7 @@ In practice, this means `cc-runtime` will run through the following steps:
   the container pod.
 3. `cc-runtime` sends an agent `NEWCONTAINER` command via `cc-proxy` in order to
   create and start a new container in a given pod. The command is sent to `cc-proxy`
-  who forwards it to the right agent instance running in the appropriate guest.
+  which forwards it to the right agent instance running in the appropriate guest.
 
 ![Docker start](arch-images/start.png)
 
@@ -333,8 +336,8 @@ goes through the following steps:
   to either `containerd-shim` in the Docker use cases or `conmon` for the Kubernetes
   deployements.
 4. `cc-runtime` sends an agent `EXECMD` command to start the command in the
-  right container. The command is sent to `cc-proxy` who forwards it to the right
-  agent instance running in the appropriate guest.
+  container. The command is sent to `cc-proxy`, which forwards it to the
+  agent instance running in the guest.
 
 Now the `exec`'ed process is running in the virtual machine, sharing the UTS,
 PID, mount and IPC namespaces with the container's init process.
@@ -356,7 +359,7 @@ To do so, `cc-runtime` goes through the following steps:
   it know on which VM the container it is trying to `kill` is running.
 2. `cc-runtime` sends an agent `KILLCONTAINER` command to `kill` the container
   running on the guest. The command is sent to `cc-proxy` who forwards it to the
-  right agent instance running in the appropriate guest.
+  agent instance running in the guest.
 
 After step #2, if the container process terminates in the VM, `cc-proxy` will
 forward the process exit code to the `shim`. The `shim` will then disconnect
@@ -393,24 +396,21 @@ for single container pods.
   instances, `cc-runtime` waits for all of them to terminate as well.
 4. `cc-runtime` sends the `UnregisterVM` command to `cc-proxy`, to let it know
   that the virtual machine that used to host the pod should no longer be used.
-5. `cc-runtime` explicitly shuts the virtual machine down.
-6. The host namespaces are cleaned up and destroyed. In particular, `cc-runtime`
+5. The `cc-proxy` instance exits.
+6. `cc-runtime` shuts down the virtual machine.
+7. The host namespaces are cleaned up and destroyed. In particular, `cc-runtime`
   offloads the networking namespace cleanup path by calling into the specific
   networking model (CNM or CNI) removal method.
-7. All remaining pod related resources on the host are deleted.
+8. All remaining pod-related resources on the host are deleted.
 
 ## Proxy
 
 `cc-proxy` is a daemon offering access to the VM [`cc-agent`](https://github.com/clearcontainers/agent)
-to multiple `cc-shim` and `cc-runtime` clients. Only a single instance of `cc-proxy`
-per host is necessary as it can be used for several different VMs.
-Its main role is to:
-- Arbitrate access to the `cc-agent` control channel between all the `cc-runtime`
-  instances and the `cc-shim` ones.
-- Route the I/O streams and signals between the various `cc-shim` instances and
-  the `cc-agent`.
+to multiple `cc-shim` and `cc-runtime` clients associated with the VM. Its
+main role is to route the I/O streams and signals between each `cc-shim`
+instance and the `cc-agent`.
 
-The `cc-proxy` API is available through a single socket for all `cc-shim` and
+The `cc-proxy` API is available through a socket for the `cc-shim` and
 `cc-runtime` instances to connect to. `cc-proxy` can be configured to use a UNIX
 or a TCP socket, and by default will handle connection over a UNIX socket.
 
@@ -420,7 +420,8 @@ The protocol on the `cc-proxy` socket supports the following commands:
   for a token and pass that token to the `cc-shim` instance it will eventually
   create for handling the container process inside that VM.
 - `UnregisterVM`: Does the opposite of what `RegisterVM` does, indicating to
-  the proxy it should release resources created by `RegisterVM`.
+  the proxy it should release resources created by `RegisterVM` and then exit
+  itself.
 - `AttachVM`: It can be used to associate clients to an already known VM.
   Optionally `AttachVM` senders can ask `cc-proxy` for a token. In the OCI `exec`
   command case, this token will be used by the `cc-shim` instance that monitors
