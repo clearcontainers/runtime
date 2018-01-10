@@ -5,7 +5,7 @@ Note:
 If you are installing on a system that already has Clear Containers 2.x
 installed, first read [the upgrading document](upgrading.md).
 
-Clear Containers **3.0** is available for Ubuntu\* **16.04** , **16.10** and **17.04**.
+Clear Containers **3.0** is available for Ubuntu\* **16.04** , **17.04** , and **17.10**.
 
 This step is only required in case Docker is not installed on the system.
 1. Install the latest version of Docker with the following commands:
@@ -47,8 +47,6 @@ EOF
 $ sudo systemctl daemon-reload
 $ sudo systemctl enable docker.service
 $ sudo systemctl restart docker
-$ sudo systemctl enable cc-proxy.socket
-$ sudo systemctl start cc-proxy.socket
 ```
 
 5. Run Clear Containers 3.0.
