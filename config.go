@@ -335,9 +335,13 @@ func updateRuntimeConfig(configPath string, tomlConf tomlConfig, config *oci.Run
 	for k := range tomlConf.Agent {
 		switch k {
 		case hyperstartAgentTableType:
+			config.AgentType = hyperstartAgentTableType
 			config.AgentConfig = vc.HyperConfig{}
+
 		case kataAgentTableType:
+			config.AgentType = kataAgentTableType
 			config.AgentConfig = vc.KataAgentConfig{}
+
 		}
 	}
 

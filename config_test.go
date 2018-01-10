@@ -984,3 +984,27 @@ func TestDefaultMachineAccelerators(t *testing.T) {
 	h.MachineAccelerators = ",, abc ,,, 123 ,,"
 	assert.Equal(machineAccelerators, h.machineAccelerators())
 }
+
+func TestUpdateRuntimeConfiguration(t *testing.T) {
+	assert := assert.New(t)
+
+	assert.NotEqual(defaultAgent, vc.KataContainersAgent)
+
+	config := oci.RuntimeConfig{}
+
+	tomlConf := tomlConfig{
+		Agent: map[string]agent{
+			// force a non-default value
+			kataAgentTableType: {},
+		},
+	}
+
+	assert.NotEqual(config.AgentType, vc.AgentType(kataAgentTableType))
+	assert.NotEqual(config.AgentConfig, vc.KataAgentConfig{})
+
+	err := updateRuntimeConfig("", tomlConf, &config)
+	assert.NoError(err)
+
+	assert.Equal(config.AgentType, vc.AgentType(kataAgentTableType))
+	assert.Equal(config.AgentConfig, vc.KataAgentConfig{})
+}
