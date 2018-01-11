@@ -271,7 +271,7 @@ It is not possible to directly access the host networking configuration
 from within the VM.
 
 The `--net=host` option can still be used with `runc` containers and
-inter-mixed with with running `cc-runtime` containers, thus still
+inter-mixed with running `cc-runtime` containers, thus still
 enabling use of `--net=host` when necessary.
 
 It should be noted, currently passing the `--net=host` option into a
@@ -317,7 +317,7 @@ There is no natural or easy way to grant the VM access to all of the
 host devices that this command would need to be complete.
 
 The `--privileged` option can still be used with `runc` containers and
-inter-mixed with with running `cc-runtime` containers, thus still
+inter-mixed with running `cc-runtime` containers, thus still
 enabling use of `--privileged` when necessary.
 
 ### Other
