@@ -15,7 +15,7 @@ qemu_lite_clear_release=19360
 qemu_lite_sha=741f430a960b5b67745670e8270db91aeb083c5f-29
 
 # Supported Docker version (but see docker_swarm_version)
-docker_version=v17.09-ce
+docker_version=v17.12-ce
 
 # Version of docker required to use Docker's swarm feature
 docker_swarm_version=1.12.1
