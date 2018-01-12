@@ -23,6 +23,7 @@ To install the plugin, follow the [plugin installation instructions](https://git
 In order to setup your host for SR-IOV, the following has to be true:
 
 - The host system must support Intel VT-d. 
+- Your device (NIC) must support SR-IOV
 - The host kernel must have Input-Output Memory Management Unit (IOMMU) 
   and Virtual Function I/O (VFIO) support.
 - `CONFIG_VFIO_NOIOMMU` must to be disabled in the host kernel
@@ -31,6 +32,47 @@ In order to setup your host for SR-IOV, the following has to be true:
 - Optionally, you might need to add a PCI override for your Network Interface 
   Controller (NIC). The immediately following section describes how to assess 
   if you need to make NIC changes and how to make the necessary changes.
+
+### Checking your NIC for SR-IOV
+
+The following is an example of how to use `lspci` to check if your NIC supports
+SR-IOV.
+
+```bash
+$ lspci | fgrep -i ethernet
+01:00.0 Ethernet controller: Intel Corporation Ethernet Controller 10-Gigabit X540-AT2 (rev 03)
+
+...
+$ #sudo required below to read the card capabilities
+
+$ sudo lspci -s 01:00.0 -v
+01:00.0 Ethernet controller: Intel Corporation Ethernet Controller 10-Gigabit X540-AT2 (rev 03)
+        DeviceName: NIC1
+        Subsystem: Dell Ethernet 10G 4P X540/I350 rNDC
+        Flags: bus master, fast devsel, latency 0, IRQ 146
+        Memory at 91c00000 (64-bit, prefetchable) [size=2M]
+        Memory at 91e04000 (64-bit, prefetchable) [size=16K]
+        Expansion ROM at 92800000 [disabled] [size=512K]
+        Capabilities: [40] Power Management version 3
+        Capabilities: [50] MSI: Enable- Count=1/1 Maskable+ 64bit+
+        Capabilities: [70] MSI-X: Enable+ Count=64 Masked-
+        Capabilities: [a0] Express Endpoint, MSI 00
+        Capabilities: [e0] Vital Product Data
+        Capabilities: [100] Advanced Error Reporting
+        Capabilities: [150] Alternative Routing-ID Interpretation (ARI)
+        Capabilities: [160] Single Root I/O Virtualization (SR-IOV)
+        Capabilities: [1d0] Access Control Services
+        Kernel driver in use: ixgbe
+        Kernel modules: ixgbe
+```
+
+The important line being:
+
+```
+        Capabilities: [160] Single Root I/O Virtualization (SR-IOV)
+```
+
+If your card does not report this capability, then it does not support SR-IOV.
 
 ### IOMMU Groups and PCIe Access Control Services
 
