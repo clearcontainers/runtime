@@ -161,6 +161,11 @@ func createAllRuntimeConfigFiles(dir, hypervisor string) (config testRuntimeConf
 
 		ShimType:   defaultShim,
 		ShimConfig: shimConfig,
+
+		VMConfig: vc.Resources{
+			VCPUs:  uint(defaultVCPUCount),
+			Memory: uint(defaultMemSize),
+		},
 	}
 
 	config = testRuntimeConfig{
@@ -1007,4 +1012,35 @@ func TestUpdateRuntimeConfiguration(t *testing.T) {
 
 	assert.Equal(config.AgentType, vc.AgentType(kataAgentTableType))
 	assert.Equal(config.AgentConfig, vc.KataAgentConfig{})
+}
+
+func TestUpdateRuntimeConfigurationVMConfig(t *testing.T) {
+	assert := assert.New(t)
+
+	vcpus := uint(8)
+	mem := uint(2048)
+
+	config := oci.RuntimeConfig{}
+	expectedVMConfig := vc.Resources{
+		VCPUs:  vcpus,
+		Memory: mem,
+	}
+
+	tomlConf := tomlConfig{
+		Hypervisor: map[string]hypervisor{
+			qemuHypervisorTableType: {
+				DefaultVCPUs: int32(vcpus),
+				DefaultMemSz: uint32(mem),
+				Path:         "/",
+				Kernel:       "/",
+				Image:        "/",
+				Firmware:     "/",
+			},
+		},
+	}
+
+	err := updateRuntimeConfig("", tomlConf, &config)
+	assert.NoError(err)
+
+	assert.Equal(expectedVMConfig, config.VMConfig)
 }
