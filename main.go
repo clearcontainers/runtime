@@ -1,5 +1,5 @@
 // Copyright (c) 2014,2015,2016 Docker, Inc.
-// Copyright (c) 2017 Intel Corporation
+// Copyright (c) 2017-2018 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,26 +29,20 @@ import (
 	"github.com/urfave/cli"
 )
 
-const (
-	// name holds the name of this program
-	name    = "cc-runtime"
-	project = "Intel® Clear Containers"
-)
-
 // specConfig is the name of the file holding the containers configuration
 const specConfig = "config.json"
 
-const usage = project + ` runtime
+var usage = fmt.Sprintf(`%s runtime
 
-cc-runtime is a command line program for running applications packaged
-according to the Open Container Initiative (OCI).`
+%s is a command line program for running applications packaged
+according to the Open Container Initiative (OCI).`, name, name)
 
-const notes = `
+var notes = fmt.Sprintf(`
 NOTES:
 
-- Commands starting "cc-" and options starting "--cc-" are ` + project + ` extensions.
+- Commands starting "%s-" and options starting "--%s-" are `+project+` extensions.
 
-`
+`, projectPrefix, projectPrefix)
 
 // ccLog is the logger used to record all messages
 var ccLog *logrus.Entry
@@ -77,7 +71,7 @@ var defaultErrorFile = os.Stderr
 // runtimeFlags is the list of supported global command-line flags
 var runtimeFlags = []cli.Flag{
 	cli.StringFlag{
-		Name:  "cc-config",
+		Name:  configFilePathOption,
 		Usage: project + " config file path",
 	},
 	cli.StringFlag{
@@ -96,7 +90,7 @@ var runtimeFlags = []cli.Flag{
 		Usage: "root directory for storage of container state (this should be located in tmpfs)",
 	},
 	cli.BoolFlag{
-		Name:  "cc-show-default-config-paths",
+		Name:  showConfigPathsOption,
 		Usage: "show config file paths that will be checked for (in order)",
 	},
 }
@@ -157,7 +151,7 @@ func init() {
 // beforeSubcommands is the function to perform preliminary checks
 // before command-line parsing occurs.
 func beforeSubcommands(context *cli.Context) error {
-	if context.GlobalBool("cc-show-default-config-paths") {
+	if context.GlobalBool(showConfigPathsOption) {
 		files := getDefaultConfigFilePaths()
 
 		for _, file := range files {
@@ -167,7 +161,7 @@ func beforeSubcommands(context *cli.Context) error {
 		exit(0)
 	}
 
-	if userWantsUsage(context) || (context.NArg() == 1 && (context.Args()[0] == "cc-check")) {
+	if userWantsUsage(context) || (context.NArg() == 1 && (context.Args()[0] == checkCmd)) {
 		// No setup required if the user just
 		// wants to see the usage statement or are
 		// running a command that does not manipulate
@@ -199,12 +193,13 @@ func beforeSubcommands(context *cli.Context) error {
 	oci.SetLogger(ccLog)
 
 	ignoreLogging := false
-	if context.NArg() == 1 && context.Args()[0] == "cc-env" {
-		// "cc-env" should simply report the logging setup
+
+	if context.NArg() == 1 && context.Args()[0] == envCmd {
+		// simply report the logging setup
 		ignoreLogging = true
 	}
 
-	configFile, runtimeConfig, err := loadConfiguration(context.GlobalString("cc-config"), ignoreLogging)
+	configFile, runtimeConfig, err := loadConfiguration(context.GlobalString(configFilePathOption), ignoreLogging)
 	if err != nil {
 		fatal(err)
 	}

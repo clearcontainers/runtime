@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2017 Intel Corporation
+# Copyright (c) 2017-2018 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,22 +19,22 @@
 # Description: Bash tab completion script.
 #---------------------------------------------------------------------
 
-_ccruntime='cc-runtime'
+_runtime='@RUNTIME_NAME@'
 
 # Return a list of sub-commands
-_cc_get_subcmds()
+_@PROJECT_TYPE@_get_subcmds()
 {
-    "$_ccruntime" --generate-bash-completion
+    "$_runtime" --generate-bash-completion
 }
 
 # Return a list of options for the specified sub-command
 #
 # Limitation: Note that this only supports long-options.
-_cc_get_subcmd_options()
+_@PROJECT_TYPE@_get_subcmd_options()
 {
     local subcmd="$1"
 
-    "$_ccruntime" "$subcmd" --help |\
+    "$_runtime" "$subcmd" --help |\
         egrep -- "^ *--[^ ]*[ ][^ ]*" |\
         awk '{print $1}' |\
         tr -d \, |\
@@ -42,15 +42,15 @@ _cc_get_subcmd_options()
 }
 
 # Return a list of global options
-_cc_get_global_options()
+_@PROJECT_TYPE@_get_global_options()
 {
-    _cc_get_subcmd_options ""
+    _@PROJECT_TYPE@_get_subcmd_options ""
 }
 
 # Return name of subcmd already seen, or ""
-_cc_subcmd_seen()
+_@PROJECT_TYPE@_subcmd_seen()
 {
-    local subcmds=$(_cc_get_subcmds)
+    local subcmds=$(_@PROJECT_TYPE@_get_subcmds)
     local cmd
 
     for cmd in $subcmds; do
@@ -65,14 +65,14 @@ _cc_subcmd_seen()
 
 # Return 0 if the specified sub-command requires the name of an
 # *existing* container, else 1.
-_cc_subcmd_needs_existing_container()
+_@PROJECT_TYPE@_subcmd_needs_existing_container()
 {
     local subcmd="$1"
     local cmd
 
     for cmd in \
-	    'cc-check' \
-	    'cc-env' \
+	    '@PROJECT_TYPE@-check' \
+	    '@PROJECT_TYPE@-env' \
 	    'create' \
 	    'help' \
 	    'list' \
@@ -84,17 +84,17 @@ _cc_subcmd_needs_existing_container()
 }
 
 # Returns a list of container names
-_cc_get_containers()
+_@PROJECT_TYPE@_get_containers()
 {
     # Commands that manipulate containers need root privileges.
     # If the user isn't running as root, don't attempt to obtain a list
     # as it will result in an error.
     [ $(id -u) -eq 0 ] || return
 
-    "$_ccruntime" list --quiet
+    "$_runtime" list --quiet
 }
 
-_cc_bash_autocomplete() {
+_@PROJECT_TYPE@_bash_autocomplete() {
     COMPREPLY=()
 
     local opts opt
@@ -109,34 +109,34 @@ _cc_bash_autocomplete() {
         [ "$cur" = "$opt" ] && return 0
     done
 
-    local subcmd_seen=$(_cc_subcmd_seen)
+    local subcmd_seen=$(_@PROJECT_TYPE@_subcmd_seen)
 
     if [ -n "$subcmd_seen" ]; then
-	    _cc_subcmd_needs_existing_container "$subcmd_seen"
+	    _@PROJECT_TYPE@_subcmd_needs_existing_container "$subcmd_seen"
 	    local container_cmd=$?
     
             if [ -n "$cur" ]; then
                     # Complete with local options and maybe container names
-                    opts=$(_cc_get_subcmd_options "$subcmd_seen")
-                    [ $container_cmd -eq 0 ] && opts="$opts $(_cc_get_containers)"
+                    opts=$(_@PROJECT_TYPE@_get_subcmd_options "$subcmd_seen")
+                    [ $container_cmd -eq 0 ] && opts="$opts $(_@PROJECT_TYPE@_get_containers)"
             elif [[ "${cur}" == -* ]]; then
                     # Complete with local options
-                    opts=$(_cc_get_subcmd_options "$subcmd_seen")
+                    opts=$(_@PROJECT_TYPE@_get_subcmd_options "$subcmd_seen")
             else
                     # Potentially complete with container names
-                    [ $container_cmd -eq 0 ] && opts="$(_cc_get_containers)"
+                    [ $container_cmd -eq 0 ] && opts="$(_@PROJECT_TYPE@_get_containers)"
             fi
     else
             if [ -n "$cur" ]; then
                     # Complete with global options and subcmds
-                    opts="$opts $(_cc_get_global_options)"
-                    opts="$opts $(_cc_get_subcmds)"
+                    opts="$opts $(_@PROJECT_TYPE@_get_global_options)"
+                    opts="$opts $(_@PROJECT_TYPE@_get_subcmds)"
             elif [[ "${cur}" == -* ]]; then
                     # Complete with global options
-                    opts=$(_cc_get_global_options)
+                    opts=$(_@PROJECT_TYPE@_get_global_options)
             else
                     # Complete with subcmds
-                    opts=$(_cc_get_subcmds)
+                    opts=$(_@PROJECT_TYPE@_get_subcmds)
             fi
     fi
 
@@ -145,4 +145,4 @@ _cc_bash_autocomplete() {
     return 0
 }
 
-complete -F _cc_bash_autocomplete "$_ccruntime"
+complete -F _@PROJECT_TYPE@_bash_autocomplete "$_runtime"

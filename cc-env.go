@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Intel Corporation
+// Copyright (c) 2017-2018 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ import (
 	"github.com/urfave/cli"
 )
 
-// Semantic version for the output of the "cc-env" command.
+// Semantic version for the output of the command.
 //
 // XXX: Increment for every change to the output format
 // (meaning any change to the EnvInfo type).
@@ -119,7 +119,7 @@ type HostInfo struct {
 }
 
 // EnvInfo collects all information that will be displayed by the
-// "cc-env" command.
+// env command.
 //
 // XXX: Any changes must be coupled with a change to formatVersion.
 type EnvInfo struct {
@@ -346,7 +346,7 @@ func handleSettings(file *os.File, metadata map[string]interface{}) error {
 }
 
 var ccEnvCLICommand = cli.Command{
-	Name:  "cc-env",
+	Name:  envCmd,
 	Usage: "display settings",
 	Action: func(context *cli.Context) error {
 		return handleSettings(defaultOutputFile, context.App.Metadata)
