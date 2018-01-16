@@ -437,7 +437,13 @@ func (k *kataAgent) startContainer(pod Pod, c Container) error {
 	}
 
 	_, err := k.client.StartContainer(context.Background(), req)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// The Kata shim wants to be signaled when the init container
+	// is created. Sending the signal for all containers is harmless.
+	return signalShim(c.process.Pid, syscall.SIGUSR1)
 }
 
 func (k *kataAgent) stopContainer(pod Pod, c Container) error {

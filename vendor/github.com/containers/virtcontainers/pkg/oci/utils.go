@@ -246,6 +246,64 @@ func containerDeviceInfos(spec CompatOCISpec) ([]vc.DeviceInfo, error) {
 	return devices, nil
 }
 
+func containerCapabilities(s CompatOCISpec) (vc.LinuxCapabilities, error) {
+	capabilities := s.Process.Capabilities
+	var c vc.LinuxCapabilities
+
+	// In spec v1.0.0-rc4, capabilities was a list of strings. This was changed
+	// to an object with v1.0.0-rc5.
+	// Check for the interface type to support both the versions.
+	switch caps := capabilities.(type) {
+	case map[string]interface{}:
+		for key, value := range caps {
+			switch val := value.(type) {
+			case []interface{}:
+				var list []string
+
+				for _, str := range val {
+					list = append(list, str.(string))
+				}
+
+				switch key {
+				case "bounding":
+					c.Bounding = list
+				case "effective":
+					c.Effective = list
+				case "inheritable":
+					c.Inheritable = list
+				case "ambient":
+					c.Ambient = list
+				case "permitted":
+					c.Permitted = list
+				}
+
+			default:
+				return c, fmt.Errorf("Unexpected format for capabilities: %v", caps)
+			}
+		}
+	case []interface{}:
+		var list []string
+		for _, str := range caps {
+			list = append(list, str.(string))
+		}
+
+		c = vc.LinuxCapabilities{
+			Bounding:    list,
+			Effective:   list,
+			Inheritable: list,
+			Ambient:     list,
+			Permitted:   list,
+		}
+	case nil:
+		ociLog.Debug("Empty capabilities have been passed")
+		return c, nil
+	default:
+		return c, fmt.Errorf("Unexpected format for capabilities: %v", caps)
+	}
+
+	return c, nil
+}
+
 func networkConfig(ocispec CompatOCISpec) (vc.NetworkConfig, error) {
 	linux := ocispec.Linux
 	if linux == nil {
@@ -354,7 +412,8 @@ func vmConfig(ocispec CompatOCISpec, config RuntimeConfig) (vc.Resources, error)
 		if memBytes <= 0 {
 			return vc.Resources{}, fmt.Errorf("Invalid OCI memory limit %d", memBytes)
 		}
-		// round up memory to 1MB
+		// Use some math magic to round up to the nearest Mb.
+		// This has the side effect that we can never have <1Mb assigned.
 		resources.Memory = uint((memBytes + (1024*1024 - 1)) / (1024 * 1024))
 	}
 
@@ -372,7 +431,12 @@ func vmConfig(ocispec CompatOCISpec, config RuntimeConfig) (vc.Resources, error)
 			return vc.Resources{}, fmt.Errorf("Invalid OCI cpu period %d", period)
 		}
 
-		// round up to 1 CPU
+		// Use some math magic to round up to the nearest whole vCPU
+		// (that is, a partial part of a quota request ends up assigning
+		// a whole vCPU, for instance, a request of 1.5 'cpu quotas'
+		// will give 2 vCPUs).
+		// This also has the side effect that we will always allocate
+		// at least 1 vCPU.
 		resources.VCPUs = uint((uint64(quota) + (period - 1)) / period)
 	}
 
@@ -491,6 +555,11 @@ func ContainerConfig(ocispec CompatOCISpec, bundlePath, cid, console string, det
 	}
 
 	deviceInfos, err := containerDeviceInfos(ocispec)
+	if err != nil {
+		return vc.ContainerConfig{}, err
+	}
+
+	cmd.Capabilities, err = containerCapabilities(ocispec)
 	if err != nil {
 		return vc.ContainerConfig{}, err
 	}

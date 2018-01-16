@@ -123,6 +123,14 @@ func (h *hyper) buildHyperContainerProcess(cmd Cmd) (*hyperstart.Process, error)
 		NoNewPrivileges:  cmd.NoNewPrivileges,
 	}
 
+	process.Capabilities = hyperstart.Capabilities{
+		Bounding:    cmd.Capabilities.Bounding,
+		Effective:   cmd.Capabilities.Effective,
+		Inheritable: cmd.Capabilities.Inheritable,
+		Permitted:   cmd.Capabilities.Permitted,
+		Ambient:     cmd.Capabilities.Ambient,
+	}
+
 	return process, nil
 }
 

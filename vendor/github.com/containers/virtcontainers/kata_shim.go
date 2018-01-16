@@ -60,7 +60,7 @@ func (s *kataShim) start(pod Pod, params ShimParams) (int, error) {
 
 	args := []string{config.Path, "-agent", params.URL, "-container", params.Container, "-exec-id", params.Token}
 	if config.Debug {
-		args = append(args, "-d")
+		args = append(args, "-log", "debug")
 	}
 
 	return startShim(args, params)

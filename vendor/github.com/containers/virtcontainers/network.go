@@ -17,6 +17,7 @@
 package virtcontainers
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -151,6 +152,17 @@ type PhysicalEndpoint struct {
 	VendorDeviceID     string
 }
 
+// VhostUserEndpoint represents a vhost-user socket based network interface
+type VhostUserEndpoint struct {
+	// Path to the vhost-user socket on the host system
+	SocketPath string
+	// MAC address of the interface
+	HardAddr           string
+	IfaceName          string
+	EndpointProperties NetworkInfo
+	EndpointType       EndpointType
+}
+
 // Properties returns properties for the veth interface in the network pair.
 func (endpoint *VirtualEndpoint) Properties() NetworkInfo {
 	return endpoint.EndpointProperties
@@ -198,6 +210,69 @@ func (endpoint *VirtualEndpoint) Attach(h hypervisor) error {
 func (endpoint *VirtualEndpoint) Detach() error {
 	networkLogger().Info("Detaching virtual endpoint")
 	return xconnectVMNetwork(&(endpoint.NetPair), false)
+}
+
+// Properties returns the properties of the interface.
+func (endpoint *VhostUserEndpoint) Properties() NetworkInfo {
+	return endpoint.EndpointProperties
+}
+
+// Name returns name of the interface.
+func (endpoint *VhostUserEndpoint) Name() string {
+	return endpoint.IfaceName
+}
+
+// HardwareAddr returns the mac address of the vhostuser network interface
+func (endpoint *VhostUserEndpoint) HardwareAddr() string {
+	return endpoint.HardAddr
+}
+
+// Type indentifies the endpoint as a vhostuser endpoint.
+func (endpoint *VhostUserEndpoint) Type() EndpointType {
+	return endpoint.EndpointType
+}
+
+// SetProperties sets the properties of the endpoint.
+func (endpoint *VhostUserEndpoint) SetProperties(properties NetworkInfo) {
+	endpoint.EndpointProperties = properties
+}
+
+// Attach for vhostuser endpoint
+func (endpoint *VhostUserEndpoint) Attach(h hypervisor) error {
+	networkLogger().Info("Attaching vhostuser based endpoint")
+
+	// generate a unique ID to be used for hypervisor commandline fields
+	randBytes, err := generateRandomBytes(8)
+	if err != nil {
+		return err
+	}
+	id := hex.EncodeToString(randBytes)
+
+	d := VhostUserNetDevice{
+		MacAddress: endpoint.HardAddr,
+	}
+	d.SocketPath = endpoint.SocketPath
+	d.ID = id
+
+	return h.addDevice(d, vhostuserDev)
+}
+
+// Detach for vhostuser endpoint
+func (endpoint *VhostUserEndpoint) Detach() error {
+	networkLogger().Info("Detaching vhostuser based endpoint")
+	return nil
+}
+
+// Create a vhostuser endpoint
+func createVhostUserEndpoint(netInfo NetworkInfo, socket string) (*VhostUserEndpoint, error) {
+
+	vhostUserEndpoint := &VhostUserEndpoint{
+		SocketPath:   socket,
+		HardAddr:     netInfo.Iface.HardwareAddr.String(),
+		IfaceName:    netInfo.Iface.Name,
+		EndpointType: VhostUserEndpointType,
+	}
+	return vhostUserEndpoint, nil
 }
 
 // Properties returns the properties of the physical interface.
@@ -260,6 +335,9 @@ const (
 
 	// VirtualEndpointType is the virtual network interface.
 	VirtualEndpointType EndpointType = "virtual"
+
+	// VhostUserEndpointType is the vhostuser network interface.
+	VhostUserEndpointType EndpointType = "vhost-user"
 )
 
 // Set sets an endpoint type based on the input string.
@@ -270,6 +348,9 @@ func (endpointType *EndpointType) Set(value string) error {
 		return nil
 	case "virtual":
 		*endpointType = VirtualEndpointType
+		return nil
+	case "vhost-user":
+		*endpointType = VhostUserEndpointType
 		return nil
 	default:
 		return fmt.Errorf("Unknown endpoint type %s", value)
@@ -283,6 +364,8 @@ func (endpointType *EndpointType) String() string {
 		return string(PhysicalEndpointType)
 	case VirtualEndpointType:
 		return string(VirtualEndpointType)
+	case VhostUserEndpointType:
+		return string(VhostUserEndpointType)
 	default:
 		return ""
 	}
@@ -381,6 +464,16 @@ func (n *NetworkNamespace) UnmarshalJSON(b []byte) error {
 
 			endpoints = append(endpoints, &endpoint)
 			virtLog.Infof("Virtual endpoint unmarshalled [%v]", endpoint)
+
+		case VhostUserEndpointType:
+			var endpoint VhostUserEndpoint
+			err := json.Unmarshal(e.Data, &endpoint)
+			if err != nil {
+				return err
+			}
+
+			endpoints = append(endpoints, &endpoint)
+			virtLog.Infof("VhostUser endpoint unmarshalled [%v]", endpoint)
 
 		default:
 			virtLog.Errorf("Unknown endpoint type received %s\n", e.Type)
@@ -1141,7 +1234,18 @@ func createEndpointsFromScan(networkNSPath string) ([]Endpoint, error) {
 				cnmLogger().WithField("interface", netInfo.Iface.Name).Info("Physical network interface found")
 				endpoint, err = createPhysicalEndpoint(netInfo)
 			} else {
-				endpoint, err = createVirtualNetworkEndpoint(idx, netInfo.Iface.Name)
+				// Check if this is a dummy interface which has a vhost-user socket associated with it
+				socketPath, err := vhostUserSocketPath(netInfo)
+				if err != nil {
+					return err
+				}
+
+				if socketPath != "" {
+					cnmLogger().WithField("interface", netInfo.Iface.Name).Info("VhostUser network interface found")
+					endpoint, err = createVhostUserEndpoint(netInfo, socketPath)
+				} else {
+					endpoint, err = createVirtualNetworkEndpoint(idx, netInfo.Iface.Name)
+				}
 			}
 
 			return err

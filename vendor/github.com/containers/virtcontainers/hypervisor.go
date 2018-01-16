@@ -75,6 +75,9 @@ const (
 
 	// VFIODevice is VFIO device type
 	vfioDev
+
+	// vhostuserDev is a Vhost-user device type
+	vhostuserDev
 )
 
 // Set sets an hypervisor type based on the input string.
@@ -113,6 +116,16 @@ func newHypervisor(hType HypervisorType) (hypervisor, error) {
 	default:
 		return nil, fmt.Errorf("Unknown hypervisor type %s", hType)
 	}
+}
+
+//Generic function for creating a named-id for passing on the hypervisor commandline
+func makeNameID(namedType string, id string) string {
+	nameID := fmt.Sprintf("%s-%s", namedType, id)
+	if len(nameID) > maxDevIDSize {
+		nameID = string(nameID[:maxDevIDSize])
+	}
+
+	return nameID
 }
 
 // Param is a key/value representation for hypervisor and kernel parameters.
