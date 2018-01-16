@@ -151,6 +151,20 @@ type Rlimit struct {
 	Soft uint64 `json:"soft"`
 }
 
+// Capabilities specify the capabilities to keep when executing the process inside the container.
+type Capabilities struct {
+	// Bounding is the set of capabilities checked by the kernel.
+	Bounding []string `json:"bounding"`
+	// Effective is the set of capabilities checked by the kernel.
+	Effective []string `json:"effective"`
+	// Inheritable is the capabilities preserved across execve.
+	Inheritable []string `json:"inheritable"`
+	// Permitted is the limiting superset for effective capabilities.
+	Permitted []string `json:"permitted"`
+	// Ambient is the ambient set of capabilities that are kept.
+	Ambient []string `json:"ambient"`
+}
+
 // Process describes a process running on a container inside a pod.
 type Process struct {
 	User             string   `json:"user,omitempty"`
@@ -173,6 +187,8 @@ type Process struct {
 	Rlimits []Rlimit `json:"rlimits,omitempty"`
 	// NoNewPrivileges indicates that the process should not gain any additional privileges
 	NoNewPrivileges bool `json:"noNewPrivileges"`
+	// Capabilities specifies the sets of capabilities for the process(es) inside the container.
+	Capabilities Capabilities `json:"capabilities"`
 }
 
 // SystemMountsInfo describes additional information for system mounts that the agent

@@ -4,4 +4,6 @@
 /hack/virtc/virtc
 /hook/mock/hook
 /shim/mock/shim
+/shim/mock/cc-shim/cc-shim
+/shim/mock/kata-shim/kata-shim
 profile.cov

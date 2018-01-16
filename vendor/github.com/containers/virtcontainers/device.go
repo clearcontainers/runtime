@@ -100,16 +100,16 @@ type DeviceInfo struct {
 	ID string
 }
 
+func deviceLogger() *logrus.Entry {
+	return virtLog.WithField("subsystem", "device")
+}
+
 // VFIODevice is a vfio device meant to be passed to the hypervisor
 // to be used by the Virtual Machine.
 type VFIODevice struct {
 	DeviceType string
 	DeviceInfo DeviceInfo
 	BDF        string
-}
-
-func deviceLogger() *logrus.Entry {
-	return virtLog.WithField("subsystem", "device")
 }
 
 func newVFIODevice(devInfo DeviceInfo) *VFIODevice {
@@ -161,6 +161,180 @@ func (device *VFIODevice) deviceType() string {
 	return device.DeviceType
 }
 
+// VhostUserDeviceType - represents a vhost-user device type
+// Currently support just VhostUserNet
+type VhostUserDeviceType string
+
+const (
+	//VhostUserSCSI - SCSI based vhost-user type
+	VhostUserSCSI = "vhost-user-scsi-pci"
+	//VhostUserNet - net based vhost-user type
+	VhostUserNet = "virtio-net-pci"
+	//VhostUserBlk represents a block vhostuser device type
+	VhostUserBlk = "vhost-user-blk-pci"
+)
+
+// VhostUserDevice represents a vhost-user device. Shared
+// attributes of a vhost-user device can be retrieved using
+// the Attrs() method. Unique data can be obtained by casting
+// the object to the proper type.
+type VhostUserDevice interface {
+	Attrs() *VhostUserDeviceAttrs
+	Type() string
+}
+
+// VhostUserDeviceAttrs represents data shared by most vhost-user devices
+type VhostUserDeviceAttrs struct {
+	DeviceType string
+	DeviceInfo DeviceInfo
+	SocketPath string
+	ID         string
+}
+
+// VhostUserNetDevice is a network vhost-user based device
+type VhostUserNetDevice struct {
+	VhostUserDeviceAttrs
+	MacAddress string
+}
+
+// Attrs returns the VhostUserDeviceAttrs associated with the vhost-user device
+func (vhostUserNetDevice *VhostUserNetDevice) Attrs() *VhostUserDeviceAttrs {
+	return &vhostUserNetDevice.VhostUserDeviceAttrs
+}
+
+// Type returns the type associated with the vhost-user device
+func (vhostUserNetDevice *VhostUserNetDevice) Type() string {
+	return VhostUserNet
+}
+
+// VhostUserSCSIDevice is a SCSI vhost-user based device
+type VhostUserSCSIDevice struct {
+	VhostUserDeviceAttrs
+}
+
+// Attrs returns the VhostUserDeviceAttrs associated with the vhost-user device
+func (vhostUserSCSIDevice *VhostUserSCSIDevice) Attrs() *VhostUserDeviceAttrs {
+	return &vhostUserSCSIDevice.VhostUserDeviceAttrs
+}
+
+// Type returns the type associated with the vhost-user device
+func (vhostUserSCSIDevice *VhostUserSCSIDevice) Type() string {
+	return VhostUserSCSI
+}
+
+// VhostUserBlkDevice is a block vhost-user based device
+type VhostUserBlkDevice struct {
+	VhostUserDeviceAttrs
+}
+
+// Attrs returns the VhostUserDeviceAttrs associated with the vhost-user device
+func (vhostUserBlkDevice *VhostUserBlkDevice) Attrs() *VhostUserDeviceAttrs {
+	return &vhostUserBlkDevice.VhostUserDeviceAttrs
+}
+
+// Type returns the type associated with the vhost-user device
+func (vhostUserBlkDevice *VhostUserBlkDevice) Type() string {
+	return VhostUserBlk
+}
+
+// vhostUserAttach handles the common logic among all of the vhost-user device's
+// attach functions
+func vhostUserAttach(device VhostUserDevice, h hypervisor, c *Container) (err error) {
+	// generate a unique ID to be used for hypervisor commandline fields
+	randBytes, err := generateRandomBytes(8)
+	if err != nil {
+		return err
+	}
+	id := hex.EncodeToString(randBytes)
+
+	device.Attrs().ID = id
+
+	return h.addDevice(device, vhostuserDev)
+}
+
+//
+// VhostUserNetDevice's implementation of the device interface:
+//
+func (vhostUserNetDevice *VhostUserNetDevice) attach(h hypervisor, c *Container) (err error) {
+	return vhostUserAttach(vhostUserNetDevice, h, c)
+}
+
+func (vhostUserNetDevice *VhostUserNetDevice) detach(h hypervisor) error {
+	return nil
+}
+
+func (vhostUserNetDevice *VhostUserNetDevice) deviceType() string {
+	return vhostUserNetDevice.DeviceType
+}
+
+//
+// VhostUserBlkDevice's implementation of the device interface:
+//
+func (vhostUserBlkDevice *VhostUserBlkDevice) attach(h hypervisor, c *Container) (err error) {
+	return vhostUserAttach(vhostUserBlkDevice, h, c)
+}
+
+func (vhostUserBlkDevice *VhostUserBlkDevice) detach(h hypervisor) error {
+	return nil
+}
+
+func (vhostUserBlkDevice *VhostUserBlkDevice) deviceType() string {
+	return vhostUserBlkDevice.DeviceType
+}
+
+//
+// VhostUserSCSIDevice's implementation of the device interface:
+//
+func (vhostUserSCSIDevice *VhostUserSCSIDevice) attach(h hypervisor, c *Container) (err error) {
+	return vhostUserAttach(vhostUserSCSIDevice, h, c)
+}
+
+func (vhostUserSCSIDevice *VhostUserSCSIDevice) detach(h hypervisor) error {
+	return nil
+}
+
+func (vhostUserSCSIDevice *VhostUserSCSIDevice) deviceType() string {
+	return vhostUserSCSIDevice.DeviceType
+}
+
+// Long term, this should be made more configurable.  For now matching path
+// provided by CNM VPP and OVS-DPDK plugins, available at github.com/clearcontainers/vpp and
+// github.com/clearcontainers/ovsdpdk.  The plugins create the socket on the host system
+// using this path.
+const hostSocketSearchPath = "/tmp/vhostuser_%s/vhu.sock"
+
+// findVhostUserNetSocketPath checks if an interface is a dummy placeholder
+// for a vhost-user socket, and if it is it returns the path to the socket
+func findVhostUserNetSocketPath(netInfo NetworkInfo) (string, error) {
+	if netInfo.Iface.Name == "lo" {
+		return "", nil
+	}
+
+	// check for socket file existence at known location.
+	for _, addr := range netInfo.Addrs {
+		socketPath := fmt.Sprintf(hostSocketSearchPath, addr.IPNet.IP)
+		if _, err := os.Stat(socketPath); err == nil {
+			return socketPath, nil
+		}
+	}
+
+	return "", nil
+}
+
+// vhostUserSocketPath returns the path of the socket discovered.  This discovery
+// will vary depending on the type of vhost-user socket.
+//  Today only VhostUserNetDevice is supported.
+func vhostUserSocketPath(info interface{}) (string, error) {
+
+	switch v := info.(type) {
+	case NetworkInfo:
+		return findVhostUserNetSocketPath(v)
+	default:
+		return "", nil
+	}
+
+}
+
 // BlockDevice refers to a block storage device implementation.
 type BlockDevice struct {
 	DeviceType string
@@ -175,15 +349,6 @@ func newBlockDevice(devInfo DeviceInfo) *BlockDevice {
 		DeviceType: DeviceBlock,
 		DeviceInfo: devInfo,
 	}
-}
-
-func makeBlockDevIDForHypervisor(deviceID string) string {
-	devID := fmt.Sprintf("drive-%s", deviceID)
-	if len(devID) > maxDevIDSize {
-		devID = string(devID[:maxDevIDSize])
-	}
-
-	return devID
 }
 
 func (device *BlockDevice) attach(h hypervisor, c *Container) (err error) {
@@ -206,7 +371,7 @@ func (device *BlockDevice) attach(h hypervisor, c *Container) (err error) {
 	drive := Drive{
 		File:   device.DeviceInfo.HostPath,
 		Format: "raw",
-		ID:     makeBlockDevIDForHypervisor(device.DeviceInfo.ID),
+		ID:     makeNameID("drive", device.DeviceInfo.ID),
 	}
 
 	// Increment the block index for the pod. This is used to determine the name
@@ -246,7 +411,7 @@ func (device BlockDevice) detach(h hypervisor) error {
 		deviceLogger().WithField("device", device.DeviceInfo.HostPath).Info("Unplugging block device")
 
 		drive := Drive{
-			ID: makeBlockDevIDForHypervisor(device.DeviceInfo.ID),
+			ID: makeNameID("drive", device.DeviceInfo.ID),
 		}
 
 		if err := h.hotplugRemoveDevice(drive, blockDev); err != nil {

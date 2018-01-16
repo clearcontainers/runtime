@@ -76,6 +76,8 @@ func TestMinimalPodConfig(t *testing.T) {
 		Console:        consolePath,
 	}
 
+	capList := []string{"CAP_AUDIT_WRITE", "CAP_KILL", "CAP_NET_BIND_SERVICE"}
+
 	expectedCmd := vc.Cmd{
 		Args: []string{"sh"},
 		Envs: []vc.EnvVar{
@@ -95,6 +97,13 @@ func TestMinimalPodConfig(t *testing.T) {
 		Interactive:         true,
 		Console:             consolePath,
 		NoNewPrivileges:     true,
+		Capabilities: vc.LinuxCapabilities{
+			Bounding:    capList,
+			Effective:   capList,
+			Inheritable: capList,
+			Permitted:   capList,
+			Ambient:     capList,
+		},
 	}
 
 	expectedMounts := []vc.Mount{
@@ -737,6 +746,47 @@ func TestDevicePathEmpty(t *testing.T) {
 
 	_, err := containerDeviceInfos(ociSpec)
 	assert.NotNil(t, err, "This test should fail as path cannot be empty for device")
+}
+
+func TestContainerCapabilities(t *testing.T) {
+	var ociSpec CompatOCISpec
+
+	ociSpec.Process = &CompatOCIProcess{}
+	ociSpec.Process.Capabilities = map[string]interface{}{
+		"bounding":    []interface{}{"CAP_KILL"},
+		"effective":   []interface{}{"CAP_KILL", "CAP_LEASE"},
+		"permitted":   []interface{}{"CAP_SETUID"},
+		"inheritable": []interface{}{"CAP_KILL", "CAP_LEASE", "CAP_SYS_ADMIN"},
+		"ambient":     []interface{}{""},
+	}
+
+	c, err := containerCapabilities(ociSpec)
+	assert.Nil(t, err)
+	assert.Equal(t, c.Bounding, []string{"CAP_KILL"})
+	assert.Equal(t, c.Effective, []string{"CAP_KILL", "CAP_LEASE"})
+	assert.Equal(t, c.Permitted, []string{"CAP_SETUID"})
+	assert.Equal(t, c.Inheritable, []string{"CAP_KILL", "CAP_LEASE", "CAP_SYS_ADMIN"})
+	assert.Equal(t, c.Ambient, []string{""})
+
+	ociSpec.Process.Capabilities = []interface{}{"CAP_LEASE", "CAP_SETUID"}
+
+	c, err = containerCapabilities(ociSpec)
+	assert.Nil(t, err)
+	assert.Equal(t, c.Bounding, []string{"CAP_LEASE", "CAP_SETUID"})
+	assert.Equal(t, c.Effective, []string{"CAP_LEASE", "CAP_SETUID"})
+	assert.Equal(t, c.Permitted, []string{"CAP_LEASE", "CAP_SETUID"})
+	assert.Equal(t, c.Inheritable, []string{"CAP_LEASE", "CAP_SETUID"})
+	assert.Equal(t, c.Ambient, []string{"CAP_LEASE", "CAP_SETUID"})
+
+	ociSpec.Process.Capabilities = nil
+
+	c, err = containerCapabilities(ociSpec)
+	assert.Nil(t, err)
+	assert.Equal(t, c.Bounding, []string(nil))
+	assert.Equal(t, c.Effective, []string(nil))
+	assert.Equal(t, c.Permitted, []string(nil))
+	assert.Equal(t, c.Inheritable, []string(nil))
+	assert.Equal(t, c.Ambient, []string(nil))
 }
 
 func TestMain(m *testing.M) {

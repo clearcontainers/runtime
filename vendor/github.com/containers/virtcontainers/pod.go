@@ -30,13 +30,13 @@ import (
 // controlSocket is the pod control socket.
 // It is an hypervisor resource, and for example qemu's control
 // socket is the QMP one.
-const controlSocket = "ctrl.sock"
+const controlSocket = "ctl"
 
 // monitorSocket is the pod monitoring socket.
 // It is an hypervisor resource, and is a qmp socket in the qemu case.
 // This is a socket that any monitoring entity will listen to in order
 // to understand if the VM is still alive or not.
-const monitorSocket = "monitor.sock"
+const monitorSocket = "mon"
 
 // vmStartTimeout represents the time in seconds a pod can wait before
 // to consider the VM starting operation failed.
@@ -258,6 +258,21 @@ type EnvVar struct {
 	Value string
 }
 
+// LinuxCapabilities specify the capabilities to keep when executing
+// the process inside the container.
+type LinuxCapabilities struct {
+	// Bounding is the set of capabilities checked by the kernel.
+	Bounding []string
+	// Effective is the set of capabilities checked by the kernel.
+	Effective []string
+	// Inheritable is the capabilities preserved across execve.
+	Inheritable []string
+	// Permitted is the limiting superset for effective capabilities.
+	Permitted []string
+	// Ambient is the ambient set of capabilities that are kept.
+	Ambient []string
+}
+
 // Cmd represents a command to execute in a running container.
 type Cmd struct {
 	Args    []string
@@ -294,6 +309,7 @@ type Cmd struct {
 	Console         string
 	Detach          bool
 	NoNewPrivileges bool
+	Capabilities    LinuxCapabilities
 }
 
 // Resources describes VM resources configuration.

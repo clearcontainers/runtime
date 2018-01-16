@@ -373,11 +373,13 @@ func bindUnmountContainerMounts(mounts []Mount) error {
 	for _, m := range mounts {
 		if !isSystemMount(m.Destination) && m.Type == "bind" {
 			err := syscall.Unmount(m.HostPath, 0)
-			mountLogger().WithFields(logrus.Fields{
-				"host-path": m.HostPath,
-				"error":     err,
-			}).Warn("Could not umount")
-			return err
+			if err != nil {
+				mountLogger().WithFields(logrus.Fields{
+					"host-path": m.HostPath,
+					"error":     err,
+				}).Warn("Could not umount")
+				return err
+			}
 		}
 	}
 	return nil

@@ -128,14 +128,26 @@ func shimLogger() *logrus.Entry {
 	return virtLog.WithField("subsystem", "shim")
 }
 
-func stopShim(pid int) error {
+func signalShim(pid int, sig syscall.Signal) error {
 	if pid <= 0 {
 		return nil
 	}
 
-	shimLogger().WithField("shim-pid", pid).Info("Stopping shim")
+	shimLogger().WithFields(
+		logrus.Fields{
+			"shim-pid":    pid,
+			"shim-signal": sig,
+		}).Info("Signalling shim")
 
-	if err := syscall.Kill(pid, syscall.SIGKILL); err != nil && err != syscall.ESRCH {
+	if err := syscall.Kill(pid, sig); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func stopShim(pid int) error {
+	if err := signalShim(pid, syscall.SIGKILL); err != nil && err != syscall.ESRCH {
 		return err
 	}
 

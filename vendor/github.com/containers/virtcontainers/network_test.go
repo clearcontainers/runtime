@@ -193,6 +193,37 @@ func TestIncorrectEndpointTypeString(t *testing.T) {
 	testEndpointTypeString(t, &endpointType, "")
 }
 
+func TestCreateVhostUserEndpoint(t *testing.T) {
+	macAddr := net.HardwareAddr{0x02, 0x00, 0xCA, 0xFE, 0x00, 0x48}
+	ifcName := "vhost-deadbeef"
+	socket := "/tmp/vhu_192.168.0.1"
+
+	netinfo := NetworkInfo{
+		Iface: NetlinkIface{
+			LinkAttrs: netlink.LinkAttrs{
+				HardwareAddr: macAddr,
+				Name:         ifcName,
+			},
+		},
+	}
+
+	expected := &VhostUserEndpoint{
+		SocketPath:   socket,
+		HardAddr:     macAddr.String(),
+		IfaceName:    ifcName,
+		EndpointType: VhostUserEndpointType,
+	}
+
+	result, err := createVhostUserEndpoint(netinfo, socket)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if reflect.DeepEqual(result, expected) == false {
+		t.Fatalf("\n\tGot %v\n\tExpecting %v", result, expected)
+	}
+}
+
 func TestCreateVirtualNetworkEndpoint(t *testing.T) {
 	macAddr := net.HardwareAddr{0x02, 0x00, 0xCA, 0xFE, 0x00, 0x04}
 
