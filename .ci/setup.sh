@@ -40,4 +40,4 @@ checkcommits \
 
 # Setup environment and build components.
 cd "${test_repo_dir}"
-sudo -E PATH=$PATH bash -c ".ci/setup.sh"
+.ci/setup.sh
