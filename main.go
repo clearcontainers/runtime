@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	vc "github.com/containers/virtcontainers"
+	"github.com/containers/virtcontainers/pkg/oci"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
@@ -193,6 +194,9 @@ func beforeSubcommands(context *cli.Context) error {
 
 	// Set virtcontainers logger.
 	vci.SetLogger(ccLog)
+
+	// Set the OCI package logger.
+	oci.SetLogger(ccLog)
 
 	ignoreLogging := false
 	if context.NArg() == 1 && context.Args()[0] == "cc-env" {
