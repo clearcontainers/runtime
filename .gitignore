@@ -1,5 +1,13 @@
 /cc-runtime
+/kata-runtime
 /coverage.html
 /config-generated.go
 /data/cc-collect-data.sh
+/data/cc-collect-data.sh.in
+/data/kata-collect-data.sh
+/data/kata-collect-data.sh.in
+/data/completions/bash/cc-runtime
+/data/completions/bash/cc-runtime.in
+/data/completions/bash/kata-runtime
+/data/completions/bash/kata-runtime.in
 /config/configuration.toml

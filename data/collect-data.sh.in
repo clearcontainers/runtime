@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2017 Intel Corporation
+# Copyright (c) 2017-2018 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,9 +15,9 @@
 # limitations under the License.
 
 script_name=${0##*/}
-runtime_name="cc-runtime"
+runtime_name="@RUNTIME_NAME@"
 runtime=$(command -v "$runtime_name" 2>/dev/null)
-issue_url="https://github.com/clearcontainers/runtime/issues/new"
+issue_url="@PROJECT_URL@/issues/new"
 script_version="@VERSION@ (commit @COMMIT@)"
 
 # Maximum number of errors to show for a single system component
@@ -68,10 +68,10 @@ usage()
 	cat <<EOT
 Usage: $script_name
 
-Summary: Collect data about an Intel® Clear Containers installation.
+Summary: Collect data about an installation of @PROJECT_NAME@.
 
 Description: Run this script as root to obtain a markdown-formatted summary
-  of the Clear Containers installation environment. The output of this script
+  of the environment of the @PROJECT_NAME@ installation. The output of this script
   can be pasted directly into a github issue at the address below:
 
       $issue_url

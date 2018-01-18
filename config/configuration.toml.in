@@ -1,4 +1,9 @@
-# XXX: Warning: this file is auto-generated from file "@CONFIG_IN@".
+# XXX: Warning: this file is auto-generated.
+# XXX:
+# XXX: Source file: "@CONFIG_IN@"
+# XXX: Project:
+# XXX:   Name: @PROJECT_NAME@
+# XXX:   Type: @PROJECT_TYPE@
 
 [hypervisor.qemu]
 path = "@QEMUPATH@"
@@ -82,21 +87,21 @@ disable_block_device_use = @DEFDISABLEBLOCK@
 # 
 #disable_nesting_checks = true
 
-[proxy.cc]
+[proxy.@PROJECT_TYPE@]
 path = "@PROXYPATH@"
 
 # If enabled, proxy messages will be sent to the system log
 # (default: disabled)
 #enable_debug = true
 
-[shim.cc]
+[shim.@PROJECT_TYPE@]
 path = "@SHIMPATH@"
 
 # If enabled, shim messages will be sent to the system log
 # (default: disabled)
 #enable_debug = true
 
-[agent.cc]
+[agent.@PROJECT_TYPE@]
 # There is no field for this section. The goal is only to be able to
 # specify which type of agent the user wants to use.
 

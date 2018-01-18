@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Intel Corporation
+// Copyright (c) 2017-2018 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -324,7 +324,7 @@ func kvmIsUsable() error {
 }
 
 var ccCheckCLICommand = cli.Command{
-	Name:  "cc-check",
+	Name:  checkCmd,
 	Usage: "tests if system can run " + project,
 	Action: func(context *cli.Context) error {
 		err := hostIsClearContainersCapable(procCPUInfo)

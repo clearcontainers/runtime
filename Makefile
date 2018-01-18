@@ -1,4 +1,4 @@
-# Copyright (c) 2017 Intel Corporation
+# Copyright (c) 2017-2018 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,10 +21,51 @@ for file in /etc/os-release /usr/lib/os-release; do \
     fi \
 done)
 
-# A "CC system build" is either triggered by specifying
-# a special target or via an environment variable.
+#------------------------------
+# project-specifics
+
+# build type for Clear Containers
+CC_TYPE = cc
+
+CC_PROJECT_NAME = Intel® Clear Containers
+CC_PROJECT_TAG = clear-containers
+CC_PROJECT_URL = https://github.com/clearcontainers
+
+# build type for Kata Containers
+KATA_TYPE = kata
+
+KATA_PROJECT_NAME = Kata Containers
+KATA_PROJECT_TAG = kata-containers
+KATA_PROJECT_URL = https://github.com/kata-containers
+
+#------------------------------
+
+# If this environment variable is set to any value,
+# enable the Clear Containers system build.
+ifneq (,$(CC_SYSTEM_BUILD))
+    system_build_type = $(CC_TYPE)
+endif
+
+# If this environment variable is set to any value,
+# enable the Kata Containers system build.
+ifneq (,$(KATA_SYSTEM_BUILD))
+    system_build_type = $(KATA_TYPE)
+endif
+
+ifneq ($(SYSTEM_BUILD_TYPE),)
+    ifeq ($(SYSTEM_BUILD_TYPE),$(CC_TYPE))
+        system_build_type = $(CC_TYPE)
+    endif
+
+    ifeq ($(SYSTEM_BUILD_TYPE),$(KATA_TYPE))
+        system_build_type = $(KATA_TYPE)
+    endif
+endif
+
+# A particular project system build is either triggered by
+# specifying a special target or via an environment variable.
 cc_system_build_requested := $(foreach f,\
-    build-cc-system install-cc-system,\
+    build-$(CC_TYPE)-system install-$(CC_TYPE)-system,\
     $(findstring $(f),$(MAKECMDGOALS)))
 ifneq (,$(strip $(cc_system_build_requested)))
     cc_system_build = yes
@@ -32,20 +73,62 @@ else
     cc_system_build = no
 endif
 
-# If this environment variable is set to any value,
-# enable the CC system build.
-ifneq (,$(CC_SYSTEM_BUILD))
-    cc_system_build = yes
+kata_system_build_requested := $(foreach f,\
+    build-$(KATA_TYPE)-system install-$(KATA_TYPE)-system,\
+    $(findstring $(f),$(MAKECMDGOALS)))
+ifneq (,$(strip $(kata_system_build_requested)))
+    kata_system_build = yes
+else
+    kata_system_build = no
 endif
 
-TARGET = cc-runtime
+ifeq ($(cc_system_build),yes)
+    system_build_type = $(CC_TYPE)
+endif
+
+ifeq ($(kata_system_build),yes)
+    system_build_type = $(KATA_TYPE)
+endif
+
+# If this environment variable is set to a valid build type,
+# use the value as the build type.
+
+ifeq ($(system_build_type),)
+    # Default built is for CC
+    PROJECT_TYPE = $(CC_TYPE)
+
+    PROJECT_NAME = $(CC_PROJECT_NAME)
+    PROJECT_TAG = $(CC_PROJECT_TAG)
+    PROJECT_URL = $(CC_PROJECT_URL)
+else
+    ifeq ($(system_build_type),$(CC_TYPE))
+        PROJECT_TYPE = $(CC_TYPE)
+
+        PROJECT_NAME = $(CC_PROJECT_NAME)
+        PROJECT_TAG = $(CC_PROJECT_TAG)
+        PROJECT_URL = $(CC_PROJECT_URL)
+    endif
+
+    ifeq ($(system_build_type),$(KATA_TYPE))
+        PROJECT_TYPE = $(KATA_TYPE)
+
+        PROJECT_NAME = $(KATA_PROJECT_NAME)
+        PROJECT_TAG = $(KATA_PROJECT_TAG)
+        PROJECT_URL = $(KATA_PROJECT_URL)
+    endif
+endif
+
+BIN_PREFIX = $(PROJECT_TYPE)
+PROJECT_DIR = $(PROJECT_TAG)
+IMAGENAME = $(PROJECT_TAG).img
+
+TARGET = $(BIN_PREFIX)-runtime
 DESTDIR :=
-CCDIR := clear-containers
 
 installing = $(findstring install,$(MAKECMDGOALS))
 
-ifeq ($(cc_system_build),yes)
-    # Configure the build for a standard Clear Containers system that is
+ifneq ($(system_build_type),)
+    # Configure the build for a standard system that is
     # using OBS-generated packages.
     PREFIX        := /usr
     BINDIR        := $(PREFIX)/bin
@@ -60,6 +143,7 @@ ifeq ($(cc_system_build),yes)
         EXTRA_DEPS = clean
     endif
 else
+    # standard build
     PREFIX        := /usr/local
     BINDIR        := $(PREFIX)/bin
     DESTBINDIR    := $(DESTDIR)/$(BINDIR)
@@ -72,13 +156,13 @@ LIBEXECDIR := $(PREFIX)/libexec
 SHAREDIR := $(PREFIX)/share
 DEFAULTSDIR := $(SHAREDIR)/defaults
 
-PKGDATADIR := $(SHAREDIR)/$(CCDIR)
-PKGLIBDIR := $(LOCALSTATEDIR)/lib/$(CCDIR)
-PKGRUNDIR := $(LOCALSTATEDIR)/run/$(CCDIR)
-PKGLIBEXECDIR := $(LIBEXECDIR)/$(CCDIR)
+PKGDATADIR := $(SHAREDIR)/$(PROJECT_DIR)
+PKGLIBDIR := $(LOCALSTATEDIR)/lib/$(PROJECT_DIR)
+PKGRUNDIR := $(LOCALSTATEDIR)/run/$(PROJECT_DIR)
+PKGLIBEXECDIR := $(LIBEXECDIR)/$(PROJECT_DIR)
 
 KERNELPATH := $(PKGDATADIR)/vmlinuz.container
-IMAGEPATH := $(PKGDATADIR)/clear-containers.img
+IMAGEPATH := $(PKGDATADIR)/$(IMAGENAME)
 FIRMWAREPATH :=
 MACHINEACCELERATORS :=
 
@@ -94,10 +178,10 @@ endif
 QEMUPATH := $(QEMUBINDIR)/$(QEMUCMD)
 MACHINETYPE := pc
 
-SHIMCMD := cc-shim
+SHIMCMD := $(BIN_PREFIX)-shim
 SHIMPATH := $(PKGLIBEXECDIR)/$(SHIMCMD)
 
-PROXYCMD := cc-proxy
+PROXYCMD := $(BIN_PREFIX)-proxy
 PROXYPATH := $(PKGLIBEXECDIR)/$(PROXYCMD)
 
 # Default number of vCPUs
@@ -127,8 +211,8 @@ CONFIG_IN = $(CONFIG).in
 
 DESTTARGET := $(abspath $(DESTBINDIR)/$(TARGET))
 
-DESTCONFDIR := $(DESTDIR)/$(DEFAULTSDIR)/$(CCDIR)
-DESTSYSCONFDIR := $(DESTDIR)/$(SYSCONFDIR)/$(CCDIR)
+DESTCONFDIR := $(DESTDIR)/$(DEFAULTSDIR)/$(PROJECT_DIR)
+DESTSYSCONFDIR := $(DESTDIR)/$(SYSCONFDIR)/$(PROJECT_DIR)
 
 # Main configuration file location for stateless systems
 DESTCONFIG := $(abspath $(DESTCONFDIR)/$(CONFIG_FILE))
@@ -139,10 +223,17 @@ DESTSYSCONFIG := $(abspath $(DESTSYSCONFDIR)/$(CONFIG_FILE))
 
 DESTSHAREDIR := $(DESTDIR)/$(SHAREDIR)
 
-BASH_COMPLETIONS := data/completions/bash/cc-runtime
-BASH_COMPLETIONSDIR := $(DESTSHAREDIR)/bash-completion/completions
+BASH_COMPLETIONS_SRC := data/completions/bash/runtime.in
+BASH_COMPLETIONS := data/completions/bash/$(TARGET)
+BASH_COMPLETIONS_PROJ := $(BASH_COMPLETIONS).in
 
-COLLECT_SCRIPT = data/cc-collect-data.sh
+BASH_COMPLETIONSDIR := $(DESTSHAREDIR)/bash-completion/completions
+GENERATED_FILES += $(BASH_COMPLETIONS)
+
+COLLECT_SCRIPT_SRC = data/collect-data.sh.in
+COLLECT_SCRIPT = data/$(PROJECT_TYPE)-collect-data.sh
+COLLECT_SCRIPT_PROJ = $(COLLECT_SCRIPT).in
+
 SCRIPTS += $(COLLECT_SCRIPT)
 SCRIPTS_DIR := $(BINDIR)
 
@@ -156,8 +247,10 @@ USER_VARS += DESTCONFIG
 USER_VARS += DESTDIR
 USER_VARS += DESTSYSCONFIG
 USER_VARS += DESTTARGET
+USER_VARS += IMAGENAME
 USER_VARS += IMAGEPATH
 USER_VARS += MACHINETYPE
+USER_VARS += KATA_SYSTEM_BUILD
 USER_VARS += KERNELPATH
 USER_VARS += FIRMWAREPATH
 USER_VARS += MACHINEACCELERATORS
@@ -169,12 +262,16 @@ USER_VARS += PKGLIBDIR
 USER_VARS += PKGLIBEXECDIR
 USER_VARS += PKGRUNDIR
 USER_VARS += PREFIX
+USER_VARS += PROJECT_NAME
+USER_VARS += PROJECT_PREFIX
+USER_VARS += PROJECT_TYPE
 USER_VARS += PROXYPATH
 USER_VARS += QEMUBINDIR
 USER_VARS += QEMUCMD
 USER_VARS += QEMUPATH
 USER_VARS += SHAREDIR
 USER_VARS += SHIMPATH
+USER_VARS += SYSTEM_BUILD_TYPE
 USER_VARS += SYSCONFDIR
 USER_VARS += DEFVCPUS
 USER_VARS += DEFMEMSZ
@@ -185,7 +282,6 @@ USER_VARS += DEFENABLEHUGEPAGES
 USER_VARS += DEFENABLESWAP
 USER_VARS += DEFENABLEDEBUG
 USER_VARS += DEFDISABLENESTINGCHECKS
-
 
 V              = @
 Q              = $(V:1=)
@@ -201,8 +297,12 @@ default: $(TARGET) $(CONFIG) install-git-hooks
 .DEFAULT: default
 
 build: default
+
 build-cc-system: default
 install-cc-system: install
+
+build-kata-system: default
+install-kata-system: install
 
 define GENERATED_CODE
 // WARNING: This file is auto-generated - DO NOT EDIT!
@@ -211,11 +311,32 @@ define GENERATED_CODE
 // by the tests.
 package main
 
+import (
+	"fmt"
+)
+
+// name is the name of the runtime
+const name = "$(TARGET)"
+
+// name of the project
+const project = "$(PROJECT_NAME)"
+
+// prefix used to denote non-standard CLI commands and options.
+const projectPrefix = "$(PROJECT_TYPE)"
+
 // commit is the git commit the runtime is compiled from.
 var commit = "$(COMMIT)"
 
 // version is the runtime version.
 var version = "$(VERSION)"
+
+// project-specific command names
+var envCmd = fmt.Sprintf("%s-env", projectPrefix)
+var checkCmd = fmt.Sprintf("%s-check", projectPrefix)
+
+// project-specific option names
+var configFilePathOption = fmt.Sprintf("%s-config", projectPrefix)
+var showConfigPathsOption = fmt.Sprintf("%s-show-default-config-paths", projectPrefix)
 
 var defaultHypervisorPath = "$(QEMUPATH)"
 var defaultImagePath = "$(IMAGEPATH)"
@@ -285,6 +406,12 @@ $(TARGET).coverage: $(SOURCES) $(GENERATED_FILES) Makefile
 
 GENERATED_FILES += $(CONFIG)
 
+$(COLLECT_SCRIPT_PROJ): $(COLLECT_SCRIPT_SRC)
+	$(QUIET_GENERATE)cp $< $(@)
+
+$(BASH_COMPLETIONS_PROJ): $(BASH_COMPLETIONS_SRC)
+	$(QUIET_GENERATE)cp $< $(@)
+
 $(GENERATED_FILES): %: %.in Makefile VERSION
 	$(QUIET_CONFIG)$(SED) \
 		-e "s|@COMMIT@|$(COMMIT)|g" \
@@ -298,7 +425,11 @@ $(GENERATED_FILES): %: %.in Makefile VERSION
 		-e "s|@LOCALSTATEDIR@|$(LOCALSTATEDIR)|g" \
 		-e "s|@PKGLIBEXECDIR@|$(PKGLIBEXECDIR)|g" \
 		-e "s|@PROXYPATH@|$(PROXYPATH)|g" \
+		-e "s|@PROJECT_URL@|$(PROJECT_URL)|g" \
+		-e "s|@PROJECT_NAME@|$(PROJECT_NAME)|g" \
+		-e "s|@PROJECT_TYPE@|$(PROJECT_TYPE)|g" \
 		-e "s|@QEMUPATH@|$(QEMUPATH)|g" \
+		-e "s|@RUNTIME_NAME@|$(TARGET)|g" \
 		-e "s|@MACHINETYPE@|$(MACHINETYPE)|g" \
 		-e "s|@SHIMPATH@|$(SHIMPATH)|g" \
 		-e "s|@DEFVCPUS@|$(DEFVCPUS)|g" \
@@ -331,13 +462,14 @@ install: default install-completions install-scripts
 	$(QUIET_INST)install -D $(CONFIG) $(DESTCONFIG)
 
 install-completions:
-	$(QUIET_INST)install --mode 0644 -D $(BASH_COMPLETIONS) $(BASH_COMPLETIONSDIR)
+	$(QUIET_INST) test -e $(BASH_COMPLETIONS) \
+		&& install --mode 0644 -D $(BASH_COMPLETIONS) $(BASH_COMPLETIONSDIR) || true
 
 install-scripts:
 	$(foreach f,$(SCRIPTS),$(call INSTALL_EXEC,$f,$(SCRIPTS_DIR)))
 
 clean:
-	$(QUIET_CLEAN)rm -f $(TARGET) $(CONFIG) $(GENERATED_GO_FILES) $(GENERATED_FILES)
+	$(QUIET_CLEAN)rm -f $(TARGET) $(CONFIG) $(GENERATED_GO_FILES) $(GENERATED_FILES) $(COLLECT_SCRIPT_PROJ) $(BASH_COMPLETIONS_PROJ)
 
 show-usage: show-header
 	@printf "• Overview:\n"
@@ -348,17 +480,31 @@ show-usage: show-header
 	@printf "\n"
 	@printf "• Additional targets:\n"
 	@printf "\n"
-	@printf "\tbuild             : standard build (equivalent to 'build-cc-system' if CC_SYSTEM_BUILD set)\n"
-	@printf "\tdefault           : same as 'build'\n"
-	@printf "\tbuild-cc-system   : build using standard Clear Containers system paths\n"
-	@printf "\tcheck             : run tests\n"
-	@printf "\tclean             : remove built files\n"
-	@printf "\tcoverage          : run coverage tests\n"
-	@printf "\tdefault           : same as just \"make\"\n"
-	@printf "\tgenerate-config   : create configuration file\n"
-	@printf "\tinstall           : install files (equivalent to 'install-cc-system' if CC_SYSTEM_BUILD set)\n"
-	@printf "\tinstall-cc-system : install using standard Clear Containers system paths\n"
-	@printf "\tshow-summary      : show install locations\n"
+	@printf "\tbuild               : standard build [1].\n"
+	@printf "\tdefault             : same as 'build'.\n"
+	@printf "\tbuild-$(CC_TYPE)-system     : build using standard $(CC_PROJECT_NAME) system paths.\n"
+	@printf "\tbuild-$(KATA_TYPE)-system   : build using standard $(KATA_PROJECT_NAME) system paths.\n"
+	@printf "\tcheck               : run tests.\n"
+	@printf "\tclean               : remove built files.\n"
+	@printf "\tcoverage            : run coverage tests.\n"
+	@printf "\tdefault             : same as just \"make\".\n"
+	@printf "\tgenerate-config     : create configuration file.\n"
+	@printf "\tinstall             : install files [2].\n"
+	@printf "\tinstall-$(CC_TYPE)-system   : install using standard $(CC_PROJECT_NAME) system paths\n"
+	@printf "\tinstall-$(KATA_TYPE)-system : install using standard $(KATA_PROJECT_NAME) system paths\n"
+	@printf "\tshow-summary        : show install locations\n"
+	@printf "\n"
+	@printf "  Notes:\n"
+	@printf "\n"
+	@printf "  [1] - Equivalent to:\n"
+	@printf "        - 'build-cc-system' if CC_SYSTEM_BUILD is set.\n"
+	@printf "        - 'build-kata-system' if KATA_SYSTEM_BUILD is set.\n"
+	@printf "        - 'build' for the project specified by SYSTEM_BUILD_TYPE.\n"
+	@printf "\n"
+	@printf "  [2] - Equivalent to:\n"
+	@printf "        - 'install-cc-system' if CC_SYSTEM_BUILD is set.\n"
+	@printf "        - 'install-kata-system' if KATA_SYSTEM_BUILD is set.\n"
+	@printf "        - 'install' for the project specified by SYSTEM_BUILD_TYPE.\n"
 	@printf "\n"
 
 handle_help: show-usage show-summary show-variables show-footer
@@ -369,14 +515,14 @@ help: handle_help
 show-variables:
 	@printf "• Variables affecting the build:\n\n"
 	@printf \
-          "$(sort $(foreach v,$(USER_VARS),\t$(v)=$(value $(v))\n))"
+          "$(foreach v,$(sort $(USER_VARS)),$(shell printf "\\t$(v)='$($(v))'\\\n"))"
 	@printf "\n"
 
 show-header:
 	@printf "%s - version %s (commit %s)\n\n" $(TARGET) $(VERSION) $(COMMIT)
 
 show-footer:
-	@printf "• Project home: https://github.com/clearcontainers/runtime\n\n"
+	@printf "• Project home: $(PROJECT_URL)\n\n"
 
 show-summary: show-header
 	@printf "• golang:\n"
@@ -385,7 +531,7 @@ show-summary: show-header
 	@printf "\n"
 	@printf "• Summary:\n"
 	@printf "\n"
-	@printf "\tClear Containers system build         : $(cc_system_build)\n"
+	@printf "\tProject system build type             : $(system_build_type)\n"
 	@printf "\n"
 	@printf "\tbinary install path (DESTTARGET)      : %s\n" $(DESTTARGET)
 	@printf "\tconfig install path (DESTCONFIG)      : %s\n" $(DESTCONFIG)
