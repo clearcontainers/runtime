@@ -21,17 +21,17 @@ docker_version=v17.12-ce
 docker_swarm_version=1.12.1
 
 # Supported CRI-O version
-crio_version=v1.0.4
+crio_version=v1.9.0
 
 # Runc version compatible with crio_version
-runc_version=84a082bfef6f932de921437815355186db37aeb1
+runc_version=v1.0.0-rc4
 
 # Supported Kubernetes version
-kubernetes_version=1.8.3-00
+kubernetes_version=1.9.2-00
 
 # Supported Openshift Origin version
-openshift_origin_version=v3.6.0
-openshift_origin_commit=c4dd4cf
+openshift_origin_version=v3.7.1
+openshift_origin_commit=ab0f056
 
 # Supported OCI spec: https://github.com/opencontainers/runtime-spec/releases
 oci_spec_version=v1.0.0-rc5
