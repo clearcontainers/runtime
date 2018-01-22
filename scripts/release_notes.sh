@@ -86,10 +86,15 @@ Clear Containers ${runtime_version} requires at least Clear Linux containers ima
 Clear Containers ${runtime_version} requires at least Clear Linux Containers  kernel [${clear_container_kernel}][kernel]
 
 ## Installation
-- [Ubuntu][ubuntu]                                         
-- [Fedora][fedora]                                         
-- [Developers][developers]                                         
 
+- [BC-Linux][bclinux]
+- [Centos][centos]
+- [Clear Linux][clearlinux]
+- [Fedora][fedora]
+- [SLES][sles]
+- [Ubuntu][ubuntu]
+
+- [Developers][developers]
 
 ## Issues & limitations
 
@@ -102,6 +107,10 @@ More information [Limitations][limitations]
 [limitations]: https://github.com/clearcontainers/runtime/blob/${commit_id}/docs/limitations.md
 [ubuntu]: https://github.com/clearcontainers/runtime/blob/${commit_id}/docs/ubuntu-installation-guide.md
 [fedora]: https://github.com/clearcontainers/runtime/blob/${commit_id}/docs/fedora-installation-guide.md
+[centos]: https://github.com/clearcontainers/runtime/blob/${commit_id}/docs/centos-installation-guide.md
+[sles]: https://github.com/clearcontainers/runtime/blob/${commit_id}/docs/sles-installation-guide.md
+[clearlinux]: https://github.com/clearcontainers/runtime/blob/${commit_id}/docs/clearlinux-installation-guide.md
+[bclinux]: https://github.com/clearcontainers/runtime/blob/${commit_id}/docs/bclinux-installation-guide.md
 [developers]: https://github.com/clearcontainers/runtime/blob/${commit_id}/docs/developers-clear-containers-install.md
 
 EOT
