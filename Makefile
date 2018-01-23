@@ -21,6 +21,19 @@ for file in /etc/os-release /usr/lib/os-release; do \
     fi \
 done)
 
+GOARCH=$(shell go env GOARCH)
+HOST_ARCH=$(shell arch)
+
+ifeq ($(ARCH),)
+	ARCH = $(GOARCH)
+endif
+
+ARCH_DIR = arch
+ARCH_FILE = $(ARCH_DIR)/$(ARCH)-options.mk
+
+# Load architecture-dependent settings
+include $(ARCH_FILE)
+
 #------------------------------
 # project-specifics
 
@@ -164,19 +177,8 @@ PKGLIBEXECDIR := $(LIBEXECDIR)/$(PROJECT_DIR)
 KERNELPATH := $(PKGDATADIR)/vmlinuz.container
 IMAGEPATH := $(PKGDATADIR)/$(IMAGENAME)
 FIRMWAREPATH :=
-MACHINEACCELERATORS :=
-
-KERNELPARAMS :=
-
-# The CentOS/RHEL hypervisor binary is not called qemu-lite
-ifeq (,$(filter-out centos rhel,$(distro)))
-QEMUCMD := qemu-system-x86_64
-else
-QEMUCMD := qemu-lite-system-x86_64
-endif
 
 QEMUPATH := $(QEMUBINDIR)/$(QEMUCMD)
-MACHINETYPE := pc
 
 SHIMCMD := $(BIN_PREFIX)-shim
 SHIMPATH := $(PKGLIBEXECDIR)/$(SHIMCMD)
@@ -240,6 +242,7 @@ SCRIPTS_DIR := $(BINDIR)
 GENERATED_FILES += $(COLLECT_SCRIPT)
 
 # list of variables the user may wish to override
+USER_VARS += ARCH
 USER_VARS += BASH_COMPLETIONSDIR
 USER_VARS += BINDIR
 USER_VARS += CC_SYSTEM_BUILD
@@ -525,6 +528,11 @@ show-footer:
 	@printf "• Project home: $(PROJECT_URL)\n\n"
 
 show-summary: show-header
+	@printf "• architecture:\n"
+	@printf "\tHost: $(HOST_ARCH)\n"
+	@printf "\tgolang: $(GOARCH)\n"
+	@printf "\tBuild: $(ARCH)\n"
+	@printf "\n"
 	@printf "• golang:\n"
 	@printf "\t"
 	@go version
