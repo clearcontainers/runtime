@@ -305,15 +305,20 @@ func (h *hyper) capabilities() capabilities {
 }
 
 // exec is the agent command execution implementation for hyperstart.
-func (h *hyper) exec(pod *Pod, c Container, process Process, cmd Cmd) error {
+func (h *hyper) exec(pod *Pod, c Container, cmd Cmd) (*Process, error) {
 	hyperProcess, err := h.buildHyperContainerProcess(cmd)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	execCommand := hyperstart.ExecCommand{
 		Container: c.id,
 		Process:   *hyperProcess,
+	}
+
+	process, err := c.startShim("", cmd, false)
+	if err != nil {
+		return nil, err
 	}
 
 	proxyCmd := hyperstartProxyCmd{
@@ -322,11 +327,20 @@ func (h *hyper) exec(pod *Pod, c Container, process Process, cmd Cmd) error {
 		token:   process.Token,
 	}
 
+	// HACK startShim just closed the connection on us,
+	// we need to reconnect...
+	// This will be fixed by handling all proxy ops from
+	// the agent implementations.
+	if _, _, err := h.proxy.connect(*(pod), false); err != nil {
+		return nil, err
+	}
+	defer h.proxy.disconnect()
+
 	if _, err := h.proxy.sendCmd(proxyCmd); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return process, nil
 }
 
 // startPod is the agent Pod starting implementation for hyperstart.
@@ -409,7 +423,7 @@ func (h *hyper) startOneContainer(pod Pod, c Container) error {
 	//TODO : Enter mount namespace
 
 	// Handle container mounts
-	newMounts, err := bindMountContainerMounts(defaultSharedDir, pod.id, c.id, c.mounts)
+	newMounts, err := bindMountContainerMounts(defaultSharedDir, "", pod.id, c.id, c.mounts)
 	if err != nil {
 		bindUnmountAllRootfs(defaultSharedDir, pod)
 		return err
@@ -450,7 +464,8 @@ func (h *hyper) startOneContainer(pod Pod, c Container) error {
 
 // createContainer is the agent Container creation implementation for hyperstart.
 func (h *hyper) createContainer(pod *Pod, c *Container) error {
-	return nil
+	_, err := c.startShim("", c.config.Cmd, true)
+	return err
 }
 
 // startContainer is the agent Container starting implementation for hyperstart.

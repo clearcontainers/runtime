@@ -62,6 +62,15 @@ func testCreatePod(t *testing.T, id string,
 		return nil, fmt.Errorf("Could not create pod: %s", err)
 	}
 
+	err = pod.startProxy()
+	if err != nil {
+		return nil, err
+	}
+
+	if err := pod.createContainers(); err != nil {
+		return nil, err
+	}
+
 	if pod.id == "" {
 		return pod, fmt.Errorf("Invalid empty pod ID")
 	}
@@ -561,12 +570,12 @@ func TestPodSetPodAndContainerState(t *testing.T) {
 
 	initialPodState := State{
 		State: StateReady,
-		URL:   "",
+		URL:   noopProxyURL,
 	}
 
-	// initially, a container has an empty state
+	// After a pod creation, a container has a READY state
 	initialContainerState := State{
-		State: "",
+		State: StateReady,
 		URL:   "",
 	}
 
@@ -1016,9 +1025,13 @@ func TestPodGetContainer(t *testing.T) {
 
 	contID := "999"
 	contConfig := newTestContainerConfigNoop(contID)
-	_, err = createContainer(p, contConfig)
+	newContainer, err := createContainer(p, contConfig)
 	if err != nil {
 		t.Fatalf("Failed to create container %+v in pod %+v: %v", contConfig, p, err)
+	}
+
+	if err := p.addContainer(newContainer); err != nil {
+		t.Fatalf("Could not add container to pod %v", err)
 	}
 
 	got := false

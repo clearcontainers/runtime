@@ -51,6 +51,7 @@ type ShimParams struct {
 	Token     string
 	URL       string
 	Console   string
+	Terminal  bool
 	Detach    bool
 	PID       int
 }

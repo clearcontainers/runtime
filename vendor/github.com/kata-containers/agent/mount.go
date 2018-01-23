@@ -57,6 +57,12 @@ var flagList = map[string]int{
 	"runbindable": unix.MS_UNBINDABLE | unix.MS_REC,
 }
 
+func createDestinationDir(dest string) error {
+	targetPath, _ := filepath.Split(dest)
+
+	return os.MkdirAll(targetPath, mountPerm)
+}
+
 // mount mounts a source in to a destination. This will do some bookkeeping:
 // * evaluate all symlinks
 // * ensure the source exists
@@ -64,7 +70,9 @@ func mount(source, destination, fsType string, flags int, options string) error 
 	var absSource string
 
 	if fsType != type9pFs {
-		absSource, err := filepath.EvalSymlinks(source)
+		var err error
+
+		absSource, err = filepath.EvalSymlinks(source)
 		if err != nil {
 			return fmt.Errorf("Could not resolve symlink for source %v", source)
 		}
@@ -74,6 +82,9 @@ func mount(source, destination, fsType string, flags int, options string) error 
 				destination, err)
 		}
 	} else {
+		if err := createDestinationDir(destination); err != nil {
+			return err
+		}
 		absSource = source
 	}
 
@@ -95,10 +106,9 @@ func ensureDestinationExists(source, destination string, fsType string) error {
 			source)
 	}
 
-	targetPathParent, _ := filepath.Split(destination)
-	if err := os.MkdirAll(targetPathParent, mountPerm); err != nil {
+	if err := createDestinationDir(destination); err != nil {
 		return fmt.Errorf("could not create parent directory: %v",
-			targetPathParent)
+			destination)
 	}
 
 	if fsType != "bind" || fileInfo.IsDir() {

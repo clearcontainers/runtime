@@ -17,6 +17,8 @@
 package virtcontainers
 
 import (
+	"fmt"
+	"path/filepath"
 	"reflect"
 	"testing"
 )
@@ -40,6 +42,10 @@ func TestSetNoopAgentType(t *testing.T) {
 
 func TestSetHyperstartAgentType(t *testing.T) {
 	testSetAgentType(t, "hyperstart", HyperstartAgent)
+}
+
+func TestSetKataAgentType(t *testing.T) {
+	testSetAgentType(t, "kata", KataContainersAgent)
 }
 
 func TestSetUnknownAgentType(t *testing.T) {
@@ -71,6 +77,10 @@ func TestStringFromHyperstartAgentType(t *testing.T) {
 	testStringFromAgentType(t, HyperstartAgent, "hyperstart")
 }
 
+func TestStringFromKataAgentType(t *testing.T) {
+	testStringFromAgentType(t, KataContainersAgent, "kata")
+}
+
 func TestStringFromUnknownAgentType(t *testing.T) {
 	var agentType AgentType
 	testStringFromAgentType(t, agentType, "")
@@ -90,6 +100,10 @@ func TestNewAgentFromNoopAgentType(t *testing.T) {
 
 func TestNewAgentFromHyperstartAgentType(t *testing.T) {
 	testNewAgentFromAgentType(t, HyperstartAgent, &hyper{})
+}
+
+func TestNewAgentFromKataAgentType(t *testing.T) {
+	testNewAgentFromAgentType(t, KataContainersAgent, &kataAgent{})
 }
 
 func TestNewAgentFromUnknownAgentType(t *testing.T) {
@@ -126,8 +140,62 @@ func TestNewAgentConfigFromHyperstartAgentType(t *testing.T) {
 	testNewAgentConfig(t, podConfig, agentConfig)
 }
 
+func TestNewAgentConfigFromKataAgentType(t *testing.T) {
+	agentConfig := KataAgentConfig{}
+
+	podConfig := PodConfig{
+		AgentType:   KataContainersAgent,
+		AgentConfig: agentConfig,
+	}
+
+	testNewAgentConfig(t, podConfig, agentConfig)
+}
+
 func TestNewAgentConfigFromUnknownAgentType(t *testing.T) {
 	var agentConfig interface{}
 
 	testNewAgentConfig(t, PodConfig{}, agentConfig)
+}
+
+const podID = "123456789"
+
+func testDefaultAgentURL(expectedURL string, socketType string, podID string) error {
+	pod := &Pod{
+		id: podID,
+	}
+
+	url, err := defaultAgentURL(pod, socketType)
+	if err != nil {
+		return err
+	}
+
+	if url != expectedURL {
+		return fmt.Errorf("Mismatched URL: %s vs %s", url, expectedURL)
+	}
+
+	return nil
+}
+
+func TestDefaultAgentURLUnix(t *testing.T) {
+	path := filepath.Join(runStoragePath, podID, "proxy.sock")
+	socketPath := fmt.Sprintf("unix://%s", path)
+
+	if err := testDefaultAgentURL(socketPath, SocketTypeUNIX, podID); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDefaultAgentURLVSock(t *testing.T) {
+	if err := testDefaultAgentURL("", SocketTypeVSOCK, podID); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDefaultAgentURLUnknown(t *testing.T) {
+	path := filepath.Join(runStoragePath, podID, "proxy.sock")
+	socketPath := fmt.Sprintf("unix://%s", path)
+
+	if err := testDefaultAgentURL(socketPath, "foobar", podID); err == nil {
+		t.Fatal()
+	}
 }

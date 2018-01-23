@@ -19,9 +19,10 @@ const (
 
 // VSock
 const (
-	vSockDevPath = "/dev/vsock"
-	vSockPort    = 1024
+	vSockPort = 1024
 )
+
+var vSockDevPath = "/dev/vsock"
 
 // Signals
 const (

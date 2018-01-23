@@ -72,4 +72,4 @@
 
 [[constraint]]
   name = "github.com/containers/virtcontainers"
-  revision = "3a6bd62b25e130dc142ba430cf3b45c975d1878e"
+  revision = "b137da4f2844920f5d59d129ae05c70da9df0a83"

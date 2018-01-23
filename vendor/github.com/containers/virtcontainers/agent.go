@@ -18,6 +18,7 @@ package virtcontainers
 
 import (
 	"fmt"
+	"path/filepath"
 	"syscall"
 
 	"github.com/mitchellh/mapstructure"
@@ -51,6 +52,13 @@ const (
 
 	// KataContainersAgent is the Kata Containers agent.
 	KataContainersAgent AgentType = "kata"
+
+	// SocketTypeVSOCK is a VSOCK socket type for talking to an agent.
+	SocketTypeVSOCK = "vsock"
+
+	// SocketTypeUNIX is a UNIX socket type for talking to an agent.
+	// It typically means the agent is living behind a host proxy.
+	SocketTypeUNIX = "unix"
 )
 
 // Set sets an agent type based on the input string.
@@ -122,6 +130,19 @@ func newAgentConfig(config PodConfig) interface{} {
 	}
 }
 
+func defaultAgentURL(pod *Pod, socketType string) (string, error) {
+	switch socketType {
+	case SocketTypeUNIX:
+		socketPath := filepath.Join(runStoragePath, pod.id, "proxy.sock")
+		return fmt.Sprintf("unix://%s", socketPath), nil
+	case SocketTypeVSOCK:
+		// TODO Build the VSOCK default URL
+		return "", nil
+	default:
+		return "", fmt.Errorf("Unknown socket type: %s", socketType)
+	}
+}
+
 // agent is the virtcontainers agent interface.
 // Agents are running in the guest VM and handling
 // communications between the host and guest.
@@ -157,7 +178,7 @@ type agent interface {
 	createPod(pod *Pod) error
 
 	// exec will tell the agent to run a command in an already running container.
-	exec(pod *Pod, c Container, process Process, cmd Cmd) error
+	exec(pod *Pod, c Container, cmd Cmd) (*Process, error)
 
 	// startPod will tell the agent to start all containers related to the Pod.
 	startPod(pod Pod) error

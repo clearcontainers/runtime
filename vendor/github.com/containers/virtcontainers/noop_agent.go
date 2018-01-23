@@ -51,8 +51,8 @@ func (n *noopAgent) capabilities() capabilities {
 }
 
 // exec is the Noop agent command execution implementation. It does nothing.
-func (n *noopAgent) exec(pod *Pod, c Container, process Process, cmd Cmd) error {
-	return nil
+func (n *noopAgent) exec(pod *Pod, c Container, cmd Cmd) (*Process, error) {
+	return c.startShim("", cmd, false)
 }
 
 // startPod is the Noop agent Pod starting implementation. It does nothing.
@@ -67,7 +67,8 @@ func (n *noopAgent) stopPod(pod Pod) error {
 
 // createContainer is the Noop agent Container creation implementation. It does nothing.
 func (n *noopAgent) createContainer(pod *Pod, c *Container) error {
-	return nil
+	_, err := c.startShim("", c.config.Cmd, true)
+	return err
 }
 
 // startContainer is the Noop agent Container starting implementation. It does nothing.

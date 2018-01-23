@@ -51,107 +51,7 @@ type onlineResource struct {
 	regexpPattern   string
 }
 
-var defaultCapsList = []string{
-	"CAP_CHOWN",
-	"CAP_DAC_OVERRIDE",
-	"CAP_FOWNER",
-	"CAP_FSETID",
-	"CAP_KILL",
-	"CAP_SETGID",
-	"CAP_SETUID",
-	"CAP_SETPCAP",
-	"CAP_NET_BIND_SERVICE",
-	"CAP_NET_RAW",
-	"CAP_SYS_CHROOT",
-	"CAP_MKNOD",
-	"CAP_AUDIT_WRITE",
-	"CAP_SETFCAP",
-}
-
-var fullCapsList = []string{
-	"CAP_AUDIT_CONTROL",
-	"CAP_AUDIT_READ",
-	"CAP_AUDIT_WRITE",
-	"CAP_BLOCK_SUSPEND",
-	"CAP_CHOWN",
-	"CAP_DAC_OVERRIDE",
-	"CAP_DAC_READ_SEARCH",
-	"CAP_FOWNER",
-	"CAP_FSETID",
-	"CAP_IPC_LOCK",
-	"CAP_IPC_OWNER",
-	"CAP_KILL",
-	"CAP_LEASE",
-	"CAP_LINUX_IMMUTABLE",
-	"CAP_MAC_ADMIN",
-	"CAP_MAC_OVERRIDE",
-	"CAP_MKNOD",
-	"CAP_NET_ADMIN",
-	"CAP_NET_BIND_SERVICE",
-	"CAP_NET_BROADCAST",
-	"CAP_NET_RAW",
-	"CAP_SETGID",
-	"CAP_SETFCAP",
-	"CAP_SETPCAP",
-	"CAP_SETUID",
-	"CAP_SYS_ADMIN",
-	"CAP_SYS_BOOT",
-	"CAP_SYS_CHROOT",
-	"CAP_SYS_MODULE",
-	"CAP_SYS_NICE",
-	"CAP_SYS_PACCT",
-	"CAP_SYS_PTRACE",
-	"CAP_SYS_RAWIO",
-	"CAP_SYS_RESOURCE",
-	"CAP_SYS_TIME",
-	"CAP_SYS_TTY_CONFIG",
-	"CAP_SYSLOG",
-	"CAP_WAKE_ALARM",
-}
-
 var defaultMountFlags = unix.MS_NOEXEC | unix.MS_NOSUID | unix.MS_NODEV
-
-var defaultMounts = []*configs.Mount{
-	{
-		Source:      "proc",
-		Destination: "/proc",
-		Device:      "proc",
-		Flags:       defaultMountFlags,
-	},
-	{
-		Source:      "tmpfs",
-		Destination: "/dev",
-		Device:      "tmpfs",
-		Flags:       syscall.MS_NOSUID | syscall.MS_STRICTATIME,
-		Data:        "mode=755",
-	},
-	{
-		Source:      "devpts",
-		Destination: "/dev/pts",
-		Device:      "devpts",
-		Flags:       syscall.MS_NOSUID | syscall.MS_NOEXEC,
-		Data:        "newinstance,ptmxmode=0666,mode=0620,gid=5",
-	},
-	{
-		Device:      "tmpfs",
-		Source:      "shm",
-		Destination: "/dev/shm",
-		Data:        "mode=1777,size=65536k",
-		Flags:       defaultMountFlags,
-	},
-	{
-		Source:      "mqueue",
-		Destination: "/dev/mqueue",
-		Device:      "mqueue",
-		Flags:       defaultMountFlags,
-	},
-	{
-		Source:      "sysfs",
-		Destination: "/sys",
-		Device:      "sysfs",
-		Flags:       defaultMountFlags,
-	},
-}
 
 var emptyResp = &gpb.Empty{}
 
@@ -275,40 +175,28 @@ func (a *agentGRPC) Version(ctx context.Context, req *pb.CheckRequest) (*pb.Vers
 
 }
 
-// Shared function between StartContainer and ExecProcess, because those expect
-// a process to be run. The difference being the process does not exist yet in
-// case of ExecProcess.
-func (a *agentGRPC) runProcess(cid, execID string, agentProcess *pb.Process) (err error) {
+func (a *agentGRPC) getContainer(cid string) (*container, error) {
 	if a.sandbox.running == false {
-		return fmt.Errorf("Sandbox not started")
+		return nil, fmt.Errorf("Sandbox not started")
 	}
 
 	ctr, err := a.sandbox.getContainer(cid)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	status, err := ctr.container.Status()
-	if err != nil {
-		return err
+	return ctr, nil
+}
+
+// Shared function between CreateContainer and ExecProcess, because those expect
+// a process to be run.
+func (a *agentGRPC) execProcess(ctr *container, proc *process, createContainer bool) (err error) {
+	if ctr == nil {
+		return fmt.Errorf("Container cannot be nil")
 	}
 
-	var proc *process
-	if agentProcess != nil && execID != "" {
-		if status != libcontainer.Running {
-			return fmt.Errorf("Container %s status %s, should be %s", cid, status.String(), libcontainer.Running.String())
-		}
-
-		proc, err = buildProcess(agentProcess, execID)
-		if err != nil {
-			return err
-		}
-	} else {
-		if status != libcontainer.Created {
-			return fmt.Errorf("Container %s status %s, should be %s", cid, status.String(), libcontainer.Created.String())
-		}
-
-		proc = ctr.initProcess
+	if proc == nil {
+		return fmt.Errorf("Process cannot be nil")
 	}
 
 	// This lock is very important to avoid any race with reaper.reap().
@@ -320,10 +208,14 @@ func (a *agentGRPC) runProcess(cid, execID string, agentProcess *pb.Process) (er
 	a.sandbox.subreaper.RLock()
 	defer a.sandbox.subreaper.RUnlock()
 
-	if err := ctr.container.Run(&(proc.process)); err != nil {
+	if createContainer {
+		err = ctr.container.Start(&proc.process)
+	} else {
+		err = ctr.container.Run(&(proc.process))
+	}
+	if err != nil {
 		return fmt.Errorf("Could not run process: %v", err)
 	}
-	defer proc.closePostStartFDs()
 
 	// Get process PID
 	pid, err := proc.process.Pid()
@@ -337,6 +229,22 @@ func (a *agentGRPC) runProcess(cid, execID string, agentProcess *pb.Process) (er
 	// This channel is buffered so that reaper.reap() will not
 	// block until WaitProcess listen onto this channel.
 	a.sandbox.subreaper.setExitCodeCh(pid, proc.exitCodeCh)
+
+	return nil
+}
+
+// Shared function between CreateContainer and ExecProcess, because those expect
+// the console to be properly setup after the process has been started.
+func (a *agentGRPC) postExecProcess(ctr *container, proc *process) error {
+	if ctr == nil {
+		return fmt.Errorf("Container cannot be nil")
+	}
+
+	if proc == nil {
+		return fmt.Errorf("Process cannot be nil")
+	}
+
+	defer proc.closePostStartFDs()
 
 	// Setup terminal if enabled.
 	if proc.consoleSock != nil {
@@ -352,8 +260,7 @@ func (a *agentGRPC) runProcess(cid, execID string, agentProcess *pb.Process) (er
 		proc.termMaster = termMaster
 	}
 
-	// Save process info.
-	ctr.setProcess(execID, proc)
+	ctr.setProcess(proc)
 
 	return nil
 }
@@ -484,11 +391,29 @@ func (a *agentGRPC) CreateContainer(ctx context.Context, req *pb.CreateContainer
 
 	a.sandbox.setContainer(req.ContainerId, container)
 
-	return emptyResp, nil
+	if err := a.execProcess(container, container.initProcess, true); err != nil {
+		return emptyResp, err
+	}
+
+	return emptyResp, a.postExecProcess(container, container.initProcess)
 }
 
 func (a *agentGRPC) StartContainer(ctx context.Context, req *pb.StartContainerRequest) (*gpb.Empty, error) {
-	if err := a.runProcess(req.ContainerId, "", nil); err != nil {
+	ctr, err := a.getContainer(req.ContainerId)
+	if err != nil {
+		return emptyResp, err
+	}
+
+	status, err := ctr.container.Status()
+	if err != nil {
+		return nil, err
+	}
+
+	if status != libcontainer.Created {
+		return nil, fmt.Errorf("Container %s status %s, should be %s", req.ContainerId, status.String(), libcontainer.Created.String())
+	}
+
+	if err := ctr.container.Exec(); err != nil {
 		return emptyResp, err
 	}
 
@@ -496,11 +421,30 @@ func (a *agentGRPC) StartContainer(ctx context.Context, req *pb.StartContainerRe
 }
 
 func (a *agentGRPC) ExecProcess(ctx context.Context, req *pb.ExecProcessRequest) (*gpb.Empty, error) {
-	if err := a.runProcess(req.ContainerId, req.ExecId, req.Process); err != nil {
+	ctr, err := a.getContainer(req.ContainerId)
+	if err != nil {
 		return emptyResp, err
 	}
 
-	return emptyResp, nil
+	status, err := ctr.container.Status()
+	if err != nil {
+		return nil, err
+	}
+
+	if status == libcontainer.Stopped {
+		return nil, fmt.Errorf("Cannot exec in stopped container %s", req.ContainerId)
+	}
+
+	proc, err := buildProcess(req.Process, req.ExecId)
+	if err != nil {
+		return emptyResp, err
+	}
+
+	if err := a.execProcess(ctr, proc, false); err != nil {
+		return emptyResp, err
+	}
+
+	return emptyResp, a.postExecProcess(ctr, proc)
 }
 
 func (a *agentGRPC) SignalProcess(ctx context.Context, req *pb.SignalProcessRequest) (*gpb.Empty, error) {
@@ -526,6 +470,7 @@ func (a *agentGRPC) SignalProcess(ctx context.Context, req *pb.SignalProcessRequ
 			"sandbox":     a.sandbox.id,
 			"signal":      signal.String(),
 		}).Info("discarding signal as container stopped")
+		return emptyResp, nil
 	}
 
 	// If the exec ID provided is empty, let's apply the signal to all
@@ -551,7 +496,7 @@ func (a *agentGRPC) SignalProcess(ctx context.Context, req *pb.SignalProcessRequ
 }
 
 func (a *agentGRPC) WaitProcess(ctx context.Context, req *pb.WaitProcessRequest) (*pb.WaitProcessResponse, error) {
-	proc, ctr, err := a.sandbox.getRunningProcess(req.ContainerId, req.ExecId)
+	proc, ctr, err := a.sandbox.getProcess(req.ContainerId, req.ExecId)
 	if err != nil {
 		return &pb.WaitProcessResponse{}, err
 	}
@@ -614,7 +559,7 @@ func (a *agentGRPC) RemoveContainer(ctx context.Context, req *pb.RemoveContainer
 }
 
 func (a *agentGRPC) WriteStdin(ctx context.Context, req *pb.WriteStreamRequest) (*pb.WriteStreamResponse, error) {
-	proc, _, err := a.sandbox.getRunningProcess(req.ContainerId, req.ExecId)
+	proc, _, err := a.sandbox.getProcess(req.ContainerId, req.ExecId)
 	if err != nil {
 		return &pb.WriteStreamResponse{}, err
 	}
@@ -659,7 +604,7 @@ func (a *agentGRPC) ReadStderr(ctx context.Context, req *pb.ReadStreamRequest) (
 }
 
 func (a *agentGRPC) CloseStdin(ctx context.Context, req *pb.CloseStdinRequest) (*gpb.Empty, error) {
-	proc, _, err := a.sandbox.getRunningProcess(req.ContainerId, req.ExecId)
+	proc, _, err := a.sandbox.getProcess(req.ContainerId, req.ExecId)
 	if err != nil {
 		return emptyResp, err
 	}
@@ -679,7 +624,7 @@ func (a *agentGRPC) CloseStdin(ctx context.Context, req *pb.CloseStdinRequest) (
 }
 
 func (a *agentGRPC) TtyWinResize(ctx context.Context, req *pb.TtyWinResizeRequest) (*gpb.Empty, error) {
-	proc, _, err := a.sandbox.getRunningProcess(req.ContainerId, req.ExecId)
+	proc, _, err := a.sandbox.getProcess(req.ContainerId, req.ExecId)
 	if err != nil {
 		return emptyResp, err
 	}
