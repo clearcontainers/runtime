@@ -7,6 +7,12 @@
   revision = "1d2a6a3ea132a86abd0731408b7dc34f2fc17d55"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/containerd/cri-containerd"
+  packages = ["pkg/annotations"]
+  revision = "ca3b73899a159b17e49156f756d1c77e3b60bce4"
+
+[[projects]]
   name = "github.com/containernetworking/cni"
   packages = ["libcni","pkg/invoke","pkg/types","pkg/types/020","pkg/types/current","pkg/version"]
   revision = "384d8c0b5288c25b9f1da901c66ea5155e6c567d"
@@ -46,7 +52,7 @@
 [[projects]]
   name = "github.com/kata-containers/agent"
   packages = ["protocols/client","protocols/grpc"]
-  revision = "306ee20ff47628fe370012d7e3f9316480e43c2e"
+  revision = "3f6f6da6d469c31364aac417f336ec0d16772095"
 
 [[projects]]
   name = "github.com/kubernetes-incubator/cri-o"
@@ -140,6 +146,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "0d9b34864a43e820b4e23f22f92aa15ab2cc6e3345cf215335805f77c348f2df"
+  inputs-digest = "cb375a87b8b44a6178fb02b9e63bae86df6d6cac12e87f444f20cc004aed1c93"
   solver-name = "gps-cdcl"
   solver-version = 1

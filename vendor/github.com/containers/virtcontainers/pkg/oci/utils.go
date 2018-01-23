@@ -23,12 +23,18 @@ import (
 	"strconv"
 	"strings"
 
+	criContainerdAnnotations "github.com/containerd/cri-containerd/pkg/annotations"
 	vc "github.com/containers/virtcontainers"
 	vcAnnotations "github.com/containers/virtcontainers/pkg/annotations"
-	"github.com/kubernetes-incubator/cri-o/pkg/annotations"
+	crioAnnotations "github.com/kubernetes-incubator/cri-o/pkg/annotations"
 	spec "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 )
+
+type annotationContainerType struct {
+	annotation    string
+	containerType vc.ContainerType
+}
 
 var (
 	// ErrNoLinux is an error for missing Linux sections in the OCI configuration file.
@@ -36,11 +42,20 @@ var (
 
 	// CRIContainerTypeKeyList lists all the CRI keys that could define
 	// the container type from annotations in the config.json.
-	CRIContainerTypeKeyList = []string{annotations.ContainerType}
+	CRIContainerTypeKeyList = []string{criContainerdAnnotations.ContainerType, crioAnnotations.ContainerType}
 
 	// CRISandboxNameKeyList lists all the CRI keys that could define
 	// the sandbox ID (pod ID) from annotations in the config.json.
-	CRISandboxNameKeyList = []string{annotations.SandboxID}
+	CRISandboxNameKeyList = []string{criContainerdAnnotations.SandboxID, crioAnnotations.SandboxID}
+
+	// CRIContainerTypeList lists all the maps from CRI ContainerTypes annotations
+	// to a virtcontainers ContainerType.
+	CRIContainerTypeList = []annotationContainerType{
+		{crioAnnotations.ContainerTypeSandbox, vc.PodSandbox},
+		{criContainerdAnnotations.ContainerTypeSandbox, vc.PodSandbox},
+		{criContainerdAnnotations.ContainerTypeContainer, vc.PodContainer},
+		{crioAnnotations.ContainerTypeContainer, vc.PodContainer},
+	}
 )
 
 const (
@@ -104,7 +119,7 @@ var ociLog = logrus.FieldLogger(logrus.New())
 
 // SetLogger sets the logger for oci package.
 func SetLogger(logger logrus.FieldLogger) {
-	ociLog = logger
+	ociLog = logger.WithField("source", "virtcontainers/oci")
 }
 
 func cmdEnvs(spec CompatOCISpec, envs []vc.EnvVar) []vc.EnvVar {
@@ -368,19 +383,19 @@ func GetContainerType(annotations map[string]string) (vc.ContainerType, error) {
 // found from CRI servers annotations.
 func (spec *CompatOCISpec) ContainerType() (vc.ContainerType, error) {
 	for _, key := range CRIContainerTypeKeyList {
-		containerType, ok := spec.Annotations[key]
+		containerTypeVal, ok := spec.Annotations[key]
 		if !ok {
 			continue
 		}
 
-		switch containerType {
-		case annotations.ContainerTypeSandbox:
-			return vc.PodSandbox, nil
-		case annotations.ContainerTypeContainer:
-			return vc.PodContainer, nil
+		for _, t := range CRIContainerTypeList {
+			if t.annotation == containerTypeVal {
+				return t.containerType, nil
+			}
+
 		}
 
-		return vc.UnknownContainerType, fmt.Errorf("Unknown container type %s", containerType)
+		return vc.UnknownContainerType, fmt.Errorf("Unknown container type %s", containerTypeVal)
 	}
 
 	return vc.PodSandbox, nil

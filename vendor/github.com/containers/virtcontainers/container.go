@@ -23,7 +23,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/containers/virtcontainers/pkg/uuid"
 	"github.com/sirupsen/logrus"
 )
 
@@ -216,24 +215,39 @@ func (c *Container) GetAnnotations() map[string]string {
 	return c.config.Annotations
 }
 
-func (c *Container) startShim() error {
+func (c *Container) startShim(token string, cmd Cmd, initProcess bool) (*Process, error) {
 	proxyInfo, url, err := c.pod.proxy.connect(*(c.pod), true)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if err := c.pod.proxy.disconnect(); err != nil {
-		return err
+		return nil, err
 	}
 
-	process, err := c.createShimProcess(proxyInfo.Token, url, c.config.Cmd, true)
+	processToken := token
+	if processToken == "" {
+		processToken = proxyInfo.Token
+	}
+
+	process, err := c.startShimProcess(processToken, url, cmd)
 	if err != nil {
-		return err
+		return nil, err
+	}
+
+	// If we're exec'ing, we don't want to store the exec process as the
+	// container init process.
+	if !initProcess {
+		return process, nil
 	}
 
 	c.process = *process
 
-	return c.storeProcess()
+	if err := c.storeProcess(); err != nil {
+		return nil, err
+	}
+
+	return process, nil
 }
 
 func (c *Container) storeProcess() error {
@@ -382,26 +396,6 @@ func newContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 	return c, nil
 }
 
-// newContainers uses newContainer to create a Container slice.
-func newContainers(pod *Pod, contConfigs []ContainerConfig) ([]*Container, error) {
-	if pod == nil {
-		return nil, errNeedPod
-	}
-
-	var containers []*Container
-
-	for _, contConfig := range contConfigs {
-		c, err := newContainer(pod, contConfig)
-		if err != nil {
-			return containers, err
-		}
-
-		containers = append(containers, c)
-	}
-
-	return containers, nil
-}
-
 // createContainer creates and start a container inside a Pod.
 func createContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 	if pod == nil {
@@ -428,13 +422,16 @@ func createContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 	// found and that we are in the first creation of this container.
 	// We don't want the following code to be executed outside of this
 	// specific case.
-	pod.containers = append(pod.containers, c)
+	if _, _, err := c.pod.proxy.connect(*(c.pod), false); err != nil {
+		return nil, err
+	}
+	defer c.pod.proxy.disconnect()
 
-	if err := c.startShim(); err != nil {
+	if err := c.pod.agent.createContainer(c.pod, c); err != nil {
 		return nil, err
 	}
 
-	if err := c.pod.setContainerState(c.id, StateReady); err != nil {
+	if err := c.setContainerState(StateReady); err != nil {
 		return nil, err
 	}
 
@@ -482,12 +479,12 @@ func (c *Container) fetchState(cmd string) (State, error) {
 		return State{}, fmt.Errorf("Pod not running, impossible to %s the container", cmd)
 	}
 
-	state, err = c.pod.storage.fetchContainerState(c.podID, c.id)
+	containerState, err := c.pod.storage.fetchContainerState(c.podID, c.id)
 	if err != nil {
 		return State{}, err
 	}
 
-	return state, nil
+	return containerState, nil
 }
 
 func (c *Container) getSystemMountInfo() {
@@ -646,18 +643,13 @@ func (c *Container) enter(cmd Cmd) (*Process, error) {
 		return nil, fmt.Errorf("Container not running, impossible to enter")
 	}
 
-	proxyInfo, url, err := c.pod.proxy.connect(*(c.pod), true)
-	if err != nil {
+	if _, _, err := c.pod.proxy.connect(*(c.pod), false); err != nil {
 		return nil, err
 	}
 	defer c.pod.proxy.disconnect()
 
-	process, err := c.createShimProcess(proxyInfo.Token, url, cmd, false)
+	process, err := c.pod.agent.exec(c.pod, *c, cmd)
 	if err != nil {
-		return nil, err
-	}
-
-	if err := c.pod.agent.exec(c.pod, *c, *process, cmd); err != nil {
 		return nil, err
 	}
 
@@ -737,23 +729,22 @@ func (c *Container) processList(options ProcessListOptions) (ProcessList, error)
 	return c.pod.agent.processListContainer(*(c.pod), *c, options)
 }
 
-func (c *Container) createShimProcess(token, url string, cmd Cmd, initProcess bool) (*Process, error) {
+func (c *Container) startShimProcess(token, url string, cmd Cmd) (*Process, error) {
 	if c.pod.state.URL != url {
 		return &Process{}, fmt.Errorf("Pod URL %q and URL from proxy %q MUST be identical", c.pod.state.URL, url)
 	}
 
-	var process Process
-	if initProcess {
-		process = newInitProcess(token, c.id)
-	} else {
-		process = newProcess(token)
+	process := Process{
+		Token:     token,
+		StartTime: time.Now().UTC(),
 	}
 
 	shimParams := ShimParams{
 		Container: c.id,
-		Token:     token,
+		Token:     process.Token,
 		URL:       url,
 		Console:   cmd.Console,
+		Terminal:  cmd.Interactive,
 		Detach:    cmd.Detach,
 	}
 
@@ -765,35 +756,6 @@ func (c *Container) createShimProcess(token, url string, cmd Cmd, initProcess bo
 	process.Pid = pid
 
 	return &process, nil
-}
-
-func newProcess(token string) Process {
-	if token == "" {
-		// Some proxy implementations will not generate
-		// a process token. In that case virtcontainers
-		// generates one
-		token = uuid.Generate().String()
-	}
-
-	return Process{
-		Token:     token,
-		StartTime: time.Now().UTC(),
-	}
-}
-
-func newInitProcess(token, containerID string) Process {
-	if token == "" {
-		// Some proxy implementations will not generate
-		// a process token. In that case virtcontainers
-		// generates one and it re-uses the container ID
-		// for init processes.
-		token = containerID
-	}
-
-	return Process{
-		Token:     token,
-		StartTime: time.Now().UTC(),
-	}
 }
 
 func (c *Container) hotplugDrive() error {

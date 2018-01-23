@@ -554,10 +554,9 @@ func (q *qemu) init(pod *Pod) error {
 		return err
 	}
 
-	q.Logger().WithField("inside-vm", fmt.Sprintf("%t", nested)).Debug("Checking nesting environment")
-
 	if q.config.DisableNestingChecks {
 		//Intentionally ignore the nesting check
+		q.Logger().WithField("inside-vm", fmt.Sprintf("%t", nested)).Debug("Disable nesting environment checksx")
 		q.nestedRun = false
 	} else {
 		q.nestedRun = nested

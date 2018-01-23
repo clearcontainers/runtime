@@ -309,7 +309,7 @@ type Mount struct {
 // which is mounted through 9pfs in the VM.
 // Hyperstart uses "fsmap" struct to bind mount these mounts in the hypertstart shared directory
 // to the correct mountpoint within the container rootfs.
-func bindMountContainerMounts(sharedDir, podID string, cID string, mounts []Mount) ([]*Mount, error) {
+func bindMountContainerMounts(hostSharedDir, guestSharedDir, podID string, cID string, mounts []Mount) ([]*Mount, error) {
 	if mounts == nil {
 		return nil, nil
 	}
@@ -337,7 +337,7 @@ func bindMountContainerMounts(sharedDir, podID string, cID string, mounts []Moun
 
 		// These mounts are created in the shared dir
 		filename := fmt.Sprintf("%s-%s-%s", cID, hex.EncodeToString(randBytes), filepath.Base(m.Destination))
-		mountDest := filepath.Join(sharedDir, podID, filename)
+		mountDest := filepath.Join(hostSharedDir, podID, filename)
 
 		err = bindMount(m.Source, mountDest, false)
 		if err != nil {
@@ -355,8 +355,10 @@ func bindMountContainerMounts(sharedDir, podID string, cID string, mounts []Moun
 		}
 
 		newMount := &Mount{
-			Source:      filename,
+			Source:      filepath.Join(guestSharedDir, filename),
 			Destination: m.Destination,
+			Type:        m.Type,
+			Options:     m.Options,
 			ReadOnly:    readonly,
 		}
 		newMounts = append(newMounts, newMount)

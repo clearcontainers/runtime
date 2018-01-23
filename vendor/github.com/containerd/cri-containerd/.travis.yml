@@ -1,0 +1,64 @@
+language: go
+
+sudo: required
+
+services:
+    - docker
+
+cache:
+    directories:
+        - "${HOME}/google-cloud-sdk/"
+
+before_install:
+    # libseccomp in trusty is not new enough, need backports version.
+    - sudo sh -c "echo 'deb http://archive.ubuntu.com/ubuntu trusty-backports main restricted universe multiverse' > /etc/apt/sources.list.d/backports.list"
+    - sudo apt-get update
+
+install:
+    - sudo apt-get install btrfs-tools
+    - sudo apt-get install libseccomp2/trusty-backports
+    - sudo apt-get install libseccomp-dev/trusty-backports
+    - sudo apt-get install libapparmor-dev
+    - sudo apt-get install socat
+    - docker run --rm -v /usr/local/bin:/target jpetazzo/nsenter
+
+before_script:
+    - export PATH=$HOME/gopath/bin:$PATH
+
+jobs:
+  include:
+    - stage: Build
+      script:
+        - make install.tools
+        - make .gitvalidation
+        - make binaries
+        - make plugin
+      go: 1.9.x
+    - script:
+        - make install.tools
+        - make .gitvalidation
+        - make binaries
+        - make plugin
+      go: tip
+    - stage: Test
+      script:
+        - make install.deps
+        - make test
+        - make test-integration
+        - make test-cri
+      after_script:
+        # Abuse travis to preserve the log.
+        - cat /tmp/test-integration/cri-containerd.log
+        - cat /tmp/test-integration/containerd.log
+        - cat /tmp/test-cri/cri-containerd.log
+        - cat /tmp/test-cri/containerd.log
+      go: 1.9.x
+    - script:
+        - make install.deps COOK_CONTAINERD=true
+        - make test-integration STANDALONE_CRI_CONTAINERD=false
+        - make test-cri STANDALONE_CRI_CONTAINERD=false
+      after_script:
+        # Abuse travis to preserve the log.
+        - cat /tmp/test-integration/containerd.log
+        - cat /tmp/test-cri/containerd.log
+      go: 1.9.x

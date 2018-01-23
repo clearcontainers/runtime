@@ -22,7 +22,14 @@ func copyValue(to, from reflect.Value) error {
 	}
 
 	if toKind == reflect.Ptr {
-		// If the destination is a pointer, we need to allocate a new one.
+		// Handle the case of nil pointers.
+		if fromKind == reflect.Ptr && from.IsNil() {
+			return nil
+		}
+
+		// If the destination and the origin are both pointers, and
+		// if the origin is not nil, we need to allocate a new one
+		// for the destination.
 		to.Set(reflect.New(to.Type().Elem()))
 		if fromKind == reflect.Ptr {
 			return copyValue(to.Elem(), from.Elem())

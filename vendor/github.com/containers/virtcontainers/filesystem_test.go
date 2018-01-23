@@ -34,17 +34,19 @@ func TestFilesystemCreateAllResourcesSuccessful(t *testing.T) {
 		{ID: "100"},
 	}
 
+	podConfig := &PodConfig{
+		Containers: contConfigs,
+	}
+
 	pod := Pod{
 		id:      testPodID,
 		storage: fs,
+		config:  podConfig,
 	}
 
-	containers, err := newContainers(&pod, contConfigs)
-	if err != nil {
+	if err := pod.newContainers(); err != nil {
 		t.Fatal(err)
 	}
-
-	pod.containers = containers
 
 	podConfigPath := filepath.Join(configStoragePath, testPodID)
 	podRunPath := filepath.Join(runStoragePath, testPodID)
@@ -60,7 +62,7 @@ func TestFilesystemCreateAllResourcesSuccessful(t *testing.T) {
 		os.RemoveAll(runPath)
 	}
 
-	err = fs.createAllResources(pod)
+	err := fs.createAllResources(pod)
 	if err != nil {
 		t.Fatal(err)
 	}
