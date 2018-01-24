@@ -296,13 +296,13 @@ QUIET_GENERATE = $(Q:@=@echo    '     GENERATE '$@;)
 QUIET_INST     = $(Q:@=@echo    '     INSTALL '$@;)
 QUIET_TEST     = $(Q:@=@echo    '     TEST    '$@;)
 
-# return non-empty string if file exists
-define FILE_EXISTS
-$(realpath $1)
+# Return non-empty string if specified directory exists
+define DIR_EXISTS
+$(shell test -d $(1) && echo "$(1)")
 endef
 
-# only install git hooks if working in a git clone
-ifneq (,$(call FILE_EXISTS,.git))
+# Only install git hooks if working in a git clone
+ifneq (,$(call DIR_EXISTS,.git))
 	HANDLE_GIT_HOOKS = install-git-hooks
 endif
 
