@@ -70,15 +70,11 @@ disable_block_device_use = @DEFDISABLEBLOCK@
 # The behaviour is undefined if mem_prealloc is also set to true
 #enable_swap = true
 
-# Debug changes the default hypervisor and kernel parameters to
-# enable debug output where available.
-# Default false
-# these logs can be obtained in the cc-proxy logs  when the 
-# proxy is set to run in debug mode
-# /usr/libexec/clear-containers/cc-proxy -log debug
-# or by stopping the cc-proxy service and running the cc-proxy 
-# explicitly using the same command line
+# This option changes the default hypervisor and kernel parameters
+# to enable debug output where available. This extra output is added
+# to the proxy logs, but only when proxy debug is also enabled.
 # 
+# Default false
 #enable_debug = true
 
 # Disable the customizations done in the runtime when it detects
