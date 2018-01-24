@@ -47,3 +47,7 @@ json_glib_version=1.2.2
 mpc_version=1.0.3
 mpfr_version=3.1.4
 qemu_lite_version=741f430a960b5b67745670e8270db91aeb083c5f
+
+# Package versions required for RHEL 7 installation.
+rhel_devtoolset_version=7
+rhel_required_gcc_version=6.1
