@@ -150,5 +150,3 @@ EOF
 
 sudo systemctl daemon-reload
 sudo systemctl restart docker
-sudo systemctl enable cc-proxy.socket
-sudo systemctl start cc-proxy.socket

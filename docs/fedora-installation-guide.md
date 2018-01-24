@@ -40,14 +40,12 @@ ExecStart=/usr/bin/dockerd -D --add-runtime cc-runtime=/usr/bin/cc-runtime --def
 EOF
 ```
 
-4. Restart the Docker and Clear Containers systemd services with the following commands:
+4. Restart the Docker systemd service with the following commands:
 
 ```
 $ sudo systemctl daemon-reload
 $ sudo systemctl enable docker.service
 $ sudo systemctl restart docker
-$ sudo systemctl enable cc-proxy.socket
-$ sudo systemctl start cc-proxy.socket
 ```
 
 5. Run Clear Containers 3.0.
