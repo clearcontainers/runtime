@@ -160,7 +160,7 @@ func getKernelParams(containerID string) []vc.Param {
 		},
 		{
 			Key:   "systemd.unit",
-			Value: "clear-containers.target",
+			Value: systemdUnitName,
 		},
 		{
 			Key:   "systemd.mask",
