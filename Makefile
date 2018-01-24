@@ -296,7 +296,17 @@ QUIET_GENERATE = $(Q:@=@echo    '     GENERATE '$@;)
 QUIET_INST     = $(Q:@=@echo    '     INSTALL '$@;)
 QUIET_TEST     = $(Q:@=@echo    '     TEST    '$@;)
 
-default: $(TARGET) $(CONFIG) install-git-hooks
+# return non-empty string if file exists
+define FILE_EXISTS
+$(realpath $1)
+endef
+
+# only install git hooks if working in a git clone
+ifneq (,$(call FILE_EXISTS,.git))
+	HANDLE_GIT_HOOKS = install-git-hooks
+endif
+
+default: $(TARGET) $(CONFIG) $(HANDLE_GIT_HOOKS)
 .DEFAULT: default
 
 build: default
