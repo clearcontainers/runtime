@@ -42,7 +42,11 @@ NOTES:
 
 - Commands starting "%s-" and options starting "--%s-" are `+project+` extensions.
 
-`, projectPrefix, projectPrefix)
+URL:
+
+  The canonical URL for this project is: %s
+
+`, projectPrefix, projectPrefix, projectURL)
 
 // ccLog is the logger used to record all messages
 var ccLog *logrus.Entry

@@ -340,6 +340,9 @@ const projectPrefix = "$(PROJECT_TYPE)"
 // systemdUnitName is the systemd(1) target used to launch the agent.
 const systemdUnitName = "$(PROJECT_TAG).target"
 
+// original URL for this project
+const projectURL = "$(CC_PROJECT_URL)"
+
 // commit is the git commit the runtime is compiled from.
 var commit = "$(COMMIT)"
 
