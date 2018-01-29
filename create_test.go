@@ -15,6 +15,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -56,6 +57,28 @@ func testCreateCgroupsFilesSuccessful(t *testing.T, cgroupsDirPath string, cgrou
 	if err := createCgroupsFiles("foo", cgroupsDirPath, cgroupsPathList, pid); err != nil {
 		t.Fatalf("This test should succeed (cgroupsPath %q, pid %d): %s", cgroupsPathList, pid, err)
 	}
+}
+
+// return the value of the *last* param with the specified key
+func findLastParam(key string, params []vc.Param) (string, error) {
+	if key == "" {
+		return "", errors.New("ERROR: need non-nil key")
+	}
+
+	l := len(params)
+	if l == 0 {
+		return "", errors.New("ERROR: no params")
+	}
+
+	for i := l - 1; i >= 0; i-- {
+		p := params[i]
+
+		if key == p.Key {
+			return p.Value, nil
+		}
+	}
+
+	return "", fmt.Errorf("no param called %q found", name)
 }
 
 func TestCgroupsFilesEmptyCgroupsPathSuccessful(t *testing.T) {
@@ -1118,4 +1141,57 @@ func TestCopyParentCPUSetSuccessful(t *testing.T) {
 
 	assert.False(isEmptyString(currentCpus))
 	assert.False(isEmptyString(currentMems))
+}
+
+func TestSetKernelParams(t *testing.T) {
+	assert := assert.New(t)
+
+	config := oci.RuntimeConfig{}
+
+	assert.Empty(config.HypervisorConfig.KernelParams)
+
+	err := setKernelParams(testContainerID, &config)
+	assert.NoError(err)
+
+	assert.NotEmpty(config.HypervisorConfig.KernelParams)
+}
+
+func TestSetKernelParamsUserOptionTakesPriority(t *testing.T) {
+	assert := assert.New(t)
+
+	initName := "init"
+	initValue := "/sbin/myinit"
+
+	ipName := "ip"
+	ipValue := "127.0.0.1"
+
+	params := []vc.Param{
+		{Key: initName, Value: initValue},
+		{Key: ipName, Value: ipValue},
+	}
+
+	hypervisorConfig := vc.HypervisorConfig{
+		KernelParams: params,
+	}
+
+	// Config containing user-specified kernel parameters
+	config := oci.RuntimeConfig{
+		HypervisorConfig: hypervisorConfig,
+	}
+
+	assert.NotEmpty(config.HypervisorConfig.KernelParams)
+
+	err := setKernelParams(testContainerID, &config)
+	assert.NoError(err)
+
+	kernelParams := config.HypervisorConfig.KernelParams
+
+	init, err := findLastParam(initName, kernelParams)
+	assert.NoError(err)
+	assert.Equal(initValue, init)
+
+	ip, err := findLastParam(ipName, kernelParams)
+	assert.NoError(err)
+	assert.Equal(ipValue, ip)
+
 }

@@ -177,14 +177,47 @@ func getKernelParams(containerID string) []vc.Param {
 	}
 }
 
+// setKernelParams adds the user-specified kernel parameters (from the
+// configuration file) to the defaults so that the former take priority.
+func setKernelParams(containerID string, runtimeConfig *oci.RuntimeConfig) error {
+	defaultKernelParams := getKernelParamsFunc(containerID)
+
+	if runtimeConfig.HypervisorConfig.Debug {
+		strParams := vc.SerializeParams(defaultKernelParams, "=")
+		formatted := strings.Join(strParams, " ")
+
+		ccLog.WithField("default-kernel-parameters", formatted).Debug()
+	}
+
+	// retrieve the parameters specified in the config file
+	userKernelParams := runtimeConfig.HypervisorConfig.KernelParams
+
+	// reset
+	runtimeConfig.HypervisorConfig.KernelParams = []vc.Param{}
+
+	// first, add default values
+	for _, p := range defaultKernelParams {
+		if err := (runtimeConfig).AddKernelParam(p); err != nil {
+			return err
+		}
+	}
+
+	// now re-add the user-specified values so that they take priority.
+	for _, p := range userKernelParams {
+		if err := (runtimeConfig).AddKernelParam(p); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func createPod(ociSpec oci.CompatOCISpec, runtimeConfig oci.RuntimeConfig,
 	containerID, bundlePath, console string, disableOutput bool) (vc.Process, error) {
-	ccKernelParams := getKernelParamsFunc(containerID)
 
-	for _, p := range ccKernelParams {
-		if err := (&runtimeConfig).AddKernelParam(p); err != nil {
-			return vc.Process{}, err
-		}
+	err := setKernelParams(containerID, &runtimeConfig)
+	if err != nil {
+		return vc.Process{}, err
 	}
 
 	podConfig, err := oci.PodConfig(ociSpec, runtimeConfig, bundlePath, containerID, console, disableOutput)
