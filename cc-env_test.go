@@ -175,10 +175,10 @@ func getExpectedHostDetails(tmpdir string) (HostInfo, error) {
 	}
 
 	expectedHostDetails := HostInfo{
-		Kernel:    expectedKernelVersion,
-		Distro:    expectedDistro,
-		CPU:       expectedCPU,
-		CCCapable: false,
+		Kernel:             expectedKernelVersion,
+		Distro:             expectedDistro,
+		CPU:                expectedCPU,
+		VMContainerCapable: false,
 	}
 
 	testProcCPUInfo := filepath.Join(tmpdir, "cpuinfo")
