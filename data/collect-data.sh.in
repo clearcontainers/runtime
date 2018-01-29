@@ -149,7 +149,7 @@ show_runtime_configs()
 
 	heading "Runtime config files"
 	
-	configs=$($runtime --cc-show-default-config-paths)
+	configs=$($runtime --@PROJECT_TYPE@-show-default-config-paths)
 	if [ $? -ne 0 ]; then
 		version=$($runtime --version|tr '\n' ' ')
 		die "failed to check config files - runtime is probably too old ($version)"
@@ -160,8 +160,10 @@ show_runtime_configs()
 	show_quoted_text "$configs"
 
 	# add in the standard defaults for good measure "just in case"
-	configs+=" /etc/clear-containers/configuration.toml"
-	configs+=" /usr/share/defaults/clear-containers/configuration.toml"
+	configs+=" /etc/@PROJECT_TAG@/configuration.toml"
+	configs+=" /usr/share/defaults/@PROJECT_TAG@/configuration.toml"
+	configs+=" @DESTCONFIG@"
+	configs+=" @DESTSYSCONFIG@"
 
 	# create a unique list of config files
 	configs=$(echo $configs|tr ' ' '\n'|sort -u)
@@ -194,7 +196,7 @@ show_runtime_log_details()
 {
 	subheading "Runtime logs"
 
-	find_system_journal_problems "runtime" "cc-runtime" ""
+	find_system_journal_problems "runtime" "@RUNTIME_NAME@" ""
 }
 
 find_system_journal_problems()
@@ -232,14 +234,14 @@ show_proxy_log_details()
 {
 	subheading "Proxy logs"
 
-	find_system_journal_problems "proxy" "cc-proxy" "unit"
+	find_system_journal_problems "proxy" "@PROJECT_TYPE@-proxy" ""
 }
 
 show_shim_log_details()
 {
 	subheading "Shim logs"
 
-	find_system_journal_problems "shim" "cc-shim" ""
+	find_system_journal_problems "shim" "@PROJECT_TYPE@-shim" ""
 }
 
 show_package_versions()
@@ -248,10 +250,16 @@ show_package_versions()
 
 	local pattern="("
 
+	# CC 2.x runtime. This shouldn't be installed but let's check anyway
+	pattern+="cc-oci-runtime"
+
 	# core components
-	pattern+="cc-proxy"
-	pattern+="|cc-runtime"
-	pattern+="|cc-shim"
+	for project in @PROJECT_TYPES@
+	do
+		pattern+="|${project}-proxy"
+		pattern+="|${project}-runtime"
+		pattern+="|${project}-shim"
+	done
 
 	# assets
 	pattern+="|clear-containers-image"
@@ -262,9 +270,6 @@ show_package_versions()
 
 	# default distro hypervisor
 	pattern+="|qemu-system-x86"
-
-	# CC 2.x runtime. This shouldn't be installed but let's check anyway
-	pattern+="|cc-oci-runtime"
 
 	pattern+=")"
 
@@ -319,7 +324,7 @@ show_runtime()
 {
 	msg "Runtime is \`$runtime\`."
 
-	cmd="cc-env"
+	cmd="@PROJECT_TYPE@-env"
 	heading "\`$cmd\`"
 	run_cmd_and_show_quoted_output "$runtime $cmd"
 
