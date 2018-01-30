@@ -1,50 +1,14 @@
 [[constraint]]
-  name = "github.com/ciao-project/ciao"
-  revision = "239f5bc3e8e5fe18e6b4df31dcd692db5692c55f"
-
-[[constraint]]
   name = "github.com/BurntSushi/toml"
   revision = "a368813c5e648fee92e5f6c30e3944ff9d5e8895"
-
-[[constraint]]
-  name = "github.com/clearcontainers/proxy"
-  revision = "1d2a6a3ea132a86abd0731408b7dc34f2fc17d55"
-
-[[constraint]]
-  name = "github.com/containernetworking/cni"
-  revision = "ff7c3e02e3c212f63a642ad64a5ed22ee54450bd"
-
-[[constraint]]
-  name = "github.com/containernetworking/plugins"
-  revision = "e256564546e8d1ca8a36911f8445c11929043221"
-
-[[constraint]]
-  name = "github.com/davecgh/go-spew"
-  revision = "346938d642f2ec3594ed81d874461961cd0faa76"
 
 [[constraint]]
   name = "github.com/dlespiau/covertool"
   revision = "b82616d290e628437bc08b858b5ecb3d7fe9ea53"
 
 [[constraint]]
-  name = "github.com/go-ini/ini"
-  revision = "20b96f641a5ea98f2f8619ff4f3e061cff4833bd"
-
-[[constraint]]
-  name = "github.com/kubernetes-incubator/cri-o"
-  revision = "3394b3b2d6af0e41d185bb695c6378be5dd4d61d"
-
-[[constraint]]
-  name = "github.com/mitchellh/mapstructure"
-  revision = "d0303fe809921458f417bcf828397a65db30a7e4"
-
-[[constraint]]
   name = "github.com/opencontainers/runc"
   revision = "a0159fddcd197a57790b6dd5654802b7dc8f80be"
-
-[[constraint]]
-  name = "github.com/pmezard/go-difflib"
-  revision = "792786c7400a136282c1664665ae0a8db921c6c2"
 
 [[constraint]]
   name = "github.com/sirupsen/logrus"
@@ -57,18 +21,6 @@
 [[constraint]]
   name = "github.com/urfave/cli"
   revision = "9e5b04886c4bfee2ceba1465b8121057355c4e53"
-
-[[constraint]]
-  name = "github.com/vishvananda/netlink"
-  revision = "c2a3de3b38bd00f07290c3c5e12b4dbc04ec8666"
-
-[[constraint]]
-  name = "github.com/vishvananda/netns"
-  revision = "86bef332bfc3b59b7624a600bd53009ce91a9829"
-
-[[constraint]]
-  name = "golang.org/x/crypto"
-  revision = "76eec36fa14229c4b25bb894c2d0e591527af429"
 
 [[constraint]]
   name = "github.com/containers/virtcontainers"
