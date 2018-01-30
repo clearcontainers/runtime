@@ -554,7 +554,9 @@ show-header:
 	@printf "%s - version %s (commit %s)\n\n" $(TARGET) $(VERSION) $(COMMIT)
 
 show-footer:
-	@printf "• Project home: $(PROJECT_URL)\n\n"
+	@printf "• Project:\n"
+	@printf "\tHome: $(PROJECT_URL)\n"
+	@printf "\tBugs: $(PROJECT_BUG_URL)\n\n"
 
 show-summary: show-header
 	@printf "• architecture:\n"
