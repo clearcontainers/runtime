@@ -17,6 +17,7 @@
 package virtcontainers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -28,6 +29,7 @@ import (
 
 	vcAnnotations "github.com/containers/virtcontainers/pkg/annotations"
 	"github.com/containers/virtcontainers/pkg/uuid"
+	kataclient "github.com/kata-containers/agent/protocols/client"
 	"github.com/kata-containers/agent/protocols/grpc"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
@@ -51,10 +53,7 @@ var (
 // KataAgentConfig is a structure storing information needed
 // to reach the Kata Containers agent.
 type KataAgentConfig struct {
-	GRPCSocketType string
-	GRPCSocket     string
-
-	Volumes []Volume
+	GRPCSocket string
 }
 
 type kataVSOCK struct {
@@ -66,10 +65,18 @@ func (s *kataVSOCK) String() string {
 	return fmt.Sprintf("%s://%d:%d", vsockSocketScheme, s.contextID, s.port)
 }
 
+// KataAgentState is the structure describing the data stored from this
+// agent implementation.
+type KataAgentState struct {
+	ProxyPid int
+	URL      string
+}
+
 type kataAgent struct {
-	config *KataAgentConfig
-	pod    *Pod
+	shim   shim
 	proxy  proxy
+	client *kataclient.AgentClient
+	state  KataAgentState
 
 	vmSocket interface{}
 }
@@ -99,23 +106,7 @@ func parseVSOCKAddr(sock string) (uint32, uint32, error) {
 	return uint32(cid), uint32(port), nil
 }
 
-func (k *kataAgent) generateVMSocket(pod *Pod, c *KataAgentConfig) error {
-	if c.GRPCSocket == "" {
-		if c.GRPCSocketType == "" {
-			// TODO Auto detect VSOCK host support
-			c.GRPCSocketType = SocketTypeUNIX
-		}
-
-		proxyURL, err := defaultAgentURL(pod, c.GRPCSocketType)
-		if err != nil {
-			return err
-		}
-
-		c.GRPCSocket = proxyURL
-
-		k.Logger().Info("Agent gRPC socket path %s", c.GRPCSocket)
-	}
-
+func (k *kataAgent) generateVMSocket(pod Pod, c KataAgentConfig) error {
 	cid, port, err := parseVSOCKAddr(c.GRPCSocket)
 	if err != nil {
 		// We need to generate a host UNIX socket path for the emulated serial port.
@@ -136,26 +127,35 @@ func (k *kataAgent) generateVMSocket(pod *Pod, c *KataAgentConfig) error {
 	return nil
 }
 
-func (k *kataAgent) init(pod *Pod, config interface{}) error {
+func (k *kataAgent) init(pod *Pod, config interface{}) (err error) {
 	switch c := config.(type) {
 	case KataAgentConfig:
-		if err := k.generateVMSocket(pod, &c); err != nil {
+		if err := k.generateVMSocket(*pod, c); err != nil {
 			return err
 		}
-		k.config = &c
-		k.pod = pod
 	default:
 		return fmt.Errorf("Invalid config type")
 	}
 
-	// Override pod agent configuration
-	pod.config.AgentConfig = k.config
-	k.proxy = pod.proxy
+	k.proxy, err = newProxy(pod.config.ProxyType)
+	if err != nil {
+		return err
+	}
+
+	k.shim, err = newShim(pod.config.ShimType)
+	if err != nil {
+		return err
+	}
+
+	// Fetch agent runtime info.
+	if err := pod.storage.fetchAgentState(pod.id, &k.state); err != nil {
+		k.Logger().Debug("Could not retrieve anything from storage")
+	}
 
 	return nil
 }
 
-func (k *kataAgent) vmURL() (string, error) {
+func (k *kataAgent) agentURL() (string, error) {
 	switch s := k.vmSocket.(type) {
 	case Socket:
 		return s.HostPath, nil
@@ -166,28 +166,11 @@ func (k *kataAgent) vmURL() (string, error) {
 	}
 }
 
-func (k *kataAgent) setProxyURL(url string) error {
-	if k.config.GRPCSocket == url {
-		return nil
-	}
-
-	k.config.GRPCSocket = url
-
-	return k.generateVMSocket(k.pod, k.config)
-}
-
 func (k *kataAgent) capabilities() capabilities {
 	return capabilities{}
 }
 
 func (k *kataAgent) createPod(pod *Pod) error {
-	for _, volume := range k.config.Volumes {
-		err := pod.hypervisor.addDevice(volume, fsDev)
-		if err != nil {
-			return err
-		}
-	}
-
 	switch s := k.vmSocket.(type) {
 	case Socket:
 		err := pod.hypervisor.addDevice(s, serialPortDev)
@@ -305,18 +288,42 @@ func (k *kataAgent) exec(pod *Pod, c Container, cmd Cmd) (*Process, error) {
 		Process:     kataProcess,
 	}
 
-	_, err = k.proxy.sendCmd(req)
-	if err != nil {
+	if _, err := k.sendReq(req); err != nil {
 		return nil, err
 	}
 
-	return c.startShim(req.ExecId, cmd, false)
+	return prepareAndStartShim(pod, k.shim, c.id, req.ExecId, k.state.URL, cmd)
 }
 
 func (k *kataAgent) startPod(pod Pod) error {
 	if k.proxy == nil {
 		return errorMissingProxy
 	}
+
+	// Get agent socket path to provide it to the proxy.
+	agentURL, err := k.agentURL()
+	if err != nil {
+		return err
+	}
+
+	proxyParams := proxyParams{
+		agentURL: agentURL,
+	}
+
+	// Start the proxy here
+	pid, uri, err := k.proxy.start(pod, proxyParams)
+	if err != nil {
+		return err
+	}
+
+	// Fill agent state with proxy information, and store them.
+	k.state.ProxyPid = pid
+	k.state.URL = uri
+	if err := pod.storage.storeAgentState(pod.id, k.state); err != nil {
+		return err
+	}
+
+	k.Logger().WithField("proxy-pid", pid).Info("proxy started")
 
 	hostname := pod.config.Hostname
 	if len(hostname) > maxHostnameLen {
@@ -341,7 +348,7 @@ func (k *kataAgent) startPod(pod Pod) error {
 		SandboxPidns: false,
 	}
 
-	_, err := k.proxy.sendCmd(req)
+	_, err = k.sendReq(req)
 	return err
 }
 
@@ -351,8 +358,12 @@ func (k *kataAgent) stopPod(pod Pod) error {
 	}
 
 	req := &grpc.DestroySandboxRequest{}
-	_, err := k.proxy.sendCmd(req)
-	return err
+
+	if _, err := k.sendReq(req); err != nil {
+		return err
+	}
+
+	return k.proxy.stop(pod, k.state.ProxyPid)
 }
 
 func appendStorageFromMounts(storage []*grpc.Storage, mounts []*Mount) []*grpc.Storage {
@@ -419,14 +430,10 @@ func constraintGRPCSpec(grpcSpec *grpc.Spec) {
 	}
 }
 
-func (k *kataAgent) createContainer(pod *Pod, c *Container) error {
-	if k.proxy == nil {
-		return errorMissingProxy
-	}
-
+func (k *kataAgent) createContainer(pod *Pod, c *Container) (*Process, error) {
 	ociSpecJSON, ok := c.config.Annotations[vcAnnotations.ConfigJSONKey]
 	if !ok {
-		return errorMissingOCISpec
+		return nil, errorMissingOCISpec
 	}
 
 	var containerStorage []*grpc.Storage
@@ -446,7 +453,7 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) error {
 		// driveName is the predicted virtio-block guest name (the vd* in /dev/vd*).
 		driveName, err := getVirtDriveName(c.state.BlockIndex)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		rootfs.Source = filepath.Join(devPath, driveName)
@@ -470,31 +477,31 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) error {
 		// rootfs from the host and it will show up in the guest.
 		if err := bindMountContainerRootfs(kataHostSharedDir, pod.id, c.id, c.rootFs, false); err != nil {
 			bindUnmountAllRootfs(kataHostSharedDir, *pod)
-			return err
+			return nil, err
 		}
 	}
 
 	ociSpec := &specs.Spec{}
 	if err := json.Unmarshal([]byte(ociSpecJSON), ociSpec); err != nil {
-		return err
+		return nil, err
 	}
 
 	// Handle container mounts
 	newMounts, err := bindMountContainerMounts(kataHostSharedDir, kataGuestSharedDir, pod.id, c.id, c.mounts)
 	if err != nil {
 		bindUnmountAllRootfs(kataHostSharedDir, *pod)
-		return err
+		return nil, err
 	}
 
 	// We replace all OCI mount sources that match our container mount
 	// with the right source path (The guest one).
 	if err := k.replaceOCIMountSource(ociSpec, newMounts); err != nil {
-		return err
+		return nil, err
 	}
 
 	grpcSpec, err := grpc.OCItoGRPC(ociSpec)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// We need to give the OCI spec our absolute rootfs path in the guest.
@@ -527,32 +534,20 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) error {
 		OCI:         grpcSpec,
 	}
 
-	_, err = k.proxy.sendCmd(req)
-	if err != nil {
-		return err
+	if _, err := k.sendReq(req); err != nil {
+		return nil, err
 	}
 
-	_, err = c.startShim(req.ExecId, c.config.Cmd, true)
-	return err
+	return prepareAndStartShim(pod, k.shim, c.id, req.ExecId, k.state.URL, c.config.Cmd)
 }
 
 func (k *kataAgent) startContainer(pod Pod, c Container) error {
-	if k.proxy == nil {
-		return errorMissingProxy
-	}
-
 	req := &grpc.StartContainerRequest{
 		ContainerId: c.id,
 	}
 
-	_, err := k.proxy.sendCmd(req)
-	if err != nil {
-		return err
-	}
-
-	// The Kata shim wants to be signaled when the init container
-	// is created. Sending the signal for all containers is harmless.
-	return signalShim(c.process.Pid, syscall.SIGUSR1)
+	_, err := k.sendReq(req)
+	return err
 }
 
 func (k *kataAgent) stopContainer(pod Pod, c Container) error {
@@ -560,8 +555,11 @@ func (k *kataAgent) stopContainer(pod Pod, c Container) error {
 		ContainerId: c.id,
 	}
 
-	_, err := k.proxy.sendCmd(req)
-	if err != nil {
+	if _, err := k.sendReq(req); err != nil {
+		return err
+	}
+
+	if err := bindUnmountContainerMounts(c.mounts); err != nil {
 		return err
 	}
 
@@ -579,10 +577,72 @@ func (k *kataAgent) killContainer(pod Pod, c Container, signal syscall.Signal, a
 		Signal:      uint32(signal),
 	}
 
-	_, err := k.proxy.sendCmd(req)
+	_, err := k.sendReq(req)
 	return err
 }
 
 func (k *kataAgent) processListContainer(pod Pod, c Container, options ProcessListOptions) (ProcessList, error) {
 	return nil, nil
+}
+
+func (k *kataAgent) connect() error {
+	if k.client != nil {
+		return nil
+	}
+
+	client, err := kataclient.NewAgentClient(k.state.URL)
+	if err != nil {
+		return err
+	}
+
+	k.client = client
+
+	return nil
+}
+
+func (k *kataAgent) disconnect() error {
+	if k.client == nil {
+		return nil
+	}
+
+	if err := k.client.Close(); err != nil {
+		return err
+	}
+
+	k.client = nil
+
+	return nil
+}
+
+func (k *kataAgent) sendReq(request interface{}) (interface{}, error) {
+	if err := k.connect(); err != nil {
+		return nil, err
+	}
+	defer k.disconnect()
+
+	switch req := request.(type) {
+	case *grpc.ExecProcessRequest:
+		_, err := k.client.ExecProcess(context.Background(), req)
+		return nil, err
+	case *grpc.CreateSandboxRequest:
+		_, err := k.client.CreateSandbox(context.Background(), req)
+		return nil, err
+	case *grpc.DestroySandboxRequest:
+		_, err := k.client.DestroySandbox(context.Background(), req)
+		return nil, err
+	case *grpc.CreateContainerRequest:
+		_, err := k.client.CreateContainer(context.Background(), req)
+		return nil, err
+	case *grpc.StartContainerRequest:
+		_, err := k.client.StartContainer(context.Background(), req)
+		return nil, err
+	case *grpc.RemoveContainerRequest:
+		_, err := k.client.RemoveContainer(context.Background(), req)
+		return nil, err
+	case *grpc.SignalProcessRequest:
+		_, err := k.client.SignalProcess(context.Background(), req)
+		return nil, err
+	default:
+		return nil, fmt.Errorf("Unknown gRPC type %T", req)
+	}
 }

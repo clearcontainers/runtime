@@ -49,11 +49,6 @@ func (c *Container) SetPid(pid int) error {
 	return nil
 }
 
-// URL implements the VCContainer function of the same name.
-func (c *Container) URL() string {
-	return c.MockURL
-}
-
 // GetAnnotations implements the VCContainer function of the same name.
 func (c *Container) GetAnnotations() map[string]string {
 	return c.MockAnnotations

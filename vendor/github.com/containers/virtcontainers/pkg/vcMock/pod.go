@@ -38,11 +38,6 @@ func (p *Pod) GetAnnotations() map[string]string {
 	return p.MockAnnotations
 }
 
-// URL implements the VCPod function of the same name.
-func (p *Pod) URL() string {
-	return p.MockURL
-}
-
 // GetAllContainers implements the VCPod function of the same name.
 func (p *Pod) GetAllContainers() []vc.VCContainer {
 	var ifa = make([]vc.VCContainer, len(p.MockContainers))

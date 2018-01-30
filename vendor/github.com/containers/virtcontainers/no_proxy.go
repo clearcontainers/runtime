@@ -16,6 +16,10 @@
 
 package virtcontainers
 
+import (
+	"fmt"
+)
+
 // This is the no proxy implementation of the proxy interface. This
 // is a generic implementation for any case (basically any agent),
 // where no actual proxy is needed. This happens when the combination
@@ -27,54 +31,18 @@ package virtcontainers
 // is to provide both shim and runtime the correct URL to connect
 // directly to the VM.
 type noProxy struct {
-	vmURL string
 }
 
 // start is noProxy start implementation for proxy interface.
-func (p *noProxy) start(pod Pod) (int, string, error) {
-	url, err := pod.agent.vmURL()
-	if err != nil {
-		return -1, "", err
+func (p *noProxy) start(pod Pod, params proxyParams) (int, string, error) {
+	if params.agentURL == "" {
+		return -1, "", fmt.Errorf("AgentURL cannot be empty")
 	}
 
-	p.vmURL = url
-
-	if err := pod.agent.setProxyURL(url); err != nil {
-		return -1, "", err
-	}
-
-	return 0, p.vmURL, nil
+	return 0, params.agentURL, nil
 }
 
-// register is noProxy register implementation for proxy interface.
-func (p *noProxy) register(pod Pod) ([]ProxyInfo, string, error) {
-	var proxyInfos []ProxyInfo
-
-	for i := 0; i < len(pod.containers); i++ {
-		proxyInfo := ProxyInfo{}
-
-		proxyInfos = append(proxyInfos, proxyInfo)
-	}
-
-	return proxyInfos, p.vmURL, nil
-}
-
-// unregister is noProxy unregister implementation for proxy interface.
-func (p *noProxy) unregister(pod Pod) error {
+// stop is noProxy stop implementation for proxy interface.
+func (p *noProxy) stop(pod Pod, pid int) error {
 	return nil
-}
-
-// connect is noProxy connect implementation for proxy interface.
-func (p *noProxy) connect(pod Pod, createToken bool) (ProxyInfo, string, error) {
-	return ProxyInfo{}, p.vmURL, nil
-}
-
-// disconnect is noProxy disconnect implementation for proxy interface.
-func (p *noProxy) disconnect() error {
-	return nil
-}
-
-// sendCmd is noProxy sendCmd implementation for proxy interface.
-func (p *noProxy) sendCmd(cmd interface{}) (interface{}, error) {
-	return nil, nil
 }

@@ -24,44 +24,12 @@ var noopProxyURL = "noopProxyURL"
 
 // register is the proxy start implementation for testing purpose.
 // It does nothing.
-func (p *noopProxy) start(pod Pod) (int, string, error) {
+func (p *noopProxy) start(pod Pod, params proxyParams) (int, string, error) {
 	return 0, noopProxyURL, nil
 }
 
-// register is the proxy register implementation for testing purpose.
+// stop is the proxy stop implementation for testing purpose.
 // It does nothing.
-func (p *noopProxy) register(pod Pod) ([]ProxyInfo, string, error) {
-	var proxyInfos []ProxyInfo
-
-	for i := 0; i < len(pod.containers); i++ {
-		proxyInfo := ProxyInfo{}
-
-		proxyInfos = append(proxyInfos, proxyInfo)
-	}
-
-	return proxyInfos, noopProxyURL, nil
-}
-
-// unregister is the proxy unregister implementation for testing purpose.
-// It does nothing.
-func (p *noopProxy) unregister(pod Pod) error {
+func (p *noopProxy) stop(pod Pod, pid int) error {
 	return nil
-}
-
-// connect is the proxy connect implementation for testing purpose.
-// It does nothing.
-func (p *noopProxy) connect(pod Pod, createToken bool) (ProxyInfo, string, error) {
-	return ProxyInfo{}, noopProxyURL, nil
-}
-
-// disconnect is the proxy disconnect implementation for testing purpose.
-// It does nothing.
-func (p *noopProxy) disconnect() error {
-	return nil
-}
-
-// sendCmd is the proxy sendCmd implementation for testing purpose.
-// It does nothing.
-func (p *noopProxy) sendCmd(cmd interface{}) (interface{}, error) {
-	return nil, nil
 }

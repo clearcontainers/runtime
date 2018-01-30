@@ -155,6 +155,31 @@ func stopShim(pid int) error {
 	return nil
 }
 
+func prepareAndStartShim(pod *Pod, shim shim, cid, token, url string, cmd Cmd) (*Process, error) {
+	process := &Process{
+		Token:     token,
+		StartTime: time.Now().UTC(),
+	}
+
+	shimParams := ShimParams{
+		Container: cid,
+		Token:     token,
+		URL:       url,
+		Console:   cmd.Console,
+		Terminal:  cmd.Interactive,
+		Detach:    cmd.Detach,
+	}
+
+	pid, err := shim.start(*pod, shimParams)
+	if err != nil {
+		return nil, err
+	}
+
+	process.Pid = pid
+
+	return process, nil
+}
+
 func startShim(args []string, params ShimParams) (int, error) {
 	cmd := exec.Command(args[0], args[1:]...)
 
