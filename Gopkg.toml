@@ -25,3 +25,8 @@
 [[constraint]]
   name = "github.com/containers/virtcontainers"
   revision = "b137da4f2844920f5d59d129ae05c70da9df0a83"
+
+[prune]
+  non-go = true
+  go-tests = true
+  unused-packages = true
