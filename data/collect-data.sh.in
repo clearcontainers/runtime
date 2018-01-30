@@ -17,7 +17,7 @@
 script_name=${0##*/}
 runtime_name="@RUNTIME_NAME@"
 runtime=$(command -v "$runtime_name" 2>/dev/null)
-issue_url="@PROJECT_URL@/issues/new"
+issue_url="@PROJECT_BUG_URL@"
 script_version="@VERSION@ (commit @COMMIT@)"
 
 # Maximum number of errors to show for a single system component
