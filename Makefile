@@ -53,6 +53,9 @@ KATA_PROJECT_URL = https://github.com/kata-containers
 
 #------------------------------
 
+# all supported project types
+PROJECT_TYPES = $(CC_TYPE) $(KATA_TYPE)
+
 # If this environment variable is set to any value,
 # enable the Clear Containers system build.
 ifneq (,$(CC_SYSTEM_BUILD))
@@ -436,6 +439,8 @@ $(GENERATED_FILES): %: %.in Makefile VERSION
 		-e "s|@COMMIT@|$(COMMIT)|g" \
 		-e "s|@VERSION@|$(VERSION)|g" \
 		-e "s|@CONFIG_IN@|$(CONFIG_IN)|g" \
+		-e "s|@DESTCONFIG@|$(DESTCONFIG)|g" \
+		-e "s|@DESTSYSCONFIG@|$(DESTSYSCONFIG)|g" \
 		-e "s|@IMAGEPATH@|$(IMAGEPATH)|g" \
 		-e "s|@KERNELPATH@|$(KERNELPATH)|g" \
 		-e "s|@FIRMWAREPATH@|$(FIRMWAREPATH)|g" \
@@ -446,7 +451,9 @@ $(GENERATED_FILES): %: %.in Makefile VERSION
 		-e "s|@PROXYPATH@|$(PROXYPATH)|g" \
 		-e "s|@PROJECT_URL@|$(PROJECT_URL)|g" \
 		-e "s|@PROJECT_NAME@|$(PROJECT_NAME)|g" \
+		-e "s|@PROJECT_TAG@|$(PROJECT_TAG)|g" \
 		-e "s|@PROJECT_TYPE@|$(PROJECT_TYPE)|g" \
+		-e "s|@PROJECT_TYPES@|$(PROJECT_TYPES)|g" \
 		-e "s|@QEMUPATH@|$(QEMUPATH)|g" \
 		-e "s|@RUNTIME_NAME@|$(TARGET)|g" \
 		-e "s|@MACHINETYPE@|$(MACHINETYPE)|g" \
