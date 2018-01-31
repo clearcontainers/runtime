@@ -43,6 +43,7 @@ CC_TYPE = cc
 CC_PROJECT_NAME = Intel® Clear Containers
 CC_PROJECT_TAG = clear-containers
 CC_PROJECT_URL = https://github.com/clearcontainers
+CC_BUG_URL = $(CC_PROJECT_URL)/runtime/issues/new
 
 # build type for Kata Containers
 KATA_TYPE = kata
@@ -50,6 +51,7 @@ KATA_TYPE = kata
 KATA_PROJECT_NAME = Kata Containers
 KATA_PROJECT_TAG = kata-containers
 KATA_PROJECT_URL = https://github.com/kata-containers
+KATA_BUG_URL = $(KATA_PROJECT_URL)/kata-containers/issues/new
 
 #------------------------------
 
@@ -116,6 +118,7 @@ ifeq ($(system_build_type),)
     PROJECT_NAME = $(CC_PROJECT_NAME)
     PROJECT_TAG = $(CC_PROJECT_TAG)
     PROJECT_URL = $(CC_PROJECT_URL)
+    PROJECT_BUG_URL = $(CC_BUG_URL)
 else
     ifeq ($(system_build_type),$(CC_TYPE))
         PROJECT_TYPE = $(CC_TYPE)
@@ -123,6 +126,7 @@ else
         PROJECT_NAME = $(CC_PROJECT_NAME)
         PROJECT_TAG = $(CC_PROJECT_TAG)
         PROJECT_URL = $(CC_PROJECT_URL)
+        PROJECT_BUG_URL = $(CC_BUG_URL)
     endif
 
     ifeq ($(system_build_type),$(KATA_TYPE))
@@ -131,6 +135,7 @@ else
         PROJECT_NAME = $(KATA_PROJECT_NAME)
         PROJECT_TAG = $(KATA_PROJECT_TAG)
         PROJECT_URL = $(KATA_PROJECT_URL)
+        PROJECT_BUG_URL = $(KATA_BUG_URL)
     endif
 endif
 
@@ -449,6 +454,7 @@ $(GENERATED_FILES): %: %.in Makefile VERSION
 		-e "s|@LOCALSTATEDIR@|$(LOCALSTATEDIR)|g" \
 		-e "s|@PKGLIBEXECDIR@|$(PKGLIBEXECDIR)|g" \
 		-e "s|@PROXYPATH@|$(PROXYPATH)|g" \
+		-e "s|@PROJECT_BUG_URL@|$(PROJECT_BUG_URL)|g" \
 		-e "s|@PROJECT_URL@|$(PROJECT_URL)|g" \
 		-e "s|@PROJECT_NAME@|$(PROJECT_NAME)|g" \
 		-e "s|@PROJECT_TAG@|$(PROJECT_TAG)|g" \
@@ -548,7 +554,9 @@ show-header:
 	@printf "%s - version %s (commit %s)\n\n" $(TARGET) $(VERSION) $(COMMIT)
 
 show-footer:
-	@printf "• Project home: $(PROJECT_URL)\n\n"
+	@printf "• Project:\n"
+	@printf "\tHome: $(PROJECT_URL)\n"
+	@printf "\tBugs: $(PROJECT_BUG_URL)\n\n"
 
 show-summary: show-header
 	@printf "• architecture:\n"
