@@ -41,7 +41,7 @@ ExecStart=/usr/bin/dockerd -D --add-runtime cc-runtime=/usr/bin/cc-runtime --def
 EOF
 ```
 
-4. Restart the Docker and Clear Containers systemd services with the following commands:
+4. Restart the Docker systemd service with the following commands:
 
 ```
 $ sudo systemctl daemon-reload
