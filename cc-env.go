@@ -30,7 +30,7 @@ import (
 //
 // XXX: Increment for every change to the output format
 // (meaning any change to the EnvInfo type).
-const formatVersion = "1.0.6"
+const formatVersion = "1.0.7"
 
 // MetaInfo stores information on the format of the output itself
 type MetaInfo struct {
@@ -112,10 +112,10 @@ type DistroInfo struct {
 
 // HostInfo stores host details
 type HostInfo struct {
-	Kernel    string
-	Distro    DistroInfo
-	CPU       CPUInfo
-	CCCapable bool
+	Kernel             string
+	Distro             DistroInfo
+	CPU                CPUInfo
+	VMContainerCapable bool
 }
 
 // EnvInfo collects all information that will be displayed by the
@@ -173,10 +173,10 @@ func getHostInfo() (HostInfo, error) {
 		return HostInfo{}, err
 	}
 
-	hostCCCapable := true
+	hostVMContainerCapable := true
 	err = hostIsClearContainersCapable(procCPUInfo)
 	if err != nil {
-		hostCCCapable = false
+		hostVMContainerCapable = false
 	}
 
 	hostDistro := DistroInfo{
@@ -190,10 +190,10 @@ func getHostInfo() (HostInfo, error) {
 	}
 
 	ccHost := HostInfo{
-		Kernel:    hostKernelVersion,
-		Distro:    hostDistro,
-		CPU:       hostCPU,
-		CCCapable: hostCCCapable,
+		Kernel:             hostKernelVersion,
+		Distro:             hostDistro,
+		CPU:                hostCPU,
+		VMContainerCapable: hostVMContainerCapable,
 	}
 
 	return ccHost, nil
