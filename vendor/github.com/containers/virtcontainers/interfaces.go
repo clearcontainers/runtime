@@ -53,7 +53,6 @@ type VCPod interface {
 	GetContainer(containerID string) VCContainer
 	ID() string
 	SetAnnotations(annotations map[string]string) error
-	URL() string
 }
 
 // VCContainer is the Container interface
@@ -66,5 +65,4 @@ type VCContainer interface {
 	Pod() VCPod
 	Process() Process
 	SetPid(pid int) error
-	URL() string
 }

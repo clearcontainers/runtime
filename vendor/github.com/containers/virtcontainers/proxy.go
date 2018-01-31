@@ -18,9 +18,7 @@ package virtcontainers
 
 import (
 	"fmt"
-	"net"
-	"net/url"
-	"time"
+	"path/filepath"
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/sirupsen/logrus"
@@ -31,6 +29,12 @@ import (
 type ProxyConfig struct {
 	Path  string
 	Debug bool
+}
+
+// proxyParams is the structure providing specific parameters needed
+// for the execution of the proxy binary.
+type proxyParams struct {
+	agentURL string
 }
 
 // ProxyType describes a proxy type.
@@ -136,122 +140,26 @@ func newProxyConfig(podConfig *PodConfig) (ProxyConfig, error) {
 	return config, nil
 }
 
-// ProxyInfo holds the token returned by the proxy.
-// Each ProxyInfo relates to a process running inside a container.
-type ProxyInfo struct {
-	Token string
-}
-
-// connectProxyRetry repeatedly tries to connect to the proxy on the specified
-// address until a timeout state is reached, when it will fail.
-func connectProxyRetry(scheme, address string) (conn net.Conn, err error) {
-	attempt := 1
-
-	timeoutSecs := time.Duration(waitForProxyTimeoutSecs * time.Second)
-
-	startTime := time.Now()
-	lastLogTime := startTime
-
-	for {
-		conn, err = net.Dial(scheme, address)
-		if err == nil {
-			// If the initial connection was unsuccessful,
-			// ensure a log message is generated when successfully
-			// connected.
-			if attempt > 1 {
-				proxyLogger().WithField("attempt", fmt.Sprintf("%d", attempt)).Info("Connected to proxy")
-			}
-
-			return conn, nil
-		}
-
-		attempt++
-
-		now := time.Now()
-
-		delta := now.Sub(startTime)
-		remaining := timeoutSecs - delta
-
-		if remaining <= 0 {
-			return nil, fmt.Errorf("failed to connect to proxy after %v: %v", timeoutSecs, err)
-		}
-
-		logDelta := now.Sub(lastLogTime)
-		logDeltaSecs := logDelta / time.Second
-
-		if logDeltaSecs >= 1 {
-			proxyLogger().WithError(err).WithFields(logrus.Fields{
-				"attempt":             fmt.Sprintf("%d", attempt),
-				"proxy-network":       scheme,
-				"proxy-address":       address,
-				"remaining-time-secs": fmt.Sprintf("%2.2f", remaining.Seconds()),
-			}).Warning("Retrying proxy connection")
-
-			lastLogTime = now
-		}
-
-		time.Sleep(time.Duration(100) * time.Millisecond)
+func defaultProxyURL(pod Pod, socketType string) (string, error) {
+	switch socketType {
+	case SocketTypeUNIX:
+		socketPath := filepath.Join(runStoragePath, pod.id, "proxy.sock")
+		return fmt.Sprintf("unix://%s", socketPath), nil
+	case SocketTypeVSOCK:
+		// TODO Build the VSOCK default URL
+		return "", nil
+	default:
+		return "", fmt.Errorf("Unknown socket type: %s", socketType)
 	}
-}
-
-func connectProxy(uri string) (net.Conn, error) {
-	if uri == "" {
-		return nil, fmt.Errorf("no proxy URI")
-	}
-
-	u, err := url.Parse(uri)
-	if err != nil {
-		return nil, err
-	}
-
-	if u.Scheme == "" {
-		return nil, fmt.Errorf("URL scheme cannot be empty")
-	}
-
-	address := u.Host
-	if address == "" {
-		if u.Path == "" {
-			return nil, fmt.Errorf("URL host and path cannot be empty")
-		}
-
-		address = u.Path
-	}
-
-	return connectProxyRetry(u.Scheme, address)
 }
 
 // proxy is the virtcontainers proxy interface.
 type proxy interface {
 	// start launches a proxy instance for the specified pod, returning
 	// the PID of the process and the URL used to connect to it.
-	start(pod Pod) (int, string, error)
+	start(pod Pod, params proxyParams) (int, string, error)
 
-	// register connects and registers the proxy to the given VM.
-	// It also returns information related to containers workloads.
-	register(pod Pod) ([]ProxyInfo, string, error)
-
-	// unregister unregisters and disconnects the proxy from the given VM.
-	unregister(pod Pod) error
-
-	// connect gets the proxy a handle to a previously registered VM.
-	// It also returns information related to containers workloads.
-	//
-	// createToken is intended to be true in case we don't want
-	// the proxy to create a new token, but instead only get a handle
-	// to be able to communicate with the agent inside the VM.
-	connect(pod Pod, createToken bool) (ProxyInfo, string, error)
-
-	// disconnect disconnects from the proxy.
-	disconnect() error
-
-	// sendCmd sends a command to the agent inside the VM through the
-	// proxy.
-	// This function will always be used from a specific agent
-	// implementation because a proxy type is always tied to an agent
-	// type. That's the reason why it takes an interface as parameter
-	// and it returns another interface.
-	// Those interfaces allows consumers (agent implementations) of this
-	// proxy interface to be able to use specific structures that can only
-	// be understood by a specific agent<=>proxy pair.
-	sendCmd(cmd interface{}) (interface{}, error)
+	// stop terminates a proxy instance after all communications with the
+	// agent inside the VM have been properly stopped.
+	stop(pod Pod, pid int) error
 }

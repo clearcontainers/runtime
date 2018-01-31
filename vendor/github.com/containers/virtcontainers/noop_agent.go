@@ -30,16 +30,6 @@ func (n *noopAgent) init(pod *Pod, config interface{}) error {
 	return nil
 }
 
-// vmURL returns the VM URL from the Noop agent. It does nothing.
-func (n *noopAgent) vmURL() (string, error) {
-	return "", nil
-}
-
-// setProxyURL sets the URL of the proxy for the Noop agent. It does nothing.
-func (n *noopAgent) setProxyURL(url string) error {
-	return nil
-}
-
 // createPod is the Noop agent pod creation implementation. It does nothing.
 func (n *noopAgent) createPod(pod *Pod) error {
 	return nil
@@ -52,7 +42,7 @@ func (n *noopAgent) capabilities() capabilities {
 
 // exec is the Noop agent command execution implementation. It does nothing.
 func (n *noopAgent) exec(pod *Pod, c Container, cmd Cmd) (*Process, error) {
-	return c.startShim("", cmd, false)
+	return nil, nil
 }
 
 // startPod is the Noop agent Pod starting implementation. It does nothing.
@@ -66,9 +56,8 @@ func (n *noopAgent) stopPod(pod Pod) error {
 }
 
 // createContainer is the Noop agent Container creation implementation. It does nothing.
-func (n *noopAgent) createContainer(pod *Pod, c *Container) error {
-	_, err := c.startShim("", c.config.Cmd, true)
-	return err
+func (n *noopAgent) createContainer(pod *Pod, c *Container) (*Process, error) {
+	return &Process{}, nil
 }
 
 // startContainer is the Noop agent Container starting implementation. It does nothing.

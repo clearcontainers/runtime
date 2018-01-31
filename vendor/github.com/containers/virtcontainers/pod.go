@@ -62,7 +62,6 @@ const (
 // State is a pod state structure.
 type State struct {
 	State stateString `json:"state"`
-	URL   string      `json:"url,omitempty"`
 
 	// Index of the block device passed to hypervisor.
 	BlockIndex int `json:"blockIndex"`
@@ -72,9 +71,6 @@ type State struct {
 
 	// Bool to indicate if the drive for a container was hotplugged.
 	HotpluggedDrive bool `json:"hotpluggedDrive"`
-
-	// Process ID of the pods proxy instance
-	ProxyPid int
 }
 
 // valid checks that the pod state is valid.
@@ -454,8 +450,6 @@ type Pod struct {
 
 	hypervisor hypervisor
 	agent      agent
-	proxy      proxy
-	shim       shim
 	storage    resourceStorage
 	network    network
 
@@ -523,11 +517,6 @@ func (p *Pod) GetAnnotations() map[string]string {
 	defer p.annotationsLock.RUnlock()
 
 	return p.config.Annotations
-}
-
-// URL returns the pod URL for any runtime to connect to the proxy.
-func (p *Pod) URL() string {
-	return p.state.URL
 }
 
 // GetAllContainers returns all containers.
@@ -637,24 +626,12 @@ func newPod(podConfig PodConfig) (*Pod, error) {
 		return nil, err
 	}
 
-	proxy, err := newProxy(podConfig.ProxyType)
-	if err != nil {
-		return nil, err
-	}
-
-	shim, err := newShim(podConfig.ShimType)
-	if err != nil {
-		return nil, err
-	}
-
 	network := newNetwork(podConfig.NetworkModel)
 
 	p := &Pod{
 		id:              podConfig.ID,
 		hypervisor:      hypervisor,
 		agent:           agent,
-		proxy:           proxy,
-		shim:            shim,
 		storage:         &filesystem{},
 		network:         network,
 		config:          &podConfig,
@@ -804,51 +781,16 @@ func (p *Pod) startVM(netNsPath string) error {
 
 	p.Logger().Info("VM started")
 
-	// Start the proxy
-	if err := p.startProxy(); err != nil {
-		return err
-	}
-
-	if _, _, err := p.proxy.connect(*p, false); err != nil {
-		return err
-	}
-	defer p.proxy.disconnect()
-
 	// Once startVM is done, we want to guarantee
 	// that the pod is manageable. For that we need
 	// to start the pod inside the VM.
-	return p.agent.startPod(*p)
-}
-
-// startProxy starts a proxy instance for the pod.
-//
-// Note that there is no corresponding stopProxy() since the proxy
-// stops itself.
-func (p *Pod) startProxy() error {
-	pid, uri, err := p.proxy.start(*p)
-	if err != nil {
+	if err := p.agent.startPod(*p); err != nil {
 		return err
 	}
 
-	// save state
-	p.state.URL = uri
-	p.state.ProxyPid = pid
-
-	if err := p.setPodState(p.state); err != nil {
-		return err
-	}
-
-	if _, _, err := p.proxy.register(*p); err != nil {
-		return err
-	}
-
-	if err := p.proxy.disconnect(); err != nil {
-		return err
-	}
-
-	p.Logger().WithField("proxy-pid", pid).Info("proxy started")
-
-	return nil
+	// Important to save the pod state since the agent
+	// should have updated proxy information.
+	return p.setPodState(p.state)
 }
 
 func (p *Pod) addContainer(c *Container) error {
@@ -994,18 +936,6 @@ func (p *Pod) resumeSetStates() error {
 func (p *Pod) stopVM() error {
 	p.Logger().Info("Stopping VM")
 
-	if _, _, err := p.proxy.connect(*p, false); err != nil {
-		return err
-	}
-
-	if err := p.proxy.unregister(*p); err != nil {
-		return err
-	}
-
-	if err := p.proxy.disconnect(); err != nil {
-		return err
-	}
-
 	return p.hypervisor.stopPod()
 }
 
@@ -1033,11 +963,6 @@ func (p *Pod) stop() error {
 			}
 		}
 	}
-
-	if _, _, err := p.proxy.connect(*p, false); err != nil {
-		return err
-	}
-	defer p.proxy.disconnect()
 
 	if err := p.agent.stopPod(*p); err != nil {
 		return err
