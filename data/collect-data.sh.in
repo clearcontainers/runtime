@@ -63,6 +63,11 @@ problem_pattern+="\<warning\>|"
 problem_pattern+="\<wrong\>"
 problem_pattern+=")"
 
+# List of patterns used to exclude messages that are not problems
+problem_exclude_pattern="("
+problem_exclude_pattern+="\<launching .* with:"
+problem_exclude_pattern+=")"
+
 usage()
 {
 	cat <<EOT
@@ -220,6 +225,7 @@ find_system_journal_problems()
 	local problems=$(journalctl -q -o cat -a "$selector" "$program" |\
 		grep "time=" |\
 		egrep -i "$problem_pattern" |\
+		egrep -iv "$problem_exclude_pattern" |\
 		tail -n ${PROBLEM_LIMIT})
 
 	if [ -n "$problems" ]; then
