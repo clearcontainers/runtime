@@ -344,5 +344,6 @@ func createRuntime() {
 }
 
 func main() {
+	fmt.Printf("foo\n")
 	createRuntime()
 }
