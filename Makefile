@@ -314,6 +314,14 @@ ifneq (,$(call DIR_EXISTS,.git))
 	HANDLE_GIT_HOOKS = install-git-hooks
 endif
 
+# Don't install hooks when running under the CI as they will stop the
+# tests from running.
+#
+# See: https://github.com/clearcontainers/runtime/issues/984
+ifneq (,$(CI))
+	HANDLE_GIT_HOOKS =
+endif
+
 default: $(TARGET) $(CONFIG) $(HANDLE_GIT_HOOKS)
 .DEFAULT: default
 
