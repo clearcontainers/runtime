@@ -27,8 +27,6 @@ import (
 
 var ptmxPath = "/dev/ptmx"
 
-var ptsPtmxPath = "/dev/pts/ptmx"
-
 // Console represents a pseudo TTY.
 type Console struct {
 	io.ReadWriteCloser

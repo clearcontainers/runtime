@@ -37,7 +37,6 @@ const (
 	cgroupsProcsFile = "cgroup.procs"
 	cgroupsDirMode   = os.FileMode(0750)
 	cgroupsFileMode  = os.FileMode(0640)
-	cgroupsMountType = "cgroup"
 
 	// Filesystem type corresponding to CGROUP_SUPER_MAGIC as listed
 	// here: http://man7.org/linux/man-pages/man2/statfs.2.html

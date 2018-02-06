@@ -65,11 +65,6 @@ const (
 	maxPCIBridges uint32 = 5
 )
 
-var (
-	errUnknownHypervisor = errors.New("unknown hypervisor")
-	errUnknownAgent      = errors.New("unknown agent")
-)
-
 type tomlConfig struct {
 	Hypervisor map[string]hypervisor
 	Proxy      map[string]proxy
