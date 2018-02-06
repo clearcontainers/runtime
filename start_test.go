@@ -239,13 +239,12 @@ func TestStartCLIFunctionSuccess(t *testing.T) {
 		testingImpl.StartContainerFunc = nil
 	}()
 
-	flagSet := &flag.FlagSet{}
 	app := cli.NewApp()
 
 	fn, ok := startCLICommand.Action.(func(context *cli.Context) error)
 	assert.True(ok)
 
-	flagSet = flag.NewFlagSet("test", 0)
+	flagSet := flag.NewFlagSet("test", 0)
 	flagSet.Parse([]string{testContainerID})
 	ctx := cli.NewContext(app, flagSet, nil)
 	assert.NotNil(ctx)
