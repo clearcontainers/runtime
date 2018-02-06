@@ -125,20 +125,25 @@ To list containers created using a non-default value for "--root":
 		file := defaultOutputFile
 		showAll := context.Bool("cc-all")
 
+		var fs formatState = formatIDList{}
+
 		if context.Bool("quiet") {
-			return (&formatIDList{}).Write(s, showAll, file)
+			fs = formatIDList{}
+		} else {
+
+			switch context.String("format") {
+			case "table":
+				fs = formatTabular{}
+
+			case "json":
+				fs = formatJSON{}
+
+			default:
+				return fmt.Errorf("invalid format option")
+			}
 		}
 
-		switch context.String("format") {
-		case "table":
-			return (&formatTabular{}).Write(s, showAll, file)
-
-		case "json":
-			return (&formatJSON{}).Write(s, showAll, file)
-
-		default:
-			return fmt.Errorf("invalid format option")
-		}
+		return fs.Write(s, showAll, file)
 	},
 }
 
@@ -196,7 +201,7 @@ func getStaleAssets(old, new hypervisorDetails) []string {
 	return stale
 }
 
-func (f *formatIDList) Write(state []fullContainerState, showAll bool, file *os.File) error {
+func (f formatIDList) Write(state []fullContainerState, showAll bool, file *os.File) error {
 	for _, item := range state {
 		_, err := fmt.Fprintln(file, item.ID)
 		if err != nil {
@@ -207,7 +212,7 @@ func (f *formatIDList) Write(state []fullContainerState, showAll bool, file *os.
 	return nil
 }
 
-func (f *formatTabular) Write(state []fullContainerState, showAll bool, file *os.File) error {
+func (f formatTabular) Write(state []fullContainerState, showAll bool, file *os.File) error {
 	// values used by runc
 	flags := uint(0)
 	minWidth := 12
@@ -270,7 +275,7 @@ func (f *formatTabular) Write(state []fullContainerState, showAll bool, file *os
 	return w.Flush()
 }
 
-func (f *formatJSON) Write(state []fullContainerState, showAll bool, file *os.File) error {
+func (f formatJSON) Write(state []fullContainerState, showAll bool, file *os.File) error {
 	return json.NewEncoder(file).Encode(state)
 }
 
