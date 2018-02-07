@@ -175,8 +175,15 @@ func getHostInfo() (HostInfo, error) {
 	}
 
 	hostVMContainerCapable := true
-	err = hostIsClearContainersCapable(procCPUInfo)
-	if err != nil {
+
+	details := vmContainerCapableDetails{
+		cpuInfoFile:           procCPUInfo,
+		requiredCPUFlags:      archRequiredCPUFlags,
+		requiredCPUAttribs:    archRequiredCPUAttribs,
+		requiredKernelModules: archRequiredKernelModules,
+	}
+
+	if err = hostIsVMContainerCapable(details); err != nil {
 		hostVMContainerCapable = false
 	}
 
