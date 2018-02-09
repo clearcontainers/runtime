@@ -21,6 +21,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	goruntime "runtime"
 	"strings"
 	"testing"
 
@@ -163,6 +164,7 @@ func getExpectedHostDetails(tmpdir string) (HostInfo, error) {
 	}
 
 	const expectedKernelVersion = "99.1"
+	const expectedArch = goruntime.GOARCH
 
 	expectedDistro := DistroInfo{
 		Name:    "Foo",
@@ -176,6 +178,7 @@ func getExpectedHostDetails(tmpdir string) (HostInfo, error) {
 
 	expectedHostDetails := HostInfo{
 		Kernel:             expectedKernelVersion,
+		Architecture:       expectedArch,
 		Distro:             expectedDistro,
 		CPU:                expectedCPU,
 		VMContainerCapable: false,

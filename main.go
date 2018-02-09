@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	goruntime "runtime"
 	"runtime/debug"
 	"strings"
 
@@ -31,6 +32,9 @@ import (
 
 // specConfig is the name of the file holding the containers configuration
 const specConfig = "config.json"
+
+// arch is the architecture for the running program
+const arch = goruntime.GOARCH
 
 var usage = fmt.Sprintf(`%s runtime
 

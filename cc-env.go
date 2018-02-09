@@ -30,7 +30,7 @@ import (
 //
 // XXX: Increment for every change to the output format
 // (meaning any change to the EnvInfo type).
-const formatVersion = "1.0.7"
+const formatVersion = "1.0.8"
 
 // MetaInfo stores information on the format of the output itself
 type MetaInfo struct {
@@ -113,6 +113,7 @@ type DistroInfo struct {
 // HostInfo stores host details
 type HostInfo struct {
 	Kernel             string
+	Architecture       string
 	Distro             DistroInfo
 	CPU                CPUInfo
 	VMContainerCapable bool
@@ -191,6 +192,7 @@ func getHostInfo() (HostInfo, error) {
 
 	ccHost := HostInfo{
 		Kernel:             hostKernelVersion,
+		Architecture:       arch,
 		Distro:             hostDistro,
 		CPU:                hostCPU,
 		VMContainerCapable: hostVMContainerCapable,
