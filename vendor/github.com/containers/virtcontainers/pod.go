@@ -709,6 +709,27 @@ func fetchPod(podID string) (pod *Pod, err error) {
 	return pod, nil
 }
 
+// findContainer returns a container from the containers list held by the
+// pod structure, based on a container ID.
+func (p *Pod) findContainer(containerID string) (*Container, error) {
+	if p == nil {
+		return nil, errNeedPod
+	}
+
+	if containerID == "" {
+		return nil, errNeedContainerID
+	}
+
+	for _, c := range p.containers {
+		if containerID == c.id {
+			return c, nil
+		}
+	}
+
+	return nil, fmt.Errorf("Could not find the container %q from the pod %q containers list",
+		containerID, p.id)
+}
+
 // delete deletes an already created pod.
 // The VM in which the pod is running will be shut down.
 func (p *Pod) delete() error {

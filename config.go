@@ -98,7 +98,8 @@ type proxy struct {
 }
 
 type runtime struct {
-	Debug bool `toml:"enable_debug"`
+	Debug             bool   `toml:"enable_debug"`
+	InterNetworkModel string `toml:"internetworking_model"`
 }
 
 type shim struct {
@@ -388,6 +389,11 @@ func loadConfiguration(configPath string, ignoreLogging bool) (resolvedConfigPat
 		DisableNestingChecks:  defaultDisableNestingChecks,
 	}
 
+	err = config.InterNetworkModel.SetModel(defaultInterNetworkingModel)
+	if err != nil {
+		return "", config, err
+	}
+
 	defaultAgentConfig := vc.HyperConfig{}
 
 	config = oci.RuntimeConfig{
@@ -426,6 +432,12 @@ func loadConfiguration(configPath string, ignoreLogging bool) (resolvedConfigPat
 		// If debug is not required, switch back to the original
 		// default log priority, otherwise continue in debug mode.
 		ccLog.Logger.Level = originalLoggerLevel
+	}
+	if tomlConf.Runtime.InterNetworkModel != "" {
+		err = config.InterNetworkModel.SetModel(tomlConf.Runtime.InterNetworkModel)
+		if err != nil {
+			return "", config, err
+		}
 	}
 
 	if !ignoreLogging {

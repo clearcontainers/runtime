@@ -341,6 +341,11 @@ func CreateContainer(podID string, containerConfig ContainerConfig) (VCPod, VCCo
 		return nil, nil, err
 	}
 
+	// Add the container to the containers list in the pod.
+	if err := p.addContainer(c); err != nil {
+		return nil, nil, err
+	}
+
 	// Store it.
 	err = c.storeContainer()
 	if err != nil {
@@ -381,7 +386,7 @@ func DeleteContainer(podID, containerID string) (VCContainer, error) {
 	}
 
 	// Fetch the container.
-	c, err := fetchContainer(p, containerID)
+	c, err := p.findContainer(containerID)
 	if err != nil {
 		return nil, err
 	}
@@ -430,7 +435,7 @@ func StartContainer(podID, containerID string) (VCContainer, error) {
 	}
 
 	// Fetch the container.
-	c, err := fetchContainer(p, containerID)
+	c, err := p.findContainer(containerID)
 	if err != nil {
 		return nil, err
 	}
@@ -468,7 +473,7 @@ func StopContainer(podID, containerID string) (VCContainer, error) {
 	}
 
 	// Fetch the container.
-	c, err := fetchContainer(p, containerID)
+	c, err := p.findContainer(containerID)
 	if err != nil {
 		return nil, err
 	}
@@ -506,7 +511,7 @@ func EnterContainer(podID, containerID string, cmd Cmd) (VCPod, VCContainer, *Pr
 	}
 
 	// Fetch the container.
-	c, err := fetchContainer(p, containerID)
+	c, err := p.findContainer(containerID)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -563,7 +568,8 @@ func statusContainer(pod *Pod, containerID string) (ContainerStatus, error) {
 			// We have to check for the process state to make sure
 			// we update the status in case the process is supposed
 			// to be running but has been killed or terminated.
-			if (container.state.State == StateRunning ||
+			if (container.state.State == StateReady ||
+				container.state.State == StateRunning ||
 				container.state.State == StatePaused) &&
 				container.process.Pid > 0 {
 
@@ -628,7 +634,7 @@ func KillContainer(podID, containerID string, signal syscall.Signal, all bool) e
 	}
 
 	// Fetch the container.
-	c, err := fetchContainer(p, containerID)
+	c, err := p.findContainer(containerID)
 	if err != nil {
 		return err
 	}
@@ -677,7 +683,7 @@ func ProcessListContainer(podID, containerID string, options ProcessListOptions)
 	}
 
 	// Fetch the container.
-	c, err := fetchContainer(p, containerID)
+	c, err := p.findContainer(containerID)
 	if err != nil {
 		return nil, err
 	}

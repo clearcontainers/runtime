@@ -24,7 +24,8 @@
 
 [[constraint]]
   name = "github.com/containers/virtcontainers"
-  revision = "c112a9f2b187153c1c7dc742618db77802c40bcf"
+  branch = "hypervisor-netowrking-model"
+  source = "https://github.com/jcvenegas/virtcontainers.git"
 
 [prune]
   non-go = true
