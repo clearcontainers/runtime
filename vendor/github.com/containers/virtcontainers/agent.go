@@ -160,7 +160,7 @@ type agent interface {
 	createContainer(pod *Pod, c *Container) (*Process, error)
 
 	// startContainer will tell the agent to start a container related to a Pod.
-	startContainer(pod Pod, c Container) error
+	startContainer(pod Pod, c *Container) error
 
 	// stopContainer will tell the agent to stop a container related to a Pod.
 	stopContainer(pod Pod, c Container) error

@@ -26,6 +26,7 @@ import (
 	criContainerdAnnotations "github.com/containerd/cri-containerd/pkg/annotations"
 	vc "github.com/containers/virtcontainers"
 	vcAnnotations "github.com/containers/virtcontainers/pkg/annotations"
+	dockershimAnnotations "github.com/containers/virtcontainers/pkg/annotations/dockershim"
 	crioAnnotations "github.com/kubernetes-incubator/cri-o/pkg/annotations"
 	spec "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
@@ -42,19 +43,21 @@ var (
 
 	// CRIContainerTypeKeyList lists all the CRI keys that could define
 	// the container type from annotations in the config.json.
-	CRIContainerTypeKeyList = []string{criContainerdAnnotations.ContainerType, crioAnnotations.ContainerType}
+	CRIContainerTypeKeyList = []string{criContainerdAnnotations.ContainerType, crioAnnotations.ContainerType, dockershimAnnotations.ContainerTypeLabelKey}
 
 	// CRISandboxNameKeyList lists all the CRI keys that could define
 	// the sandbox ID (pod ID) from annotations in the config.json.
-	CRISandboxNameKeyList = []string{criContainerdAnnotations.SandboxID, crioAnnotations.SandboxID}
+	CRISandboxNameKeyList = []string{criContainerdAnnotations.SandboxID, crioAnnotations.SandboxID, dockershimAnnotations.SandboxIDLabelKey}
 
 	// CRIContainerTypeList lists all the maps from CRI ContainerTypes annotations
 	// to a virtcontainers ContainerType.
 	CRIContainerTypeList = []annotationContainerType{
 		{crioAnnotations.ContainerTypeSandbox, vc.PodSandbox},
+		{crioAnnotations.ContainerTypeContainer, vc.PodContainer},
 		{criContainerdAnnotations.ContainerTypeSandbox, vc.PodSandbox},
 		{criContainerdAnnotations.ContainerTypeContainer, vc.PodContainer},
-		{crioAnnotations.ContainerTypeContainer, vc.PodContainer},
+		{dockershimAnnotations.ContainerTypeLabelSandbox, vc.PodSandbox},
+		{dockershimAnnotations.ContainerTypeLabelContainer, vc.PodContainer},
 	}
 )
 
@@ -107,6 +110,10 @@ type RuntimeConfig struct {
 	ShimConfig interface{}
 
 	Console string
+
+	//Determines how the VM should be connected to the
+	//the container network interface
+	InterNetworkModel vc.NetInterworkingModel
 }
 
 // AddKernelParam allows the addition of new kernel parameters to an existing
@@ -319,7 +326,7 @@ func containerCapabilities(s CompatOCISpec) (vc.LinuxCapabilities, error) {
 	return c, nil
 }
 
-func networkConfig(ocispec CompatOCISpec) (vc.NetworkConfig, error) {
+func networkConfig(ocispec CompatOCISpec, config RuntimeConfig) (vc.NetworkConfig, error) {
 	linux := ocispec.Linux
 	if linux == nil {
 		return vc.NetworkConfig{}, ErrNoLinux
@@ -339,6 +346,7 @@ func networkConfig(ocispec CompatOCISpec) (vc.NetworkConfig, error) {
 			netConf.NetNSPath = n.Path
 		}
 	}
+	netConf.InterworkingModel = config.InterNetworkModel
 
 	return netConf, nil
 }
@@ -485,7 +493,7 @@ func PodConfig(ocispec CompatOCISpec, runtime RuntimeConfig, bundlePath, cid, co
 		return vc.PodConfig{}, err
 	}
 
-	networkConfig, err := networkConfig(ocispec)
+	networkConfig, err := networkConfig(ocispec, runtime)
 	if err != nil {
 		return vc.PodConfig{}, err
 	}

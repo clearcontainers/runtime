@@ -167,7 +167,12 @@ func (k *kataAgent) agentURL() (string, error) {
 }
 
 func (k *kataAgent) capabilities() capabilities {
-	return capabilities{}
+	var caps capabilities
+
+	// add all capabilities supported by agent
+	caps.setBlockDeviceSupport()
+
+	return caps
 }
 
 func (k *kataAgent) createPod(pod *Pod) error {
@@ -381,7 +386,7 @@ func appendStorageFromMounts(storage []*grpc.Storage, mounts []*Mount) []*grpc.S
 	return storage
 }
 
-func (k *kataAgent) replaceOCIMountSource(spec *specs.Spec, guestMounts []*Mount) error {
+func (k *kataAgent) replaceOCIMountSource(spec *specs.Spec, guestMounts []Mount) error {
 	ociMounts := spec.Mounts
 
 	for index, m := range ociMounts {
@@ -487,7 +492,7 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) (*Process, error) {
 	}
 
 	// Handle container mounts
-	newMounts, err := bindMountContainerMounts(kataHostSharedDir, kataGuestSharedDir, pod.id, c.id, c.mounts)
+	newMounts, err := c.mountSharedDirMounts(kataHostSharedDir, kataGuestSharedDir)
 	if err != nil {
 		bindUnmountAllRootfs(kataHostSharedDir, *pod)
 		return nil, err
@@ -541,7 +546,7 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) (*Process, error) {
 	return prepareAndStartShim(pod, k.shim, c.id, req.ExecId, k.state.URL, c.config.Cmd)
 }
 
-func (k *kataAgent) startContainer(pod Pod, c Container) error {
+func (k *kataAgent) startContainer(pod Pod, c *Container) error {
 	req := &grpc.StartContainerRequest{
 		ContainerId: c.id,
 	}
@@ -559,7 +564,7 @@ func (k *kataAgent) stopContainer(pod Pod, c Container) error {
 		return err
 	}
 
-	if err := bindUnmountContainerMounts(c.mounts); err != nil {
+	if err := c.unmountHostMounts(); err != nil {
 		return err
 	}
 

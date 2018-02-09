@@ -7,12 +7,30 @@
   revision = "a368813c5e648fee92e5f6c30e3944ff9d5e8895"
 
 [[projects]]
+  name = "github.com/Sirupsen/logrus"
+  packages = ["."]
+  revision = "d682213848ed68c0a260ca37d6dd5ace8423f5ba"
+  version = "v1.0.4"
+
+[[projects]]
   name = "github.com/clearcontainers/proxy"
   packages = [
     "api",
     "client"
   ]
   revision = "1d2a6a3ea132a86abd0731408b7dc34f2fc17d55"
+
+[[projects]]
+  name = "github.com/clearcontainers/shim"
+  packages = ["mock"]
+  revision = "ab14648926c47d7ebb02e0adba3e95ffbd20765e"
+  version = "3.0.0-beta.1"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/clearcontainers/tests"
+  packages = ["."]
+  revision = "37534f742d5f0c3d558bbd119d1617ad02bbc16d"
 
 [[projects]]
   branch = "master"
@@ -38,18 +56,22 @@
   revision = "7f98c94613021d8b57acfa1a2f0c8d0f6fd7ae5a"
 
 [[projects]]
+  branch = "hypervisor-netowrking-model"
   name = "github.com/containers/virtcontainers"
   packages = [
     ".",
     "pkg/annotations",
+    "pkg/annotations/dockershim",
     "pkg/cni",
     "pkg/ethtool",
     "pkg/hyperstart",
+    "pkg/hyperstart/mock",
     "pkg/oci",
     "pkg/uuid",
     "pkg/vcMock"
   ]
-  revision = "c112a9f2b187153c1c7dc742618db77802c40bcf"
+  revision = "70f19a91deab31ae0c44c4a8c0a7f39a44a09d11"
+  source = "https://github.com/jcvenegas/virtcontainers.git"
 
 [[projects]]
   name = "github.com/davecgh/go-spew"
@@ -91,6 +113,18 @@
   revision = "1e59b77b52bf8e4b449a57e6f79f21226d571845"
 
 [[projects]]
+  name = "github.com/google/go-github"
+  packages = ["github"]
+  revision = "e48060a28fac52d0f1cb758bc8b87c07bac4a87d"
+  version = "v15.0.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/google/go-querystring"
+  packages = ["query"]
+  revision = "53e6ce116135b80d037921a7fdd5138cf32d7a8a"
+
+[[projects]]
   name = "github.com/intel/govmm"
   packages = ["qemu"]
   revision = "9250e77eda726cbc468985582ce6de932c868bec"
@@ -109,6 +143,12 @@
   revision = "3394b3b2d6af0e41d185bb695c6378be5dd4d61d"
 
 [[projects]]
+  name = "github.com/mattn/go-runewidth"
+  packages = ["."]
+  revision = "9e777a8366cce605130a531d2cd6363d07ad7317"
+  version = "v0.0.2"
+
+[[projects]]
   name = "github.com/mdlayher/vsock"
   packages = ["."]
   revision = "738c88d6e4cfd60e8124a5344fa10d205fd828b9"
@@ -117,6 +157,63 @@
   name = "github.com/mitchellh/mapstructure"
   packages = ["."]
   revision = "d0303fe809921458f417bcf828397a65db30a7e4"
+
+[[projects]]
+  name = "github.com/montanaflynn/stats"
+  packages = ["."]
+  revision = "eeaced052adbcfeea372c749c281099ed7fdaa38"
+  version = "0.2.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/olekukonko/tablewriter"
+  packages = ["."]
+  revision = "b8a9be070da40449e501c3c4730a889e42d87a9e"
+
+[[projects]]
+  name = "github.com/onsi/ginkgo"
+  packages = [
+    ".",
+    "config",
+    "extensions/table",
+    "internal/codelocation",
+    "internal/containernode",
+    "internal/failer",
+    "internal/leafnodes",
+    "internal/remote",
+    "internal/spec",
+    "internal/spec_iterator",
+    "internal/specrunner",
+    "internal/suite",
+    "internal/testingtproxy",
+    "internal/writer",
+    "reporters",
+    "reporters/stenographer",
+    "reporters/stenographer/support/go-colorable",
+    "reporters/stenographer/support/go-isatty",
+    "types"
+  ]
+  revision = "9eda700730cba42af70d53180f9dcce9266bc2bc"
+  version = "v1.4.0"
+
+[[projects]]
+  name = "github.com/onsi/gomega"
+  packages = [
+    ".",
+    "format",
+    "internal/assertion",
+    "internal/asyncassertion",
+    "internal/oraclematcher",
+    "internal/testingtsupport",
+    "matchers",
+    "matchers/support/goraph/bipartitegraph",
+    "matchers/support/goraph/edge",
+    "matchers/support/goraph/node",
+    "matchers/support/goraph/util",
+    "types"
+  ]
+  revision = "003f63b7f4cff3fc95357005358af2de0f5fe152"
+  version = "v1.3.0"
 
 [[projects]]
   name = "github.com/opencontainers/runc"
@@ -129,6 +226,12 @@
   revision = "4e3b9264a330d094b0386c3703c5f379119711e8"
 
 [[projects]]
+  name = "github.com/opencontainers/specs"
+  packages = ["specs-go"]
+  revision = "4e3b9264a330d094b0386c3703c5f379119711e8"
+  version = "v1.0.1"
+
+[[projects]]
   name = "github.com/pmezard/go-difflib"
   packages = ["difflib"]
   revision = "792786c7400a136282c1664665ae0a8db921c6c2"
@@ -138,7 +241,8 @@
   name = "github.com/sirupsen/logrus"
   packages = [
     ".",
-    "hooks/syslog"
+    "hooks/syslog",
+    "hooks/test"
   ]
   revision = "89742aefa4b206dcf400792f3bd35b542998eb3b"
 
@@ -174,6 +278,10 @@
   name = "golang.org/x/net"
   packages = [
     "context",
+    "context/ctxhttp",
+    "html",
+    "html/atom",
+    "html/charset",
     "http2",
     "http2/hpack",
     "idna",
@@ -182,6 +290,15 @@
     "trace"
   ]
   revision = "a8b9294777976932365dabb6640cf1468d95c70f"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/oauth2"
+  packages = [
+    ".",
+    "internal"
+  ]
+  revision = "543e37812f10c46c622c9575afd7ad22f22a12ba"
 
 [[projects]]
   name = "golang.org/x/sys"
@@ -197,12 +314,24 @@
   packages = [
     "collate",
     "collate/build",
+    "encoding",
+    "encoding/charmap",
+    "encoding/htmlindex",
+    "encoding/internal",
+    "encoding/internal/identifier",
+    "encoding/japanese",
+    "encoding/korean",
+    "encoding/simplifiedchinese",
+    "encoding/traditionalchinese",
+    "encoding/unicode",
     "internal/colltab",
     "internal/gen",
     "internal/tag",
     "internal/triegen",
     "internal/ucd",
+    "internal/utf8internal",
     "language",
+    "runes",
     "secure/bidirule",
     "transform",
     "unicode/bidi",
@@ -211,6 +340,20 @@
     "unicode/rangetable"
   ]
   revision = "e19ae1496984b1c655b8044a65c0300a3c878dd3"
+
+[[projects]]
+  name = "google.golang.org/appengine"
+  packages = [
+    "internal",
+    "internal/base",
+    "internal/datastore",
+    "internal/log",
+    "internal/remote_api",
+    "internal/urlfetch",
+    "urlfetch"
+  ]
+  revision = "150dc57a1b433e64154302bdc40b6bb8aefa313a"
+  version = "v1.0.0"
 
 [[projects]]
   branch = "master"
@@ -245,9 +388,15 @@
   ]
   revision = "5a9f7b402fe85096d2e1d0383435ee1876e863d0"
 
+[[projects]]
+  branch = "v2"
+  name = "gopkg.in/yaml.v2"
+  packages = ["."]
+  revision = "d670f9405373e636a5a2765eea47fac0c9bc91a4"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "540dedfa90a1b3d2180c14d8692f95021d474e7a3c3fe715d23a1c9acb3220b3"
+  inputs-digest = "e6b677d6bbf9e9e4cb0c34f7f103354de0f8e59a9f0b328a0c73536845ec0023"
   solver-name = "gps-cdcl"
   solver-version = 1

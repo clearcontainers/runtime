@@ -111,8 +111,8 @@ func (n *cni) invokePluginsDelete(pod Pod, networkNS NetworkNamespace) error {
 	return nil
 }
 
-func (n *cni) updateEndpointsFromScan(networkNS *NetworkNamespace, netInfo *NetworkInfo) error {
-	endpoints, err := createEndpointsFromScan(networkNS.NetNsPath)
+func (n *cni) updateEndpointsFromScan(networkNS *NetworkNamespace, netInfo *NetworkInfo, config NetworkConfig) error {
+	endpoints, err := createEndpointsFromScan(networkNS.NetNsPath, config)
 	if err != nil {
 		return err
 	}
@@ -153,7 +153,7 @@ func (n *cni) add(pod Pod, config NetworkConfig, netNsPath string, netNsCreated 
 		return NetworkNamespace{}, err
 	}
 
-	if err := n.updateEndpointsFromScan(&networkNS, netInfo); err != nil {
+	if err := n.updateEndpointsFromScan(&networkNS, netInfo, config); err != nil {
 		return NetworkNamespace{}, err
 	}
 

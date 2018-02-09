@@ -61,7 +61,7 @@ func (n *noopAgent) createContainer(pod *Pod, c *Container) (*Process, error) {
 }
 
 // startContainer is the Noop agent Container starting implementation. It does nothing.
-func (n *noopAgent) startContainer(pod Pod, c Container) error {
+func (n *noopAgent) startContainer(pod Pod, c *Container) error {
 	return nil
 }
 

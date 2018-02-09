@@ -107,7 +107,7 @@ var supportedQemuMachines = []govmmQemu.Machine{
 }
 
 const (
-	defaultSockets uint32 = 1
+	defaultCores   uint32 = 1
 	defaultThreads uint32 = 1
 )
 
@@ -354,9 +354,9 @@ func (q *qemu) appendSocket(devices []govmmQemu.Device, socket Socket) []govmmQe
 
 func networkModelToQemuType(model NetInterworkingModel) govmmQemu.NetDeviceType {
 	switch model {
-	case ModelBridged:
+	case NetXConnectBridgedModel:
 		return govmmQemu.MACVTAP //TODO: We should rename MACVTAP to .NET_FD
-	case ModelMacVtap:
+	case NetXConnectMacVtapModel:
 		return govmmQemu.MACVTAP
 	//case ModelEnlightened:
 	// Here the Network plugin will create a VM native interface
@@ -581,10 +581,11 @@ func (q *qemu) setCPUResources(podConfig PodConfig) govmmQemu.SMP {
 		vcpus = uint32(podConfig.VMConfig.VCPUs)
 	}
 
+	// Network IO shows better performance with 1 CPU 1 Socket
 	smp := govmmQemu.SMP{
 		CPUs:    vcpus,
-		Cores:   vcpus,
-		Sockets: defaultSockets,
+		Sockets: vcpus,
+		Cores:   defaultCores,
 		Threads: defaultThreads,
 	}
 
