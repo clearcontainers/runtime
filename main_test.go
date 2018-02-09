@@ -53,12 +53,6 @@ const (
 	testPodID       = "99999999-9999-9999-99999999999999999"
 	testContainerID = "1"
 	testBundle      = "bundle"
-	testKernel      = "kernel"
-	testImage       = "image"
-	testHypervisor  = "hypervisor"
-
-	MockHypervisor vc.HypervisorType = "mock"
-	NoopAgentType  vc.AgentType      = "noop"
 )
 
 var (
@@ -138,16 +132,6 @@ func init() {
 	}
 }
 
-var testPodAnnotations = map[string]string{
-	"pod.foo":   "pod.bar",
-	"pod.hello": "pod.world",
-}
-
-var testContainerAnnotations = map[string]string{
-	"container.foo":   "container.bar",
-	"container.hello": "container.world",
-}
-
 // resetCLIGlobals undoes the effects of setCLIGlobals(), restoring the original values
 func resetCLIGlobals() {
 	cli.AppHelpTemplate = savedCLIAppHelpTemplate
@@ -222,64 +206,6 @@ func grep(pattern, file string) error {
 	}
 
 	return nil
-}
-
-// newTestCmd creates a new virtcontainers Cmd to run a shell
-func newTestCmd() vc.Cmd {
-	envs := []vc.EnvVar{
-		{
-			Var:   "PATH",
-			Value: "/bin:/usr/bin:/sbin:/usr/sbin",
-		},
-	}
-
-	cmd := vc.Cmd{
-		Args:    strings.Split("/bin/sh", " "),
-		Envs:    envs,
-		WorkDir: "/",
-	}
-
-	return cmd
-}
-
-// newTestContainerConfig returns a new ContainerConfig
-func newTestContainerConfig(dir string) vc.ContainerConfig {
-	return vc.ContainerConfig{
-		ID:          testContainerID,
-		RootFs:      filepath.Join(dir, testBundle),
-		Cmd:         newTestCmd(),
-		Annotations: testContainerAnnotations,
-	}
-}
-
-// newTestPodConfigNoop creates a new virtcontainers PodConfig
-// (of the most basic type). If create is true, create the required
-// resources.
-//
-// Note: no parameter validation in case caller wishes to create an invalid
-// object.
-func newTestPodConfigNoop(dir string, create bool) (vc.PodConfig, error) {
-	// Sets the hypervisor configuration.
-	hypervisorConfig, err := newTestHypervisorConfig(dir, create)
-	if err != nil {
-		return vc.PodConfig{}, err
-	}
-
-	container := newTestContainerConfig(dir)
-
-	podConfig := vc.PodConfig{
-		ID:               testPodID,
-		HypervisorType:   MockHypervisor,
-		HypervisorConfig: hypervisorConfig,
-
-		AgentType: NoopAgentType,
-
-		Containers: []vc.ContainerConfig{container},
-
-		Annotations: testPodAnnotations,
-	}
-
-	return podConfig, nil
 }
 
 // newTestHypervisorConfig creaets a new virtcontainers
