@@ -352,15 +352,6 @@ func newBlockDevice(devInfo DeviceInfo) *BlockDevice {
 }
 
 func (device *BlockDevice) attach(h hypervisor, c *Container) (err error) {
-	// If VM has not been launched yet, return immediately.
-	// This is because we always want to hotplug block devices.
-	// Eventually attachDevices will be called only after VM is launched,
-	// and this check can be taken out.
-	// See https://github.com/containers/virtcontainers/issues/444
-	if c.state.State == "" {
-		return nil
-	}
-
 	randBytes, err := generateRandomBytes(8)
 	if err != nil {
 		return err

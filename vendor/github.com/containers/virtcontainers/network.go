@@ -43,27 +43,57 @@ import (
 type NetInterworkingModel int
 
 const (
-	// ModelBridged uses a linux bridge to interconnect
+	// NetXConnectDefaultModel Ask to use DefaultNetInterworkingModel
+	NetXConnectDefaultModel NetInterworkingModel = iota
+
+	// NetXConnectBridgedModel uses a linux bridge to interconnect
 	// the container interface to the VM. This is the
 	// safe default that works for most cases except
 	// macvlan and ipvlan
-	ModelBridged NetInterworkingModel = iota
+	NetXConnectBridgedModel
 
-	// ModelMacVtap can be used when the Container network
+	// NetXConnectMacVtapModel can be used when the Container network
 	// interface can be bridged using macvtap
-	ModelMacVtap
+	NetXConnectMacVtapModel
 
-	// ModelEnlightened can be used when the Network plugins
+	// NetXConnectEnlightenedModel can be used when the Network plugins
 	// are enlightened to create VM native interfaces
 	// when requested by the runtime
 	// This will be used for vethtap, macvtap, ipvtap
-	ModelEnlightened
+	NetXConnectEnlightenedModel
+
+	// NetXConnectInvalidModel is the last item to check valid values by IsValid()
+	NetXConnectInvalidModel
 )
+
+//IsValid checks if a model is valid
+func (n NetInterworkingModel) IsValid() bool {
+	return 0 <= int(n) && int(n) < int(NetXConnectInvalidModel)
+}
+
+//SetModel change the model string value
+func (n *NetInterworkingModel) SetModel(modelName string) error {
+	switch modelName {
+	case "default":
+		*n = DefaultNetInterworkingModel
+		return nil
+	case "bridged":
+		*n = NetXConnectBridgedModel
+		return nil
+	case "macvtap":
+		*n = NetXConnectMacVtapModel
+		return nil
+	case "enlightened":
+		*n = NetXConnectEnlightenedModel
+		return nil
+	}
+	return fmt.Errorf("Unknown type %s", modelName)
+}
 
 // DefaultNetInterworkingModel is a package level default
 // that determines how the VM should be connected to the
 // the container network interface
-var DefaultNetInterworkingModel = ModelMacVtap
+var DefaultNetInterworkingModel = NetXConnectMacVtapModel
 
 // Introduces constants related to networking
 const (
@@ -117,8 +147,9 @@ type NetworkInterfacePair struct {
 
 // NetworkConfig is the network configuration related to a network.
 type NetworkConfig struct {
-	NetNSPath     string
-	NumInterfaces int
+	NetNSPath         string
+	NumInterfaces     int
+	InterworkingModel NetInterworkingModel
 }
 
 // Endpoint represents a physical or virtual network interface.
@@ -544,6 +575,10 @@ func newNetwork(networkType NetworkModel) network {
 }
 
 func initNetworkCommon(config NetworkConfig) (string, bool, error) {
+	if !config.InterworkingModel.IsValid() || config.InterworkingModel == NetXConnectDefaultModel {
+		config.InterworkingModel = DefaultNetInterworkingModel
+	}
+
 	if config.NetNSPath == "" {
 		path, err := createNetNS()
 		if err != nil {
@@ -674,23 +709,26 @@ func getLinkByName(netHandle *netlink.Handle, name string, expectedLink netlink.
 
 // The endpoint type should dictate how the connection needs to be made
 func xconnectVMNetwork(netPair *NetworkInterfacePair, connect bool) error {
-	switch DefaultNetInterworkingModel {
-	case ModelBridged:
-		netPair.NetInterworkingModel = ModelBridged
+	if netPair.NetInterworkingModel == NetXConnectDefaultModel {
+		netPair.NetInterworkingModel = DefaultNetInterworkingModel
+	}
+	switch netPair.NetInterworkingModel {
+	case NetXConnectBridgedModel:
+		netPair.NetInterworkingModel = NetXConnectBridgedModel
 		if connect {
 			return bridgeNetworkPair(netPair)
 		}
 		return unBridgeNetworkPair(*netPair)
-	case ModelMacVtap:
-		netPair.NetInterworkingModel = ModelMacVtap
+	case NetXConnectMacVtapModel:
+		netPair.NetInterworkingModel = NetXConnectMacVtapModel
 		if connect {
 			return tapNetworkPair(netPair)
 		}
 		return untapNetworkPair(*netPair)
-	case ModelEnlightened:
+	case NetXConnectEnlightenedModel:
 		return fmt.Errorf("Unsupported networking model")
 	default:
-		return fmt.Errorf("Invalid networking model")
+		return fmt.Errorf("Invalid internetworking model")
 	}
 }
 
@@ -1103,7 +1141,7 @@ func deleteNetNS(netNSPath string, mounted bool) error {
 	return nil
 }
 
-func createVirtualNetworkEndpoint(idx int, ifName string) (*VirtualEndpoint, error) {
+func createVirtualNetworkEndpoint(idx int, ifName string, interworkingModel NetInterworkingModel) (*VirtualEndpoint, error) {
 	if idx < 0 {
 		return &VirtualEndpoint{}, fmt.Errorf("invalid network endpoint index: %d", idx)
 	}
@@ -1126,6 +1164,7 @@ func createVirtualNetworkEndpoint(idx int, ifName string) (*VirtualEndpoint, err
 			TAPIface: NetworkInterface{
 				Name: fmt.Sprintf("tap%d", idx),
 			},
+			NetInterworkingModel: interworkingModel,
 		},
 		EndpointType: VirtualEndpointType,
 	}
@@ -1135,22 +1174,6 @@ func createVirtualNetworkEndpoint(idx int, ifName string) (*VirtualEndpoint, err
 	}
 
 	return endpoint, nil
-}
-
-func createNetworkEndpoints(numOfEndpoints int) (endpoints []Endpoint, err error) {
-	if numOfEndpoints < 1 {
-		return endpoints, fmt.Errorf("Invalid number of network endpoints")
-	}
-
-	for i := 0; i < numOfEndpoints; i++ {
-		endpoint, err := createVirtualNetworkEndpoint(i, "")
-		if err != nil {
-			return nil, err
-		}
-		endpoints = append(endpoints, endpoint)
-	}
-
-	return endpoints, nil
 }
 
 func networkInfoFromLink(handle *netlink.Handle, link netlink.Link) (NetworkInfo, error) {
@@ -1174,7 +1197,7 @@ func networkInfoFromLink(handle *netlink.Handle, link netlink.Link) (NetworkInfo
 	}, nil
 }
 
-func createEndpointsFromScan(networkNSPath string) ([]Endpoint, error) {
+func createEndpointsFromScan(networkNSPath string, config NetworkConfig) ([]Endpoint, error) {
 	var endpoints []Endpoint
 
 	netnsHandle, err := netns.GetFromPath(networkNSPath)
@@ -1244,7 +1267,7 @@ func createEndpointsFromScan(networkNSPath string) ([]Endpoint, error) {
 					cnmLogger().WithField("interface", netInfo.Iface.Name).Info("VhostUser network interface found")
 					endpoint, err = createVhostUserEndpoint(netInfo, socketPath)
 				} else {
-					endpoint, err = createVirtualNetworkEndpoint(idx, netInfo.Iface.Name)
+					endpoint, err = createVirtualNetworkEndpoint(idx, netInfo.Iface.Name, config.InterworkingModel)
 				}
 			}
 

@@ -140,11 +140,7 @@ func signalShim(pid int, sig syscall.Signal) error {
 			"shim-signal": sig,
 		}).Info("Signalling shim")
 
-	if err := syscall.Kill(pid, sig); err != nil {
-		return err
-	}
-
-	return nil
+	return syscall.Kill(pid, sig)
 }
 
 func stopShim(pid int) error {

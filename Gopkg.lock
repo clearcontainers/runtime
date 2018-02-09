@@ -42,6 +42,7 @@
   packages = [
     ".",
     "pkg/annotations",
+    "pkg/annotations/dockershim",
     "pkg/cni",
     "pkg/ethtool",
     "pkg/hyperstart",
@@ -49,7 +50,7 @@
     "pkg/uuid",
     "pkg/vcMock"
   ]
-  revision = "c112a9f2b187153c1c7dc742618db77802c40bcf"
+  revision = "f8d2c11dcfd5c04e529e5900a195ee055734d5df"
 
 [[projects]]
   name = "github.com/davecgh/go-spew"
@@ -248,6 +249,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "540dedfa90a1b3d2180c14d8692f95021d474e7a3c3fe715d23a1c9acb3220b3"
+  inputs-digest = "83cd7507e92185659814c3490d7bba016df2add7cfcd901727a7d75eb6b17717"
   solver-name = "gps-cdcl"
   solver-version = 1

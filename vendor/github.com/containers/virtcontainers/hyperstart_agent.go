@@ -223,7 +223,7 @@ func (h *hyper) buildNetworkInterfacesAndRoutes(pod Pod) ([]hyperstart.NetworkIf
 	return ifaces, routes, nil
 }
 
-func fsMapFromMounts(mounts []*Mount) []*hyperstart.FsmapDescriptor {
+func fsMapFromMounts(mounts []Mount) []*hyperstart.FsmapDescriptor {
 	var fsmap []*hyperstart.FsmapDescriptor
 
 	for _, m := range mounts {
@@ -403,7 +403,7 @@ func (h *hyper) stopPod(pod Pod) error {
 	return h.proxy.stop(pod, h.state.ProxyPid)
 }
 
-func (h *hyper) startOneContainer(pod Pod, c Container) error {
+func (h *hyper) startOneContainer(pod Pod, c *Container) error {
 	process, err := h.buildHyperContainerProcess(c.config.Cmd)
 	if err != nil {
 		return err
@@ -437,7 +437,7 @@ func (h *hyper) startOneContainer(pod Pod, c Container) error {
 	//TODO : Enter mount namespace
 
 	// Handle container mounts
-	newMounts, err := bindMountContainerMounts(defaultSharedDir, "", pod.id, c.id, c.mounts)
+	newMounts, err := c.mountSharedDirMounts(defaultSharedDir, "")
 	if err != nil {
 		bindUnmountAllRootfs(defaultSharedDir, pod)
 		return err
@@ -487,12 +487,17 @@ func (h *hyper) createContainer(pod *Pod, c *Container) (*Process, error) {
 }
 
 // startContainer is the agent Container starting implementation for hyperstart.
-func (h *hyper) startContainer(pod Pod, c Container) error {
+func (h *hyper) startContainer(pod Pod, c *Container) error {
 	return h.startOneContainer(pod, c)
 }
 
 // stopContainer is the agent Container stopping implementation for hyperstart.
 func (h *hyper) stopContainer(pod Pod, c Container) error {
+	// Nothing to be done in case the container has not been started.
+	if c.state.State == StateReady {
+		return nil
+	}
+
 	return h.stopOneContainer(pod.id, c)
 }
 
@@ -510,7 +515,7 @@ func (h *hyper) stopOneContainer(podID string, c Container) error {
 		return err
 	}
 
-	if err := bindUnmountContainerMounts(c.mounts); err != nil {
+	if err := c.unmountHostMounts(); err != nil {
 		return err
 	}
 
@@ -525,6 +530,12 @@ func (h *hyper) stopOneContainer(podID string, c Container) error {
 
 // killContainer is the agent process signal implementation for hyperstart.
 func (h *hyper) killContainer(pod Pod, c Container, signal syscall.Signal, all bool) error {
+	// Send the signal to the shim directly in case the container has not
+	// been started yet.
+	if c.state.State == StateReady {
+		return signalShim(c.process.Pid, signal)
+	}
+
 	return h.killOneContainer(c.id, signal, all)
 }
 
