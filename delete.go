@@ -18,6 +18,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"syscall"
 
 	vc "github.com/containers/virtcontainers"
 	"github.com/containers/virtcontainers/pkg/oci"
@@ -80,22 +81,29 @@ func delete(containerID string, force bool) error {
 		return err
 	}
 
-	forceStop := false
 	if oci.StateToOCIState(status.State) == oci.StateRunning {
 		if !force {
 			return fmt.Errorf("Container still running, should be stopped")
 		}
 
-		forceStop = true
+		if err := vci.KillContainer(podID, containerID, syscall.SIGKILL, false); err != nil {
+			return err
+		}
 	}
 
 	switch containerType {
 	case vc.PodSandbox:
-		if err := deletePod(podID); err != nil {
+		if _, err := vci.StopPod(podID); err != nil {
+			return err
+		}
+		if _, err := vci.DeletePod(podID); err != nil {
 			return err
 		}
 	case vc.PodContainer:
-		if err := deleteContainer(podID, containerID, forceStop); err != nil {
+		if _, err := vci.StopContainer(podID, containerID); err != nil {
+			return err
+		}
+		if _, err := vci.DeleteContainer(podID, containerID); err != nil {
 			return err
 		}
 	default:
@@ -111,32 +119,6 @@ func delete(containerID string, force bool) error {
 	}
 
 	return removeCgroupsPath(containerID, cgroupsPathList)
-}
-
-func deletePod(podID string) error {
-	if _, err := vci.StopPod(podID); err != nil {
-		return err
-	}
-
-	if _, err := vci.DeletePod(podID); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func deleteContainer(podID, containerID string, forceStop bool) error {
-	if forceStop {
-		if _, err := vci.StopContainer(podID, containerID); err != nil {
-			return err
-		}
-	}
-
-	if _, err := vci.DeleteContainer(podID, containerID); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func removeCgroupsPath(containerID string, cgroupsPathList []string) error {

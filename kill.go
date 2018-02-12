@@ -21,6 +21,7 @@ import (
 	"syscall"
 
 	vc "github.com/containers/virtcontainers"
+	"github.com/containers/virtcontainers/pkg/oci"
 	"github.com/urfave/cli"
 )
 
@@ -106,6 +107,11 @@ func kill(containerID, signal string, all bool) error {
 
 	containerID = status.ID
 
+	containerType, err := oci.GetContainerType(status.Annotations)
+	if err != nil {
+		return err
+	}
+
 	signum, err := processSignal(signal)
 	if err != nil {
 		return err
@@ -116,7 +122,36 @@ func kill(containerID, signal string, all bool) error {
 		return fmt.Errorf("Container %s not ready or running, cannot send a signal", containerID)
 	}
 
-	return vci.KillContainer(podID, containerID, signum, all)
+	// If the signal is not a termination or killing signal, we actually
+	// don't expect the container to be terminated, meaning we don't need
+	// to cleanup the container by calling into StopContainer() or
+	// StopPod().
+	if signum != syscall.SIGTERM && signum != syscall.SIGKILL {
+		return vci.KillContainer(podID, containerID, signum, all)
+	}
+
+	return stop(podID, containerID, signum, all, containerType)
+}
+
+func stop(podID, containerID string, signum syscall.Signal, all bool, containerType vc.ContainerType) error {
+	if err := vci.KillContainer(podID, containerID, signum, all); err != nil {
+		return err
+	}
+
+	switch containerType {
+	case vc.PodSandbox:
+		if _, err := vci.StopPod(podID); err != nil {
+			return err
+		}
+	case vc.PodContainer:
+		if _, err := vci.StopContainer(podID, containerID); err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("Invalid container type found")
+	}
+
+	return nil
 }
 
 func processSignal(signal string) (syscall.Signal, error) {
