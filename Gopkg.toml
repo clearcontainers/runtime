@@ -24,7 +24,7 @@
 
 [[constraint]]
   name = "github.com/containers/virtcontainers"
-  revision = "c112a9f2b187153c1c7dc742618db77802c40bcf"
+  revision = "f8d2c11dcfd5c04e529e5900a195ee055734d5df"
 
 [prune]
   non-go = true

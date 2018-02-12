@@ -41,7 +41,7 @@ func (n *cnm) run(networkNSPath string, cb func() error) error {
 
 // add adds all needed interfaces inside the network namespace for the CNM network.
 func (n *cnm) add(pod Pod, config NetworkConfig, netNsPath string, netNsCreated bool) (NetworkNamespace, error) {
-	endpoints, err := createEndpointsFromScan(netNsPath)
+	endpoints, err := createEndpointsFromScan(netNsPath, config)
 	if err != nil {
 		return NetworkNamespace{}, err
 	}

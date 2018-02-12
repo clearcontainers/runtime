@@ -200,6 +200,8 @@ DEFVCPUS := 1
 DEFMEMSZ := 2048
 #Default number of bridges
 DEFBRIDGES := 1
+#Default network model
+DEFNETWORKMODEL := macvtap
 
 DEFDISABLEBLOCK := false
 DEFENABLEMEMPREALLOC := false
@@ -287,6 +289,7 @@ USER_VARS += SYSCONFDIR
 USER_VARS += DEFVCPUS
 USER_VARS += DEFMEMSZ
 USER_VARS += DEFBRIDGES
+USER_VARS += DEFNETWORKMODEL
 USER_VARS += DEFDISABLEBLOCK
 USER_VARS += DEFENABLEMEMPREALLOC
 USER_VARS += DEFENABLEHUGEPAGES
@@ -389,6 +392,7 @@ const defaultRuntimeRun = "$(PKGRUNDIR)"
 const defaultVCPUCount uint32 = $(DEFVCPUS)
 const defaultMemSize uint32 = $(DEFMEMSZ) // MiB
 const defaultBridgesCount uint32 = $(DEFBRIDGES)
+const defaultInterNetworkingModel = "$(DEFNETWORKMODEL)"
 const defaultDisableBlockDeviceUse bool = $(DEFDISABLEBLOCK)
 const defaultEnableMemPrealloc bool = $(DEFENABLEMEMPREALLOC)
 const defaultEnableHugePages bool = $(DEFENABLEHUGEPAGES)
@@ -475,6 +479,7 @@ $(GENERATED_FILES): %: %.in Makefile VERSION
 		-e "s|@DEFVCPUS@|$(DEFVCPUS)|g" \
 		-e "s|@DEFMEMSZ@|$(DEFMEMSZ)|g" \
 		-e "s|@DEFBRIDGES@|$(DEFBRIDGES)|g" \
+		-e "s|@DEFNETWORKMODEL@|$(DEFNETWORKMODEL)|g" \
 		-e "s|@DEFDISABLEBLOCK@|$(DEFDISABLEBLOCK)|g" \
 		-e "s|@DEFENABLEMEMPREALLOC@|$(DEFENABLEMEMPREALLOC)|g" \
 		-e "s|@DEFENABLEHUGEPAGES@|$(DEFENABLEHUGEPAGES)|g" \
