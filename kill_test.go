@@ -21,12 +21,17 @@ import (
 	"testing"
 
 	vc "github.com/containers/virtcontainers"
+	"github.com/containers/virtcontainers/pkg/vcMock"
 	"github.com/stretchr/testify/assert"
 )
 
 var (
 	testKillContainerFuncReturnNil = func(podID, containerID string, signal syscall.Signal, all bool) error {
 		return nil
+	}
+
+	testStopContainerFuncReturnNil = func(podID, containerID string) (vc.VCContainer, error) {
+		return &vcMock.Container{}, nil
 	}
 )
 
@@ -58,7 +63,38 @@ func TestProcessSignal(t *testing.T) {
 	}
 }
 
-func TestKillCLIFunctionSuccessful(t *testing.T) {
+func testKillCLIFunctionTerminationSignalSuccessful(t *testing.T, sig string) {
+	assert := assert.New(t)
+
+	state := vc.State{
+		State: vc.StateRunning,
+	}
+
+	testingImpl.KillContainerFunc = testKillContainerFuncReturnNil
+	testingImpl.StopContainerFunc = testStopContainerFuncReturnNil
+	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
+		return newSingleContainerPodStatusList(testPodID, testContainerID, state, state, map[string]string{}), nil
+	}
+	defer func() {
+		testingImpl.KillContainerFunc = nil
+		testingImpl.ListPodFunc = nil
+	}()
+
+	set := flag.NewFlagSet("", 0)
+	set.Parse([]string{testContainerID, sig})
+
+	execCLICommandFunc(assert, killCLICommand, set, false)
+}
+
+func TestKillCLIFunctionSigkillSuccessful(t *testing.T) {
+	testKillCLIFunctionTerminationSignalSuccessful(t, "SIGKILL")
+}
+
+func TestKillCLIFunctionSigtermSuccessful(t *testing.T) {
+	testKillCLIFunctionTerminationSignalSuccessful(t, "SIGTERM")
+}
+
+func TestKillCLIFunctionNotTerminationSignalSuccessful(t *testing.T) {
 	assert := assert.New(t)
 
 	state := vc.State{
@@ -75,7 +111,7 @@ func TestKillCLIFunctionSuccessful(t *testing.T) {
 	}()
 
 	set := flag.NewFlagSet("", 0)
-	set.Parse([]string{testContainerID, "SIGKILL"})
+	set.Parse([]string{testContainerID, "SIGUSR1"})
 
 	execCLICommandFunc(assert, killCLICommand, set, false)
 }
