@@ -79,6 +79,7 @@ type hypervisor struct {
 	Image                 string `toml:"image"`
 	Firmware              string `toml:"firmware"`
 	MachineAccelerators   string `toml:"machine_accelerators"`
+	MachineOptions	      string `toml:"machine_options"`
 	KernelParams          string `toml:"kernel_params"`
 	MachineType           string `toml:"machine_type"`
 	DefaultVCPUs          int32  `toml:"default_vcpus"`
@@ -167,6 +168,22 @@ func (h hypervisor) machineAccelerators() string {
 
 	return machineAccelerators
 }
+
+func (h hypervisor) machineOptions() string {
+	var machineOptions string
+	options := strings.Split(h.MachineOptions, ",")
+	optionsLen := len(options)
+	for i := 0; i < optionsLen; i++ {
+		if options[i] != "" {
+			machineOptions += strings.Trim(options[i], "\r\t\n ") + ","
+		}
+	}
+
+	machineOptions = strings.Trim(machineOptions, ",")
+
+	return machineOptions
+}
+
 
 func (h hypervisor) kernelParams() string {
 	if h.KernelParams == "" {
@@ -266,6 +283,7 @@ func newQemuHypervisorConfig(h hypervisor) (vc.HypervisorConfig, error) {
 	}
 
 	machineAccelerators := h.machineAccelerators()
+	machineOptions := h.machineOptions()
 	kernelParams := h.kernelParams()
 	machineType := h.machineType()
 
@@ -275,6 +293,7 @@ func newQemuHypervisorConfig(h hypervisor) (vc.HypervisorConfig, error) {
 		ImagePath:             image,
 		FirmwarePath:          firmware,
 		MachineAccelerators:   machineAccelerators,
+		MachineOptions:	       machineOptions,
 		KernelParams:          vc.DeserializeParams(strings.Fields(kernelParams)),
 		HypervisorMachineType: machineType,
 		DefaultVCPUs:          h.defaultVCPUs(),
@@ -378,6 +397,7 @@ func loadConfiguration(configPath string, ignoreLogging bool) (resolvedConfigPat
 		ImagePath:             defaultImagePath,
 		FirmwarePath:          defaultFirmwarePath,
 		MachineAccelerators:   defaultMachineAccelerators,
+		MachineOptions:        defaultMachineOptions,
 		HypervisorMachineType: defaultMachineType,
 		DefaultVCPUs:          defaultVCPUCount,
 		DefaultMemSz:          defaultMemSize,

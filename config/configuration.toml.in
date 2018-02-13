@@ -32,6 +32,12 @@ firmware = "@FIRMWAREPATH@"
 # For example, `machine_accelerators = "nosmm,nosmbus,nosata,nopit,static-prt,nofw"`
 machine_accelerators="@MACHINEACCELERATORS@"
 
+# Machine options
+# comma-separated list of machine options to pass to the hypervisor.
+# For example, `machine_options = "gic-version=host,usb=off"
+machine_options="@MACHINEOPTIONS@"
+
+
 # Default number of vCPUs per POD/VM:
 # unspecified or 0 --> will be set to @DEFVCPUS@
 # < 0              --> will be set to the actual number of physical cores
