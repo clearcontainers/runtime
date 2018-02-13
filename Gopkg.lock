@@ -50,7 +50,7 @@
     "pkg/uuid",
     "pkg/vcMock"
   ]
-  revision = "f8d2c11dcfd5c04e529e5900a195ee055734d5df"
+  revision = "6621b5d57f99532d6b3a52208a79f63ceaa41308"
 
 [[projects]]
   name = "github.com/davecgh/go-spew"
@@ -249,6 +249,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "83cd7507e92185659814c3490d7bba016df2add7cfcd901727a7d75eb6b17717"
+  inputs-digest = "1c4ba5d7c1522fc0689ad9e0432da9deb2ed26a53923e9d3170d2192dc36224d"
   solver-name = "gps-cdcl"
   solver-version = 1
