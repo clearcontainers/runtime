@@ -12,16 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build linux
+// Note: To add a new architecture, implement all identifiers beginning "arch".
 
 package main
-
-/*
-#include <linux/kvm.h>
-
-const int ioctl_KVM_CREATE_VM = KVM_CREATE_VM;
-*/
-import "C"
 
 import (
 	"fmt"
@@ -30,7 +23,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"syscall"
 
 	vc "github.com/containers/virtcontainers"
 	"github.com/sirupsen/logrus"
@@ -43,6 +35,13 @@ type kernelModule struct {
 
 	// maps parameter names to values
 	parameters map[string]string
+}
+
+type vmContainerCapableDetails struct {
+	cpuInfoFile           string
+	requiredCPUFlags      map[string]string
+	requiredCPUAttribs    map[string]string
+	requiredKernelModules map[string]kernelModule
 }
 
 const (
@@ -59,50 +58,9 @@ var (
 	procCPUInfo  = "/proc/cpuinfo"
 	sysModuleDir = "/sys/module"
 	modInfoCmd   = "modinfo"
-	kvmDevice    = "/dev/kvm"
 )
 
-// requiredCPUFlags maps a CPU flag value to search for and a
-// human-readable description of that value.
-var requiredCPUFlags = map[string]string{
-	"vmx":    "Virtualization support",
-	"lm":     "64Bit CPU",
-	"sse4_1": "SSE4.1",
-}
-
-// requiredCPUAttribs maps a CPU (non-CPU flag) attribute value to search for
-// and a human-readable description of that value.
-var requiredCPUAttribs = map[string]string{
-	"GenuineIntel": "Intel Architecture CPU",
-}
-
-// requiredKernelModules maps a required module name to a human-readable
-// description of the modules functionality and an optional list of
-// required module parameters.
-var requiredKernelModules = map[string]kernelModule{
-	"kvm": {
-		desc: "Kernel-based Virtual Machine",
-	},
-	"kvm_intel": {
-		desc: "Intel KVM",
-		parameters: map[string]string{
-			"nested": "Y",
-			// "VMX Unrestricted mode support". This is used
-			// as a heuristic to determine if the system is
-			// "new enough" to run a Clear Container
-			// (atleast a Westmere).
-			"unrestricted_guest": "Y",
-		},
-	},
-	"vhost": {
-		desc: "Host kernel accelerator for virtio",
-	},
-	"vhost_net": {
-		desc: "Host kernel accelerator for virtio network",
-	},
-}
-
-// getCPUInfo returns details of the first CPU
+// getCPUInfo returns details of the first CPU read from the specified cpuinfo file
 func getCPUInfo(cpuInfoFile string) (string, error) {
 	text, err := getFileContents(cpuInfoFile)
 	if err != nil {
@@ -119,6 +77,7 @@ func getCPUInfo(cpuInfoFile string) (string, error) {
 	return trimmed, nil
 }
 
+// findAnchoredString searches haystack for needle and returns true if found
 func findAnchoredString(haystack, needle string) bool {
 	if haystack == "" || needle == "" {
 		return false
@@ -130,6 +89,7 @@ func findAnchoredString(haystack, needle string) bool {
 	return pattern.MatchString(haystack)
 }
 
+// getCPUFlags returns the CPU flags from the cpuinfo file specified
 func getCPUFlags(cpuinfo string) string {
 	for _, line := range strings.Split(cpuinfo, "\n") {
 		if strings.HasPrefix(line, cpuFlagsTag) {
@@ -143,6 +103,8 @@ func getCPUFlags(cpuinfo string) string {
 	return ""
 }
 
+// haveKernelModule returns true if the specified module exists
+// (either loaded or available to be loaded)
 func haveKernelModule(module string) bool {
 	// First, check to see if the module is already loaded
 	path := filepath.Join(sysModuleDir, module)
@@ -158,7 +120,7 @@ func haveKernelModule(module string) bool {
 
 // checkCPU checks all required CPU attributes modules and returns a count of
 // the number of CPU attribute errors (all of which are logged by this
-// function). Only fatal errors result in an error return.
+// function). The specified tag is simply used for logging purposes.
 func checkCPU(tag, cpuinfo string, attribs map[string]string) (count uint32) {
 	if cpuinfo == "" {
 		return 0
@@ -193,10 +155,27 @@ func checkCPUAttribs(cpuinfo string, attribs map[string]string) uint32 {
 	return checkCPU("attribute", cpuinfo, attribs)
 }
 
+// kernelParamHandler represents a function that allows kernel module
+// parameter errors to be ignored for special scenarios.
+//
+// The function is passed the following parameters:
+//
+// onVMM  - `true` if the host is running under a VMM environment
+// fields - A set of fields showing the expected and actual module parameter values.
+// msg    - The message that would be logged showing the incorrect kernel module
+//          parameter.
+//
+// The function must return `true` if the kernel module parameter error should
+// be ignored, or `false` if it is a real error.
+//
+// Note: it is up to the function to add an appropriate log call if the error
+// should be ignored.
+type kernelParamHandler func(onVMM bool, fields logrus.Fields, msg string) bool
+
 // checkKernelModules checks all required kernel modules modules and returns a count of
 // the number of module errors (all of which are logged by this
 // function). Only fatal errors result in an error return.
-func checkKernelModules(modules map[string]kernelModule) (count uint32, err error) {
+func checkKernelModules(modules map[string]kernelModule, handler kernelParamHandler) (count uint32, err error) {
 	onVMM, err := vc.RunningOnVMM(procCPUInfo)
 	if err != nil {
 		return 0, err
@@ -226,23 +205,19 @@ func checkKernelModules(modules map[string]kernelModule) (count uint32, err erro
 
 			value = strings.TrimRight(value, "\n\r")
 
+			fields["parameter"] = param
+			fields["value"] = value
+
 			if value != expected {
 				fields["expected"] = expected
-				fields["actual"] = value
-				fields["parameter"] = param
 
 				msg := "kernel module parameter has unexpected value"
 
-				// this option is not required when
-				// already running under a hypervisor.
-				if param == "unrestricted_guest" && onVMM {
-					ccLog.WithFields(fields).Warn(kernelPropertyCorrect)
-					continue
-				}
-
-				if param == "nested" {
-					ccLog.WithFields(fields).Warn(msg)
-					continue
+				if handler != nil {
+					ignoreError := handler(onVMM, fields, msg)
+					if ignoreError {
+						continue
+					}
 				}
 
 				ccLog.WithFields(fields).Error(msg)
@@ -256,10 +231,10 @@ func checkKernelModules(modules map[string]kernelModule) (count uint32, err erro
 	return count, nil
 }
 
-// hostIsClearContainersCapable determines if the system is capable of
-// running Clear Containers.
-func hostIsClearContainersCapable(cpuinfoFile string) error {
-	cpuinfo, err := getCPUInfo(cpuinfoFile)
+// hostIsVMContainerCapable checks to see if the host is theoretically capable
+// of creating a VM container.
+func hostIsVMContainerCapable(details vmContainerCapableDetails) error {
+	cpuinfo, err := getCPUInfo(details.cpuInfoFile)
 	if err != nil {
 		return err
 	}
@@ -273,15 +248,15 @@ func hostIsClearContainersCapable(cpuinfoFile string) error {
 	// have been performed!
 	errorCount := uint32(0)
 
-	count := checkCPUAttribs(cpuinfo, requiredCPUAttribs)
+	count := checkCPUAttribs(cpuinfo, details.requiredCPUAttribs)
 
 	errorCount += count
 
-	count = checkCPUFlags(cpuFlags, requiredCPUFlags)
+	count = checkCPUFlags(cpuFlags, details.requiredCPUFlags)
 
 	errorCount += count
 
-	count, err = checkKernelModules(requiredKernelModules)
+	count, err = checkKernelModules(details.requiredKernelModules, archKernelParamHandler)
 	if err != nil {
 		return err
 	}
@@ -295,43 +270,20 @@ func hostIsClearContainersCapable(cpuinfoFile string) error {
 	return fmt.Errorf("ERROR: %s", failMessage)
 }
 
-// kvmIsUsable determines if it will be possible to create a virtual machine.
-func kvmIsUsable() error {
-	flags := syscall.O_RDWR | syscall.O_CLOEXEC
-
-	f, err := syscall.Open(kvmDevice, flags, 0)
-	if err != nil {
-		return err
-	}
-	defer syscall.Close(f)
-
-	fieldLogger := ccLog.WithField("check-type", "full")
-
-	fieldLogger.WithField("device", kvmDevice).Info("device available")
-
-	vm, _, errno := syscall.Syscall(syscall.SYS_IOCTL,
-		uintptr(f),
-		uintptr(C.ioctl_KVM_CREATE_VM),
-		0)
-	if errno != 0 {
-		if errno == syscall.EBUSY {
-			fieldLogger.WithField("reason", "another hypervisor running").Error("cannot create VM")
-		}
-
-		return errno
-	}
-	defer syscall.Close(int(vm))
-
-	fieldLogger.WithField("feature", "create-vm").Info("feature available")
-
-	return nil
-}
-
 var ccCheckCLICommand = cli.Command{
 	Name:  checkCmd,
 	Usage: "tests if system can run " + project,
 	Action: func(context *cli.Context) error {
-		err := hostIsClearContainersCapable(procCPUInfo)
+
+		details := vmContainerCapableDetails{
+			cpuInfoFile:           procCPUInfo,
+			requiredCPUFlags:      archRequiredCPUFlags,
+			requiredCPUAttribs:    archRequiredCPUAttribs,
+			requiredKernelModules: archRequiredKernelModules,
+		}
+
+		err := hostIsVMContainerCapable(details)
+
 		if err != nil {
 			return err
 		}
@@ -339,9 +291,7 @@ var ccCheckCLICommand = cli.Command{
 		ccLog.Info(successMessageCapable)
 
 		if os.Geteuid() == 0 {
-			// If running as the superuser, perform additional
-			// checks.
-			err = kvmIsUsable()
+			err = archHostCanCreateVMContainer()
 			if err != nil {
 				return err
 			}

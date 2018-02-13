@@ -1,11 +1,5 @@
 package main
 
-import (
-	"bytes"
-	"html/template"
-	"io/ioutil"
-)
-
 const testCPUInfoTemplate = `
 processor	: 0
 vendor_id	: {{.VendorID}}
@@ -62,26 +56,3 @@ address sizes	: 39 bits physical, 48 bits virtual
 power management:
 
 `
-
-func makeCPUInfoFile(path, vendorID, flags string) error {
-	t := template.New("cpuinfo")
-
-	t, err := t.Parse(testCPUInfoTemplate)
-	if err != nil {
-		return err
-	}
-
-	args := map[string]string{
-		"Flags":    flags,
-		"VendorID": vendorID,
-	}
-
-	contents := &bytes.Buffer{}
-
-	err = t.Execute(contents, args)
-	if err != nil {
-		return err
-	}
-
-	return ioutil.WriteFile(path, contents.Bytes(), testFileMode)
-}

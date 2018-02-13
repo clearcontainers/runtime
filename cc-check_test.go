@@ -17,13 +17,14 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"html/template"
 	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"testing"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/urfave/cli"
 )
@@ -42,6 +43,107 @@ type testCPUData struct {
 
 func createFile(file, contents string) error {
 	return ioutil.WriteFile(file, []byte(contents), testFileMode)
+}
+
+func createModules(assert *assert.Assertions, cpuInfoFile string, moduleData []testModuleData) {
+	for _, d := range moduleData {
+		var dir string
+
+		if d.isDir {
+			dir = d.path
+		} else {
+			dir = path.Dir(d.path)
+		}
+
+		err := os.MkdirAll(dir, testDirMode)
+		assert.NoError(err)
+
+		if !d.isDir {
+			err = createFile(d.path, d.contents)
+			assert.NoError(err)
+		}
+
+		details := vmContainerCapableDetails{
+			cpuInfoFile: cpuInfoFile,
+		}
+
+		err = hostIsVMContainerCapable(details)
+		if fileExists(cpuInfoFile) {
+			assert.NoError(err)
+		} else {
+			assert.Error(err)
+		}
+	}
+}
+
+func checkKernelParamHandler(assert *assert.Assertions, kernelModulesToCreate, expectedKernelModules map[string]kernelModule, handler kernelParamHandler, expectHandlerError bool, expectedErrorCount uint32) {
+	err := os.RemoveAll(sysModuleDir)
+	assert.NoError(err)
+
+	count, err := checkKernelModules(map[string]kernelModule{}, handler)
+
+	// No required modules means no error
+	assert.NoError(err)
+	assert.Equal(count, uint32(0))
+
+	count, err = checkKernelModules(expectedKernelModules, handler)
+	assert.NoError(err)
+
+	// No modules exist
+	expectedCount := len(expectedKernelModules)
+	assert.Equal(count, uint32(expectedCount))
+
+	err = os.MkdirAll(sysModuleDir, testDirMode)
+	assert.NoError(err)
+
+	for module, details := range kernelModulesToCreate {
+		path := filepath.Join(sysModuleDir, module)
+		err = os.MkdirAll(path, testDirMode)
+		assert.NoError(err)
+
+		paramDir := filepath.Join(path, "parameters")
+		err = os.MkdirAll(paramDir, testDirMode)
+		assert.NoError(err)
+
+		for param, value := range details.parameters {
+			paramPath := filepath.Join(paramDir, param)
+			err = createFile(paramPath, value)
+			assert.NoError(err)
+		}
+	}
+
+	count, err = checkKernelModules(expectedKernelModules, handler)
+
+	if expectHandlerError {
+		assert.Error(err)
+		return
+	}
+
+	assert.NoError(err)
+	assert.Equal(count, expectedErrorCount)
+}
+
+func makeCPUInfoFile(path, vendorID, flags string) error {
+	t := template.New("cpuinfo")
+
+	t, err := t.Parse(testCPUInfoTemplate)
+	if err != nil {
+		return err
+	}
+
+	args := map[string]string{
+		"Flags":    flags,
+		"VendorID": vendorID,
+	}
+
+	contents := &bytes.Buffer{}
+
+	err = t.Execute(contents, args)
+	if err != nil {
+		return err
+	}
+
+	return ioutil.WriteFile(path, contents.Bytes(), testFileMode)
 }
 
 func TestCheckGetCPUInfo(t *testing.T) {
@@ -356,12 +458,12 @@ func TestCheckCheckKernelModules(t *testing.T) {
 		},
 	}
 
-	count, err := checkKernelModules(map[string]kernelModule{})
+	count, err := checkKernelModules(map[string]kernelModule{}, nil)
 	// No required modules means no error
 	assert.NoError(err)
 	assert.Equal(count, uint32(0))
 
-	count, err = checkKernelModules(testData)
+	count, err = checkKernelModules(testData, nil)
 	assert.NoError(err)
 	// No modules exist
 	assert.Equal(count, uint32(2))
@@ -388,187 +490,9 @@ func TestCheckCheckKernelModules(t *testing.T) {
 		}
 	}
 
-	count, err = checkKernelModules(testData)
+	count, err = checkKernelModules(testData, nil)
 	assert.NoError(err)
 	assert.Equal(count, uint32(0))
-}
-
-func TestCheckCheckKernelModulesNoUnrestrictedGuest(t *testing.T) {
-	assert := assert.New(t)
-
-	dir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
-
-	savedSysModuleDir := sysModuleDir
-	savedProcCPUInfo := procCPUInfo
-
-	cpuInfoFile := filepath.Join(dir, "cpuinfo")
-
-	// XXX: override
-	sysModuleDir = filepath.Join(dir, "sys/module")
-	procCPUInfo = cpuInfoFile
-
-	defer func() {
-		sysModuleDir = savedSysModuleDir
-		procCPUInfo = savedProcCPUInfo
-	}()
-
-	err = os.MkdirAll(sysModuleDir, testDirMode)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	requiredModules := map[string]kernelModule{
-		"kvm_intel": {
-			desc: "Intel KVM",
-			parameters: map[string]string{
-				"nested":             "Y",
-				"unrestricted_guest": "Y",
-			},
-		},
-	}
-
-	actualModuleData := []testModuleData{
-		{filepath.Join(sysModuleDir, "kvm"), true, ""},
-		{filepath.Join(sysModuleDir, "kvm_intel"), true, ""},
-		{filepath.Join(sysModuleDir, "kvm_intel/parameters/nested"), false, "Y"},
-
-		// XXX: force a failure on non-VMM systems
-		{filepath.Join(sysModuleDir, "kvm_intel/parameters/unrestricted_guest"), false, "N"},
-	}
-
-	vendor := "GenuineIntel"
-	flags := "vmx lm sse4_1"
-
-	_, err = checkKernelModules(requiredModules)
-	// no cpuInfoFile yet
-	assert.Error(err)
-
-	err = makeCPUInfoFile(cpuInfoFile, vendor, flags)
-	assert.NoError(err)
-
-	createModules(assert, cpuInfoFile, actualModuleData)
-
-	count, err := checkKernelModules(requiredModules)
-
-	assert.NoError(err)
-	// fails due to unrestricted_guest not being available
-	assert.Equal(count, uint32(1))
-
-	// pretend test is running under a hypervisor
-	flags += " hypervisor"
-
-	// recreate
-	err = makeCPUInfoFile(cpuInfoFile, vendor, flags)
-	assert.NoError(err)
-
-	// create buffer to save logger output
-	buf := &bytes.Buffer{}
-
-	savedLogOutput := ccLog.Logger.Out
-
-	defer func() {
-		ccLog.Logger.Out = savedLogOutput
-	}()
-
-	ccLog.Logger.Out = buf
-
-	count, err = checkKernelModules(requiredModules)
-
-	// no error now because running under a hypervisor
-	assert.NoError(err)
-	assert.Equal(count, uint32(0))
-
-	re := regexp.MustCompile(`\bwarning\b.*\bunrestricted_guest\b`)
-	matches := re.FindAllStringSubmatch(buf.String(), -1)
-	assert.NotEmpty(matches)
-}
-
-func TestCheckCheckKernelModulesNoNesting(t *testing.T) {
-	assert := assert.New(t)
-
-	dir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
-
-	savedSysModuleDir := sysModuleDir
-	savedProcCPUInfo := procCPUInfo
-
-	cpuInfoFile := filepath.Join(dir, "cpuinfo")
-
-	// XXX: override
-	sysModuleDir = filepath.Join(dir, "sys/module")
-	procCPUInfo = cpuInfoFile
-
-	defer func() {
-		sysModuleDir = savedSysModuleDir
-		procCPUInfo = savedProcCPUInfo
-	}()
-
-	err = os.MkdirAll(sysModuleDir, testDirMode)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	requiredModules := map[string]kernelModule{
-		"kvm_intel": {
-			desc: "Intel KVM",
-			parameters: map[string]string{
-				"nested":             "Y",
-				"unrestricted_guest": "Y",
-			},
-		},
-	}
-
-	actualModuleData := []testModuleData{
-		{filepath.Join(sysModuleDir, "kvm"), true, ""},
-		{filepath.Join(sysModuleDir, "kvm_intel"), true, ""},
-		{filepath.Join(sysModuleDir, "kvm_intel/parameters/unrestricted_guest"), false, "Y"},
-
-		// XXX: force a warning
-		{filepath.Join(sysModuleDir, "kvm_intel/parameters/nested"), false, "N"},
-	}
-
-	vendor := "GenuineIntel"
-	flags := "vmx lm sse4_1 hypervisor"
-
-	_, err = checkKernelModules(requiredModules)
-	// no cpuInfoFile yet
-	assert.Error(err)
-
-	createModules(assert, cpuInfoFile, actualModuleData)
-
-	err = makeCPUInfoFile(cpuInfoFile, vendor, flags)
-	assert.NoError(err)
-
-	count, err := checkKernelModules(requiredModules)
-	assert.NoError(err)
-	assert.Equal(count, uint32(0))
-
-	// create buffer to save logger output
-	buf := &bytes.Buffer{}
-
-	savedLogOutput := ccLog.Logger.Out
-
-	defer func() {
-		ccLog.Logger.Out = savedLogOutput
-	}()
-
-	ccLog.Logger.Out = buf
-
-	count, err = checkKernelModules(requiredModules)
-
-	assert.NoError(err)
-	assert.Equal(count, uint32(0))
-
-	re := regexp.MustCompile(`\bwarning\b.*\bnested\b`)
-	matches := re.FindAllStringSubmatch(buf.String(), -1)
-	assert.NotEmpty(matches)
 }
 
 func TestCheckCheckKernelModulesUnreadableFile(t *testing.T) {
@@ -618,7 +542,7 @@ func TestCheckCheckKernelModulesUnreadableFile(t *testing.T) {
 	err = os.Chmod(modParamFile, 0000)
 	assert.NoError(err)
 
-	_, err = checkKernelModules(testData)
+	_, err = checkKernelModules(testData, nil)
 	assert.Error(err)
 }
 
@@ -661,167 +585,9 @@ func TestCheckCheckKernelModulesInvalidFileContents(t *testing.T) {
 	err = createFile(modParamFile, "burp")
 	assert.NoError(err)
 
-	count, err := checkKernelModules(testData)
+	count, err := checkKernelModules(testData, nil)
 	assert.NoError(err)
 	assert.Equal(count, uint32(1))
-}
-
-func createModules(assert *assert.Assertions, cpuInfoFile string, moduleData []testModuleData) {
-	for _, d := range moduleData {
-		var dir string
-
-		if d.isDir {
-			dir = d.path
-		} else {
-			dir = path.Dir(d.path)
-		}
-
-		err := os.MkdirAll(dir, testDirMode)
-		assert.NoError(err)
-
-		if !d.isDir {
-			err = createFile(d.path, d.contents)
-			assert.NoError(err)
-		}
-
-		err = hostIsClearContainersCapable(cpuInfoFile)
-		// cpuInfoFile doesn't exist
-		assert.Error(err)
-	}
-}
-
-func setupCheckHostIsClearContainersCapable(assert *assert.Assertions, cpuInfoFile string, cpuData []testCPUData, moduleData []testModuleData) {
-	createModules(assert, cpuInfoFile, moduleData)
-
-	// all the modules files have now been created, so deal with the
-	// cpuinfo data.
-	for _, d := range cpuData {
-		err := makeCPUInfoFile(cpuInfoFile, d.vendorID, d.flags)
-		assert.NoError(err)
-
-		err = hostIsClearContainersCapable(cpuInfoFile)
-		if d.expectError {
-			assert.Error(err)
-		} else {
-			assert.NoError(err)
-		}
-	}
-}
-
-func TestCheckHostIsClearContainersCapable(t *testing.T) {
-	assert := assert.New(t)
-
-	dir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
-
-	savedSysModuleDir := sysModuleDir
-	savedProcCPUInfo := procCPUInfo
-
-	cpuInfoFile := filepath.Join(dir, "cpuinfo")
-
-	// XXX: override
-	sysModuleDir = filepath.Join(dir, "sys/module")
-	procCPUInfo = cpuInfoFile
-
-	defer func() {
-		sysModuleDir = savedSysModuleDir
-		procCPUInfo = savedProcCPUInfo
-	}()
-
-	err = os.MkdirAll(sysModuleDir, testDirMode)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	cpuData := []testCPUData{
-		{"", "", true},
-		{"Intel", "", true},
-		{"GenuineIntel", "", true},
-		{"GenuineIntel", "lm", true},
-		{"GenuineIntel", "lm vmx", true},
-		{"GenuineIntel", "lm vmx sse4_1", false},
-	}
-
-	moduleData := []testModuleData{
-		{filepath.Join(sysModuleDir, "kvm"), true, ""},
-		{filepath.Join(sysModuleDir, "kvm_intel"), true, ""},
-		{filepath.Join(sysModuleDir, "kvm_intel/parameters/nested"), false, "Y"},
-		{filepath.Join(sysModuleDir, "kvm_intel/parameters/unrestricted_guest"), false, "Y"},
-	}
-
-	setupCheckHostIsClearContainersCapable(assert, cpuInfoFile, cpuData, moduleData)
-
-	// remove the modules to force a failure
-	err = os.RemoveAll(sysModuleDir)
-	assert.NoError(err)
-
-	err = hostIsClearContainersCapable(cpuInfoFile)
-	assert.Error(err)
-}
-
-func TestCCCheckCLIFunction(t *testing.T) {
-	assert := assert.New(t)
-
-	dir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
-
-	savedSysModuleDir := sysModuleDir
-	savedProcCPUInfo := procCPUInfo
-
-	cpuInfoFile := filepath.Join(dir, "cpuinfo")
-
-	// XXX: override
-	sysModuleDir = filepath.Join(dir, "sys/module")
-	procCPUInfo = cpuInfoFile
-
-	defer func() {
-		sysModuleDir = savedSysModuleDir
-		procCPUInfo = savedProcCPUInfo
-	}()
-
-	err = os.MkdirAll(sysModuleDir, testDirMode)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	cpuData := []testCPUData{
-		{"GenuineIntel", "lm vmx sse4_1", false},
-	}
-
-	moduleData := []testModuleData{
-		{filepath.Join(sysModuleDir, "kvm_intel/parameters/unrestricted_guest"), false, "Y"},
-		{filepath.Join(sysModuleDir, "kvm_intel/parameters/nested"), false, "Y"},
-	}
-
-	devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0666)
-	assert.NoError(err)
-
-	savedLogOutput := ccLog.Logger.Out
-
-	// discard normal output
-	ccLog.Logger.Out = devNull
-
-	defer func() {
-		ccLog.Logger.Out = savedLogOutput
-	}()
-
-	setupCheckHostIsClearContainersCapable(assert, cpuInfoFile, cpuData, moduleData)
-
-	app := cli.NewApp()
-	ctx := cli.NewContext(app, nil, nil)
-	app.Name = "foo"
-
-	fn, ok := ccCheckCLICommand.Action.(func(context *cli.Context) error)
-	assert.True(ok)
-
-	err = fn(ctx)
-	assert.NoError(err)
 }
 
 func TestCCCheckCLIFunctionFail(t *testing.T) {
@@ -851,4 +617,82 @@ func TestCCCheckCLIFunctionFail(t *testing.T) {
 
 	err = fn(ctx)
 	assert.Error(err)
+}
+
+func TestCheckKernelParamHandler(t *testing.T) {
+	assert := assert.New(t)
+
+	dir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	savedModInfoCmd := modInfoCmd
+	savedSysModuleDir := sysModuleDir
+
+	// XXX: override (fake the modprobe command failing)
+	modInfoCmd = "false"
+	sysModuleDir = filepath.Join(dir, "sys/module")
+
+	defer func() {
+		modInfoCmd = savedModInfoCmd
+		sysModuleDir = savedSysModuleDir
+	}()
+
+	handler := func(onVMM bool, fields logrus.Fields, msg string) bool {
+		param, ok := fields["parameter"].(string)
+		if !ok {
+			return false
+		}
+
+		if param == "param1" {
+			return true
+		}
+
+		// don't ignore the error
+		return false
+	}
+
+	testData1 := map[string]kernelModule{
+		"foo": {
+			desc:       "desc",
+			parameters: map[string]string{},
+		},
+		"bar": {
+			desc: "desc",
+			parameters: map[string]string{
+				"param1": "hello",
+				"param2": "world",
+			},
+		},
+	}
+
+	checkKernelParamHandler(assert, testData1, testData1, handler, false, uint32(0))
+
+	testDataToCreate := map[string]kernelModule{
+		"foo": {
+			desc: "desc",
+			parameters: map[string]string{
+				"param1": "moo",
+			},
+		},
+	}
+
+	testDataToExpect := map[string]kernelModule{
+		"foo": {
+			desc: "desc",
+			parameters: map[string]string{
+				"param1": "bar",
+			},
+		},
+	}
+
+	// Expected and actual are different, but the handler should deal with
+	// the problem.
+	checkKernelParamHandler(assert, testDataToCreate, testDataToExpect, handler, false, uint32(0))
+
+	// Expected and actual are different, so with no handler we expect a
+	// single error (due to "param1"'s value being different)
+	checkKernelParamHandler(assert, testDataToCreate, testDataToExpect, nil, false, uint32(1))
 }
