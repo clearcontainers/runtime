@@ -383,10 +383,7 @@ func TestDeleteRunningContainer(t *testing.T) {
 	assert.Error(err)
 	assert.True(vcMock.IsMockError(err))
 
-	testingImpl.StopContainerFunc = func(podID, containerID string) (vc.VCContainer, error) {
-		return &vcMock.Container{}, nil
-	}
-
+	testingImpl.StopContainerFunc = testStopContainerFuncReturnNil
 	defer func() {
 		testingImpl.StopContainerFunc = nil
 	}()
@@ -453,10 +450,7 @@ func TestDeleteContainer(t *testing.T) {
 	assert.Error(err)
 	assert.True(vcMock.IsMockError(err))
 
-	testingImpl.StopContainerFunc = func(podID, containerID string) (vc.VCContainer, error) {
-		return &vcMock.Container{}, nil
-	}
-
+	testingImpl.StopContainerFunc = testStopContainerFuncReturnNil
 	defer func() {
 		testingImpl.StopContainerFunc = nil
 	}()

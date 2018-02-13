@@ -41,7 +41,7 @@ const (
 	KataShimType ShimType = "kataShim"
 )
 
-var waitForShimTimeout = 5.0
+var waitForShimTimeout = 10.0
 var consoleFileMode = os.FileMode(0660)
 
 // ShimParams is the structure providing specific parameters needed
