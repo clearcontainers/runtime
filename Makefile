@@ -31,6 +31,8 @@ endif
 ARCH_DIR = arch
 ARCH_FILE_SUFFIX = -options.mk
 ARCH_FILE = $(ARCH_DIR)/$(ARCH)$(ARCH_FILE_SUFFIX)
+ARCH_FILES = $(wildcard arch/*$(ARCH_FILE_SUFFIX))
+ALL_ARCHES = $(patsubst $(ARCH_DIR)/%$(ARCH_FILE_SUFFIX),%,$(ARCH_FILES))
 
 # Load architecture-dependent settings
 include $(ARCH_FILE)
@@ -313,6 +315,11 @@ define DIR_EXISTS
 $(shell test -d $(1) && echo "$(1)")
 endef
 
+# $1: name of architecture to display
+define SHOW_ARCH
+  $(shell printf "\\t%s%s\\\n" "$(1)" $(if $(filter $(ARCH),$(1))," (default)",""))
+endef
+
 # Only install git hooks if working in a git clone
 ifneq (,$(call DIR_EXISTS,.git))
 	HANDLE_GIT_HOOKS = install-git-hooks
@@ -538,6 +545,7 @@ show-usage: show-header
 	@printf "\tinstall             : install files [2].\n"
 	@printf "\tinstall-$(CC_TYPE)-system   : install using standard $(CC_PROJECT_NAME) system paths.\n"
 	@printf "\tinstall-$(KATA_TYPE)-system : install using standard $(KATA_PROJECT_NAME) system paths.\n"
+	@printf "\tshow-arches         : show supported architectures (ARCH variable values).\n"
 	@printf "\tshow-summary        : show install locations.\n"
 	@printf "\n"
 	@printf "  Notes:\n"
@@ -566,6 +574,11 @@ show-variables:
 
 show-header:
 	@printf "%s - version %s (commit %s)\n\n" $(TARGET) $(VERSION) $(COMMIT)
+
+show-arches: show-header
+	@printf "Supported architectures (possible values for ARCH variable):\n\n"
+	@printf \
+		"$(foreach v,$(ALL_ARCHES),$(call SHOW_ARCH,$(v)))\n"
 
 show-footer:
 	@printf "• Project:\n"
