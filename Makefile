@@ -29,7 +29,8 @@ ifeq ($(ARCH),)
 endif
 
 ARCH_DIR = arch
-ARCH_FILE = $(ARCH_DIR)/$(ARCH)-options.mk
+ARCH_FILE_SUFFIX = -options.mk
+ARCH_FILE = $(ARCH_DIR)/$(ARCH)$(ARCH_FILE_SUFFIX)
 
 # Load architecture-dependent settings
 include $(ARCH_FILE)
