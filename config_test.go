@@ -990,6 +990,49 @@ func TestDefaultMachineAccelerators(t *testing.T) {
 	assert.Equal(machineAccelerators, h.machineAccelerators())
 }
 
+func TestDefaultMachineOptions(t *testing.T) {
+	assert := assert.New(t)
+	machineOptions := "abc-defgh=ijk,lmn=opq"
+	h := hypervisor{MachineOptions: machineOptions}
+	assert.Equal(machineOptions, h.machineOptions())
+
+	machineOptions = "abc=def"
+	h.MachineOptions = machineOptions
+	assert.Equal(machineOptions, h.machineOptions())
+
+	machineOptions = "abc-def=ghi"
+	h.MachineOptions = machineOptions
+	assert.Equal(machineOptions, h.machineOptions())
+
+	machineOptions = "abc-def=ghi"
+	h.MachineOptions = "abc-def=ghi,,"
+	assert.Equal(machineOptions, h.machineOptions())
+
+	machineOptions = "abc-def=ghi,lmn=opq"
+	h.MachineOptions = "abc-def=ghi,,lmn=opq"
+	assert.Equal(machineOptions, h.machineOptions())
+
+	machineOptions = "abc-def=ghi,lmn=opq"
+	h.MachineOptions = ",,abc-def=ghi,,lmn=opq,,,"
+	assert.Equal(machineOptions, h.machineOptions())
+
+	machineOptions = "abc-def=ghi,lmn=opq"
+	h.MachineOptions = " abc-def=ghi, lmn=opq "
+	assert.Equal(machineOptions, h.machineOptions())
+
+	machineOptions = "lmn=opq"
+	h.MachineOptions = ", lmn=opq"
+	assert.Equal(machineOptions, h.machineOptions())
+
+	machineOptions = "abc-def=ghi"
+	h.MachineOptions = " abc-def=ghi,"
+	assert.Equal(machineOptions, h.machineOptions())
+
+	machineOptions = "abc-def=ghi"
+	h.MachineOptions = ",abc-def=ghi "
+	assert.Equal(machineOptions, h.machineOptions())
+}
+
 func TestUpdateRuntimeConfiguration(t *testing.T) {
 	assert := assert.New(t)
 
