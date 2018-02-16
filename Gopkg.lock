@@ -50,7 +50,7 @@
     "pkg/uuid",
     "pkg/vcMock"
   ]
-  revision = "6621b5d57f99532d6b3a52208a79f63ceaa41308"
+  revision = "000e6860d188dfc7a5be972ec0c2c386a09acf6f"
 
 [[projects]]
   name = "github.com/davecgh/go-spew"
@@ -94,7 +94,7 @@
 [[projects]]
   name = "github.com/intel/govmm"
   packages = ["qemu"]
-  revision = "9250e77eda726cbc468985582ce6de932c868bec"
+  revision = "d60256118ff05e570408e24c159171cca903e362"
 
 [[projects]]
   name = "github.com/kata-containers/agent"
@@ -249,6 +249,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "1c4ba5d7c1522fc0689ad9e0432da9deb2ed26a53923e9d3170d2192dc36224d"
+  inputs-digest = "cd4649104e7076a2c0cf3601b104d08afae043fd5d76a500253af65f96903c47"
   solver-name = "gps-cdcl"
   solver-version = 1
