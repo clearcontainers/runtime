@@ -414,14 +414,26 @@ func constraintGRPCSpec(grpcSpec *grpc.Spec) {
 	// here: https://github.com/kata-containers/agent/issues/104
 	grpcSpec.Linux.Seccomp = nil
 
+	// TODO: Remove this constraint as soon as the agent properly handles
+	// resources provided through the specification.
+	grpcSpec.Linux.Resources = nil
+
 	// Disable network namespace since it is already handled on the host by
 	// virtcontainers. The network is a complex part which cannot be simply
 	// passed to the agent.
-	for idx, ns := range grpcSpec.Linux.Namespaces {
-		if ns.Type == specs.NetworkNamespace {
-			grpcSpec.Linux.Namespaces = append(grpcSpec.Linux.Namespaces[:idx], grpcSpec.Linux.Namespaces[idx+1:]...)
+	// Every other namespaces's paths have to be emptied. This way, there
+	// is no confusion from the agent, trying to find an existing namespace
+	// on the guest.
+	var tmpNamespaces []grpc.LinuxNamespace
+	for _, ns := range grpcSpec.Linux.Namespaces {
+		switch ns.Type {
+		case specs.NetworkNamespace:
+		default:
+			ns.Path = ""
+			tmpNamespaces = append(tmpNamespaces, ns)
 		}
 	}
+	grpcSpec.Linux.Namespaces = tmpNamespaces
 
 	// Handle /dev/shm mount
 	for idx, mnt := range grpcSpec.Mounts {
@@ -451,7 +463,7 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) (*Process, error) {
 	rootfs := &grpc.Storage{}
 
 	// This is the guest absolute root path for that container.
-	rootPath := filepath.Join(kataGuestSharedDir, pod.id, rootfsDir)
+	rootPath := filepath.Join(kataGuestSharedDir, c.id, rootfsDir)
 
 	if c.state.Fstype != "" {
 		// This is a block based device rootfs.
