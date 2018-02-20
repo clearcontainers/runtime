@@ -16,6 +16,7 @@ package main
 
 import (
 	"log/syslog"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	lSyslog "github.com/sirupsen/logrus/hooks/syslog"
@@ -58,8 +59,10 @@ func newSystemLogHook(network, raddr string) (*sysLogHook, error) {
 	}
 
 	return &sysLogHook{
-		formatter: new(logrus.TextFormatter),
-		shook:     hook,
+		formatter: &logrus.TextFormatter{
+			TimestampFormat: time.RFC3339Nano,
+		},
+		shook: hook,
 	}, nil
 }
 
