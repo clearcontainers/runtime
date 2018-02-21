@@ -171,18 +171,13 @@ func (h *hyper) processHyperRoute(route netlink.Route, deviceName string) *hyper
 }
 
 func (h *hyper) buildNetworkInterfacesAndRoutes(pod Pod) ([]hyperstart.NetworkIface, []hyperstart.Route, error) {
-	networkNS, err := pod.storage.fetchPodNetwork(pod.id)
-	if err != nil {
-		return []hyperstart.NetworkIface{}, []hyperstart.Route{}, err
-	}
-
-	if networkNS.NetNsPath == "" {
+	if pod.networkNS.NetNsPath == "" {
 		return []hyperstart.NetworkIface{}, []hyperstart.Route{}, nil
 	}
 
 	var ifaces []hyperstart.NetworkIface
 	var routes []hyperstart.Route
-	for _, endpoint := range networkNS.Endpoints {
+	for _, endpoint := range pod.networkNS.Endpoints {
 		var ipAddresses []hyperstart.IPAddress
 		for _, addr := range endpoint.Properties().Addrs {
 			// Skip IPv6 because not supported by hyperstart.

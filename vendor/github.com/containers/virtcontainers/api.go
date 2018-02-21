@@ -32,7 +32,12 @@ var virtLog = logrus.FieldLogger(logrus.New())
 
 // SetLogger sets the logger for virtcontainers package.
 func SetLogger(logger logrus.FieldLogger) {
-	virtLog = logger.WithField("source", "virtcontainers")
+	fields := logrus.Fields{
+		"source": "virtcontainers",
+		"arch":   runtime.GOARCH,
+	}
+
+	virtLog = logger.WithFields(fields)
 }
 
 // CreatePod is the virtcontainers pod creation entry point.
@@ -63,13 +68,13 @@ func createPodFromConfig(podConfig PodConfig) (*Pod, error) {
 	}
 
 	// Add the network
-	networkNS, err := p.network.add(*p, p.config.NetworkConfig, netNsPath, netNsCreated)
+	p.networkNS, err = p.network.add(*p, p.config.NetworkConfig, netNsPath, netNsCreated)
 	if err != nil {
 		return nil, err
 	}
 
 	// Store the network
-	err = p.storage.storePodNetwork(p.id, networkNS)
+	err = p.storage.storePodNetwork(p.id, p.networkNS)
 	if err != nil {
 		return nil, err
 	}
@@ -112,12 +117,6 @@ func DeletePod(podID string) (VCPod, error) {
 		return nil, err
 	}
 
-	// Fetch the network config
-	networkNS, err := p.storage.fetchPodNetwork(podID)
-	if err != nil {
-		return nil, err
-	}
-
 	// Stop shims
 	if err := p.stopShims(); err != nil {
 		return nil, err
@@ -130,8 +129,8 @@ func DeletePod(podID string) (VCPod, error) {
 	}
 
 	// Remove the network
-	if networkNS.NetNsCreated {
-		if err := p.network.remove(*p, networkNS); err != nil {
+	if p.networkNS.NetNsCreated {
+		if err := p.network.remove(*p, p.networkNS); err != nil {
 			return nil, err
 		}
 	}

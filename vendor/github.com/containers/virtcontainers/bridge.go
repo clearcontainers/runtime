@@ -39,33 +39,6 @@ type Bridge struct {
 	ID string
 }
 
-// NewBridges creates n new pci(e) bridges depending of the machine type
-func NewBridges(n uint32, machine string) []Bridge {
-	var bridges []Bridge
-	var bt bridgeType
-
-	switch machine {
-	case QemuQ35:
-		// currently only pci bridges are supported
-		// qemu-2.10 will introduce pcie bridges
-		fallthrough
-	case QemuPC:
-		bt = pciBridge
-	default:
-		return nil
-	}
-
-	for i := uint32(0); i < n; i++ {
-		bridges = append(bridges, Bridge{
-			Type:    bt,
-			ID:      fmt.Sprintf("%s-bridge-%d", bt, i),
-			Address: make(map[uint32]string),
-		})
-	}
-
-	return bridges
-}
-
 // addDevice on success adds the device ID to the bridge and return the address
 // where the device was added, otherwise an error is returned
 func (b *Bridge) addDevice(ID string) (uint32, error) {
