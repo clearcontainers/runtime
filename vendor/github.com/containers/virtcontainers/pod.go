@@ -464,6 +464,8 @@ type Pod struct {
 
 	state State
 
+	networkNS NetworkNamespace
+
 	lockFile *os.File
 
 	annotationsLock *sync.RWMutex
@@ -573,6 +575,12 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 	p, err := newPod(podConfig)
 	if err != nil {
 		return nil, err
+	}
+
+	// Fetch pod network to be able to access it from the pod structure.
+	networkNS, err := p.storage.fetchPodNetwork(p.id)
+	if err == nil {
+		p.networkNS = networkNS
 	}
 
 	// We first try to fetch the pod state from storage.

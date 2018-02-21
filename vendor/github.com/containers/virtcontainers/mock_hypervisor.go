@@ -71,7 +71,3 @@ func (m *mockHypervisor) hotplugRemoveDevice(devInfo interface{}, devType device
 func (m *mockHypervisor) getPodConsole(podID string) string {
 	return ""
 }
-
-func (m *mockHypervisor) getState() interface{} {
-	return nil
-}

@@ -166,17 +166,11 @@ func prepareAndStartShim(pod *Pod, shim shim, cid, token, url string, cmd Cmd) (
 		Detach:    cmd.Detach,
 	}
 
-	netNS, err := pod.storage.fetchPodNetwork(pod.ID())
-	if err != nil {
-		return nil, err
-	}
-
 	var pid int
-	err = pod.network.run(netNS.NetNsPath, func() (shimErr error) {
+	if err := pod.network.run(pod.networkNS.NetNsPath, func() (shimErr error) {
 		pid, shimErr = shim.start(*pod, shimParams)
 		return
-	})
-	if err != nil {
+	}); err != nil {
 		return nil, err
 	}
 
