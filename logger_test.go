@@ -150,8 +150,10 @@ func TestNewSystemLogHook(t *testing.T) {
 			`\d{2}:\d{2}:\d{2}` +
 			// high-precision separator
 			`.` +
-			// nano-seconds
-			`\d{9}` +
+			// nano-seconds. Note that the quantifier range is
+			// required because the time.RFC3339Nano format
+			// trunctates trailing zeros.
+			`\d{1,9}` +
 			// UTC timezone specifier
 			`Z`
 
