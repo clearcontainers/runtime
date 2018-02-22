@@ -55,6 +55,13 @@ default_bridges = @DEFBRIDGES@
 # Default memory size in MiB for POD/VM.
 # If unspecified then it will be set @DEFMEMSZ@ MiB.
 #default_memory = @DEFMEMSZ@
+
+# Disable block device from being used for a container's rootfs.
+# In case of a storage driver like devicemapper where a container's 
+# root file system is backed by a block device, the block device is passed
+# directly to the hypervisor for performance reasons. 
+# This flag prevents the block device from being passed to the hypervisor, 
+# 9pfs is used instead to pass the rootfs.
 disable_block_device_use = @DEFDISABLEBLOCK@
 
 # Enable pre allocation of VM RAM, default false
