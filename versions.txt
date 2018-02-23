@@ -1,5 +1,5 @@
 # Clear Containers agent commit
-cc_agent_version=4186b0e44562ad46ee63890228103a7012bbd2c9
+cc_agent_version=6f6e9ecd8aded0783c31968b304a9d6589114363
 
 # Clear Containers image from https://download.clearlinux.org/releases/
 clear_vm_image_version=20640
