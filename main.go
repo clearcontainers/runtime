@@ -202,6 +202,13 @@ func beforeSubcommands(context *cli.Context) error {
 
 	ignoreLogging := false
 
+	// Add the name of the sub-command to each log entry for easier
+	// debugging.
+	name := context.Args().First()
+	if context.App.Command(name) != nil {
+		ccLog = ccLog.WithField("command", name)
+	}
+
 	if context.NArg() == 1 && context.Args()[0] == envCmd {
 		// simply report the logging setup
 		ignoreLogging = true
