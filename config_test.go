@@ -668,9 +668,9 @@ func TestHypervisorDefaults(t *testing.T) {
 	h.DefaultVCPUs = 2
 	assert.Equal(h.defaultVCPUs(), uint32(2), "default vCPU number is wrong")
 
-	// qemu supports max 255
-	h.DefaultVCPUs = 8086
-	assert.Equal(h.defaultVCPUs(), uint32(255), "default vCPU number is wrong")
+	numCPUs := goruntime.NumCPU()
+	h.DefaultVCPUs = int32(numCPUs) + 1
+	assert.Equal(h.defaultVCPUs(), uint32(numCPUs), "default vCPU number is wrong")
 
 	h.DefaultMemSz = 1024
 	assert.Equal(h.defaultMemSz(), uint32(1024), "default memory size is wrong")
@@ -1017,7 +1017,7 @@ func TestUpdateRuntimeConfiguration(t *testing.T) {
 func TestUpdateRuntimeConfigurationVMConfig(t *testing.T) {
 	assert := assert.New(t)
 
-	vcpus := uint(8)
+	vcpus := uint(2)
 	mem := uint(2048)
 
 	config := oci.RuntimeConfig{}

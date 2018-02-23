@@ -185,14 +185,13 @@ func (h hypervisor) machineType() string {
 }
 
 func (h hypervisor) defaultVCPUs() uint32 {
-	if h.DefaultVCPUs < 0 {
-		return uint32(goruntime.NumCPU())
+	numCPUs := goruntime.NumCPU()
+
+	if h.DefaultVCPUs < 0 || h.DefaultVCPUs > int32(numCPUs) {
+		return uint32(numCPUs)
 	}
 	if h.DefaultVCPUs == 0 { // or unspecified
 		return defaultVCPUCount
-	}
-	if h.DefaultVCPUs > 255 { // qemu supports max 255
-		return 255
 	}
 
 	return uint32(h.DefaultVCPUs)
