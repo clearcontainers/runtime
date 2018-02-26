@@ -141,7 +141,11 @@ var savedCLIVersionPrinter = cli.VersionPrinter
 var savedCLIErrWriter = cli.ErrWriter
 
 func init() {
-	ccLog = logrus.WithField("source", "runtime")
+	ccLog = logrus.WithFields(logrus.Fields{
+		"name":   name,
+		"source": "runtime",
+		"pid":    os.Getpid(),
+	})
 
 	// Save the original log level and then set to debug level to ensure
 	// that any problems detected before the config file is parsed are
@@ -204,9 +208,9 @@ func beforeSubcommands(context *cli.Context) error {
 
 	// Add the name of the sub-command to each log entry for easier
 	// debugging.
-	name := context.Args().First()
-	if context.App.Command(name) != nil {
-		ccLog = ccLog.WithField("command", name)
+	cmdName := context.Args().First()
+	if context.App.Command(cmdName) != nil {
+		ccLog = ccLog.WithField("command", cmdName)
 	}
 
 	if context.NArg() == 1 && context.Args()[0] == envCmd {
@@ -222,7 +226,6 @@ func beforeSubcommands(context *cli.Context) error {
 	args := strings.Join(context.Args(), " ")
 
 	fields := logrus.Fields{
-		"name":      name,
 		"version":   version,
 		"commit":    commit,
 		"arguments": `"` + args + `"`,
