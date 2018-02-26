@@ -141,7 +141,10 @@ var savedCLIVersionPrinter = cli.VersionPrinter
 var savedCLIErrWriter = cli.ErrWriter
 
 func init() {
-	ccLog = logrus.WithField("source", "runtime")
+	ccLog = logrus.WithField(logrus.Fields{
+		"source": "runtime",
+		"pid":    os.Getpid(),
+	})
 
 	// Save the original log level and then set to debug level to ensure
 	// that any problems detected before the config file is parsed are
