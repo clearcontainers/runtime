@@ -321,3 +321,30 @@ func bindUnmountAllRootfs(sharedDir string, pod Pod) {
 		}
 	}
 }
+
+const maxSCSIDevices = 65535
+
+// getSCSIIdLun gets the SCSI id and lun, based on the index of the drive being inserted.
+// qemu code suggests that scsi-id can take values from 0 to 255 inclusive, while lun can
+// take values from 0 to 16383 inclusive. But lun values over 255 do not seem to follow
+// consistent SCSI addressing. Hence we limit to 255.
+func getSCSIIdLun(index int) (int, int, error) {
+	if index < 0 {
+		return -1, -1, fmt.Errorf("Index cannot be negative")
+	}
+
+	if index > maxSCSIDevices {
+		return -1, -1, fmt.Errorf("Index cannot be greater than %d, maximum of %d devices are supported", maxSCSIDevices, maxSCSIDevices)
+	}
+
+	return index / 256, index % 256, nil
+}
+
+func getSCSIAddress(index int) (string, error) {
+	scsiID, lun, err := getSCSIIdLun(index)
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("%d:%d", scsiID, lun), nil
+}
