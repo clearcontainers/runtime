@@ -33,10 +33,10 @@ firmware = "@FIRMWAREPATH@"
 machine_accelerators="@MACHINEACCELERATORS@"
 
 # Default number of vCPUs per POD/VM:
-# unspecified or 0 --> will be set to @DEFVCPUS@
-# < 0              --> will be set to the actual number of physical cores
-# > 0 <= 255       --> will be set to the specified number
-# > 255            --> will be set to 255
+# unspecified or 0                --> will be set to @DEFVCPUS@
+# < 0                             --> will be set to the actual number of physical cores
+# > 0 <= number of physical cores --> will be set to the specified number
+# > number of physical cores      --> will be set to the actual number of physical cores
 default_vcpus = -1
 
 
