@@ -234,9 +234,10 @@ model name	: %s
 
 func getExpectedHypervisor(config oci.RuntimeConfig) HypervisorInfo {
 	return HypervisorInfo{
-		Version:     testHypervisorVersion,
-		Path:        config.HypervisorConfig.HypervisorPath,
-		MachineType: config.HypervisorConfig.HypervisorMachineType,
+		Version:           testHypervisorVersion,
+		Path:              config.HypervisorConfig.HypervisorPath,
+		MachineType:       config.HypervisorConfig.HypervisorMachineType,
+		BlockDeviceDriver: config.HypervisorConfig.BlockDeviceDriver,
 	}
 }
 
