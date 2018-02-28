@@ -37,7 +37,7 @@ machine_accelerators="@MACHINEACCELERATORS@"
 # < 0                             --> will be set to the actual number of physical cores
 # > 0 <= number of physical cores --> will be set to the specified number
 # > number of physical cores      --> will be set to the actual number of physical cores
-default_vcpus = -1
+default_vcpus = 1
 
 
 # Bridges can be used to hot plug devices.
