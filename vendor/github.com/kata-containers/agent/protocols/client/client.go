@@ -7,6 +7,7 @@
 package client
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/url"
@@ -46,9 +47,12 @@ func NewAgentClient(sock string) (*AgentClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	dialOpts := []grpc.DialOption{grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(dialTimeout)}
+	dialOpts := []grpc.DialOption{grpc.WithInsecure(), grpc.WithBlock()}
 	dialOpts = append(dialOpts, grpc.WithDialer(agentDialer(parsedAddr)))
-	conn, err := grpc.Dial(grpcAddr, dialOpts...)
+	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(ctx, dialTimeout)
+	defer cancel()
+	conn, err := grpc.DialContext(ctx, grpcAddr, dialOpts...)
 	if err != nil {
 		return nil, err
 	}

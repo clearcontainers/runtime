@@ -420,12 +420,14 @@ func createContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 		return nil, err
 	}
 
-	agentCaps := c.pod.agent.capabilities()
-	hypervisorCaps := c.pod.hypervisor.capabilities()
+	if !c.pod.config.HypervisorConfig.DisableBlockDeviceUse {
+		agentCaps := c.pod.agent.capabilities()
+		hypervisorCaps := c.pod.hypervisor.capabilities()
 
-	if agentCaps.isBlockDeviceSupported() && hypervisorCaps.isBlockDeviceHotplugSupported() {
-		if err := c.hotplugDrive(); err != nil {
-			return nil, err
+		if agentCaps.isBlockDeviceSupported() && hypervisorCaps.isBlockDeviceHotplugSupported() {
+			if err := c.hotplugDrive(); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -466,7 +468,8 @@ func (c *Container) delete() error {
 		return fmt.Errorf("Container not ready or stopped, impossible to delete")
 	}
 
-	if err := stopShim(c.process.Pid); err != nil {
+	// Remove the container from pod structure
+	if err := c.pod.removeContainer(c.id); err != nil {
 		return err
 	}
 
@@ -677,23 +680,24 @@ func (c *Container) hotplugDrive() error {
 		"fs-type":     fsType,
 	}).Info("Block device detected")
 
+	driveIndex, err := c.pod.getAndSetPodBlockIndex()
+	if err != nil {
+		return err
+	}
+
 	// Add drive with id as container id
 	devID := makeNameID("drive", c.id)
 	drive := Drive{
 		File:   devicePath,
 		Format: "raw",
 		ID:     devID,
+		Index:  driveIndex,
 	}
 
 	if err := c.pod.hypervisor.hotplugAddDevice(drive, blockDev); err != nil {
 		return err
 	}
 	c.setStateHotpluggedDrive(true)
-
-	driveIndex, err := c.pod.getAndSetPodBlockIndex()
-	if err != nil {
-		return err
-	}
 
 	if err := c.setStateBlockIndex(driveIndex); err != nil {
 		return err

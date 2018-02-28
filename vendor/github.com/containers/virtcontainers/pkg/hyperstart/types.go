@@ -133,6 +133,7 @@ type FsmapDescriptor struct {
 	ReadOnly     bool   `json:"readOnly"`
 	DockerVolume bool   `json:"dockerVolume"`
 	AbsolutePath bool   `json:"absolutePath"`
+	SCSIAddr     string `json:"scsiAddr"`
 }
 
 // EnvironmentVar holds an environment variable and its value.
@@ -207,7 +208,7 @@ type Container struct {
 	Rootfs           string              `json:"rootfs"`
 	Fstype           string              `json:"fstype,omitempty"`
 	Image            string              `json:"image"`
-	Addr             string              `json:"addr,omitempty"`
+	SCSIAddr         string              `json:"scsiAddr,omitempty"`
 	Volumes          []*VolumeDescriptor `json:"volumes,omitempty"`
 	Fsmap            []*FsmapDescriptor  `json:"fsmap,omitempty"`
 	Sysctl           map[string]string   `json:"sysctl,omitempty"`

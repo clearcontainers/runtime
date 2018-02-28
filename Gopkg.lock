@@ -50,7 +50,7 @@
     "pkg/uuid",
     "pkg/vcMock"
   ]
-  revision = "7d4e2f13a04aa73e0d876cdd7f1cf018d15e50bd"
+  revision = "6bccdf63e8c47e294c9e320aaa1c7b30e35350ca"
 
 [[projects]]
   name = "github.com/davecgh/go-spew"
@@ -102,7 +102,7 @@
     "protocols/client",
     "protocols/grpc"
   ]
-  revision = "3f6f6da6d469c31364aac417f336ec0d16772095"
+  revision = "11f8b0ad0a3bb5771b88cbccd0a9c7dca5fd8e56"
 
 [[projects]]
   name = "github.com/kubernetes-incubator/cri-o"
@@ -249,6 +249,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "88d909cca0b9930191219a931d164e1e5110a6b5ca1956d45d99dbc5a0fe3a33"
+  inputs-digest = "032b1bb9f90dff62d5349c63347fdd732199130dc7eaedd26625e0cfa02861d4"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -340,7 +340,11 @@ type BlockDevice struct {
 	DeviceType string
 	DeviceInfo DeviceInfo
 
-	// Path at which the device appears inside the VM, outside of the container mount namespace.
+	// SCSI Address of the block device, in case the device is attached using SCSI driver
+	// SCSI address is in the format SCSI-Id:LUN
+	SCSIAddr string
+
+	// Path at which the device appears inside the VM, outside of the container mount namespace
 	VirtPath string
 }
 
@@ -359,12 +363,6 @@ func (device *BlockDevice) attach(h hypervisor, c *Container) (err error) {
 
 	device.DeviceInfo.ID = hex.EncodeToString(randBytes)
 
-	drive := Drive{
-		File:   device.DeviceInfo.HostPath,
-		Format: "raw",
-		ID:     makeNameID("drive", device.DeviceInfo.ID),
-	}
-
 	// Increment the block index for the pod. This is used to determine the name
 	// for the block device in the case where the block device is used as container
 	// rootfs and the predicted block device name needs to be provided to the agent.
@@ -380,6 +378,13 @@ func (device *BlockDevice) attach(h hypervisor, c *Container) (err error) {
 		return err
 	}
 
+	drive := Drive{
+		File:   device.DeviceInfo.HostPath,
+		Format: "raw",
+		ID:     makeNameID("drive", device.DeviceInfo.ID),
+		Index:  index,
+	}
+
 	driveName, err := getVirtDriveName(index)
 	if err != nil {
 		return err
@@ -393,7 +398,17 @@ func (device *BlockDevice) attach(h hypervisor, c *Container) (err error) {
 
 	device.DeviceInfo.Hotplugged = true
 
-	device.VirtPath = filepath.Join("/dev", driveName)
+	if c.pod.config.HypervisorConfig.BlockDeviceDriver == VirtioBlock {
+		device.VirtPath = filepath.Join("/dev", driveName)
+	} else {
+		scsiAddr, err := getSCSIAddress(index)
+		if err != nil {
+			return err
+		}
+
+		device.SCSIAddr = scsiAddr
+	}
+
 	return nil
 }
 
