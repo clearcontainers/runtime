@@ -245,6 +245,9 @@ type Drive struct {
 
 	// ID is used to identify this drive in the hypervisor options.
 	ID string
+
+	// Index assigned to the drive. In case of virtio-scsi, this is used as SCSI LUN index
+	Index int
 }
 
 // EnvVar is a key/value structure representing a command
@@ -727,6 +730,28 @@ func (p *Pod) findContainer(containerID string) (*Container, error) {
 		containerID, p.id)
 }
 
+// removeContainer removes a container from the containers list held by the
+// pod structure, based on a container ID.
+func (p *Pod) removeContainer(containerID string) error {
+	if p == nil {
+		return errNeedPod
+	}
+
+	if containerID == "" {
+		return errNeedContainerID
+	}
+
+	for idx, c := range p.containers {
+		if containerID == c.id {
+			p.containers = append(p.containers[:idx], p.containers[idx+1:]...)
+			return nil
+		}
+	}
+
+	return fmt.Errorf("Could not remove the container %q from the pod %q containers list",
+		containerID, p.id)
+}
+
 // delete deletes an already created pod.
 // The VM in which the pod is running will be shut down.
 func (p *Pod) delete() error {
@@ -736,14 +761,53 @@ func (p *Pod) delete() error {
 		return fmt.Errorf("Pod not ready, paused or stopped, impossible to delete")
 	}
 
+	for _, c := range p.containers {
+		if err := c.delete(); err != nil {
+			return err
+		}
+	}
+
 	return p.storage.deletePodResources(p.id, nil)
 }
 
+func (p *Pod) createNetwork() error {
+	// Initialize the network.
+	netNsPath, netNsCreated, err := p.network.init(p.config.NetworkConfig)
+	if err != nil {
+		return err
+	}
+
+	// Execute prestart hooks inside netns
+	if err := p.network.run(netNsPath, func() error {
+		return p.config.Hooks.preStartHooks()
+	}); err != nil {
+		return err
+	}
+
+	// Add the network
+	networkNS, err := p.network.add(*p, p.config.NetworkConfig, netNsPath, netNsCreated)
+	if err != nil {
+		return err
+	}
+	p.networkNS = networkNS
+
+	// Store the network
+	return p.storage.storePodNetwork(p.id, networkNS)
+}
+
+func (p *Pod) removeNetwork() error {
+	if p.networkNS.NetNsCreated {
+		return p.network.remove(*p, p.networkNS)
+	}
+
+	return nil
+}
+
 // startVM starts the VM.
-func (p *Pod) startVM(netNsPath string) error {
+func (p *Pod) startVM() error {
 	p.Logger().Info("Starting VM")
 
-	if err := p.network.run(netNsPath, func() error {
+	if err := p.network.run(p.networkNS.NetNsPath, func() error {
 		return p.hypervisor.startPod()
 	}); err != nil {
 		return err
@@ -825,31 +889,6 @@ func (p *Pod) start() error {
 	return nil
 }
 
-// stopShims stops all remaining shims corresponfing to not started/stopped
-// containers.
-func (p *Pod) stopShims() error {
-	shimCount := 0
-
-	for _, c := range p.containers {
-		if err := stopShim(c.process.Pid); err != nil {
-			return err
-		}
-
-		shimCount++
-	}
-
-	p.Logger().WithField("shim-count", shimCount).Info("Stopped shims")
-
-	return nil
-}
-
-// stopVM stops the agent inside the VM and shut down the VM itself.
-func (p *Pod) stopVM() error {
-	p.Logger().Info("Stopping VM")
-
-	return p.hypervisor.stopPod()
-}
-
 // stop stops a pod. The containers that are making the pod
 // will be destroyed.
 func (p *Pod) stop() error {
@@ -857,20 +896,18 @@ func (p *Pod) stop() error {
 		return err
 	}
 
-	// This handles the special case of stopping a pod in ready state.
-	if p.state.State == StateReady {
-		return p.setPodState(StateStopped)
-	}
-
 	for _, c := range p.containers {
-		if c.state.State == StateRunning || c.state.State == StatePaused {
-			if err := c.stop(); err != nil {
-				return err
-			}
+		if err := c.stop(); err != nil {
+			return err
 		}
 	}
 
 	if err := p.agent.stopPod(*p); err != nil {
+		return err
+	}
+
+	p.Logger().Info("Stopping VM")
+	if err := p.hypervisor.stopPod(); err != nil {
 		return err
 	}
 
