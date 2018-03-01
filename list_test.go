@@ -430,6 +430,70 @@ func TestListGetContainers(t *testing.T) {
 	assert.Equal(state, []fullContainerState(nil))
 }
 
+func TestListGetContainersMissingRootfs(t *testing.T) {
+	assert := assert.New(t)
+
+	tmpdir, err := ioutil.TempDir(testDir, "")
+	assert.NoError(err)
+	defer os.RemoveAll(tmpdir)
+
+	pod := &vcMock.Pod{
+		MockID: testPodID,
+	}
+
+	rootfs := filepath.Join(tmpdir, "rootfs")
+
+	container := vc.ContainerStatus{
+		ID: pod.ID(),
+		State: vc.State{
+			State: vc.StateRunning,
+		},
+		PID: 1,
+
+		// rootfs specified, but it doesn't exist
+		RootFs: rootfs,
+	}
+
+	testingImpl.ListPodFunc = func() ([]vc.PodStatus, error) {
+		return []vc.PodStatus{
+			{
+				ID: pod.ID(),
+				ContainersStatus: []vc.ContainerStatus{
+					container,
+				},
+			},
+		}, nil
+	}
+
+	defer func() {
+		testingImpl.ListPodFunc = nil
+	}()
+
+	app := cli.NewApp()
+	ctx := cli.NewContext(app, nil, nil)
+	app.Name = "foo"
+
+	runtimeConfig, err := newTestRuntimeConfig(tmpdir, testConsole, true)
+
+	assert.NoError(err)
+
+	ctx.App.Metadata = map[string]interface{}{
+		"runtimeConfig": runtimeConfig,
+	}
+
+	states, err := getContainers(ctx)
+	assert.NoError(err)
+
+	assert.True(len(states) == 1)
+
+	state := states[0]
+
+	assert.Equal(state.Rootfs, container.RootFs)
+
+	// since rootfs doesn't exist
+	assert.Equal(state.Owner, "?")
+}
+
 func TestListGetContainersPodWithoutContainers(t *testing.T) {
 	assert := assert.New(t)
 

@@ -328,12 +328,14 @@ func getContainers(context *cli.Context) ([]fullContainerState, error) {
 			ociState := oci.StatusToOCIState(container)
 			staleAssets := getStaleAssets(currentHypervisorDetails, latestHypervisorDetails)
 
-			uid, err := getDirOwner(container.RootFs)
-			if err != nil {
-				return nil, err
-			}
+			var owner string
 
-			owner := fmt.Sprintf("#%v", uid)
+			uid, err := getDirOwner(container.RootFs)
+			if err == nil {
+				owner = fmt.Sprintf("#%v", uid)
+			} else {
+				owner = "?"
+			}
 
 			s = append(s, fullContainerState{
 				containerState: containerState{
