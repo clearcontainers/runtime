@@ -68,7 +68,7 @@ func makeRuntimeConfig(prefixDir string) (configFile string, config oci.RuntimeC
 	shimPath := filepath.Join(prefixDir, "cc-shim")
 	proxyPath := filepath.Join(prefixDir, "cc-proxy")
 	disableBlock := true
-	blockStorageDriver := "virtio-scsi"
+	blockStorageDriver := "virtio-blk"
 
 	// override
 	defaultProxyPath = proxyPath

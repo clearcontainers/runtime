@@ -100,7 +100,7 @@ func createAllRuntimeConfigFiles(dir, hypervisor string) (config testRuntimeConf
 	logPath := path.Join(logDir, "runtime.log")
 	machineType := "machineType"
 	disableBlockDevice := true
-	blockDeviceDriver := "virtio-scsi"
+	blockDeviceDriver := "virtio-blk"
 
 	runtimeConfigFileData := makeRuntimeConfigFileData(hypervisor, hypervisorPath, kernelPath, imagePath, kernelParams, machineType, shimPath, proxyPath, logPath, disableBlockDevice, blockDeviceDriver)
 
