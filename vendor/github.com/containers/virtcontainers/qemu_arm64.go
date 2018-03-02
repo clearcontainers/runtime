@@ -16,7 +16,11 @@
 
 package virtcontainers
 
-import govmmQemu "github.com/intel/govmm/qemu"
+import (
+	"runtime"
+
+	govmmQemu "github.com/intel/govmm/qemu"
+)
 
 type qemuArm64 struct {
 	// inherit from qemuArchBase, overwrite methods if needed
@@ -44,6 +48,11 @@ var supportedQemuMachines = []govmmQemu.Machine{
 		Type:    QemuVirt,
 		Options: defaultQemuMachineOptions,
 	},
+}
+
+// returns the maximum number of vCPUs supported
+func maxQemuVCPUs() uint32 {
+	return uint32(runtime.NumCPU())
 }
 
 func newQemuArch(machineType string) qemuArch {

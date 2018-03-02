@@ -27,6 +27,7 @@ import (
 
 	proxyClient "github.com/clearcontainers/proxy/client"
 	"github.com/containers/virtcontainers/pkg/hyperstart"
+	ns "github.com/containers/virtcontainers/pkg/nsenter"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
@@ -314,7 +315,19 @@ func (h *hyper) exec(pod *Pod, c Container, cmd Cmd) (*Process, error) {
 		Process:   *hyperProcess,
 	}
 
-	process, err := prepareAndStartShim(pod, h.shim, c.id, token, h.state.URL, cmd)
+	enterNSList := []ns.Namespace{
+		{
+			PID:  c.process.Pid,
+			Type: ns.NSTypeNet,
+		},
+		{
+			PID:  c.process.Pid,
+			Type: ns.NSTypePID,
+		},
+	}
+
+	process, err := prepareAndStartShim(pod, h.shim, c.id,
+		token, h.state.URL, cmd, []ns.NSType{}, enterNSList)
 	if err != nil {
 		return nil, err
 	}
@@ -411,6 +424,13 @@ func (h *hyper) startOneContainer(pod Pod, c *Container) error {
 		Process: process,
 	}
 
+	if c.config.Resources.CPUQuota != 0 && c.config.Resources.CPUPeriod != 0 {
+		container.Constraints = hyperstart.Constraints{
+			CPUQuota:  c.config.Resources.CPUQuota,
+			CPUPeriod: c.config.Resources.CPUPeriod,
+		}
+	}
+
 	container.SystemMountsInfo.BindMountDev = c.systemMountsInfo.BindMountDev
 
 	if c.state.Fstype != "" {
@@ -488,7 +508,17 @@ func (h *hyper) createContainer(pod *Pod, c *Container) (*Process, error) {
 		return nil, err
 	}
 
-	return prepareAndStartShim(pod, h.shim, c.id, token, h.state.URL, c.config.Cmd)
+	createNSList := []ns.NSType{ns.NSTypePID}
+
+	enterNSList := []ns.Namespace{
+		{
+			Path: pod.networkNS.NetNsPath,
+			Type: ns.NSTypeNet,
+		},
+	}
+
+	return prepareAndStartShim(pod, h.shim, c.id, token,
+		h.state.URL, c.config.Cmd, createNSList, enterNSList)
 }
 
 // startContainer is the agent Container starting implementation for hyperstart.

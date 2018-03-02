@@ -7,7 +7,7 @@
 package client
 
 import (
-	"fmt"
+	"context"
 	"net"
 	"net/url"
 	"strconv"
@@ -16,6 +16,8 @@ import (
 
 	"github.com/mdlayher/vsock"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	grpcStatus "google.golang.org/grpc/status"
 
 	agentgrpc "github.com/kata-containers/agent/protocols/grpc"
 )
@@ -46,9 +48,12 @@ func NewAgentClient(sock string) (*AgentClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	dialOpts := []grpc.DialOption{grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(dialTimeout)}
+	dialOpts := []grpc.DialOption{grpc.WithInsecure(), grpc.WithBlock()}
 	dialOpts = append(dialOpts, grpc.WithDialer(agentDialer(parsedAddr)))
-	conn, err := grpc.Dial(grpcAddr, dialOpts...)
+	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(ctx, dialTimeout)
+	defer cancel()
+	conn, err := grpc.DialContext(ctx, grpcAddr, dialOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -85,20 +90,20 @@ func parse(sock string) (string, *url.URL, error) {
 	switch addr.Scheme {
 	case vsockSocketScheme:
 		if addr.Hostname() == "" || addr.Port() == "" || addr.Path != "" {
-			return "", nil, fmt.Errorf("Invalid vsock scheme: %s", sock)
+			return "", nil, grpcStatus.Errorf(codes.InvalidArgument, "Invalid vsock scheme: %s", sock)
 		}
 		if _, err := strconv.ParseUint(addr.Hostname(), 10, 32); err != nil {
-			return "", nil, fmt.Errorf("Invalid vsock cid: %s", sock)
+			return "", nil, grpcStatus.Errorf(codes.InvalidArgument, "Invalid vsock cid: %s", sock)
 		}
 		if _, err := strconv.ParseUint(addr.Port(), 10, 32); err != nil {
-			return "", nil, fmt.Errorf("Invalid vsock port: %s", sock)
+			return "", nil, grpcStatus.Errorf(codes.InvalidArgument, "Invalid vsock port: %s", sock)
 		}
 		grpcAddr = vsockSocketScheme + ":" + addr.Host
 	case unixSocketScheme:
 		fallthrough
 	case "":
 		if (addr.Host == "" && addr.Path == "") || addr.Port() != "" {
-			return "", nil, fmt.Errorf("Invalid unix scheme: %s", sock)
+			return "", nil, grpcStatus.Errorf(codes.InvalidArgument, "Invalid unix scheme: %s", sock)
 		}
 		if addr.Host == "" {
 			grpcAddr = unixSocketScheme + ":///" + addr.Path
@@ -106,7 +111,7 @@ func parse(sock string) (string, *url.URL, error) {
 			grpcAddr = unixSocketScheme + ":///" + addr.Host + "/" + addr.Path
 		}
 	default:
-		return "", nil, fmt.Errorf("Invalid scheme: %s", sock)
+		return "", nil, grpcStatus.Errorf(codes.InvalidArgument, "Invalid scheme: %s", sock)
 	}
 
 	return grpcAddr, addr, nil
@@ -131,19 +136,19 @@ func unixDialer(sock string, timeout time.Duration) (net.Conn, error) {
 func parseGrpcVsockAddr(sock string) (uint32, uint32, error) {
 	sp := strings.Split(sock, ":")
 	if len(sp) != 3 {
-		return 0, 0, fmt.Errorf("Invalid vsock address: %s", sock)
+		return 0, 0, grpcStatus.Errorf(codes.InvalidArgument, "Invalid vsock address: %s", sock)
 	}
 	if sp[0] != vsockSocketScheme {
-		return 0, 0, fmt.Errorf("Invalid vsock URL scheme: %s", sp[0])
+		return 0, 0, grpcStatus.Errorf(codes.InvalidArgument, "Invalid vsock URL scheme: %s", sp[0])
 	}
 
 	cid, err := strconv.ParseUint(sp[1], 10, 32)
 	if err != nil {
-		return 0, 0, fmt.Errorf("Invalid vsock cid: %s", sp[1])
+		return 0, 0, grpcStatus.Errorf(codes.InvalidArgument, "Invalid vsock cid: %s", sp[1])
 	}
 	port, err := strconv.ParseUint(sp[2], 10, 32)
 	if err != nil {
-		return 0, 0, fmt.Errorf("Invalid vsock port: %s", sp[2])
+		return 0, 0, grpcStatus.Errorf(codes.InvalidArgument, "Invalid vsock port: %s", sp[2])
 	}
 
 	return uint32(cid), uint32(port), nil
@@ -183,7 +188,7 @@ func vsockDialer(sock string, timeout time.Duration) (net.Conn, error) {
 
 	var conn net.Conn
 	var ok bool
-	timeoutErrMsg := fmt.Errorf("timed out connecting to vsock %d:%d", cid, port)
+	timeoutErrMsg := grpcStatus.Errorf(codes.DeadlineExceeded, "timed out connecting to vsock %d:%d", cid, port)
 	select {
 	case conn, ok = <-ch:
 		if !ok {

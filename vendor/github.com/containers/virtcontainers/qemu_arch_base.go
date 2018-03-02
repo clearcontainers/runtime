@@ -213,6 +213,7 @@ func (q *qemuArchBase) cpuTopology(vcpus uint32) govmmQemu.SMP {
 		Sockets: vcpus,
 		Cores:   defaultCores,
 		Threads: defaultThreads,
+		MaxCPUs: defaultMaxQemuVCPUs,
 	}
 
 	return smp
@@ -290,7 +291,8 @@ func (q *qemuArchBase) appendImage(devices []govmmQemu.Device, path string) ([]g
 
 func (q *qemuArchBase) appendSCSIController(devices []govmmQemu.Device) []govmmQemu.Device {
 	scsiController := govmmQemu.SCSIController{
-		ID: scsiControllerID,
+		ID:            scsiControllerID,
+		DisableModern: q.nestedRun,
 	}
 
 	devices = append(devices, scsiController)

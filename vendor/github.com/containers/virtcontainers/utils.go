@@ -96,3 +96,18 @@ func writeToFile(path string, data []byte) error {
 
 	return nil
 }
+
+// ConstraintsToVCPUs converts CPU quota and period to vCPUs
+func ConstraintsToVCPUs(quota int64, period uint64) uint {
+	if quota != 0 && period != 0 {
+		// Use some math magic to round up to the nearest whole vCPU
+		// (that is, a partial part of a quota request ends up assigning
+		// a whole vCPU, for instance, a request of 1.5 'cpu quotas'
+		// will give 2 vCPUs).
+		// This also has the side effect that we will always allocate
+		// at least 1 vCPU.
+		return uint((uint64(quota) + (period - 1)) / period)
+	}
+
+	return 0
+}

@@ -15,10 +15,9 @@
   revision = "1d2a6a3ea132a86abd0731408b7dc34f2fc17d55"
 
 [[projects]]
-  branch = "master"
   name = "github.com/containerd/cri-containerd"
   packages = ["pkg/annotations"]
-  revision = "31845714eff9965f96187f5cedb5967d3540efab"
+  revision = "3d382e2f5dabe3bae62ceb9ded56bdee847008ee"
 
 [[projects]]
   name = "github.com/containernetworking/cni"
@@ -46,11 +45,12 @@
     "pkg/cni",
     "pkg/ethtool",
     "pkg/hyperstart",
+    "pkg/nsenter",
     "pkg/oci",
     "pkg/uuid",
     "pkg/vcMock"
   ]
-  revision = "494b46c5bfa0c305fa3e2ad9d15ca12af2c148a5"
+  revision = "1dce29db26331bb48be149ef6a1254483128aa89"
 
 [[projects]]
   name = "github.com/davecgh/go-spew"
@@ -94,7 +94,7 @@
 [[projects]]
   name = "github.com/intel/govmm"
   packages = ["qemu"]
-  revision = "d60256118ff05e570408e24c159171cca903e362"
+  revision = "e87160f8ea39dfe558bf6761f74717d191d82493"
 
 [[projects]]
   name = "github.com/kata-containers/agent"
@@ -102,7 +102,7 @@
     "protocols/client",
     "protocols/grpc"
   ]
-  revision = "3f6f6da6d469c31364aac417f336ec0d16772095"
+  revision = "33eecb2a445f906811a5bc9713d2dafd10768d18"
 
 [[projects]]
   name = "github.com/kubernetes-incubator/cri-o"
@@ -249,6 +249,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "00853c3930c531f1cf9e1636306a1fd38b522ffaed10c93a92098ca6b2e22f49"
+  inputs-digest = "e36a22c9fa6bbb0ad20dd93f678582fc06253f5c82c8d23654ac5c50e53f7d34"
   solver-name = "gps-cdcl"
   solver-version = 1

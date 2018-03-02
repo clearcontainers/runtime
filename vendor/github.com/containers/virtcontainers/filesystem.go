@@ -88,7 +88,7 @@ const mountsFile = "mounts.json"
 const devicesFile = "devices.json"
 
 // dirMode is the permission bits used for creating a directory
-const dirMode = os.FileMode(0750)
+const dirMode = os.FileMode(0750) | os.ModeDir
 
 // storagePathSuffix is the suffix used for all storage paths
 const storagePathSuffix = "/virtcontainers/pods"
@@ -154,7 +154,7 @@ func (fs *filesystem) Logger() *logrus.Entry {
 func (fs *filesystem) createAllResources(pod Pod) (err error) {
 	for _, resource := range []podResource{stateFileType, configFileType} {
 		_, path, _ := fs.podURI(pod.id, resource)
-		err = os.MkdirAll(path, os.ModeDir)
+		err = os.MkdirAll(path, dirMode)
 		if err != nil {
 			return err
 		}
@@ -163,7 +163,7 @@ func (fs *filesystem) createAllResources(pod Pod) (err error) {
 	for _, container := range pod.containers {
 		for _, resource := range []podResource{stateFileType, configFileType} {
 			_, path, _ := fs.containerURI(pod.id, container.id, resource)
-			err = os.MkdirAll(path, os.ModeDir)
+			err = os.MkdirAll(path, dirMode)
 			if err != nil {
 				fs.deletePodResources(pod.id, nil)
 				return err

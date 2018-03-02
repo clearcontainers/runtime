@@ -202,6 +202,16 @@ type SystemMountsInfo struct {
 	DevShmSize int `json:"devShmSize"`
 }
 
+// Constraints describes the constrains for a container
+type Constraints struct {
+	// CPUQuota specifies the total amount of time in microseconds
+	// The number of microseconds per CPUPeriod that the container is guaranteed CPU access
+	CPUQuota int64
+
+	// CPUPeriod specifies the CPU CFS scheduler period of time in microseconds
+	CPUPeriod uint64
+}
+
 // Container describes a container running on a pod.
 type Container struct {
 	ID               string              `json:"id"`
@@ -216,6 +226,7 @@ type Container struct {
 	RestartPolicy    string              `json:"restartPolicy"`
 	Initialize       bool                `json:"initialize"`
 	SystemMountsInfo SystemMountsInfo    `json:"systemMountsInfo"`
+	Constraints      Constraints         `json:"constraints"`
 }
 
 // IPAddress describes an IP address and its network mask.

@@ -35,10 +35,18 @@ type qmpChannel struct {
 	qmp  *govmmQemu.QMP
 }
 
+// CPUDevice represents a CPU device which was hot-added in a running VM
+type CPUDevice struct {
+	// ID is used to identify this CPU in the hypervisor options.
+	ID string
+}
+
 // QemuState keeps Qemu's state
 type QemuState struct {
 	Bridges []Bridge
-	UUID    string
+	// HotpluggedCPUs is the list of CPUs that were hot-added
+	HotpluggedVCPUs []CPUDevice
+	UUID            string
 }
 
 // qemu is an Hypervisor interface implementation for the Linux qemu hypervisor.
@@ -593,6 +601,9 @@ func (q *qemu) hotplugBlockDevice(drive Drive, op operation) error {
 		if q.config.BlockDeviceDriver == VirtioBlock {
 			driver := "virtio-blk-pci"
 			addr, bus, err := q.addDeviceToBridge(drive.ID)
+			if err != nil {
+				return err
+			}
 
 			if err = q.qmpMonitorCh.qmp.ExecutePCIDeviceAdd(q.qmpMonitorCh.ctx, drive.ID, devID, driver, addr, bus); err != nil {
 				return err
@@ -631,8 +642,11 @@ func (q *qemu) hotplugDevice(devInfo interface{}, devType deviceType, op operati
 	case blockDev:
 		drive := devInfo.(Drive)
 		return q.hotplugBlockDevice(drive, op)
+	case cpuDev:
+		vcpus := devInfo.(uint32)
+		return q.hotplugCPUs(vcpus, op)
 	default:
-		return fmt.Errorf("Only hotplug for block devices supported for now, provided device type : %v", devType)
+		return fmt.Errorf("cannot hotplug device: unsupported device type '%v'", devType)
 	}
 }
 
@@ -647,6 +661,104 @@ func (q *qemu) hotplugAddDevice(devInfo interface{}, devType deviceType) error {
 func (q *qemu) hotplugRemoveDevice(devInfo interface{}, devType deviceType) error {
 	if err := q.hotplugDevice(devInfo, devType, removeDevice); err != nil {
 		return err
+	}
+
+	return q.pod.storage.storeHypervisorState(q.pod.id, q.state)
+}
+
+func (q *qemu) hotplugCPUs(vcpus uint32, op operation) error {
+	if vcpus == 0 {
+		q.Logger().Warnf("cannot hotplug 0 vCPUs")
+		return nil
+	}
+
+	defer func(qemu *qemu) {
+		if q.qmpMonitorCh.qmp != nil {
+			q.qmpMonitorCh.qmp.Shutdown()
+		}
+	}(q)
+
+	qmp, err := q.qmpSetup()
+	if err != nil {
+		return err
+	}
+
+	q.qmpMonitorCh.qmp = qmp
+
+	if op == addDevice {
+		return q.hotplugAddCPUs(vcpus)
+	}
+
+	return q.hotplugRemoveCPUs(vcpus)
+}
+
+func (q *qemu) hotplugAddCPUs(amount uint32) error {
+	currentVCPUs := q.qemuConfig.SMP.CPUs + uint32(len(q.state.HotpluggedVCPUs))
+
+	// Don't exceed the maximum amount of vCPUs
+	if currentVCPUs+amount > q.config.DefaultMaxVCPUs {
+		return fmt.Errorf("Unable to hotplug %d CPUs, currently this POD has %d CPUs and the maximum amount of CPUs is %d",
+			amount, currentVCPUs, q.config.DefaultMaxVCPUs)
+	}
+
+	// get the list of hotpluggable CPUs
+	hotpluggableVCPUs, err := q.qmpMonitorCh.qmp.ExecuteQueryHotpluggableCPUs(q.qmpMonitorCh.ctx)
+	if err != nil {
+		return fmt.Errorf("failed to query hotpluggable CPUs: %v", err)
+	}
+
+	var hotpluggedVCPUs uint32
+	for _, hc := range hotpluggableVCPUs {
+		// qom-path is the path to the CPU, non-empty means that this CPU is already in use
+		if hc.QOMPath != "" {
+			continue
+		}
+
+		// CPU type, i.e host-x86_64-cpu
+		driver := hc.Type
+		cpuID := fmt.Sprintf("cpu-%d", len(q.state.HotpluggedVCPUs))
+		socketID := fmt.Sprintf("%d", hc.Properties.Socket)
+		coreID := fmt.Sprintf("%d", hc.Properties.Core)
+		threadID := fmt.Sprintf("%d", hc.Properties.Thread)
+		if err := q.qmpMonitorCh.qmp.ExecuteCPUDeviceAdd(q.qmpMonitorCh.ctx, driver, cpuID, socketID, coreID, threadID); err != nil {
+			// don't fail, let's try with other CPU
+			continue
+		}
+
+		// a new vCPU was added, update list of hotplugged vCPUs and check if all vCPUs were added
+		q.state.HotpluggedVCPUs = append(q.state.HotpluggedVCPUs, CPUDevice{cpuID})
+		hotpluggedVCPUs++
+		if hotpluggedVCPUs == amount {
+			// All vCPUs were hotplugged
+			return q.pod.storage.storeHypervisorState(q.pod.id, q.state)
+		}
+	}
+
+	// All vCPUs were NOT hotplugged
+	if err := q.pod.storage.storeHypervisorState(q.pod.id, q.state); err != nil {
+		q.Logger().Errorf("failed to save hypervisor state after hotplug %d vCPUs: %v", hotpluggedVCPUs, err)
+	}
+
+	return fmt.Errorf("failed to hot add vCPUs: only %d vCPUs of %d were added", hotpluggedVCPUs, amount)
+}
+
+func (q *qemu) hotplugRemoveCPUs(amount uint32) error {
+	hotpluggedVCPUs := uint32(len(q.state.HotpluggedVCPUs))
+
+	// we can only remove hotplugged vCPUs
+	if amount > hotpluggedVCPUs {
+		return fmt.Errorf("Unable to remove %d CPUs, currently there are only %d hotplugged CPUs", amount, hotpluggedVCPUs)
+	}
+
+	for i := uint32(0); i < amount; i++ {
+		// get the last vCPUs and try to remove it
+		cpu := q.state.HotpluggedVCPUs[len(q.state.HotpluggedVCPUs)-1]
+		if err := q.qmpMonitorCh.qmp.ExecuteDeviceDel(q.qmpMonitorCh.ctx, cpu.ID); err != nil {
+			return fmt.Errorf("failed to hotunplug CPUs, only %d CPUs were hotunplugged: %v", i, err)
+		}
+
+		// remove from the list the vCPU hotunplugged
+		q.state.HotpluggedVCPUs = q.state.HotpluggedVCPUs[:len(q.state.HotpluggedVCPUs)-1]
 	}
 
 	return q.pod.storage.storeHypervisorState(q.pod.id, q.state)

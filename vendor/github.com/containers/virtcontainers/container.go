@@ -58,6 +58,16 @@ type ContainerStatus struct {
 	Annotations map[string]string
 }
 
+// ContainerResources describes container resources
+type ContainerResources struct {
+	// CPUQuota specifies the total amount of time in microseconds
+	// The number of microseconds per CPUPeriod that the container is guaranteed CPU access
+	CPUQuota int64
+
+	// CPUPeriod specifies the CPU CFS scheduler period of time in microseconds
+	CPUPeriod uint64
+}
+
 // ContainerConfig describes one container runtime configuration.
 type ContainerConfig struct {
 	ID string
@@ -80,6 +90,9 @@ type ContainerConfig struct {
 
 	// Device configuration for devices that must be available within the container.
 	DeviceInfos []DeviceInfo
+
+	// Resources container resources
+	Resources ContainerResources
 }
 
 // valid checks that the container configuration is valid.
@@ -436,6 +449,10 @@ func createContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 		return nil, err
 	}
 
+	if err := c.addResources(); err != nil {
+		return nil, err
+	}
+
 	// Deduce additional system mount info that should be handled by the agent
 	// inside the VM
 	c.getSystemMountInfo()
@@ -588,6 +605,10 @@ func (c *Container) stop() error {
 	}
 
 	if err := c.pod.agent.stopContainer(*(c.pod), *c); err != nil {
+		return err
+	}
+
+	if err := c.removeResources(); err != nil {
 		return err
 	}
 
@@ -748,6 +769,40 @@ func (c *Container) attachDevices() error {
 func (c *Container) detachDevices() error {
 	for _, device := range c.devices {
 		if err := device.detach(c.pod.hypervisor); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *Container) addResources() error {
+	//TODO add support for memory, Issue: https://github.com/containers/virtcontainers/issues/578
+	if c.config == nil {
+		return nil
+	}
+
+	vCPUs := ConstraintsToVCPUs(c.config.Resources.CPUQuota, c.config.Resources.CPUPeriod)
+	if vCPUs != 0 {
+		virtLog.Debugf("hot adding %d vCPUs", vCPUs)
+		if err := c.pod.hypervisor.hotplugAddDevice(uint32(vCPUs), cpuDev); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *Container) removeResources() error {
+	//TODO add support for memory, Issue: https://github.com/containers/virtcontainers/issues/578
+	if c.config == nil {
+		return nil
+	}
+
+	vCPUs := ConstraintsToVCPUs(c.config.Resources.CPUQuota, c.config.Resources.CPUPeriod)
+	if vCPUs != 0 {
+		virtLog.Debugf("hot removing %d vCPUs", vCPUs)
+		if err := c.pod.hypervisor.hotplugRemoveDevice(uint32(vCPUs), cpuDev); err != nil {
 			return err
 		}
 	}
