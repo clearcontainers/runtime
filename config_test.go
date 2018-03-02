@@ -41,13 +41,14 @@ type testRuntimeConfig struct {
 	LogPath           string
 }
 
-func makeRuntimeConfigFileData(hypervisor, hypervisorPath, kernelPath, imagePath, kernelParams, machineType, shimPath, proxyPath, logPath string, disableBlock bool) string {
+func makeRuntimeConfigFileData(hypervisor, hypervisorPath, kernelPath, imagePath, kernelParams, machineType, shimPath, proxyPath, logPath string, disableBlock bool, blockDeviceDriver string) string {
 	return `
 	# Clear Containers runtime configuration file
 
 	[hypervisor.` + hypervisor + `]
 	path = "` + hypervisorPath + `"
 	kernel = "` + kernelPath + `"
+	block_device_driver =  "` + blockDeviceDriver + `"
 	kernel_params = "` + kernelParams + `"
 	image = "` + imagePath + `"
 	machine_type = "` + machineType + `"
@@ -99,8 +100,9 @@ func createAllRuntimeConfigFiles(dir, hypervisor string) (config testRuntimeConf
 	logPath := path.Join(logDir, "runtime.log")
 	machineType := "machineType"
 	disableBlockDevice := true
+	blockDeviceDriver := "virtio-scsi"
 
-	runtimeConfigFileData := makeRuntimeConfigFileData(hypervisor, hypervisorPath, kernelPath, imagePath, kernelParams, machineType, shimPath, proxyPath, logPath, disableBlockDevice)
+	runtimeConfigFileData := makeRuntimeConfigFileData(hypervisor, hypervisorPath, kernelPath, imagePath, kernelParams, machineType, shimPath, proxyPath, logPath, disableBlockDevice, blockDeviceDriver)
 
 	configPath := path.Join(dir, "runtime.toml")
 	err = createConfig(configPath, runtimeConfigFileData)
@@ -135,6 +137,7 @@ func createAllRuntimeConfigFiles(dir, hypervisor string) (config testRuntimeConf
 		DefaultVCPUs:          defaultVCPUCount,
 		DefaultMemSz:          defaultMemSize,
 		DisableBlockDeviceUse: disableBlockDevice,
+		BlockDeviceDriver:     defaultBlockDeviceDriver,
 		DefaultBridges:        defaultBridgesCount,
 		Mlock:                 !defaultEnableSwap,
 	}
@@ -518,6 +521,7 @@ func TestMinimalRuntimeConfig(t *testing.T) {
 		DisableBlockDeviceUse: defaultDisableBlockDeviceUse,
 		DefaultBridges:        defaultBridgesCount,
 		Mlock:                 !defaultEnableSwap,
+		BlockDeviceDriver:     defaultBlockDeviceDriver,
 	}
 
 	expectedAgentConfig := vc.HyperConfig{}

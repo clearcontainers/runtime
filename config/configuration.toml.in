@@ -64,6 +64,11 @@ default_bridges = @DEFBRIDGES@
 # 9pfs is used instead to pass the rootfs.
 disable_block_device_use = @DEFDISABLEBLOCK@
 
+# Block storage driver to be used for the hypervisor in case the container
+# rootfs is backed by a block device. This is either virtio-scsi or 
+# virtio-blk.
+block_device_driver = "@DEFBLOCKSTORAGEDRIVER@"
+
 # Enable pre allocation of VM RAM, default false
 # Enabling this will result in lower container density
 # as all of the memory will be allocated and locked

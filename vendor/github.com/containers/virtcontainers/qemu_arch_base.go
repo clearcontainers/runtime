@@ -65,6 +65,9 @@ type qemuArch interface {
 	// appendImage appends an image to devices
 	appendImage(devices []govmmQemu.Device, path string) ([]govmmQemu.Device, error)
 
+	// appendSCSIController appens a SCSI controller to devices
+	appendSCSIController(devices []govmmQemu.Device) []govmmQemu.Device
+
 	// appendBridges appends bridges to devices
 	appendBridges(devices []govmmQemu.Device, bridges []Bridge) []govmmQemu.Device
 
@@ -105,6 +108,14 @@ const (
 	defaultCPUModel         = "host"
 	defaultBridgeBus        = "pcie.0"
 	maxDevIDSize            = 31
+)
+
+const (
+	// VirtioBlock means use virtio-blk for hotplugging drives
+	VirtioBlock = "virtio-blk"
+
+	// VirtioSCSI means use virtio-scsi for hotplugging drives
+	VirtioSCSI = "virtio-scsi"
 )
 
 const (
@@ -275,6 +286,16 @@ func (q *qemuArchBase) appendImage(devices []govmmQemu.Device, path string) ([]g
 	}
 
 	return q.appendBlockDevice(devices, drive), nil
+}
+
+func (q *qemuArchBase) appendSCSIController(devices []govmmQemu.Device) []govmmQemu.Device {
+	scsiController := govmmQemu.SCSIController{
+		ID: scsiControllerID,
+	}
+
+	devices = append(devices, scsiController)
+
+	return devices
 }
 
 // appendBridges appends to devices the given bridges

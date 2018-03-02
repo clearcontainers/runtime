@@ -85,6 +85,7 @@ type hypervisor struct {
 	DefaultMemSz          uint32 `toml:"default_memory"`
 	DefaultBridges        uint32 `toml:"default_bridges"`
 	DisableBlockDeviceUse bool   `toml:"disable_block_device_use"`
+	BlockDeviceDriver     string `toml:"block_device_driver"`
 	MemPrealloc           bool   `toml:"enable_mem_prealloc"`
 	HugePages             bool   `toml:"enable_hugepages"`
 	Swap                  bool   `toml:"enable_swap"`
@@ -217,6 +218,18 @@ func (h hypervisor) defaultBridges() uint32 {
 	return h.DefaultBridges
 }
 
+func (h hypervisor) blockDeviceDriver() (string, error) {
+	if h.BlockDeviceDriver == "" {
+		return defaultBlockDeviceDriver, nil
+	}
+
+	if h.BlockDeviceDriver != vc.VirtioSCSI && h.BlockDeviceDriver != vc.VirtioBlock {
+		return "", fmt.Errorf("Invalid value %s provided for hypervisor block storage driver, can be either %s or %s", h.BlockDeviceDriver, vc.VirtioSCSI, vc.VirtioBlock)
+	}
+
+	return h.BlockDeviceDriver, nil
+}
+
 func (p proxy) path() string {
 	if p.Path == "" {
 		return defaultProxyPath
@@ -268,6 +281,11 @@ func newQemuHypervisorConfig(h hypervisor) (vc.HypervisorConfig, error) {
 	kernelParams := h.kernelParams()
 	machineType := h.machineType()
 
+	blockDriver, err := h.blockDeviceDriver()
+	if err != nil {
+		return vc.HypervisorConfig{}, err
+	}
+
 	return vc.HypervisorConfig{
 		HypervisorPath:        hypervisor,
 		KernelPath:            kernel,
@@ -285,6 +303,7 @@ func newQemuHypervisorConfig(h hypervisor) (vc.HypervisorConfig, error) {
 		Mlock:                 !h.Swap,
 		Debug:                 h.Debug,
 		DisableNestingChecks:  h.DisableNestingChecks,
+		BlockDeviceDriver:     blockDriver,
 	}, nil
 }
 
@@ -386,6 +405,7 @@ func loadConfiguration(configPath string, ignoreLogging bool) (resolvedConfigPat
 		Mlock:                 !defaultEnableSwap,
 		Debug:                 defaultEnableDebug,
 		DisableNestingChecks:  defaultDisableNestingChecks,
+		BlockDeviceDriver:     defaultBlockDeviceDriver,
 	}
 
 	err = config.InterNetworkModel.SetModel(defaultInterNetworkingModel)

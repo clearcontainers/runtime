@@ -68,6 +68,7 @@ func makeRuntimeConfig(prefixDir string) (configFile string, config oci.RuntimeC
 	shimPath := filepath.Join(prefixDir, "cc-shim")
 	proxyPath := filepath.Join(prefixDir, "cc-proxy")
 	disableBlock := true
+	blockStorageDriver := "virtio-scsi"
 
 	// override
 	defaultProxyPath = proxyPath
@@ -110,7 +111,8 @@ func makeRuntimeConfig(prefixDir string) (configFile string, config oci.RuntimeC
 		shimPath,
 		testProxyURL,
 		logPath,
-		disableBlock)
+		disableBlock,
+		blockStorageDriver)
 
 	configFile = path.Join(prefixDir, "runtime.toml")
 	err = createConfig(configFile, runtimeConfig)
@@ -232,9 +234,10 @@ model name	: %s
 
 func getExpectedHypervisor(config oci.RuntimeConfig) HypervisorInfo {
 	return HypervisorInfo{
-		Version:     testHypervisorVersion,
-		Path:        config.HypervisorConfig.HypervisorPath,
-		MachineType: config.HypervisorConfig.HypervisorMachineType,
+		Version:           testHypervisorVersion,
+		Path:              config.HypervisorConfig.HypervisorPath,
+		MachineType:       config.HypervisorConfig.HypervisorMachineType,
+		BlockDeviceDriver: config.HypervisorConfig.BlockDeviceDriver,
 	}
 }
 
