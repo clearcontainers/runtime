@@ -5,7 +5,6 @@
     * [Networking](#networking)
         * [Adding networks dynamically](#adding-networks-dynamically)
     * [Resource management](#resource-management)
-        * [`docker run --cpus=`](#docker-run---cpus)
         * [`docker run --kernel-memory=`](#docker-run---kernel-memory)
         * [shm](#shm)
         * [cgroup constraints](#cgroup-constraints)
@@ -91,19 +90,9 @@ Due to the way VMs differ in their CPU and memory allocation and sharing
 across the host system, the implementation of an equivalent method for
 these commands is potentially challenging.
 
-#### `docker run --cpus=`
+See issue [\#341](https://github.com/clearcontainers/runtime/issues/341) for more information.
 
-The `docker run --cpus=` option is not currently implemented. At the
-runtime level, this equates to the `linux.resources.cpu` OCI
-configuration. It should be possible to pass this information through to
-the QEMU command line CPU configuration options to gain a similar
-effect.
-
-Note that the `--cpu-quota` and `--cpu-period` `docker run` options are
-supported; in combination, these two options can provide most of the
-functionality that `--cpus` would offer.
-
-See issue [\#341](https://github.com/clearcontainers/runtime/issues/341) for more information.
+For CPUs resource management see [cpu-constraints](https://github.com/clearcontainers/runtime/blob/master/docs/cpu-constraints.md)
 
 #### `docker run --kernel-memory=`
 
