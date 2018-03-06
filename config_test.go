@@ -166,7 +166,6 @@ func createAllRuntimeConfigFiles(dir, hypervisor string) (config testRuntimeConf
 		ShimConfig: shimConfig,
 
 		VMConfig: vc.Resources{
-			VCPUs:  uint(defaultVCPUCount),
 			Memory: uint(defaultMemSize),
 		},
 	}
@@ -1026,7 +1025,6 @@ func TestUpdateRuntimeConfigurationVMConfig(t *testing.T) {
 
 	config := oci.RuntimeConfig{}
 	expectedVMConfig := vc.Resources{
-		VCPUs:  vcpus,
 		Memory: mem,
 	}
 
