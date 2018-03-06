@@ -78,6 +78,11 @@ var supportedQemuMachines = []govmmQemu.Machine{
 	},
 }
 
+// returns the maximum number of vCPUs supported
+func maxQemuVCPUs() uint32 {
+	return uint32(240)
+}
+
 func newQemuArch(machineType string) qemuArch {
 	if machineType == "" {
 		machineType = defaultQemuMachineType

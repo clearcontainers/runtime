@@ -454,13 +454,7 @@ func vmConfig(ocispec CompatOCISpec, config RuntimeConfig) (vc.Resources, error)
 			return vc.Resources{}, fmt.Errorf("Invalid OCI cpu period %d", period)
 		}
 
-		// Use some math magic to round up to the nearest whole vCPU
-		// (that is, a partial part of a quota request ends up assigning
-		// a whole vCPU, for instance, a request of 1.5 'cpu quotas'
-		// will give 2 vCPUs).
-		// This also has the side effect that we will always allocate
-		// at least 1 vCPU.
-		resources.VCPUs = uint((uint64(quota) + (period - 1)) / period)
+		resources.VCPUs = vc.ConstraintsToVCPUs(quota, period)
 	}
 
 	return resources, nil
@@ -587,6 +581,14 @@ func ContainerConfig(ocispec CompatOCISpec, bundlePath, cid, console string, det
 		return vc.ContainerConfig{}, err
 	}
 
+	var resources vc.ContainerResources
+	if ocispec.Linux.Resources.CPU != nil &&
+		ocispec.Linux.Resources.CPU.Quota != nil &&
+		ocispec.Linux.Resources.CPU.Period != nil {
+		resources.CPUQuota = *ocispec.Linux.Resources.CPU.Quota
+		resources.CPUPeriod = *ocispec.Linux.Resources.CPU.Period
+	}
+
 	containerConfig := vc.ContainerConfig{
 		ID:             cid,
 		RootFs:         rootfs,
@@ -598,6 +600,7 @@ func ContainerConfig(ocispec CompatOCISpec, bundlePath, cid, console string, det
 		},
 		Mounts:      containerMounts(ocispec),
 		DeviceInfos: deviceInfos,
+		Resources:   resources,
 	}
 
 	cType, err := ocispec.ContainerType()

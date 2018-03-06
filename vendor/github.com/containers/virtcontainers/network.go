@@ -1257,8 +1257,10 @@ func createEndpointsFromScan(networkNSPath string, config NetworkConfig) ([]Endp
 				cnmLogger().WithField("interface", netInfo.Iface.Name).Info("Physical network interface found")
 				endpoint, err = createPhysicalEndpoint(netInfo)
 			} else {
+				var socketPath string
+
 				// Check if this is a dummy interface which has a vhost-user socket associated with it
-				socketPath, err := vhostUserSocketPath(netInfo)
+				socketPath, err = vhostUserSocketPath(netInfo)
 				if err != nil {
 					return err
 				}

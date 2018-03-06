@@ -51,6 +51,9 @@ const (
 	defaultBlockDriver = VirtioSCSI
 )
 
+// In some architectures the maximum number of vCPUs depends on the number of physical cores.
+var defaultMaxQemuVCPUs = maxQemuVCPUs()
+
 // deviceType describes a virtualized device type.
 type deviceType int
 
@@ -81,6 +84,9 @@ const (
 
 	// vhostuserDev is a Vhost-user device type
 	vhostuserDev
+
+	// CPUDevice is CPU device type
+	cpuDev
 )
 
 // Set sets an hypervisor type based on the input string.
@@ -179,6 +185,9 @@ type HypervisorConfig struct {
 	// Pod configuration VMConfig.VCPUs overwrites this.
 	DefaultVCPUs uint32
 
+	//DefaultMaxVCPUs specifies the maximum number of vCPUs for the VM.
+	DefaultMaxVCPUs uint32
+
 	// DefaultMem specifies default memory size in MiB for the VM.
 	// Pod configuration VMConfig.Memory overwrites this.
 	DefaultMemSz uint32
@@ -235,6 +244,10 @@ func (conf *HypervisorConfig) valid() (bool, error) {
 
 	if conf.BlockDeviceDriver == "" {
 		conf.BlockDeviceDriver = defaultBlockDriver
+	}
+
+	if conf.DefaultMaxVCPUs == 0 {
+		conf.DefaultMaxVCPUs = defaultMaxQemuVCPUs
 	}
 
 	return true, nil

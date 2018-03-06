@@ -23,6 +23,7 @@ import (
 	"syscall"
 	"time"
 
+	ns "github.com/containers/virtcontainers/pkg/nsenter"
 	"github.com/mitchellh/mapstructure"
 	"github.com/sirupsen/logrus"
 )
@@ -54,6 +55,8 @@ type ShimParams struct {
 	Terminal  bool
 	Detach    bool
 	PID       int
+	CreateNS  []ns.NSType
+	EnterNS   []ns.Namespace
 }
 
 // ShimConfig is the structure providing specific configuration
@@ -151,7 +154,8 @@ func stopShim(pid int) error {
 	return nil
 }
 
-func prepareAndStartShim(pod *Pod, shim shim, cid, token, url string, cmd Cmd) (*Process, error) {
+func prepareAndStartShim(pod *Pod, shim shim, cid, token, url string, cmd Cmd,
+	createNSList []ns.NSType, enterNSList []ns.Namespace) (*Process, error) {
 	process := &Process{
 		Token:     token,
 		StartTime: time.Now().UTC(),
@@ -164,13 +168,12 @@ func prepareAndStartShim(pod *Pod, shim shim, cid, token, url string, cmd Cmd) (
 		Console:   cmd.Console,
 		Terminal:  cmd.Interactive,
 		Detach:    cmd.Detach,
+		CreateNS:  createNSList,
+		EnterNS:   enterNSList,
 	}
 
-	var pid int
-	if err := pod.network.run(pod.networkNS.NetNsPath, func() (shimErr error) {
-		pid, shimErr = shim.start(*pod, shimParams)
-		return
-	}); err != nil {
+	pid, err := shim.start(*pod, shimParams)
+	if err != nil {
 		return nil, err
 	}
 
@@ -188,6 +191,15 @@ func startShim(args []string, params ShimParams) (int, error) {
 		cmd.Stderr = os.Stderr
 	}
 
+	cloneFlags := 0
+	for _, nsType := range params.CreateNS {
+		cloneFlags |= ns.CloneFlagsTable[nsType]
+	}
+
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Cloneflags: uintptr(cloneFlags),
+	}
+
 	var f *os.File
 	var err error
 	if params.Console != "" {
@@ -199,15 +211,11 @@ func startShim(args []string, params ShimParams) (int, error) {
 		cmd.Stdin = f
 		cmd.Stdout = f
 		cmd.Stderr = f
-		cmd.SysProcAttr = &syscall.SysProcAttr{
-			// Create Session
-			Setsid: true,
-
-			// Set Controlling terminal to Ctty
-			Setctty: true,
-			Ctty:    int(f.Fd()),
-		}
-
+		// Create Session
+		cmd.SysProcAttr.Setsid = true
+		// Set Controlling terminal to Ctty
+		cmd.SysProcAttr.Setctty = true
+		cmd.SysProcAttr.Ctty = int(f.Fd())
 	}
 	defer func() {
 		if f != nil {
@@ -215,7 +223,9 @@ func startShim(args []string, params ShimParams) (int, error) {
 		}
 	}()
 
-	if err := cmd.Start(); err != nil {
+	if err := ns.NsEnter(params.EnterNS, func() error {
+		return cmd.Start()
+	}); err != nil {
 		return -1, err
 	}
 
