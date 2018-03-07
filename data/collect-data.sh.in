@@ -88,7 +88,15 @@ Description: Run this script as root to obtain a markdown-formatted summary
 Options:
 
  -h | --help | help       : show this usage summary.
+ -v | --version | version : show program version.
 
+EOT
+}
+
+version()
+{
+	cat <<EOT
+$script_name version $script_version
 EOT
 }
 
@@ -342,6 +350,7 @@ main()
 {
 	case "$1" in
 		-h|--help|help) usage && exit 0;;
+		-v|--version|version) version && exit 0;;
 	esac
 
 	[ $(id -u) -eq 0 ] || die "Need to run as root"
