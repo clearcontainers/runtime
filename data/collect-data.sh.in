@@ -210,17 +210,10 @@ find_system_journal_problems()
 	local program="$2"
 	local unit="$3"
 
-	local selector
+	# select by identifier
+	local selector="-t"
 
-	data_source="system journal"
-
-	if [ -n "$unit" ]; then
-		# select by systemd unit
-		selector='-u'
-	else
-		# select by identifier
-		selector='-t'
-	fi
+	local data_source="system journal"
 
 	local problems=$(journalctl -q -o cat -a "$selector" "$program" |\
 		grep "time=" |\
