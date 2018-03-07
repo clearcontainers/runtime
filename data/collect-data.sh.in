@@ -75,7 +75,7 @@ problem_exclude_pattern+=")"
 usage()
 {
 	cat <<EOT
-Usage: $script_name
+Usage: $script_name [options]
 
 Summary: Collect data about an installation of @PROJECT_NAME@.
 
@@ -84,6 +84,10 @@ Description: Run this script as root to obtain a markdown-formatted summary
   can be pasted directly into a github issue at the address below:
 
       $issue_url
+
+Options:
+
+ -h | --help | help       : show this usage summary.
 
 EOT
 }
