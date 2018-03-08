@@ -7,7 +7,7 @@ clear_vm_image_version=20640
 # Clear Containers Kernel version
 # Kernel configuration and patches from
 # https://github.com/clearcontainers/linux
-clear_container_kernel=v4.9.60-85.container
+clear_container_kernel=v4.14.22-86.container
 clear_kernel_release=19790
 
 # Qemu-lite version
