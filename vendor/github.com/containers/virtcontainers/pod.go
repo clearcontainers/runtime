@@ -313,9 +313,6 @@ type Cmd struct {
 
 // Resources describes VM resources configuration.
 type Resources struct {
-	// VCPUs is the number of available virtual CPUs.
-	VCPUs uint
-
 	// Memory is the amount of available memory in MiB.
 	Memory uint
 }

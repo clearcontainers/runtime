@@ -204,13 +204,8 @@ func (q *qemu) init(pod *Pod) error {
 	return nil
 }
 
-func (q *qemu) cpuTopology(podConfig PodConfig) govmmQemu.SMP {
-	vcpus := q.config.DefaultVCPUs
-	if podConfig.VMConfig.VCPUs > 0 {
-		vcpus = uint32(podConfig.VMConfig.VCPUs)
-	}
-
-	return q.arch.cpuTopology(vcpus)
+func (q *qemu) cpuTopology() govmmQemu.SMP {
+	return q.arch.cpuTopology(q.config.DefaultVCPUs)
 }
 
 func (q *qemu) memoryTopology(podConfig PodConfig) (govmmQemu.Memory, error) {
@@ -266,7 +261,7 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 		machine.Options += accelerators
 	}
 
-	smp := q.cpuTopology(podConfig)
+	smp := q.cpuTopology()
 
 	memory, err := q.memoryTopology(podConfig)
 	if err != nil {
