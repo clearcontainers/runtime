@@ -47,6 +47,10 @@ problem_pattern+="\<impossible\>|"
 problem_pattern+="\<impossibly\>|"
 problem_pattern+="\<incorrect|"
 problem_pattern+="\<invalid\>|"
+problem_pattern+="\<level=\"*error\"* |"
+problem_pattern+="\<level=\"*fatal\"* |"
+problem_pattern+="\<level=\"*panic\"* |"
+problem_pattern+="\<level=\"*warning\"* |"
 problem_pattern+="\<missing\>|"
 problem_pattern+="\<need\>|"
 problem_pattern+="\<no.*such.*file\>|"
@@ -71,7 +75,7 @@ problem_exclude_pattern+=")"
 usage()
 {
 	cat <<EOT
-Usage: $script_name
+Usage: $script_name [options]
 
 Summary: Collect data about an installation of @PROJECT_NAME@.
 
@@ -81,6 +85,18 @@ Description: Run this script as root to obtain a markdown-formatted summary
 
       $issue_url
 
+Options:
+
+ -h | --help | help       : show this usage summary.
+ -v | --version | version : show program version.
+
+EOT
+}
+
+version()
+{
+	cat <<EOT
+$script_name version $script_version
 EOT
 }
 
@@ -210,17 +226,10 @@ find_system_journal_problems()
 	local program="$2"
 	local unit="$3"
 
-	local selector
+	# select by identifier
+	local selector="-t"
 
-	data_source="system journal"
-
-	if [ -n "$unit" ]; then
-		# select by systemd unit
-		selector='-u'
-	else
-		# select by identifier
-		selector='-t'
-	fi
+	local data_source="system journal"
 
 	local problems=$(journalctl -q -o cat -a "$selector" "$program" |\
 		grep "time=" |\
@@ -341,6 +350,7 @@ main()
 {
 	case "$1" in
 		-h|--help|help) usage && exit 0;;
+		-v|--version|version) version && exit 0;;
 	esac
 
 	[ $(id -u) -eq 0 ] || die "Need to run as root"
