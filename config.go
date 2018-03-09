@@ -447,11 +447,14 @@ func loadConfiguration(configPath string, ignoreLogging bool) (resolvedConfigPat
 		return "", config, err
 	}
 
-	if !tomlConf.Runtime.Debug {
+	if tomlConf.Runtime.Debug {
+		crashOnError = true
+	} else {
 		// If debug is not required, switch back to the original
 		// default log priority, otherwise continue in debug mode.
 		ccLog.Logger.Level = originalLoggerLevel
 	}
+
 	if tomlConf.Runtime.InterNetworkModel != "" {
 		err = config.InterNetworkModel.SetModel(tomlConf.Runtime.InterNetworkModel)
 		if err != nil {
