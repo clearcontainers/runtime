@@ -21,13 +21,13 @@ docker_version=v17.12-ce
 docker_swarm_version=1.12.1
 
 # Supported CRI-O version
-crio_version=v1.9.0
+crio_version=v1.9.7
 
 # Runc version compatible with crio_version
-runc_version=v1.0.0-rc4
+runc_version=v1.0.0-rc5
 
 # Supported Kubernetes version
-kubernetes_version=1.9.2-00
+kubernetes_version=1.9.3-00
 
 # Supported Openshift Origin version
 openshift_origin_version=v3.7.1
