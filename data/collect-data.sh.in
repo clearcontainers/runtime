@@ -20,6 +20,8 @@ runtime=$(command -v "$runtime_name" 2>/dev/null)
 issue_url="@PROJECT_BUG_URL@"
 script_version="@VERSION@ (commit @COMMIT@)"
 
+typeset -r unknown="unknown"
+
 # Maximum number of errors to show for a single system component
 # (such as runtime or proxy).
 PROBLEM_LIMIT=${PROBLEM_LIMIT:-50}
@@ -353,6 +355,170 @@ show_runtime()
 	separator
 }
 
+# Parameter 1: Path to disk image file.
+# Returns: Agent version string, or "$unknown" on error.
+get_agent_version()
+{
+	local img="$1"
+
+	[ -z "$img" ] && { echo "$unknown"; return;}
+	[ -e "$img" ] || { echo "$unknown"; return;}
+
+	local loop_device
+	local partition_path
+	local partitions
+	local partition
+	local count
+	local mountpoint
+	local version
+	local expected
+
+	loop_device=$(loopmount_image "$img")
+	if [ -z "$loop_device" ]; then
+		echo "$unknown"
+		return
+	fi
+
+	partitions=$(get_partitions "$loop_device")
+	count=$(echo "$partitions"|wc -l)
+
+	expected=1
+
+	if [ "$count" -ne "$expected" ]; then
+		release_device "$loop_device"
+		echo "$unknown"
+		return
+	fi
+
+	partition="$partitions"
+
+	partition_path="/dev/${partition}"
+	if [ ! -e "$partition_path" ]; then
+		release_device "$loop_device"
+		echo "$unknown"
+		return
+	fi
+
+	mountpoint=$(mount_partition "$partition_path")
+
+	agent="/bin/@PROJECT_TYPE@-agent"
+
+	version=$(chroot "$mountpoint" "$agent" --version 2>/dev/null)
+
+	unmount_partition "$mountpoint"
+	release_device "$loop_device"
+
+	[ -z "$version" ] && version="$unknown"
+
+	echo "$version"
+}
+
+# Returns: Full path to the image file.
+get_image_file()
+{
+	local cmd="@PROJECT_TYPE@-env"
+	local cmdline="$runtime $cmd"
+
+	image=$(eval "$cmdline" 2>/dev/null |\
+		grep -A 1 '\[Image\]' |\
+		egrep "\<Path\> =" |\
+		awk '{print $3}' |\
+		tr -d '"')
+
+	echo "$image"
+}
+
+# Parameter 1: Path to disk image file.
+# Returns: Path to loop device.
+loopmount_image()
+{
+	local img="$1"
+	[ -n "$img" ] || die "need image file"
+
+	local device_path
+
+	losetup -fP "$img"
+
+	device_path=$(losetup -j "$img" |\
+		cut -d: -f1 |\
+		sort -k1,1 |\
+		tail -1)
+
+	echo "$device_path"
+}
+
+# Parameter 1: Path to loop device.
+# Returns: Partition names.
+get_partitions()
+{
+	local device_path="$1"
+	[ -n "$device_path" ] || die "need device path"
+
+	local device
+	local partitions
+
+	device=${device_path/\/dev\//}
+
+	partitions=$(lsblk -nli -o NAME "${device_path}" |\
+		grep -v "^${device}$")
+
+	echo "$partitions"
+}
+
+# Parameter 1: Path to disk partition device.
+# Returns: Mountpoint.
+mount_partition()
+{
+	local partition="$1"
+	[ -n "$partition" ] || die "need partition"
+	[ -e "$partition" ] || die "partition does not exist: $partition"
+
+	local mountpoint
+
+	mountpoint=$(mktemp -d)
+
+	mount -oro,noload "$partition" "$mountpoint"
+
+	echo "$mountpoint"
+}
+
+# Parameter 1: Mountpoint.
+unmount_partition()
+{
+	local mountpoint="$1"
+	[ -n "$mountpoint" ] || die "need mountpoint"
+	[ -n "$mountpoint" ] || die "mountpoint does not exist: $mountpoint"
+
+	umount "$mountpoint"
+}
+
+# Parameter 1: Loop device path.
+release_device()
+{
+	local device="$1"
+	[ -n "$device" ] || die "need device"
+	[ -e "$device" ] || die "device does not exist: $device"
+
+	losetup -d "$device"
+}
+
+show_agent_version()
+{
+	local image
+	local version
+	
+	image=$(get_image_file)
+	version=$(get_agent_version "$image")
+
+	heading "Agent"
+
+	msg "version:"
+
+	show_quoted_text "$version"
+
+	separator
+}
+
 main()
 {
 	args=$(getopt \
@@ -391,6 +557,7 @@ main()
 	show_meta
 	show_runtime
 	show_runtime_configs
+	show_agent_version
 	show_log_details
 	show_container_mgr_details
 	show_package_versions
