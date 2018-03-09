@@ -182,7 +182,6 @@ type HypervisorConfig struct {
 	Debug bool
 
 	// DefaultVCPUs specifies default number of vCPUs for the VM.
-	// Pod configuration VMConfig.VCPUs overwrites this.
 	DefaultVCPUs uint32
 
 	//DefaultMaxVCPUs specifies the maximum number of vCPUs for the VM.

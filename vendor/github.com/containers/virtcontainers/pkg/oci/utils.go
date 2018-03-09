@@ -440,23 +440,6 @@ func vmConfig(ocispec CompatOCISpec, config RuntimeConfig) (vc.Resources, error)
 		resources.Memory = uint((memBytes + (1024*1024 - 1)) / (1024 * 1024))
 	}
 
-	if ocispec.Linux.Resources.CPU != nil &&
-		ocispec.Linux.Resources.CPU.Quota != nil &&
-		ocispec.Linux.Resources.CPU.Period != nil {
-		quota := *ocispec.Linux.Resources.CPU.Quota
-		period := *ocispec.Linux.Resources.CPU.Period
-
-		if quota <= 0 {
-			return vc.Resources{}, fmt.Errorf("Invalid OCI cpu quota %d", quota)
-		}
-
-		if period == 0 {
-			return vc.Resources{}, fmt.Errorf("Invalid OCI cpu period %d", period)
-		}
-
-		resources.VCPUs = vc.ConstraintsToVCPUs(quota, period)
-	}
-
 	return resources, nil
 }
 
