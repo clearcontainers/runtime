@@ -159,6 +159,8 @@ run_cmd_and_show_quoted_output()
 {
 	local cmd="$*"
 
+	local output
+
 	msg "Output of \"\`$cmd\`\":"
 	output=$(eval "$cmd" 2>&1)
 	show_quoted_text "$output"
@@ -264,6 +266,7 @@ show_package_versions()
 	heading "Packages"
 
 	local pattern="("
+	local project
 
 	# CC 2.x runtime. This shouldn't be installed but let's check anyway
 	pattern+="cc-oci-runtime"
@@ -327,6 +330,8 @@ show_container_mgr_details()
 
 show_meta()
 {
+	local date
+
 	heading "Meta details"
 
 	date=$(date '+%Y-%m-%d.%H:%M:%S.%N%z')
@@ -337,6 +342,8 @@ show_meta()
 
 show_runtime()
 {
+	local cmd
+
 	msg "Runtime is \`$runtime\`."
 
 	cmd="@PROJECT_TYPE@-env"
