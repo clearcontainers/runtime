@@ -19,9 +19,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	goruntime "runtime"
-	"runtime/debug"
 	"strings"
+	"syscall"
 
 	vc "github.com/containers/virtcontainers"
 	"github.com/containers/virtcontainers/pkg/oci"
@@ -59,6 +60,9 @@ var ccLog *logrus.Entry
 // current log level back to its original value if debug output is not
 // required.
 var originalLoggerLevel logrus.Level
+
+// if true, coredump when an internal error occurs or a fatal signal is received
+var crashOnError = false
 
 // concrete virtcontainer implementation
 var virtcontainersImpl = &vc.VCImpl{}
@@ -155,9 +159,26 @@ func init() {
 	// config file parsing, it is prudent to operate in verbose mode.
 	originalLoggerLevel = ccLog.Logger.Level
 	ccLog.Logger.Level = logrus.DebugLevel
+}
 
-	// Force a coredump + full stacktrace on internal error
-	debug.SetTraceback("crash")
+func setupSignalHandler() {
+	sigCh := make(chan os.Signal, 8)
+
+	for _, sig := range fatalSignals() {
+		signal.Notify(sigCh, sig)
+	}
+
+	go func() {
+		sig := <-sigCh
+
+		nativeSignal, ok := sig.(syscall.Signal)
+		if ok {
+			if fatalSignal(nativeSignal) {
+				ccLog.WithField("signal", sig).Error("received fatal signal")
+				die()
+			}
+		}
+	}()
 }
 
 // beforeSubcommands is the function to perform preliminary checks
@@ -349,6 +370,8 @@ func (f *fatalWriter) Write(p []byte) (n int, err error) {
 }
 
 func createRuntime() {
+	setupSignalHandler()
+
 	setCLIGlobals()
 
 	err := createRuntimeApp(os.Args)
@@ -358,5 +381,6 @@ func createRuntime() {
 }
 
 func main() {
+	defer handlePanic()
 	createRuntime()
 }
