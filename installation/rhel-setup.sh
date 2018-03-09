@@ -33,6 +33,7 @@ pkgs=""
 # general
 pkgs+=" bc"
 pkgs+=" curl"
+pkgs+=" yum-utils"
 
 # qemu lite dependencies
 pkgs+=" libattr-devel"
@@ -63,7 +64,13 @@ eval sudo yum -y install "${pkgs}"
 docker --version
 if [ $? -ne 0 ]; then
 	echo >&2 "ERROR: Docker-EE or Docker-CE should be installed in the system."
-	exit 1
+	# Here the required repository will be enabled in order to have Docker
+	subscription-manager repos --enable=rhel-${rhel_devtoolset_version}-server-extras-rpms
+	if [ $? -ne 0 ]; then
+		echo >&2 "ERROR: Server extras rpms repository can not be enabled."
+		exit 1
+	fi
+	sudo yum -y install docker && systemctl enable --now docker
 fi
 
 # Check that Golang is installed in the system
@@ -139,6 +146,9 @@ cat <<EOF|sudo tee "${service_dir}/clear-containers.conf"
 ExecStart=
 ExecStart=/usr/bin/dockerd -D --add-runtime cc-runtime=/usr/bin/cc-runtime --default-runtime=cc-runtime
 EOF
+
+# Remove package oci-systemd-hook
+sudo rpm -e --nodeps oci-systemd-hook
 
 sudo systemctl daemon-reload
 sudo systemctl enable docker.service
