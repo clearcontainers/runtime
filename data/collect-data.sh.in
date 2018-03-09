@@ -355,10 +355,35 @@ show_runtime()
 
 main()
 {
-	case "$1" in
-		-h|--help) usage && exit 0;;
-		-v|--version) version && exit 0;;
-	esac
+	args=$(getopt \
+		-n "$script_name" \
+		-a \
+		--options="hv" \
+		--longoptions="help version" \
+		-- "$@")
+
+	eval set -- "$args"
+	[ $? -ne 0 ] && { usage && exit 1; }
+	[ $# -eq 0 ] && { usage && exit 0; }
+
+	while [ $# -gt 1 ]
+	do
+		case "$1" in
+			-h|--help)
+				usage && exit 0
+				;;
+
+			-v|--version)
+				version && exit 0
+				;;
+
+			--)
+				shift
+				break
+				;;
+		esac
+		shift
+	done
 
 	[ $(id -u) -eq 0 ] || die "Need to run as root"
 	[ -n "$runtime" ] || die "cannot find runtime '$runtime_name'"
