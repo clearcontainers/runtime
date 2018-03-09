@@ -524,8 +524,8 @@ main()
 	args=$(getopt \
 		-n "$script_name" \
 		-a \
-		--options="hv" \
-		--longoptions="help version" \
+		--options="dhv" \
+		--longoptions="debug help version" \
 		-- "$@")
 
 	eval set -- "$args"
@@ -535,6 +535,10 @@ main()
 	while [ $# -gt 1 ]
 	do
 		case "$1" in
+			-d|--debug)
+				set -x
+				;;
+
 			-h|--help)
 				usage && exit 0
 				;;
