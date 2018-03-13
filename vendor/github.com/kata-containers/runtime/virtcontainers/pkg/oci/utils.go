@@ -24,9 +24,9 @@ import (
 	"strings"
 
 	criContainerdAnnotations "github.com/containerd/cri-containerd/pkg/annotations"
-	vc "github.com/containers/virtcontainers"
-	vcAnnotations "github.com/containers/virtcontainers/pkg/annotations"
-	dockershimAnnotations "github.com/containers/virtcontainers/pkg/annotations/dockershim"
+	vc "github.com/kata-containers/runtime/virtcontainers"
+	vcAnnotations "github.com/kata-containers/runtime/virtcontainers/pkg/annotations"
+	dockershimAnnotations "github.com/kata-containers/runtime/virtcontainers/pkg/annotations/dockershim"
 	crioAnnotations "github.com/kubernetes-incubator/cri-o/pkg/annotations"
 	spec "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
@@ -565,11 +565,15 @@ func ContainerConfig(ocispec CompatOCISpec, bundlePath, cid, console string, det
 	}
 
 	var resources vc.ContainerResources
-	if ocispec.Linux.Resources.CPU != nil &&
-		ocispec.Linux.Resources.CPU.Quota != nil &&
-		ocispec.Linux.Resources.CPU.Period != nil {
-		resources.CPUQuota = *ocispec.Linux.Resources.CPU.Quota
-		resources.CPUPeriod = *ocispec.Linux.Resources.CPU.Period
+	if ocispec.Linux.Resources.CPU != nil {
+		if ocispec.Linux.Resources.CPU.Quota != nil &&
+			ocispec.Linux.Resources.CPU.Period != nil {
+			resources.CPUQuota = *ocispec.Linux.Resources.CPU.Quota
+			resources.CPUPeriod = *ocispec.Linux.Resources.CPU.Period
+		}
+		if ocispec.Linux.Resources.CPU.Shares != nil {
+			resources.CPUShares = *ocispec.Linux.Resources.CPU.Shares
+		}
 	}
 
 	containerConfig := vc.ContainerConfig{

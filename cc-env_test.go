@@ -26,11 +26,11 @@ import (
 	"testing"
 
 	"github.com/BurntSushi/toml"
-	vc "github.com/containers/virtcontainers"
+	vc "github.com/kata-containers/runtime/virtcontainers"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/urfave/cli"
 
-	"github.com/containers/virtcontainers/pkg/oci"
+	"github.com/kata-containers/runtime/virtcontainers/pkg/oci"
 	"github.com/stretchr/testify/assert"
 )
 

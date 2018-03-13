@@ -18,7 +18,7 @@ package main
 import (
 	"fmt"
 
-	vc "github.com/containers/virtcontainers"
+	vc "github.com/kata-containers/runtime/virtcontainers"
 	"github.com/urfave/cli"
 )
 

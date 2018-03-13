@@ -24,8 +24,8 @@ import (
 	"strings"
 	"syscall"
 
-	vc "github.com/containers/virtcontainers"
-	"github.com/containers/virtcontainers/pkg/oci"
+	vc "github.com/kata-containers/runtime/virtcontainers"
+	"github.com/kata-containers/runtime/virtcontainers/pkg/oci"
 	"github.com/opencontainers/runc/libcontainer/utils"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"

@@ -24,9 +24,9 @@ import (
 	"strings"
 	"testing"
 
-	vc "github.com/containers/virtcontainers"
-	"github.com/containers/virtcontainers/pkg/oci"
-	"github.com/containers/virtcontainers/pkg/vcMock"
+	vc "github.com/kata-containers/runtime/virtcontainers"
+	"github.com/kata-containers/runtime/virtcontainers/pkg/oci"
+	"github.com/kata-containers/runtime/virtcontainers/pkg/vcMock"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/urfave/cli"

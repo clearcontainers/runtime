@@ -66,6 +66,9 @@ type ContainerResources struct {
 
 	// CPUPeriod specifies the CPU CFS scheduler period of time in microseconds
 	CPUPeriod uint64
+
+	// CPUShares specifies container's weight vs. other containers
+	CPUShares uint64
 }
 
 // ContainerConfig describes one container runtime configuration.

@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/containers/virtcontainers/pkg/oci"
+	"github.com/kata-containers/runtime/virtcontainers/pkg/oci"
 	"github.com/urfave/cli"
 )
 

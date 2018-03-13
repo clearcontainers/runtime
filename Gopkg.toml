@@ -23,8 +23,8 @@
   revision = "9e5b04886c4bfee2ceba1465b8121057355c4e53"
 
 [[constraint]]
-  name = "github.com/containers/virtcontainers"
-  revision = "4fb2dacea4ab8b15807fa982e695487c9a20dc46"
+  name = "github.com/kata-containers/runtime"
+  revision = "167d54a5ce654104f3a2cd76d54d46d2cafd3016"
 
 [prune]
   non-go = true
