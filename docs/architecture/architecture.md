@@ -67,7 +67,7 @@ layers of the container stack. In the case of Docker it is handled by `container
 In the case of CRI-O it is handled by `conmon`. For clarity, for the remainder
 of this document the term "container process reaper" will be used to refer to
 either reaper. As Clear Containers processes run inside their own  virtual machines,
-the container process reaper can not monitor, control
+the container process reaper cannot monitor, control
 or reap them. `cc-runtime` fixes that issue by creating an [additional shim process
 (`cc-shim`)](https://github.com/clearcontainers/shim) between the container process
 reaper and `cc-proxy`. A `cc-shim` instance will both forward signals and `stdin`
@@ -373,7 +373,7 @@ signals, `cc-runtime` will kill the `cc-shim`.  All other signals are ignored.
 #### [`delete`](https://github.com/clearcontainers/runtime/blob/master/delete.go)
 
 `delete` is about deleting all resources held by a stopped/killed container.
-Running containers can not be deleted unless the OCI runtime is explicitly being
+Running containers cannot be deleted unless the OCI runtime is explicitly being
 asked to. In that case it will first `kill` the container and only then `delete`
 it.
 
@@ -504,7 +504,7 @@ In order to do so, container engines will usually add one end of a `virtual ethe
 pair
 is added to the container network.
 
-This is a very namespace-centric approach as QEMU can not handle `veth` interfaces.
+This is a very namespace-centric approach as QEMU cannot handle `veth` interfaces.
 Instead it typically creates `TAP` interfaces for adding connectivity to a virtual
 machine.
 
