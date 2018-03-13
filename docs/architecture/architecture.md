@@ -147,7 +147,7 @@ For example, when `docker run -ti ubuntu date` is run:
 - The hypervisor will boot the mini-OS image using the guest kernel.
 - `systemd`, running inside the mini-OS context, will launch the `cc-agent` in
   the same context.
-- The agent will create a new confined context to run the specifed command in
+- The agent will create a new confined context to run the specified command in
   (`date` in this example).
 - The agent will then execute the command (`date` in this example) inside this
   new context, first setting the root filesystem to the expected Ubuntu* root
@@ -373,7 +373,7 @@ signals, `cc-runtime` will kill the `cc-shim`.  All other signals are ignored.
 #### [`delete`](https://github.com/clearcontainers/runtime/blob/master/delete.go)
 
 `delete` is about deleting all resources held by a stopped/killed container.
-Running containers can not be deleted unless the OCI runtime is explictly being
+Running containers can not be deleted unless the OCI runtime is explicitly being
 asked to. In that case it will first `kill` the container and only then `delete`
 it.
 
