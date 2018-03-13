@@ -19,8 +19,8 @@ import (
 	"fmt"
 	"os"
 
-	vc "github.com/containers/virtcontainers"
-	"github.com/containers/virtcontainers/pkg/oci"
+	vc "github.com/kata-containers/runtime/virtcontainers"
+	"github.com/kata-containers/runtime/virtcontainers/pkg/oci"
 	"github.com/urfave/cli"
 )
 

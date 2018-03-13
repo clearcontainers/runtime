@@ -37,22 +37,6 @@
   revision = "7f98c94613021d8b57acfa1a2f0c8d0f6fd7ae5a"
 
 [[projects]]
-  name = "github.com/containers/virtcontainers"
-  packages = [
-    ".",
-    "pkg/annotations",
-    "pkg/annotations/dockershim",
-    "pkg/cni",
-    "pkg/ethtool",
-    "pkg/hyperstart",
-    "pkg/nsenter",
-    "pkg/oci",
-    "pkg/uuid",
-    "pkg/vcMock"
-  ]
-  revision = "4fb2dacea4ab8b15807fa982e695487c9a20dc46"
-
-[[projects]]
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
@@ -103,6 +87,22 @@
     "protocols/grpc"
   ]
   revision = "33eecb2a445f906811a5bc9713d2dafd10768d18"
+
+[[projects]]
+  name = "github.com/kata-containers/runtime"
+  packages = [
+    "virtcontainers",
+    "virtcontainers/pkg/annotations",
+    "virtcontainers/pkg/annotations/dockershim",
+    "virtcontainers/pkg/cni",
+    "virtcontainers/pkg/ethtool",
+    "virtcontainers/pkg/hyperstart",
+    "virtcontainers/pkg/nsenter",
+    "virtcontainers/pkg/oci",
+    "virtcontainers/pkg/uuid",
+    "virtcontainers/pkg/vcMock"
+  ]
+  revision = "167d54a5ce654104f3a2cd76d54d46d2cafd3016"
 
 [[projects]]
   name = "github.com/kubernetes-incubator/cri-o"
@@ -249,6 +249,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "eac859455568d17a23cb3dbb7ebff8ce6706d1e0d7ebb8c34b962be38842a51b"
+  inputs-digest = "972c797d90dcfc31732ccdaf4b8543c47d17db65601d291a6b40e0fd658c18e0"
   solver-name = "gps-cdcl"
   solver-version = 1

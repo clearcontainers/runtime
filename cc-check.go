@@ -24,7 +24,7 @@ import (
 	"regexp"
 	"strings"
 
-	vc "github.com/containers/virtcontainers"
+	vc "github.com/kata-containers/runtime/virtcontainers"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )

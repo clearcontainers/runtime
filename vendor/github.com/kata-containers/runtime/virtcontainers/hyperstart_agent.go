@@ -26,8 +26,8 @@ import (
 	"time"
 
 	proxyClient "github.com/clearcontainers/proxy/client"
-	"github.com/containers/virtcontainers/pkg/hyperstart"
-	ns "github.com/containers/virtcontainers/pkg/nsenter"
+	"github.com/kata-containers/runtime/virtcontainers/pkg/hyperstart"
+	ns "github.com/kata-containers/runtime/virtcontainers/pkg/nsenter"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
@@ -429,6 +429,10 @@ func (h *hyper) startOneContainer(pod Pod, c *Container) error {
 			CPUQuota:  c.config.Resources.CPUQuota,
 			CPUPeriod: c.config.Resources.CPUPeriod,
 		}
+	}
+
+	if c.config.Resources.CPUShares != 0 {
+		container.Constraints.CPUShares = c.config.Resources.CPUShares
 	}
 
 	container.SystemMountsInfo.BindMountDev = c.systemMountsInfo.BindMountDev

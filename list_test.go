@@ -26,9 +26,9 @@ import (
 	"testing"
 	"time"
 
-	vc "github.com/containers/virtcontainers"
-	vcAnnotations "github.com/containers/virtcontainers/pkg/annotations"
-	"github.com/containers/virtcontainers/pkg/vcMock"
+	vc "github.com/kata-containers/runtime/virtcontainers"
+	vcAnnotations "github.com/kata-containers/runtime/virtcontainers/pkg/annotations"
+	"github.com/kata-containers/runtime/virtcontainers/pkg/vcMock"
 	"github.com/stretchr/testify/assert"
 	"github.com/urfave/cli"
 )
