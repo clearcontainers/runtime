@@ -181,7 +181,6 @@ SHAREDIR := $(PREFIX)/share
 DEFAULTSDIR := $(SHAREDIR)/defaults
 
 PKGDATADIR := $(SHAREDIR)/$(PROJECT_DIR)
-PKGLIBDIR := $(LOCALSTATEDIR)/lib/$(PROJECT_DIR)
 PKGRUNDIR := $(LOCALSTATEDIR)/run/$(PROJECT_DIR)
 PKGLIBEXECDIR := $(LIBEXECDIR)/$(PROJECT_DIR)
 
@@ -275,7 +274,6 @@ USER_VARS += KERNELPARAMS
 USER_VARS += LIBEXECDIR
 USER_VARS += LOCALSTATEDIR
 USER_VARS += PKGDATADIR
-USER_VARS += PKGLIBDIR
 USER_VARS += PKGLIBEXECDIR
 USER_VARS += PKGRUNDIR
 USER_VARS += PREFIX
@@ -396,8 +394,6 @@ var defaultShimPath = "$(SHIMPATH)"
 const defaultKernelParams = "$(KERNELPARAMS)"
 const defaultMachineType = "$(MACHINETYPE)"
 const defaultRootDirectory = "$(PKGRUNDIR)"
-const defaultRuntimeLib = "$(PKGLIBDIR)"
-const defaultRuntimeRun = "$(PKGRUNDIR)"
 
 const defaultVCPUCount uint32 = $(DEFVCPUS)
 const defaultMemSize uint32 = $(DEFMEMSZ) // MiB
