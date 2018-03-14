@@ -291,7 +291,7 @@ If multiple devices belong to the same IOMMU group, they will all be
 assigned to the Clear Containers VM.
 
 Support for passing other devices including block devices with `--device`
-is not yet avilable.
+is not yet available.
 
 #### `docker -v /dev/...`
 
