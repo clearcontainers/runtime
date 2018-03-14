@@ -4,7 +4,7 @@
 
 [[constraint]]
   name = "github.com/dlespiau/covertool"
-  revision = "b82616d290e628437bc08b858b5ecb3d7fe9ea53"
+  revision = "b0c4c6d0583aae4e3b5d12b6ec47767670548cc4"
 
 [[constraint]]
   name = "github.com/opencontainers/runc"
