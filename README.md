@@ -126,11 +126,24 @@ options in the [configuration file](#Configuration). All of these debug
 options are disabled by default. See the comments in the installed
 configuration file for further details.
 
-If you want to enable debug for all components, assuming a standard configuration file path, run:
+If you want to enable debug for all host-side components, assuming a standard configuration file path, run:
 
 ```bash
 $ sudo sed -i -e 's/^#\(enable_debug\).*=.*$/\1 = true/g' /usr/share/defaults/clear-containers/configuration.toml
 ```
+
+The agent (`cc-agent`) that runs inside each virtual machine is slightly different. To enable its debug, set a
+special guest kernel command-line parameter (`agent.log`) to `debug`. This agent looks for this special option when it starts:
+
+```bash
+$ sudo sed -i -e 's/^kernel_params = ""/kernel_params = "agent.log=debug"/g' /usr/share/defaults/clear-containers/configuration.toml
+```
+
+Note:
+
+The previous command will only set the option if you have a default configuration
+file. If you have modified the original value of `kernel_params` you will need
+to add the `agent.log` value yourself.
 
 See the [agent debug document](docs/debug-agent.md) and the [kernel debug document](docs/debug-kernel.md) for further details.
 
