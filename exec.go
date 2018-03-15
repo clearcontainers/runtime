@@ -34,9 +34,9 @@ type execParams struct {
 	pidFile      string
 	console      string
 	consoleSock  string
-	detach       bool
 	processLabel string
 	noSubreaper  bool
+	detach       bool
 }
 
 var execCLICommand = cli.Command{

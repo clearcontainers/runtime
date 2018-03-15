@@ -74,6 +74,7 @@ install_package github.com/opennota/check/cmd/varcheck
 install_package honnef.co/go/tools/cmd/unused
 install_package honnef.co/go/tools/cmd/staticcheck
 install_package github.com/mdempsky/unconvert
+install_package github.com/mdempsky/maligned
 
 echo Doing go static checks on packages: $go_packages
 
@@ -106,7 +107,7 @@ for p in $go_packages; do golint -set_exit_status $p; done
 echo "Running ineffassign..."
 go list -f '{{.Dir}}' $go_packages | xargs -L 1 ineffassign
 
-for tool in structcheck varcheck unused staticcheck unconvert
+for tool in structcheck varcheck unused staticcheck unconvert maligned
 do
 	echo "Running ${tool}..."
 	eval "$tool" "$go_packages"
