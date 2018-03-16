@@ -14,12 +14,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This script will clone `clearcontainers/tests` repository and 
-# will use the CI scripts that live in that repository to create 
+# This script will clone `clearcontainers/tests` repository and
+# will use the CI scripts that live in that repository to create
 # a proper environment (Installing dependencies and building the
-# components) to test the Clear Containers project 
+# components) to test the Clear Containers project
 
 set -e
+
+cidir=$(dirname "$0")
 
 test_repo="github.com/clearcontainers/tests"
 
@@ -38,6 +40,12 @@ checkcommits \
 	--subject-length 75 \
 	--ignore-fixes-for-subsystem "release" \
 	--verbose
+
+# This will update virtcontainers if there is a change in kata-containers/runtime/virtcontainers
+if [ "${ghprbGhRepository}" = "kata-containers/runtime" ]; then
+	echo "Update virtcontainers vendoring"
+	bash -c "${cidir}/update-vendoring.sh"
+fi
 
 # Setup environment and build components.
 cd "${test_repo_dir}"
