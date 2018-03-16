@@ -23,6 +23,7 @@ import (
 	goruntime "runtime"
 	"strings"
 	"syscall"
+	"time"
 
 	vc "github.com/kata-containers/runtime/virtcontainers"
 	"github.com/kata-containers/runtime/virtcontainers/pkg/oci"
@@ -159,6 +160,9 @@ func init() {
 	// config file parsing, it is prudent to operate in verbose mode.
 	originalLoggerLevel = ccLog.Logger.Level
 	ccLog.Logger.Level = logrus.DebugLevel
+	ccLog.Logger.Formatter = &logrus.TextFormatter{
+		TimestampFormat: time.RFC3339Nano,
+	}
 }
 
 func setupSignalHandler() {
