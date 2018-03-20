@@ -29,6 +29,15 @@ to `vfio-pci` driver and then pass the IOMMU group that the device belongs to on
 the docker command line.
 For detailed steps to bind and unbind devices, see https://github.com/containers/virtcontainers#how-to-pass-a-device-using-vfio-passthrough
 
+You can verify that the device is passed to the Clear Containers container by running
+`lspci` command inside the container.
+
+For the device to be visible inside the container under /dev, you need to pass /dev
+while starting a container as shown below:
+
+```
+$ sudo docker run -it -v /dev:/dev --device=/dev/vfio/16 centos/tools bash
+```
 
 ## Block Devices
 
