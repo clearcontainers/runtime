@@ -21,7 +21,7 @@ docker_version=v17.12-ce
 docker_swarm_version=1.12.1
 
 # Supported CRI-O version
-crio_version=v1.9.7
+crio_version=v1.9.10
 
 # Runc version compatible with crio_version
 runc_version=v1.0.0-rc5
