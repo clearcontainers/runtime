@@ -37,7 +37,7 @@ openshift_origin_commit=ab0f056
 oci_spec_version=v1.0.0-rc5
 
 # Go version used for building and testing Clear Containers
-go_version=1.8.3
+go_version=1.9.4
 
 # Package versions required for CentOS 7 installation.
 gcc_version=6.2.0
