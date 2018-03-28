@@ -406,7 +406,6 @@ func StartContainer(podID, containerID string) (VCContainer, error) {
 	// Start it.
 	err = c.start()
 	if err != nil {
-		c.delete()
 		return nil, err
 	}
 
