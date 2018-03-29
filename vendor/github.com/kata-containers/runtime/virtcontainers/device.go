@@ -46,13 +46,6 @@ var sysIOMMUPath = "/sys/kernel/iommu_groups"
 
 var sysDevPrefix = "/sys/dev"
 
-var blockPaths = []string{
-	"/dev/sd",   //SCSI block device
-	"/dev/hd",   //IDE block device
-	"/dev/vd",   //Virtual Block device
-	"/dev/ida/", //Compaq Intelligent Drive Array devices
-}
-
 const (
 	vfioPath = "/dev/vfio/"
 )
@@ -139,7 +132,13 @@ func (device *VFIODevice) attach(h hypervisor, c *Container) error {
 
 		device.BDF = deviceBDF
 
-		if err := h.addDevice(*device, vfioDev); err != nil {
+		randBytes, err := generateRandomBytes(8)
+		if err != nil {
+			return err
+		}
+		device.DeviceInfo.ID = hex.EncodeToString(randBytes)
+
+		if err := h.hotplugAddDevice(*device, vfioDev); err != nil {
 			deviceLogger().WithError(err).Error("Failed to add device")
 			return err
 		}

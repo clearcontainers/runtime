@@ -40,10 +40,6 @@ var defaultSharedDir = "/run/hyper/shared/pods/"
 var mountTag = "hyperShared"
 var maxHostnameLen = 64
 
-const (
-	unixSocket = "unix"
-)
-
 // HyperConfig is a structure storing information needed for
 // hyperstart agent initialization.
 type HyperConfig struct {
@@ -143,6 +139,12 @@ func (h *hyper) processHyperRoute(route netlink.Route, deviceName string) *hyper
 	gateway := route.Gw.String()
 	if gateway == "<nil>" {
 		gateway = ""
+	} else if route.Gw.To4() == nil { // Skip IPv6 as it is not supported by hyperstart agent
+		h.Logger().WithFields(logrus.Fields{
+			"unsupported-route-type": "ipv6",
+			"gateway":                gateway,
+		}).Warn("unsupported route")
+		return nil
 	}
 
 	var destination string
@@ -631,7 +633,7 @@ func (h *hyper) processListOneContainer(podID, cID string, options ProcessListOp
 func (h *hyper) connectProxyRetry(scheme, address string) (conn net.Conn, err error) {
 	attempt := 1
 
-	timeoutSecs := time.Duration(waitForProxyTimeoutSecs * time.Second)
+	timeoutSecs := waitForProxyTimeoutSecs * time.Second
 
 	startTime := time.Now()
 	lastLogTime := startTime
@@ -791,4 +793,9 @@ func (h *hyper) sendCmd(proxyCmd hyperstartProxyCmd) (interface{}, error) {
 	}
 
 	return h.client.HyperWithTokens(proxyCmd.cmd, tokens, proxyCmd.message)
+}
+
+func (h *hyper) onlineCPUMem() error {
+	// cc-agent uses udev to online CPUs automatically
+	return nil
 }

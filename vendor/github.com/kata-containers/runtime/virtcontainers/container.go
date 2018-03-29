@@ -231,10 +231,6 @@ func (c *Container) storeProcess() error {
 	return c.pod.storage.storeContainerProcess(c.podID, c.id, c.process)
 }
 
-func (c *Container) fetchProcess() (Process, error) {
-	return c.pod.storage.fetchContainerProcess(c.podID, c.id)
-}
-
 func (c *Container) storeMounts() error {
 	return c.pod.storage.storeContainerMounts(c.podID, c.id, c.mounts)
 }
@@ -304,7 +300,7 @@ func (c *Container) createContainersDirs() error {
 func (c *Container) mountSharedDirMounts(hostSharedDir, guestSharedDir string) ([]Mount, error) {
 	var sharedDirMounts []Mount
 	for idx, m := range c.mounts {
-		if isSystemMount(m.Destination) || m.Type != "bind" {
+		if m.Type != "bind" {
 			continue
 		}
 
@@ -791,6 +787,8 @@ func (c *Container) addResources() error {
 		if err := c.pod.hypervisor.hotplugAddDevice(uint32(vCPUs), cpuDev); err != nil {
 			return err
 		}
+
+		return c.pod.agent.onlineCPUMem()
 	}
 
 	return nil
