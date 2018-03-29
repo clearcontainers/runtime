@@ -78,7 +78,7 @@
 [[projects]]
   name = "github.com/intel/govmm"
   packages = ["qemu"]
-  revision = "e87160f8ea39dfe558bf6761f74717d191d82493"
+  revision = "82c67ab9b21e8cd0042b6c2d3be2d3705a511603"
 
 [[projects]]
   name = "github.com/kata-containers/agent"
@@ -86,7 +86,7 @@
     "protocols/client",
     "protocols/grpc"
   ]
-  revision = "33eecb2a445f906811a5bc9713d2dafd10768d18"
+  revision = "a93071539feee29bfa22b6184380d3fd7c156ef7"
 
 [[projects]]
   name = "github.com/kata-containers/runtime"
@@ -95,14 +95,13 @@
     "virtcontainers/pkg/annotations",
     "virtcontainers/pkg/annotations/dockershim",
     "virtcontainers/pkg/cni",
-    "virtcontainers/pkg/ethtool",
     "virtcontainers/pkg/hyperstart",
     "virtcontainers/pkg/nsenter",
     "virtcontainers/pkg/oci",
     "virtcontainers/pkg/uuid",
-    "virtcontainers/pkg/vcMock"
+    "virtcontainers/pkg/vcmock"
   ]
-  revision = "167d54a5ce654104f3a2cd76d54d46d2cafd3016"
+  revision = "9a7813e9ea748783e34c679c571a8a131a43e5f5"
 
 [[projects]]
   name = "github.com/kubernetes-incubator/cri-o"
@@ -134,6 +133,11 @@
   packages = ["difflib"]
   revision = "792786c7400a136282c1664665ae0a8db921c6c2"
   version = "v1.0.0"
+
+[[projects]]
+  name = "github.com/safchain/ethtool"
+  packages = ["."]
+  revision = "79559b488d8848b53a8e34c330140c3fc37ee246"
 
 [[projects]]
   name = "github.com/sirupsen/logrus"
@@ -249,6 +253,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "88eda943d624cec7dc154191b57ef1804ed7fff82a125e8377ea8b1f5e6b7f93"
+  inputs-digest = "d2822dbda66118610daebaff8996a5a09460e5af29eddbda9c7b76743fca74a3"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -27,11 +27,11 @@ import (
 	"strings"
 	"syscall"
 
+	kataclient "github.com/kata-containers/agent/protocols/client"
+	"github.com/kata-containers/agent/protocols/grpc"
 	vcAnnotations "github.com/kata-containers/runtime/virtcontainers/pkg/annotations"
 	ns "github.com/kata-containers/runtime/virtcontainers/pkg/nsenter"
 	"github.com/kata-containers/runtime/virtcontainers/pkg/uuid"
-	kataclient "github.com/kata-containers/agent/protocols/client"
-	"github.com/kata-containers/agent/protocols/grpc"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 )
@@ -49,7 +49,10 @@ var (
 	type9pFs                    = "9p"
 	devPath                     = "/dev"
 	vsockSocketScheme           = "vsock"
+	kata9pDevType               = "9p"
 	kataBlkDevType              = "blk"
+	kataSCSIDevType             = "scsi"
+	sharedDir9pOptions          = []string{"trans=virtio,version=9p2000.L", "nodev"}
 )
 
 // KataAgentConfig is a structure storing information needed
@@ -375,7 +378,17 @@ func (k *kataAgent) generateInterfacesAndRoutes(networkNS NetworkNamespace) ([]*
 			}
 
 			if route.Gw != nil {
-				r.Gateway = route.Gw.String()
+				gateway := route.Gw.String()
+
+				if route.Gw.To4() == nil {
+					// Skip IPv6 because is is not supported
+					k.Logger().WithFields(logrus.Fields{
+						"unsupported-route-type": "ipv6",
+						"gateway":                gateway,
+					}).Warn("unsupported route")
+					continue
+				}
+				r.Gateway = gateway
 			}
 
 			if route.Src != nil {
@@ -471,10 +484,11 @@ func (k *kataAgent) startPod(pod Pod) error {
 	// (resolv.conf, etc...) and potentially all container
 	// rootfs will reside.
 	sharedVolume := &grpc.Storage{
+		Driver:     kata9pDevType,
 		Source:     mountGuest9pTag,
 		MountPoint: kataGuestSharedDir,
 		Fstype:     type9pFs,
-		Options:    []string{"trans=virtio", "nodev"},
+		Options:    sharedDir9pOptions,
 	}
 
 	req := &grpc.CreateSandboxRequest{
@@ -499,21 +513,6 @@ func (k *kataAgent) stopPod(pod Pod) error {
 	}
 
 	return k.proxy.stop(pod, k.state.ProxyPid)
-}
-
-func appendStorageFromMounts(storage []*grpc.Storage, mounts []*Mount) []*grpc.Storage {
-	for _, m := range mounts {
-		s := &grpc.Storage{
-			Source:     m.Source,
-			MountPoint: m.Destination,
-			Fstype:     m.Type,
-			Options:    m.Options,
-		}
-
-		storage = append(storage, s)
-	}
-
-	return storage
 }
 
 func (k *kataAgent) replaceOCIMountSource(spec *specs.Spec, guestMounts []Mount) error {
@@ -571,10 +570,33 @@ func constraintGRPCSpec(grpcSpec *grpc.Spec) {
 			grpcSpec.Mounts[idx].Type = "tmpfs"
 			grpcSpec.Mounts[idx].Source = "shm"
 			grpcSpec.Mounts[idx].Options = []string{"noexec", "nosuid", "nodev", "mode=1777", "size=65536k"}
-
-			break
 		}
 	}
+}
+
+func (k *kataAgent) appendDevices(deviceList []*grpc.Device, devices []Device) []*grpc.Device {
+	for _, device := range devices {
+		d, ok := device.(*BlockDevice)
+		if !ok {
+			continue
+		}
+
+		kataDevice := &grpc.Device{
+			ContainerPath: d.DeviceInfo.ContainerPath,
+		}
+
+		if d.SCSIAddr == "" {
+			kataDevice.Type = kataBlkDevType
+			kataDevice.VmPath = d.VirtPath
+		} else {
+			kataDevice.Type = kataSCSIDevType
+			kataDevice.Id = d.SCSIAddr
+		}
+
+		deviceList = append(deviceList, kataDevice)
+	}
+
+	return deviceList
 }
 
 func (k *kataAgent) createContainer(pod *Pod, c *Container) (*Process, error) {
@@ -599,27 +621,30 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) (*Process, error) {
 
 	if c.state.Fstype != "" {
 		// This is a block based device rootfs.
-		// driveName is the predicted virtio-block guest name (the vd* in /dev/vd*).
-		driveName, err := getVirtDriveName(c.state.BlockIndex)
-		if err != nil {
-			return nil, err
+
+		// Pass a drive name only in case of virtio-blk driver.
+		// If virtio-scsi driver, the agent will be able to find the
+		// device based on the provided address.
+		if pod.config.HypervisorConfig.BlockDeviceDriver == VirtioBlock {
+			// driveName is the predicted virtio-block guest name (the vd* in /dev/vd*).
+			driveName, err := getVirtDriveName(c.state.BlockIndex)
+			if err != nil {
+				return nil, err
+			}
+			virtPath := filepath.Join(devPath, driveName)
+
+			rootfs.Driver = kataBlkDevType
+			rootfs.Source = virtPath
+		} else {
+			scsiAddr, err := getSCSIAddress(c.state.BlockIndex)
+			if err != nil {
+				return nil, err
+			}
+
+			rootfs.Driver = kataSCSIDevType
+			rootfs.Source = scsiAddr
 		}
-		virtPath := filepath.Join(devPath, driveName)
 
-		// Create a new device with empty ContainerPath so that we get
-		// the device being waited for by the agent inside the VM,
-		// without trying to match and update it into the OCI spec list
-		// of actual devices. The device corresponding to the rootfs is
-		// a very specific case.
-		rootfsDevice := &grpc.Device{
-			Type:          kataBlkDevType,
-			VmPath:        virtPath,
-			ContainerPath: "",
-		}
-
-		ctrDevices = append(ctrDevices, rootfsDevice)
-
-		rootfs.Source = virtPath
 		rootfs.MountPoint = rootPathParent
 		rootfs.Fstype = c.state.Fstype
 
@@ -678,22 +703,8 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) (*Process, error) {
 	// irrelevant information to the agent.
 	constraintGRPCSpec(grpcSpec)
 
-	// Append container mounts for block devices passed with --device.
-	for _, device := range c.devices {
-		d, ok := device.(*BlockDevice)
-
-		if !ok {
-			continue
-		}
-
-		kataDevice := &grpc.Device{
-			Type:          kataBlkDevType,
-			VmPath:        d.VirtPath,
-			ContainerPath: d.DeviceInfo.ContainerPath,
-		}
-
-		ctrDevices = append(ctrDevices, kataDevice)
-	}
+	// Append container devices for block devices passed with --device.
+	ctrDevices = k.appendDevices(ctrDevices, c.devices)
 
 	req := &grpc.CreateContainerRequest{
 		ContainerId: c.id,
@@ -742,11 +753,7 @@ func (k *kataAgent) stopContainer(pod Pod, c Container) error {
 		return err
 	}
 
-	if err := bindUnmountContainerRootfs(kataHostSharedDir, pod.id, c.id); err != nil {
-		return err
-	}
-
-	return nil
+	return bindUnmountContainerRootfs(kataHostSharedDir, pod.id, c.id)
 }
 
 func (k *kataAgent) killContainer(pod Pod, c Container, signal syscall.Signal, all bool) error {
@@ -762,6 +769,13 @@ func (k *kataAgent) killContainer(pod Pod, c Container, signal syscall.Signal, a
 
 func (k *kataAgent) processListContainer(pod Pod, c Container, options ProcessListOptions) (ProcessList, error) {
 	return nil, nil
+}
+
+func (k *kataAgent) onlineCPUMem() error {
+	req := &grpc.OnlineCPUMemRequest{}
+
+	_, err := k.sendReq(req)
+	return err
 }
 
 func (k *kataAgent) connect() error {
@@ -827,6 +841,8 @@ func (k *kataAgent) sendReq(request interface{}) (interface{}, error) {
 	case *grpc.UpdateInterfaceRequest:
 		ifc, err := k.client.UpdateInterface(context.Background(), req)
 		return ifc, err
+	case *grpc.OnlineCPUMemRequest:
+		return k.client.OnlineCPUMem(context.Background(), req)
 	default:
 		return nil, fmt.Errorf("Unknown gRPC type %T", req)
 	}

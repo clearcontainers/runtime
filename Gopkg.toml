@@ -24,7 +24,7 @@
 
 [[constraint]]
   name = "github.com/kata-containers/runtime"
-  revision = "167d54a5ce654104f3a2cd76d54d46d2cafd3016"
+  revision = "9a7813e9ea748783e34c679c571a8a131a43e5f5"
 
 [prune]
   non-go = true

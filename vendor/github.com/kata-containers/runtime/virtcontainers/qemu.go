@@ -24,8 +24,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kata-containers/runtime/virtcontainers/pkg/uuid"
 	govmmQemu "github.com/intel/govmm/qemu"
+	"github.com/kata-containers/runtime/virtcontainers/pkg/uuid"
 	"github.com/sirupsen/logrus"
 )
 
@@ -175,7 +175,7 @@ func (q *qemu) init(pod *Pod) error {
 
 	q.config = pod.config.HypervisorConfig
 	q.pod = pod
-	q.arch = newQemuArch(q.config.HypervisorMachineType)
+	q.arch = newQemuArch(q.config)
 
 	if err = pod.storage.fetchHypervisorState(pod.id, &q.state); err != nil {
 		q.Logger().Debug("Creating bridges")
@@ -244,13 +244,10 @@ func (q *qemu) qmpSocketPath(socketName string) (string, error) {
 	return path, nil
 }
 
-// createPod is the Hypervisor pod creation implementation for govmmQemu.
-func (q *qemu) createPod(podConfig PodConfig) error {
-	var devices []govmmQemu.Device
-
+func (q *qemu) getQemuMachine(podConfig PodConfig) (govmmQemu.Machine, error) {
 	machine, err := q.arch.machine()
 	if err != nil {
-		return err
+		return govmmQemu.Machine{}, err
 	}
 
 	accelerators := podConfig.HypervisorConfig.MachineAccelerators
@@ -259,6 +256,34 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 			accelerators = fmt.Sprintf(",%s", accelerators)
 		}
 		machine.Options += accelerators
+	}
+
+	return machine, nil
+}
+
+func (q *qemu) appendImage(devices []govmmQemu.Device) ([]govmmQemu.Device, error) {
+	imagePath, err := q.config.ImageAssetPath()
+	if err != nil {
+		return nil, err
+	}
+
+	if imagePath != "" {
+		devices, err = q.arch.appendImage(devices, imagePath)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return devices, nil
+}
+
+// createPod is the Hypervisor pod creation implementation for govmmQemu.
+func (q *qemu) createPod(podConfig PodConfig) error {
+	var devices []govmmQemu.Device
+
+	machine, err := q.getQemuMachine(podConfig)
+	if err != nil {
+		return err
 	}
 
 	smp := q.cpuTopology()
@@ -284,9 +309,15 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 		return err
 	}
 
+	initrdPath, err := q.config.InitrdAssetPath()
+	if err != nil {
+		return err
+	}
+
 	kernel := govmmQemu.Kernel{
-		Path:   kernelPath,
-		Params: q.kernelParameters(),
+		Path:       kernelPath,
+		InitrdPath: initrdPath,
+		Params:     q.kernelParameters(),
 	}
 
 	rtc := govmmQemu.RTC{
@@ -336,22 +367,19 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 	devices = q.arch.append9PVolumes(devices, podConfig.Volumes)
 	devices = q.arch.appendConsole(devices, q.getPodConsole(podConfig.ID))
 
-	imagePath, err := q.config.ImageAssetPath()
-	if err != nil {
-		return err
-	}
-
-	devices, err = q.arch.appendImage(devices, imagePath)
-	if err != nil {
-		return err
-	}
-
-	if q.config.BlockDeviceDriver == VirtioBlock {
-		devices = q.arch.appendBridges(devices, q.state.Bridges)
+	if initrdPath == "" {
+		devices, err = q.appendImage(devices)
 		if err != nil {
 			return err
 		}
-	} else {
+	}
+
+	devices = q.arch.appendBridges(devices, q.state.Bridges)
+	if err != nil {
+		return err
+	}
+
+	if q.config.BlockDeviceDriver == VirtioSCSI {
 		devices = q.arch.appendSCSIController(devices)
 	}
 
@@ -620,11 +648,55 @@ func (q *qemu) hotplugBlockDevice(drive Drive, op operation) error {
 			}
 		}
 	} else {
+		if q.config.BlockDeviceDriver == VirtioBlock {
+			if err := q.removeDeviceFromBridge(drive.ID); err != nil {
+				return err
+			}
+		}
+
 		if err := q.qmpMonitorCh.qmp.ExecuteDeviceDel(q.qmpMonitorCh.ctx, devID); err != nil {
 			return err
 		}
 
 		if err := q.qmpMonitorCh.qmp.ExecuteBlockdevDel(q.qmpMonitorCh.ctx, drive.ID); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (q *qemu) hotplugVFIODevice(device VFIODevice, op operation) error {
+	defer func(qemu *qemu) {
+		if q.qmpMonitorCh.qmp != nil {
+			q.qmpMonitorCh.qmp.Shutdown()
+		}
+	}(q)
+
+	qmp, err := q.qmpSetup()
+	if err != nil {
+		return err
+	}
+
+	q.qmpMonitorCh.qmp = qmp
+
+	devID := "vfio-" + device.DeviceInfo.ID
+
+	if op == addDevice {
+		addr, bus, err := q.addDeviceToBridge(devID)
+		if err != nil {
+			return err
+		}
+
+		if err := q.qmpMonitorCh.qmp.ExecutePCIVFIODeviceAdd(q.qmpMonitorCh.ctx, devID, device.BDF, addr, bus); err != nil {
+			return err
+		}
+	} else {
+		if err := q.removeDeviceFromBridge(devID); err != nil {
+			return err
+		}
+
+		if err := q.qmpMonitorCh.qmp.ExecuteDeviceDel(q.qmpMonitorCh.ctx, devID); err != nil {
 			return err
 		}
 	}
@@ -640,6 +712,9 @@ func (q *qemu) hotplugDevice(devInfo interface{}, devType deviceType, op operati
 	case cpuDev:
 		vcpus := devInfo.(uint32)
 		return q.hotplugCPUs(vcpus, op)
+	case vfioDev:
+		device := devInfo.(VFIODevice)
+		return q.hotplugVFIODevice(device, op)
 	default:
 		return fmt.Errorf("cannot hotplug device: unsupported device type '%v'", devType)
 	}

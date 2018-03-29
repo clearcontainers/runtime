@@ -25,30 +25,9 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
-
-	"github.com/sirupsen/logrus"
 )
 
 var rootfsDir = "rootfs"
-
-func mountLogger() *logrus.Entry {
-	return virtLog.WithField("subsystem", "mount")
-}
-
-// These mounts need to be created by the agent within the VM
-var systemMounts = []string{"/proc", "/dev", "/dev/pts", "/dev/shm", "/dev/mqueue", "/sys", "/sys/fs/cgroup"}
-
-var systemMountPrefixes = []string{"/proc", "/dev", "/sys"}
-
-func isSystemMount(m string) bool {
-	for _, p := range systemMountPrefixes {
-		if m == p || strings.HasPrefix(m, p+"/") {
-			return true
-		}
-	}
-
-	return false
-}
 
 func major(dev uint64) int {
 	return int((dev >> 8) & 0xfff)
